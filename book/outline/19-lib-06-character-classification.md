@@ -10,7 +10,7 @@ Prerequisites: [18 — Linux syscall wrappers](18-lib-05-syscalls.md); [13 — T
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [06-character-classification.md](../06-character-classification.md) — Reuse the source walkthrough: Build character predicates from arithmetic and Boolean words.
+Reuses: [06-character-classification.md](../19-lib-06-character-classification.md) — Reuse the source walkthrough: Build character predicates from arithmetic and Boolean words.
 
 TODO:
 
