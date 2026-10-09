@@ -64,7 +64,7 @@ The native driver also calls `cc-arena-map` for an additional 8 MiB
 compiler workspace. The dictionary, source/output buffers, and tables
 stay inside the seed's original 16 MiB segment; recursive native
 contexts, descriptors, and fixups use the external mapping. The
-legacy default retains its 32 KiB arena. [Appendix B](A2-memory-map.md)
+legacy default retains its 32 KiB arena. [Appendix B](05-elf-and-entry.md#read-the-seed-memory-map)
 distinguishes those compiler allocations from a generated program's
 heap.
 

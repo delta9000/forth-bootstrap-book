@@ -205,7 +205,7 @@ the same way.
 4. **★★ Trace.** `here-addr` pushes 0x413010.  What sits at 0x413000,
    0x413008 and 0x413018?  Which of the three can the library reach
    without typing in an address, and how?  (You can answer from the
-   memory map in [Appendix A2](A2-memory-map.md); the full breakdown is
+   memory map in [Appendix A2](05-elf-and-entry.md#read-the-seed-memory-map); the full breakdown is
    Ch 13.)
 
 ## Takeaways

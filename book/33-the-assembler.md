@@ -1628,7 +1628,7 @@ The appendices are reference cards for a second pass:
 
 - **[A — The 32 seed primitives](A1-32-seed-primitives.md):** every
   primitive in one table.
-- **[B — The memory map](A2-memory-map.md):** every fixed address
+- **[B — The memory map](05-elf-and-entry.md#read-the-seed-memory-map):** every fixed address
   the book referenced.
 - **[C — The reproducibility chain](A3-reproducibility-chain.md):**
   hex0 → seed → M2-Planet with commands and expected hashes.

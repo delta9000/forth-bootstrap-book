@@ -38,7 +38,7 @@ book's claims against it:
       - "`file` is K bytes", "`file` (K bytes ...", and a next-sentence
         "Its [source form|size] is K bytes" after a sentence ending in `file`
   * Part II running byte counts
-      - "Running count: N of TOTAL bytes read" (Chs 13-20) and Ch 20's
+      - "Running count: N of TOTAL bytes read" lines and the
         per-chapter table, vs the machine bytes in the `hex0 chunk=` fences
         each chapter defines (cumulative) and the built seed's size
   * counts over the Forth Part III loads (forth/010-lib.fth + NNN-cc-*.fth, read
@@ -878,17 +878,36 @@ def citation_pass(fix):
 
 # --- Part II running byte counts ---------------------------------------------
 #
-# Each Part II chapter (13-20) owns the `hex0 chunk=` fences it defines, and the
-# tangle check proves those fences are the seed's source.  Counting the machine
-# bytes inside them (hex pairs outside `;` comments) therefore gives each
-# chapter's true share of the seed, which is what its closing
-# "Running count: N of TOTAL bytes read" line and Ch 20's per-chapter table
-# claim.  TOTAL must be the built seed's size, N the cumulative share through
-# that chapter, and each table row's Bytes / Running total the same numbers.
+# Every chapter that defines `hex0 chunk=` fences owns those bytes of the seed,
+# and the tangle check proves the fences are the seed's source.  Counting the
+# machine bytes inside them (hex pairs outside `;` comments) gives each
+# chapter's true share, which is what its closing "Running count: N of TOTAL
+# bytes read" line and the per-chapter table (one row per chapter, by the
+# number its file name starts with) claim.  TOTAL must be the built seed's
+# size, N the cumulative share through that chapter in reading order
+# (book/SUMMARY.md, as tools/tangle.sh reads it), and each table row's Bytes /
+# Running total the same numbers.  No chapter numbers are fixed here: a
+# chapter that moves keeps its share by its place in SUMMARY.md.
 
 RUNNING_RE = re.compile(r"Running count:\s*([\d,]+)\s+of\s+([\d,]+)\s+bytes")
 CHUNK_FENCE_RE = re.compile(r"^```hex0\s+chunk=(\S+)\s*$")
-TABLE_ROW_RE = re.compile(r"^\|\s*(1[3-9]|20)\s*\|[^|]*\|\s*([\d,]+)\s*\|\s*([\d,]+)\s*\|\s*$")
+TABLE_ROW_RE = re.compile(r"^\|\s*(\d{1,2})\s*\|[^|]*\|\s*([\d,]+)\s*\|\s*([\d,]+)\s*\|\s*$")
+
+
+def reading_order():
+    """The book's top-level .md files in book/SUMMARY.md link order, then the rest by name."""
+    order, seen = [], set()
+    summary = os.path.join(BOOK, "SUMMARY.md")
+    if os.path.exists(summary):
+        for name in re.findall(r"\]\(([^)#/]+\.md)\)", open(summary, encoding="utf-8").read()):
+            p = os.path.join(BOOK, name)
+            if name not in seen and os.path.exists(p):
+                seen.add(name)
+                order.append(p)
+    for p in sorted(glob.glob(os.path.join(BOOK, "*.md"))):
+        if os.path.basename(p) not in seen:
+            order.append(p)
+    return order
 
 
 def chunk_bytes(lines):
@@ -901,36 +920,40 @@ def chunk_bytes(lines):
 
 def running_pass():
     findings = []
-    per_ch = {}
-    mds = {}
-    for md in sorted(glob.glob(os.path.join(BOOK, "*.md"))):
-        m = re.match(r"(\d\d)-", os.path.basename(md))
-        if not m or not 13 <= int(m.group(1)) <= 20:
-            continue
-        ch = int(m.group(1))
+    per_ch = {}          # chapter file -> machine bytes in its chunk fences
+    mds = {}             # chapter file -> (path, lines), in reading order
+    for md in reading_order():
         lines = open(md, encoding="utf-8").read().splitlines()
-        mds[ch] = (md, lines)
-        total, i = 0, 0
+        total, found, i = 0, False, 0
         while i < len(lines):
             if CHUNK_FENCE_RE.match(lines[i]):
+                found = True
                 j = i + 1
                 while j < len(lines) and not lines[j].startswith("```"):
                     j += 1
                 total += chunk_bytes(lines[i + 1:j])
                 i = j
             i += 1
-        per_ch[ch] = total
+        if found:
+            ch = os.path.basename(md)
+            mds[ch] = (md, lines)
+            per_ch[ch] = total
     if not per_ch or not SEED_SIZE:
         return findings
     cum, cumul = 0, {}
-    for ch in sorted(per_ch):
+    for ch in mds:                       # reading order
         cum += per_ch[ch]
         cumul[ch] = cum
+    by_number = {}                       # table row number -> chapter file
+    for ch in mds:
+        m = re.match(r"(\d+)-", ch)
+        if m:
+            by_number.setdefault(int(m.group(1)), ch)
     rel = lambda md: os.path.relpath(md, BOOK_ROOT)
     if cum != SEED_SIZE:
         findings.append(("MISMATCH", "book", 0,
-                         f"Part II chunks hold {cum} machine bytes; seed-forth is {SEED_SIZE}"))
-    for ch, (md, lines) in sorted(mds.items()):
+                         f"the seed's chunks hold {cum} machine bytes; seed-forth is {SEED_SIZE}"))
+    for ch, (md, lines) in mds.items():
         for k, ln in enumerate(lines, 1):
             for m in RUNNING_RE.finditer(ln):
                 got, tot = num(m.group(1)), num(m.group(2))
@@ -941,14 +964,15 @@ def running_pass():
                                      f"running count claimed {got} of {tot}; chunks give "
                                      f"{cumul[ch]} of {SEED_SIZE}"))
             m = TABLE_ROW_RE.match(ln)
-            if m and ch == 20:
+            if m and int(m.group(1)) in by_number:
                 row, b, r = int(m.group(1)), num(m.group(2)), num(m.group(3))
-                if row in per_ch and (b, r) == (per_ch[row], cumul[row]):
+                rc = by_number[row]
+                if (b, r) == (per_ch[rc], cumul[rc]):
                     findings.append(("OK", rel(md), k, f"Ch {row}: {b} bytes, total {r}"))
-                elif row in per_ch:
+                else:
                     findings.append(("MISMATCH", rel(md), k,
                                      f"Ch {row} row claims {b} / {r}; chunks give "
-                                     f"{per_ch[row]} / {cumul[row]}"))
+                                     f"{per_ch[rc]} / {cumul[rc]}"))
     return findings
 
 

@@ -22,8 +22,14 @@ explained, using mdBook's heading-anchor rules.  Two sources feed it:
     of the chapter whose heading names the word, else whose code defines it,
     else whose prose mentions it in backticks.
   * Concepts, from the curated CONCEPTS table below: (term, [(chapter file
-    prefix, heading substring), ...]).  A heading that no longer exists is an
-    error, so the table cannot silently rot.
+    prefix, heading substring), ...]).  The heading is looked for first in the
+    chapter whose file name has that prefix, then in every chapter in reading
+    order, since chapters move and are renumbered as the book is rewritten.
+    A heading no chapter has any more is dropped (and named on stderr), and a
+    concept left with no heading is dropped.
+
+Chapters are taken in reading order: the order book/SUMMARY.md links them,
+then any other chapter file by name.
 """
 import difflib
 import glob
@@ -83,9 +89,9 @@ CONCEPTS = [
     ("Early exit (exit,)", [("11-", "`until,`, `again,` and `exit,`")]),
     ("Deferred words", [("12-", "`defer` and `is`")]),
     ("Counted names as data (s,)", [("12-", "names as data")]),
-    ("ELF header and program header", [("13-", "The ELF magic"), ("13-", "The single `Elf64_Phdr`"), ("25-", "the ELF wrapper")]),
-    ("Entry point (_start)", [("13-", "at `0x400078`")]),
-    ("Sysvar page (STATE, LATEST, HERE, LAST_FOUND)", [("13-", "The sysvar init"), ("A1-", "A note on the sysvar page")]),
+    ("ELF header and program header", [("05-", "Identify the executable and its entry"), ("05-", "Make storage exist"), ("25-", "the ELF wrapper")]),
+    ("Entry point (_start)", [("05-", "Give the registers their starting values")]),
+    ("Sysvar page (STATE, LATEST, HERE, LAST_FOUND)", [("05-", "Initialize the mutable system variables"), ("A1-", "A note on the sysvar page")]),
     ("TOS in rdi / data stack at rbp", [("14-", "The push and pop shapes")]),
     ("Subroutine threading", [("18-", "compile_call")]),
     ("Inline cell after a CALL", [("18-", "inline-cell trick"), ("19-", "The compiled shape")]),
@@ -96,7 +102,7 @@ CONCEPTS = [
     ("Linear dictionary search", [("17-", "`find_code`"), ("17-", "The chain")]),
     ("Number parser", [("20-", "parse_decimal_code")]),
     ("REPL (interpret/compile loop)", [("20-", "The REPL loop")]),
-    ("Memory map", [("A2-", "The seed-Forth memory map"), ("A2-", "The optional native compiler arena"), ("A2-", "The legacy runtime heap")]),
+    ("Memory map", [("05-", "Read the seed memory map")]),
     ("Arena (bump allocator)", [("21-", "The arena")]),
     ("Lexer state block", [("21-", "The lexer's state block"), ("23-", "putback, mark and reset")]),
     ("Error codes and cc-die", [("21-", "Failing: `cc-die`"), ("A7-", "How the codes are organised")]),
@@ -233,11 +239,26 @@ class Chapter:
         return None
 
 
+def reading_order():
+    """Top-level chapter files in book/SUMMARY.md link order, then the rest by name."""
+    names, seen = [], set()
+    summary = os.path.join(BOOK, "SUMMARY.md")
+    if os.path.exists(summary):
+        for name in re.findall(r"\]\(([^)#/]+\.md)\)", open(summary, encoding="utf-8").read()):
+            if name not in seen and CHAPTER_RE.match(name) and os.path.exists(os.path.join(BOOK, name)):
+                seen.add(name)
+                names.append(name)
+    for p in sorted(glob.glob(os.path.join(BOOK, "*.md"))):
+        name = os.path.basename(p)
+        if name not in seen and CHAPTER_RE.match(name):
+            names.append(name)
+    return names
+
+
 def load_chapters():
-    paths = sorted(p for p in glob.glob(os.path.join(BOOK, "*.md"))
-                   if CHAPTER_RE.match(os.path.basename(p)))
-    chs = [Chapter(p) for p in paths]
-    chs.sort(key=lambda c: c.order)
+    chs = [Chapter(os.path.join(BOOK, name)) for name in reading_order()]
+    for k, c in enumerate(chs):
+        c.order = k             # reading order, not the number in the file name
     return chs
 
 
@@ -416,18 +437,22 @@ def render(chapters):
     for term, targets in CONCEPTS:
         links = []
         for prefix, needle in targets:
-            ch = next((c for c in chapters if c.file.startswith(prefix)), None)
-            h = ch.find_heading(needle) if ch else None
-            if h is None:
-                errors.append("concept %r: no heading containing %r in %s*.md"
-                              % (term, needle, prefix))
+            preferred = [c for c in chapters if c.file.startswith(prefix)]
+            found = None
+            for ch in preferred + [c for c in chapters if c not in preferred]:
+                h = ch.find_heading(needle)
+                if h is not None:
+                    found = (ch, h)
+                    break
+            if found is None:
+                print("gen-index: concept %r: no chapter has a heading containing %r; dropped"
+                      % (term, needle), file=sys.stderr)
                 continue
-            links.append(link(ch, h))
-        concept_rows.append((term, links))
-    if errors:
-        for e in errors:
-            print("gen-index: " + e, file=sys.stderr)
-        sys.exit(2)
+            l = link(*found)
+            if l not in links:
+                links.append(l)
+        if links:
+            concept_rows.append((term, links))
 
     items = []   # (sort key, markdown line)
     for name, lst in defs.items():

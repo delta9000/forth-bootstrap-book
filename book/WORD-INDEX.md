@@ -2509,12 +2509,12 @@ for which chapter depends on which, the
 ## E
 
 - **Early exit (exit,)** — [Ch 11 §8 `until,`, `again,` and `exit,`](11-control-flow-combinators.md#8-until-again-and-exit)
-- **ELF header and program header** — [Ch 13 §2 The ELF magic and `Elf64_Ehdr`](13-elf-and-entry.md#2-the-elf-magic-and-elf64_ehdr) · [Ch 13 §3 The single `Elf64_Phdr`](13-elf-and-entry.md#3-the-single-elf64_phdr) · [Ch 25 §1 `080-cc-elf.fth`: the ELF wrapper](25-elf-and-codegen-part-1.md#1-080-cc-elffth-the-elf-wrapper)
+- **ELF header and program header** — [Ch 5, Identify the executable and its entry](05-elf-and-entry.md#identify-the-executable-and-its-entry) · [Ch 5, Make storage exist](05-elf-and-entry.md#make-storage-exist) · [Ch 25 §1 `080-cc-elf.fth`: the ELF wrapper](25-elf-and-codegen-part-1.md#1-080-cc-elffth-the-elf-wrapper)
 - `else,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §6 `else,`: chained fixups](11-control-flow-combinators.md#6-else-chained-fixups) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `emit` — *seed primitive* — [Ch 16 §2 `emit_code` in 46 bytes](16-io-emit-key-syscall6.md#2-emit_code-in-46-bytes) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - **Emit, remember, patch** — [Ch 11 §5 Forward branches: `if,` and `then,` as a pair](11-control-flow-combinators.md#5-forward-branches-if-and-then-as-a-pair) · [Ch 25 §7 Branches and `rel32` placeholders](25-elf-and-codegen-part-1.md#7-branches-and-rel32-placeholders) · [Ch 30 §1 The forward reference, compound blocks, and `if`](30-statements-if-while-for-return.md#1-the-forward-reference-compound-blocks-and-if)
 - `emit_code` — *seed label* — [Ch 16 §2 `emit_code` in 46 bytes](16-io-emit-key-syscall6.md#2-emit_code-in-46-bytes)
-- **Entry point (_start)** — [Ch 13 §4 `_start` at `0x400078`](13-elf-and-entry.md#4-_start-at-0x400078)
+- **Entry point (_start)** — [Ch 5, Give the registers their starting values](05-elf-and-entry.md#give-the-registers-their-starting-values)
 - **Entry stub** — [Ch 31 §8 The entry stub and the top-level driver](31-functions-and-scope.md#8-the-entry-stub-and-the-top-level-driver)
 - **Enums and typedefs** — [Ch 31 §5 Enums and typedefs](31-functions-and-scope.md#5-enums-and-typedefs)
 - **Error codes and cc-die** — [Ch 21, Failing: `cc-die`](21-arena-and-io-buffers.md#failing-cc-die) · [App. G, How the codes are organised](A7-error-codes.md#how-the-codes-are-organised)
@@ -2594,7 +2594,7 @@ for which chapter depends on which, the
 - `jmp-seed-r>,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `jmp-seed-r@,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `jmp-xt,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `jmp_repl` — *seed label* — [Ch 13 §6 `JMP repl` at `0x0B5`](13-elf-and-entry.md#6-jmp-repl-at-0x0b5)
+- `jmp_repl` — *seed label* — [Ch 5, Hand control to the loop](05-elf-and-entry.md#hand-control-to-the-loop)
 - `jz-back,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `jz-fwd,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 
@@ -2819,7 +2819,7 @@ for which chapter depends on which, the
 ## M
 
 - **Macro table** — [Ch 22 §2 The macro table](22-the-preprocessor.md#2-the-macro-table)
-- **Memory map** — [App. B, The seed-Forth memory map (`PT_LOAD` covers `0x400000..0x1400000`)](A2-memory-map.md#the-seed-forth-memory-map-pt_load-covers-0x4000000x1400000) · [App. B, The optional native compiler arena](A2-memory-map.md#the-optional-native-compiler-arena) · [App. B, The legacy runtime heap (compiled-program memory)](A2-memory-map.md#the-legacy-runtime-heap-compiled-program-memory)
+- **Memory map** — [Ch 5, Read the seed memory map](05-elf-and-entry.md#read-the-seed-memory-map)
 - `mov-rax-[rbp],` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `mov-rdi-rax,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `movabs-rdx,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -3011,7 +3011,7 @@ for which chapter depends on which, the
 - **Stack-effect notation** — [Ch 1, 1.2  Stack-effect comments](01-stacks-and-words.md#12--stack-effect-comments)
 - **Stage-A parity proof** — [Ch 32 §4 Stage A: the parity proof](32-main-and-bootstrap-chain.md#4-stage-a-the-parity-proof)
 - `star_code` — *seed label* — [Ch 15 §5 `*` and the `IMUL` instruction](15-arithmetic-and-logic.md#5--and-the-imul-instruction)
-- `_start` — *seed label* — [Ch 13 §4 `_start` at `0x400078`](13-elf-and-entry.md#4-_start-at-0x400078)
+- `_start` — *seed label* — [Ch 5, Give the registers their starting values](05-elf-and-entry.md#give-the-registers-their-starting-values)
 - `state` — *seed primitive* — [Ch 17 §8 `state_code` and `latest_code`](17-the-dictionary.md#8-state_code-and-latest_code) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - **STATE (interpret vs compile mode)** — [Ch 10 §1 `STATE` and the two modes](10-immediacy-and-constants.md#1-state-and-the-two-modes) · [Ch 18 §1 `colon_code`'s anatomy](18-the-colon-compiler.md#1-colon_codes-anatomy)
 - `state_code` — *seed label* — [Ch 17 §8 `state_code` and `latest_code`](17-the-dictionary.md#8-state_code-and-latest_code)
@@ -3027,8 +3027,8 @@ for which chapter depends on which, the
 - **Syscall ABI (x86-64 Linux)** — [Ch 5 §1 A sidebar on the syscall ABI](05-syscalls.md#1-a-sidebar-on-the-syscall-abi) · [Ch 16 §5 Why six args and not seven?](16-io-emit-key-syscall6.md#5-why-six-args-and-not-seven)
 - `syscall6` — *seed primitive* — [Ch 16 §4 `syscall6_code` in 37 bytes](16-io-emit-key-syscall6.md#4-syscall6_code-in-37-bytes) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `syscall6_code` — *seed label* — [Ch 16 §4 `syscall6_code` in 37 bytes](16-io-emit-key-syscall6.md#4-syscall6_code-in-37-bytes)
-- **Sysvar page (STATE, LATEST, HERE, LAST_FOUND)** — [Ch 13 §5 The sysvar init at `0x085`](13-elf-and-entry.md#5-the-sysvar-init-at-0x085) · [App. A, A note on the sysvar page](A1-32-seed-primitives.md#a-note-on-the-sysvar-page)
-- `sysvar_init` — *seed label* — [Ch 13 §5 The sysvar init at `0x085`](13-elf-and-entry.md#5-the-sysvar-init-at-0x085)
+- **Sysvar page (STATE, LATEST, HERE, LAST_FOUND)** — [Ch 5, Initialize the mutable system variables](05-elf-and-entry.md#initialize-the-mutable-system-variables) · [App. A, A note on the sysvar page](A1-32-seed-primitives.md#a-note-on-the-sysvar-page)
+- `sysvar_init` — *seed label* — [Ch 5, Initialize the mutable system variables](05-elf-and-entry.md#initialize-the-mutable-system-variables)
 
 ## T
 
