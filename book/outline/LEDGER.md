@@ -171,6 +171,13 @@ Stack trace | 14 Stacks and words | apply each component word's contract in body
 `here-addr` | 15 Code emission and HERE | pushes the address of the HERE cell, for updating the allocation cursor ( -- a )
 `c,` | 15 Code emission and HERE | stores the low byte at HERE and advances HERE by one ( b -- )
 Store-and-advance | 15 Code emission and HERE | write a payload at HERE, then advance HERE by the payload's width
+`and` | 16 Logic from NAND | bitwise intersection: NAND, then self-NAND to complement ( a b -- a&b )
+`or` | 16 Logic from NAND | bitwise union via De Morgan: self-NAND each operand, then NAND ( a b -- a-or-b )
+Self-NAND | 16 Logic from NAND | `dup nand` complements a cell
+De Morgan's law | 16 Logic from NAND | a or b = ~(~a & ~b)
+De Morgan's law as code | 16 Logic from NAND | complement each operand, then combine with NAND
+Functional completeness of NAND | 16 Logic from NAND | NAND constructions express every Boolean function
+Primitive vs derived word (the byte trade) | 16 Logic from NAND | derived words cost no seed bytes but need compiled storage and calls
 push rax; ret (indirect jump) | 11 Branches and inline cells | idea; Why `push rax; ret` and not `jmp rax`?
 `parse_decimal_code` | 12 Decimal parsing and the REPL | seed label; `parse_decimal_code` ( c-addr u -- n true \| 0 false )
 `repl` | 12 Decimal parsing and the REPL | seed label; The REPL loop
