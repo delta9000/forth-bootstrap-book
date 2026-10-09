@@ -283,6 +283,18 @@ Signed-overflow domain of < | 20 Comparisons from unsigned division | idea; The 
 Division as a right shift | 22 Memory updates and cell writers | unsigned / 256 shifts right by eight bits
 Little-endian cell writers | 22 Memory updates and cell writers | emit a value from its least significant byte upward
 Emit-and-divide | 22 Memory updates and cell writers | write the low byte, then divide by 256 to expose the next byte
+`immediate` | 23 Immediacy and constants | stores 1 in the newest entry's flags byte ( -- )
+`ret,` | 23 Immediacy and constants | emits C3 ( -- )
+`push-imm64,` | 23 Immediacy and constants | emits the 18 bytes that push v: sub rbp,8; mov [rbp],rdi; movabs rdi,v ( v -- )
+`push-body,` | 23 Immediacy and constants | push-imm64, ret, : the 19-byte runtime body ( v -- )
+`constant` | 23 Immediacy and constants | : push-body, 0 state ! ( v "name" -- )
+`call,` | 23 Immediacy and constants | emits a 5-byte CALL rel32 to an absolute target ( target -- )
+`lit-xt` | 23 Immediacy and constants | constant holding the xt of the seed's lit ( -- xt )
+`tib` | 23 Immediacy and constants | the token buffer address, state - 2048 ( -- a )
+`char` | 23 Immediacy and constants | reads the next token and pushes its first byte ( "tok" -- c )
+`[char]` | 23 Immediacy and constants | IMMEDIATE: compiles CALL lit plus the character cell, 13 bytes ( "tok" -- )
+`tab` `nl` `bl` `lparen` `backslash` | 23 Immediacy and constants | constants for characters char cannot quote
+Emit versus execute | 23 Immediacy and constants | an emitter runs now to write instructions another word executes later
 `2dup` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
 `nip` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
 `rot` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
