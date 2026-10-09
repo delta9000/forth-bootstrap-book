@@ -10,7 +10,7 @@ Prerequisites: [20 — Comparisons from unsigned division](20-lib-07-comparisons
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [08-stack-shufflers.md](../08-stack-shufflers.md) — Reuse the source walkthrough: Build compound stack rearrangements from the established primitives.
+Reuses: [08-stack-shufflers.md](../21-lib-08-stack-shufflers.md) — Reuse the source walkthrough: Build compound stack rearrangements from the established primitives.
 
 TODO:
 

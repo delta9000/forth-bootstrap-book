@@ -46,8 +46,8 @@ for which chapter depends on which, the
 - `1+` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 17, Step by one: `1+` and `1-`](17-lib-04-return-stack-over-subtract.md#step-by-one-1-and-1-) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `1-` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 17, Step by one: `1+` and `1-`](17-lib-04-return-stack-over-subtract.md#step-by-one-1-and-1-) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `2^63` — *Forth word (`forth/010-lib.fth`)* — [Ch 20, The `2^63` trick](20-lib-07-comparisons-from-division.md#the-263-trick)
-- `2drop` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 8 §1 The four shuffles](08-stack-shufflers.md#1-the-four-shuffles) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `2dup` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 8 §1 The four shuffles](08-stack-shufflers.md#1-the-four-shuffles) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `2drop` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, `2drop`: discard the pair](21-lib-08-stack-shufflers.md#2drop-discard-the-pair) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `2dup` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, `2dup`: copy the pair in order](21-lib-08-stack-shufflers.md#2dup-copy-the-pair-in-order) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `:` — *seed primitive* — [Ch 10, `colon_code`: give the body a name](10-colon-compiler.md#colon_code-give-the-body-a-name) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `;` — *seed primitive* — [Ch 10, Why `;` is IMMEDIATE](10-colon-compiler.md#why--is-immediate) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `<` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 20, The cascade](20-lib-07-comparisons-from-division.md#the-cascade) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -2870,7 +2870,7 @@ for which chapter depends on which, the
 - `ni-nested` — *compiler word (`cc/118-cc-native-init.fth`)* — [Ch 34 §4 Initializers reuse expression fixups](34-direct-tinycc.md#4-initializers-reuse-expression-fixups)
 - `ni-offset` — *compiler word (`cc/118-cc-native-init.fth`)* — [Ch 34 §4 Initializers reuse expression fixups](34-direct-tinycc.md#4-initializers-reuse-expression-fixups)
 - `ni-type` — *compiler word (`cc/118-cc-native-init.fth`)* — [Ch 34 §4 Initializers reuse expression fixups](34-direct-tinycc.md#4-initializers-reuse-expression-fixups)
-- `nip` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 8 §1 The four shuffles](08-stack-shufflers.md#1-the-four-shuffles) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `nip` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, `nip`: keep the top](21-lib-08-stack-shufflers.md#nip-keep-the-top) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `nl` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 10 §7 `call,` and `[char]`: compiling by hand](10-immediacy-and-constants.md#7-call-and-char-compiling-by-hand)
 - **Number parser** — [Ch 12, Decimal conversion: `parse_decimal_code`](12-repl.md#decimal-conversion-parse_decimal_code)
 
@@ -2971,7 +2971,7 @@ for which chapter depends on which, the
 - `ret,` — *Forth word (`forth/010-lib.fth`)* — [Ch 10 §5 `constant`'s runtime body](10-immediacy-and-constants.md#5-constants-runtime-body)
 - **Return stack** — [Ch 4, The machine before the instructions](04-x86-64-and-two-stacks.md#the-machine-before-the-instructions) · [Ch 6, Return-address shelter: bridging the two stacks](06-stack-primitives.md#return-address-shelter-bridging-the-two-stacks) · [Ch 17, `over` via the return stack](17-lib-04-return-stack-over-subtract.md#over-via-the-return-stack)
 - **Reverse Polish notation** — [Ch 14, Postfix evaluation](14-lib-01-stacks-and-words.md#postfix-evaluation)
-- `rot` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 8 §1 The four shuffles](08-stack-shufflers.md#1-the-four-shuffles) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `rot` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, `rot`: bring the deepest operand to the top](21-lib-08-stack-shufflers.md#rot-bring-the-deepest-operand-to-the-top) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - **Runtime body (push-imm64)** — [Ch 10 §5 `constant`'s runtime body](10-immediacy-and-constants.md#5-constants-runtime-body)
 
 ## S
