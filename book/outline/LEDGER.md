@@ -228,6 +228,19 @@ Pad-and-call | 18 Linux syscall wrappers | caller arguments, zero padding, a fix
 `space?` | 19 Character classification | accepts space, tab, LF or CR ( c -- flag )
 Range-check trick | 19 Character classification | subtract the base, divide unsigned by the range size, test for zero; below-range bytes wrap and fail
 Preserve-and-combine | 19 Character classification | keep the input available for every component test, then combine the flags
+`true` | 20 Comparisons from unsigned division | the canonical true flag, made as 0 0= ( -- -1 )
+`2^63` | 20 Comparisons from unsigned division | pushes 9223372036854775808, the sign-bit value ( -- u )
+`0<` | 20 Comparisons from unsigned division | 2^63 / 0= 0= : -1 for a signed-negative cell, else 0 ( n -- f )
+`=` | 20 Comparisons from unsigned division | - 0= ( a b -- f )
+`<>` | 20 Comparisons from unsigned division | = 0= ( a b -- f )
+`<` | 20 Comparisons from unsigned division | - 0< ; exact only while a - b fits in 64 signed bits ( a b -- f )
+`>` | 20 Comparisons from unsigned division | swap < ( a b -- f )
+`<=` | 20 Comparisons from unsigned division | > 0= ( a b -- f )
+`>=` | 20 Comparisons from unsigned division | < 0= ( a b -- f )
+Canonicalisation (0= 0=) | 20 Comparisons from unsigned division | preserves zero and turns any nonzero cell into -1
+Sign test by division (2^63) | 20 Comparisons from unsigned division | unsigned division by 2^63 gives the sign bit as 0 or 1
+Signed-overflow domain of < | 20 Comparisons from unsigned division | exact while a and b are less than 2^63 apart; outside it the subtraction wraps
+Comparison cascade | 20 Comparisons from unsigned division | > <= >= derived from < by operand reversal and flag negation
 `close` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `close`: one real arg, five padding zeros
 `die` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `die`: exit unconditionally
 `open` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `open`: three real args, three padding zeros
