@@ -26,6 +26,12 @@ The data-stack-in-`rdi`/`rbp` convention | 05 ELF, entry, and the memory map | c
 The I/O scratch byte at `0x412000` | 05 ELF, entry, and the memory map | concept (Seed VM internals (Part II)); introduced in old Ch 13
 The sysvar page at `0x413000` | 05 ELF, entry, and the memory map | concept (Seed VM internals (Part II)); introduced in old Ch 13
 The token buffer at `0x412800` | 05 ELF, entry, and the memory map | concept (Seed VM internals (Part II)); introduced in old Ch 13
+ELF header | 05 ELF, entry, and the memory map | identifies the executable and locates its entry point and program headers
+Loadable segment | 05 ELF, entry, and the memory map | a program-header entry giving file-backed bytes, zero-filled storage, the load address and permissions
+Fixed-base contract | 05 ELF, entry, and the memory map | a seed image byte loads at its file offset plus 0x400000
+Entry initialization | 05 ELF, entry, and the memory map | the startup code that sets the data-stack registers and the system variables before entering the REPL
+Seed memory map | 05 ELF, entry, and the memory map | where the image, the dictionary allocation area, the stacks, the buffers and the system variables lie
+System-variable cells | 05 ELF, entry, and the memory map | fixed mutable cells holding STATE, LATEST, HERE and LAST_FOUND (0x413000-0x413018)
 `!` | 06 Stack and memory primitives | seed primitive; compiler word (`cc/020-cc-arena.fth`); `!` ( value addr -- )
 `>r` | 06 Stack and memory primitives | seed primitive; compiler word (`cc/020-cc-arena.fth`); `>r` ( n -- ; R: -- n )
 `@` | 06 Stack and memory primitives | seed primitive; compiler word (`cc/020-cc-arena.fth`); `@` ( addr -- value )
