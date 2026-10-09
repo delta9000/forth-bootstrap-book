@@ -10,7 +10,7 @@ Prerequisites: [01 — Reading the book](01-reading-the-book.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [00-prologue.md](../00-prologue.md) — Reuse the opening artifact and audit motivation.
+Reuses: [00-prologue.md](../02-prologue.md) — Reuse the opening artifact and audit motivation.
 
 TODO:
 

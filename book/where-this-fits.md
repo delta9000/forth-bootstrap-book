@@ -483,4 +483,4 @@ the M1 outputs would diverge and the script would fail.
   grouped pointers to Bootstrappable, stage0, M2-Planet, Mes, and
   the academic background.
 
-Next: [Prologue — Seventeen Hundred and Seventy-Two Bytes](00-prologue.md).
+Next: [Prologue — Seventeen Hundred and Seventy-Two Bytes](02-prologue.md).
