@@ -215,6 +215,12 @@ Two's complement | 17 The return stack, over, and subtraction | ~b + 1 is the ad
 `over` | 17 The return stack, over, and subtraction | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); `over` via the return stack
 Return stack | 17 The return stack, over, and subtraction | concept (Vocabulary and conventions); introduced in old Ch 4
 Two's complement | 17 The return stack, over, and subtraction | concept (Forth-level ideas); introduced in old Ch 4
+`open` | 18 Linux syscall wrappers | path flags mode, three padding zeros, syscall 2; returns fd or a raw negative error ( path flags mode -- fd )
+`read` | 18 Linux syscall wrappers | fd buf count, padding, syscall 0; returns bytes read or a raw negative error ( fd buf count -- n )
+`write` | 18 Linux syscall wrappers | fd buf count, padding, syscall 1; returns bytes written or a raw negative error ( fd buf count -- n )
+`close` | 18 Linux syscall wrappers | fd and five padding zeros, syscall 3 ( fd -- err )
+`die` | 18 Linux syscall wrappers | exits unconditionally with status n via syscall 60 ( n -- )
+Pad-and-call | 18 Linux syscall wrappers | caller arguments, zero padding, a fixed syscall number, then syscall6
 `close` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `close`: one real arg, five padding zeros
 `die` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `die`: exit unconditionally
 `open` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `open`: three real args, three padding zeros
