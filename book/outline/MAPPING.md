@@ -25,7 +25,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [18-the-colon-compiler.md](../10-colon-compiler.md) | Chapter 18 — The Colon Compiler | 1 | [The colon compiler](10-colon-compiler.md) | keep |
 | [19-branches-and-inline-cells.md](../11-branches.md) | Chapter 19 — Branches and Inline Cells | 1 | [Branches and inline cells](11-branches.md) | keep |
 | [20-number-parser-and-repl.md](../12-repl.md) | Chapter 20 — The Number Parser and REPL | 1 | [Decimal parsing and the REPL](12-repl.md) | keep |
-| [21-arena-and-io-buffers.md](../21-arena-and-io-buffers.md) | Chapter 21 — Arena and I/O Buffers | 3 | [Arena and I/O buffers](27-arena-and-io-buffers.md) | keep |
+| [21-arena-and-io-buffers.md](../27-arena-and-io-buffers.md) | Chapter 21 — Arena and I/O Buffers | 3 | [Arena and I/O buffers](27-arena-and-io-buffers.md) | keep |
 | [22-the-preprocessor.md](../22-the-preprocessor.md) | Chapter 22 — The Preprocessor | 3 | [The preprocessor](28-the-preprocessor.md) | keep |
 | [23-the-lexer.md](../23-the-lexer.md) | Chapter 23 — The Lexer | 3 | [The lexer](29-the-lexer.md) | keep |
 | [24-types-and-symbols.md](../24-types-and-symbols.md) | Chapter 24 — Types and Symbols | 3 | [Types and symbols](30-types-and-symbols.md) | keep |

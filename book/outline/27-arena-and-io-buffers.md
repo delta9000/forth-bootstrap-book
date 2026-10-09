@@ -10,7 +10,7 @@ Prerequisites: [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md)
 
 Checkpoint: TODO — the cumulative core checkpoint is Stage A at the end of the core compiler sequence.
 
-Reuses: [21-arena-and-io-buffers.md](../21-arena-and-io-buffers.md) — Reuse the source walkthrough: Establish the compiler’s allocation regions and buffered input and output.
+Reuses: [21-arena-and-io-buffers.md](../27-arena-and-io-buffers.md) — Reuse the source walkthrough: Establish the compiler’s allocation regions and buffered input and output.
 
 TODO:
 

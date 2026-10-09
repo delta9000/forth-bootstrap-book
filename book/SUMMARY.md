@@ -37,8 +37,7 @@
 
 # Part 3 — compiler
 
-- [Arena and I/O buffers](outline/27-arena-and-io-buffers.md)
-  - [Chapter 21 — Arena and I/O Buffers](21-arena-and-io-buffers.md)
+- [Arena and I/O buffers](27-arena-and-io-buffers.md)
 - [The preprocessor](outline/28-the-preprocessor.md)
   - [Chapter 22 — The Preprocessor](22-the-preprocessor.md)
 - [The lexer](outline/29-the-lexer.md)

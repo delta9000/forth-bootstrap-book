@@ -1,161 +1,30 @@
-# Chapter 21 — Arena and I/O Buffers
+# Chapter 27 — Arena and I/O buffers
+
+The compiler's first data structures are storage regions for source text, unfinished output and records whose sizes emerge during parsing. Giving each responsibility a bounded region makes its lifetime explicit before there is a C parser to use it. The result is an allocator, a source reader and an output buffer that later compiler layers can share.
+
+## Part 3: from storage to a C compiler
+
+The code has this shape:
 
 ```text
-Missing capability: the compiler has nowhere to keep input bytes or emitted output.
-New pattern: fixed buffers plus a tiny arena separate owned memory by responsibility.
-Artifact after this chapter: a source reader, an output writer, and a bump allocator.
-Proof link: later stages can assemble /tmp/cc-out deterministically for Stage-A checks.
+020-cc-arena: native Forth replacements → lexer state → diagnostics → arena
+030-cc-io:    raw input → source buffer → character reader
+             output buffer → append or patch → file
+             shared name helpers and workspace selection
 ```
 
-Here is a 22-line C program, `tri.c`:
+Chapter 27 establishes storage. Chapters 28–30 build preprocessing, lexing,
+types and symbols; Chapters 31–32 supply executable emission. Chapters
+33–37 connect expressions, declarations, statements and functions, and
+Chapter 38 joins the core compiler and checks Stage A. Chapters 39–42
+extend storage and introduce objects, the System V interface and linking.
+Chapters 43–49 add the runtime, target headers, typed constants, varargs,
+floating values, bitfields and aggregate calling rules.
 
-```c
-#define ROWS 4
-struct tri { int rows; int stars; };
-struct tri t;
+The compiler uses the Forth library from Chapters 14–25. Its storage layer
+also replaces expensive Forth operations before the later layers are read.
 
-void line(int pad, int n) {
-    while (pad > 0) { putchar(' '); pad = pad - 1; }
-    while (n > 0) { putchar('*'); n = n - 1; }
-    putchar('\n');
-}
-
-int main() {
-    int w[ROWS];
-    int r;
-    t.rows = ROWS;
-    for (r = 0; r < t.rows; r = r + 1) {
-        w[r] = 1 + r * 2;
-        line(t.rows - 1 - r, w[r]);
-        t.stars = t.stars + w[r];
-    }
-    if (t.stars == ROWS * ROWS) return t.stars;
-    return 1;
-}
-```
-
-The compiler Part III builds turns these 484 bytes into a
-1,241-byte x86-64 executable that prints
-
-```text
-   *
-  ***
- *****
-*******
-```
-
-and exits with status 16, the number of stars.  No assembler, linker
-or libc takes part: every one of the 1,241 bytes is written by Forth
-words loaded on top of the 1,772-byte seed.  How do 22 lines become
-those bytes?  `tri.c` is Part III's running example, and every
-chapter from here to Ch 32 shows it at that chapter's stage.  This
-chapter's Try it compiles it.
-
-The first answer is plain bookkeeping.  The 484 bytes need somewhere
-to land, and the 1,241 need somewhere to accumulate before they reach
-disk.  Part III uses the seed's Forth to host a compiler for a small
-subset of C: enough to rebuild M2-Planet, whose binary is the next
-link in the Guix Full Source Bootstrap chain.  The compiler is split
-across eighteen files (`020-cc-arena.fth` through `120-cc-main.fth`),
-loaded in numerical order on top of `010-lib.fth`.  This chapter
-covers the first two: the compiler's ground floor (the lexer's state
-block, failure reporting and a bump allocator), and the source reader
-and output writer.
-
-## The main byte path
-
-Ch 20 closed by naming Part III's three recurring motifs: emit,
-remember, patch; small tables with newest-wins lookup; one buffer per
-responsibility.  The first and third show up in this chapter's two
-files.  Before reading them, here is the whole compiler at a glance,
-as `cc-main` in `120-cc-main.fth` drives it:
-
-```text
-  stdin (C source)
-    |  cc-load-stdin (030)
-    v
-  cc-in-buf
-    |
-    v
-  preprocessor (040) ------------------> macro table (040)
-    |  splices #include "..." files,        #define NAME N
-    |  drops other directive lines
-    v
-  cc-src-buf
-    |
-    v
-  lexer (050) <------------------------- macro table lookup
-    |  one token at a time into the tok-* cells; an identifier
-    |  that names a macro becomes a number token
-    v
-  parser + codegen: 100 (expressions), 110 (declarations,
-    |  statements, functions); x86-64 encoders in 090
-    v
-  cc-out-buf
-    |  [ELF header, 080: emitted before parsing starts]
-    |  [entry stub, libc shims, function bodies]
-    |  [globals, appended by cc-finalize-globals]
-    |  cc-finalize-elf (080) patches p_filesz / p_memsz
-    v
-  cc-write-output (030) ---> /tmp/cc-out (ELF executable)
-
-  shared state across the stages:
-    020 lexer-state block, cc-die, arena    060 type words
-    070 symbol table + scope stack
-```
-
-The ELF writer is not a stage at the end of the line.  Ch 25's
-`cc-emit-elf-header` writes the 120-byte header into `cc-out-buf`
-before the parser runs, with the size fields left at zero, and
-`cc-finalize-elf` patches them once the last byte is known.
-
-## 1. The ground floor: `020-cc-arena.fth`
-
-The 457-line file `020-cc-arena.fth` first gives the arithmetic words
-machine-code bodies, then holds the three things every later compiler
-file leans on: one block of memory holding the lexer's
-state, the word every failure ends in, and an allocator for data with
-no fixed size.
-
-### Arithmetic, input and a light optimizing compile
-
-Part I built `-` from `nand` and `+`, and the sign test `0<` from the
-unsigned `/`: every comparison is a 64-bit divide.  That was the point
-there, since 32 primitives were enough.  But the compiler runs these
-words hundreds of millions of times when it builds GCC, and the seed's
-way of compiling, a CALL for every word, costs more than the words.  A
-profile of seed-cc compiling GCC's `combine.c` showed where the time
-went, and this section is the answer to it.  It changes no answer the
-compiler gives: every object it writes is byte for byte what it was.
-
-`code:` makes a header whose body `c,` then lays down; it is
-`constant`'s trick (Ch 10) without the push body.  `native!` writes a
-5-byte `JMP` over the start of an old definition, so every word
-compiled earlier, in `010-lib.fth` included, runs the new code without
-being compiled again.  It works the jump out before writing it,
-because the first word it patches is `-`, which it also uses.  The
-registers are the seed's: the top of stack is in `rdi`, the rest of
-the data stack grows down from `rbp` (Ch 15's `+`).
-
-Four things follow.  `-`, `0<`, `<`, `=`, `1+`, `1-`, `and`, `or` and
-the character tests get x86 bodies with the same answers (`<` is still
-the sign of `a - b`, wrapping exactly as Ch 7's does).  `key` gets a
-4 KiB buffer, because the seed reads its input one byte per `read`
-call and the compiler arrives as about 500 KB of source on every run;
-`key-drain` hands the C source that follows to `cc-read-all` (§2).
-`find` gets a hash table, kept up to date from `LATEST`, because the
-seed walks every header for every token it reads.  And from here on
-compiling is lightly optimized: `[lit]` lays an inline push instead of
-a CALL to `lit`, the control-flow words lay `test`/`jz`/`jmp`
-instructions instead of CALLs to `branch` and `0branch` (which rewrite
-their own return address, so the processor mispredicts every one of
-them), the commonest primitives are copied in place of their CALL, and
-words made by `constant`, `create` and `variable` compile as an inline
-push of their value.  Each such word is immediate and acts only while
-compiling; interpreted, it does what the old word did.  One trap: a
-word can see its own name while it is being defined, so the new `@`
-reads `state` through `compiling?`, compiled before `@` changed.
-Together these took `combine.c` from 6.9 to 1.0 seconds.
+Variable-size records need a different home from fixed tables (`forth-bootstrap/cc/020-cc-arena.fth:1`):
 
 ```forth file=cc/020-cc-arena.fth
 \ 020-cc-arena.fth — the compiler's ground floor: the lexer's state block,
@@ -169,6 +38,16 @@ Together these took `combine.c` from 6.9 to 1.0 seconds.
 \ if,/then,, begin,/until,, swap, dup, over, nip, drop, >r, r>, +, -, /, *,
 \ >, !, @, c!, c,, write, die.
 
+```
+
+## Redirecting existing Forth words
+
+Previously compiled callers already contain execution addresses. `code:`
+creates a fresh header and returns to interpretation so emitters can fill
+its body. `native!` redirects an old address to the new body; `code-start`
+remembers that destination while the body is emitted (`forth-bootstrap/cc/020-cc-arena.fth:12`):
+
+```forth file=cc/020-cc-arena.fth
 \ ----- The compiler's arithmetic in machine code -----
 \ 010-lib.fth builds - from nand and +, and the sign test 0< from the
 \ unsigned / (a 64-bit divide per comparison).  The compiler runs them
@@ -184,6 +63,20 @@ Together these took `combine.c` from 6.9 to 1.0 seconds.
   here >r  here-addr !  [lit] 233 c, ,4
   r> here-addr ! ;
 variable code-start
+```
+
+The displacement is calculated before the old body is overwritten. This
+ordering matters when the old body is subtraction itself. Saving and
+restoring HERE lets the patch change old code without moving the end of
+the dictionary. The source's performance claims are not measurements made
+by this checkpoint.
+
+The subtraction body loads the left operand into `rax`, consumes its stack
+slot and subtracts `rdi`. `mov-rax-[rbp],`, `add-rbp-8,`,
+`sub-rax-rdi,` and `mov-rdi-rax,` name those instruction pieces;
+`sar63,` selects the register whose sign is spread into a flag (`forth-bootstrap/cc/020-cc-arena.fth:27`):
+
+```forth file=cc/020-cc-arena.fth
 : mov-rax-[rbp],  [lit] 72 c, [lit] 139 c, [lit] 69 c, [lit] 0 c, ;
 : add-rbp-8,      [lit] 72 c, [lit] 131 c, [lit] 197 c, [lit] 8 c, ;
 : sub-rax-rdi,    [lit] 72 c, [lit] 41 c, [lit] 248 c, ;
@@ -198,6 +91,17 @@ variable code-start
 ' < code: <  here code-start !            \ ( a b -- f )  sign of a - b
   mov-rax-[rbp], add-rbp-8, sub-rax-rdi, [lit] 248 sar63, mov-rdi-rax, ret,
   code-start @ native!
+```
+
+`0<` shifts `rdi`; `<` shifts the subtraction result in `rax`. The latter
+preserves the library comparison's overflow domain (Chapter 20). It does
+not replace subtraction with an overflow-aware signed comparison.
+
+Equality uses the subtraction's zero flag, then `sete`, zero-extension and
+negation produce the Forth result. Increment and decrement need only their
+native arithmetic instruction and a return (`forth-bootstrap/cc/020-cc-arena.fth:41`):
+
+```forth file=cc/020-cc-arena.fth
 ' = code: =  here code-start !            \ ( a b -- f )  a - b = 0
   mov-rax-[rbp], add-rbp-8, sub-rax-rdi,
   [lit] 15 c, [lit] 148 c, [lit] 192 c,   \ sete al
@@ -212,6 +116,16 @@ variable code-start
   [lit] 72 c, [lit] 131 c, [lit] 239 c, [lit] 1 c, ret,
   code-start @ native!
 
+```
+
+## Handing buffered input to the compiler
+
+Reading Forth source ahead can also consume the beginning of the C input.
+`key-buffer` owns the bytes, `key-pos` names the next unread position and
+`key-len` records the valid end. `movabs-rsi,` and `movabs-rdx,` embed the
+addresses used by the reader (`forth-bootstrap/cc/020-cc-arena.fth:55`):
+
+```forth file=cc/020-cc-arena.fth
 \ The seed's key reads stdin one byte per read syscall, and the compiler
 \ arrives through key: about 500 KB of Forth source on every run.  key-fill
 \ below is key with a 64 KiB buffer; native! sends the seed's key, which its
@@ -224,6 +138,17 @@ variable key-pos
 variable key-len
 : movabs-rsi,  [lit] 72 c, [lit] 190 c, ,8 ;
 : movabs-rdx,  [lit] 72 c, [lit] 186 c, ,8 ;
+```
+
+The definition sets `key-buffer-size` to 4096 bytes. The preceding comment's
+“64 KiB” is stale; the syscall below uses the constant.
+
+`key-fill` serves a buffered byte when the position is below the length.
+Otherwise it refills from stdin, resets the position and returns the first
+byte; a nonpositive read returns zero. Patching the original `key` also
+redirects the seed's reader (`forth-bootstrap/cc/020-cc-arena.fth:67`):
+
+```forth file=cc/020-cc-arena.fth
 ' key code: key-fill  here code-start !   \ ( -- c ), 0 at end of input
   [lit] 72 c, [lit] 131 c, [lit] 237 c, [lit] 8 c,     \ sub rbp, 8
   [lit] 72 c, [lit] 137 c, [lit] 125 c, [lit] 0 c,     \ mov [rbp], rdi
@@ -244,6 +169,13 @@ variable key-len
   ret,
   [lit] 49 c, [lit] 255 c, ret,                        \ .eof: xor edi,edi
   code-start @ native!
+```
+
+`key-drain` transfers unread bytes to another buffer without another syscall.
+Its scratch variables `kd-buf`, `kd-cap` and `kd-n` hold the destination,
+maximum transfer and count copied. The loop stops at either bound (`forth-bootstrap/cc/020-cc-arena.fth:87`):
+
+```forth file=cc/020-cc-arena.fth
 \ key-drain ( buf cap -- n )  Move up to cap bytes that key-fill has read
 \ but not handed out to buf; answer how many.
 variable kd-buf
@@ -257,6 +189,20 @@ variable kd-n
   repeat,
   kd-n @ ;
 
+```
+
+This handoff prevents `cc-read-all` from losing C bytes already fetched
+while the Forth definitions were being loaded. A destination too small to
+accept all pending bytes leaves the remaining bytes in `key-buffer`.
+
+## Compiling literals and branches directly
+
+New definitions can contain instructions directly in place of calls to
+small helpers. The replacement `[lit]` first delegates to `seed-lit`, then
+uses `here-8` to retrieve the value and `here-13` to rewind over the old
+encoding before emitting `push-imm64,` (Chapter 23) (`forth-bootstrap/cc/020-cc-arena.fth:100`):
+
+```forth file=cc/020-cc-arena.fth
 \ ----- A light optimizing compile -----
 \ The seed compiles every word as a CALL.  For literals and branches that
 \ CALL goes to lit, branch or 0branch, which pop and rewrite their own
@@ -277,6 +223,14 @@ variable kd-n
     here-8 @  here-13 here-addr !  push-imm64,
   then, ;
 immediate
+```
+
+Branch replacements keep the existing control-word interface but use
+relative displacement fields. `flag-test,` consumes the condition into
+`rax`; `jz-fwd,` and `jmp-fwd,` leave a field to patch with `rel32!`.
+`jz-back,` and `jmp-back,` calculate an already-known destination (`forth-bootstrap/cc/020-cc-arena.fth:120`):
+
+```forth file=cc/020-cc-arena.fth
 \ Branches: if, while, and until, pop the flag and jz rel32; else, repeat,
 \ and again, jmp rel32.  A forward fixup is the address of the rel32 field.
 : rel32!  ( target fixup -- )
@@ -298,6 +252,22 @@ immediate
 : repeat,  swap jmp-back, here swap rel32! ; immediate
 : until,   jz-back, ;                       immediate
 : again,   jmp-back, ;                      immediate
+```
+
+The immediate control words below the emitters select those operations:
+`if,` and `while,` reserve conditional fields; `then,` resolves one;
+`else,` reserves the onward jump before resolving the conditional field.
+`begin,` retains HERE, while `repeat,`, `until,` and `again,` use backward
+jumps. Only the generated representation changes.
+
+## Inline primitives with an interpretation fallback
+
+Each replacement uses the same dispatch: emit instructions while compiling,
+execute a saved implementation while interpreting. `push-tos,` and
+`pop-tos,` supply the stack movement. `compiling?` captures the old fetch
+before `@` is replaced, avoiding a call from the new fetch to itself (`forth-bootstrap/cc/020-cc-arena.fth:141`):
+
+```forth file=cc/020-cc-arena.fth
 \ Primitives copied in place of the CALL: the seed's bodies without their
 \ ret (Chs 14-15), with the return-stack words' own return address left out.
 : push-tos,  [lit] 72 c, [lit] 131 c, [lit] 237 c, [lit] 8 c,      \ sub rbp, 8
@@ -316,6 +286,18 @@ immediate
 : over  compiling? if,
     push-tos, [lit] 72 c, [lit] 139 c, [lit] 125 c, [lit] 8 c,   \ mov rdi, [rbp+8]
   else, seed-over execute then, ; immediate
+```
+
+`seed-dup`, `seed-drop`, `seed-swap` and `seed-over` retain the previous
+execution addresses. The inline `swap` uses `xchg`; inline `over` loads the
+older item after making room. Call these paired paths the *inline/fallback*
+pattern.
+
+Memory operations use inline/fallback without changing their stack effects.
+`seed-fetch`, `seed-cfetch`, `seed-store` and `seed-cstore` preserve the
+interpretation paths; the store bodies consume both address and value (`forth-bootstrap/cc/020-cc-arena.fth:159`):
+
+```forth file=cc/020-cc-arena.fth
 ' @ constant seed-fetch
 : @  compiling? if, [lit] 72 c, [lit] 139 c, [lit] 63 c,    \ mov rdi, [rdi]
   else, seed-fetch execute then, ; immediate
@@ -332,6 +314,13 @@ immediate
     mov-rax-[rbp], [lit] 136 c, [lit] 7 c,                \ mov [rdi], al
     add-rbp-8, pop-tos,
   else, seed-cstore execute then, ; immediate
+```
+
+Arithmetic uses the same inline/fallback pattern. `seed-plus` retains
+addition, while `native-minus`, `native-1+` and `native-1-` retain the
+native bodies just installed (`forth-bootstrap/cc/020-cc-arena.fth:175`):
+
+```forth file=cc/020-cc-arena.fth
 ' + constant seed-plus
 : +  compiling? if,
     [lit] 72 c, [lit] 3 c, [lit] 125 c, [lit] 0 c, add-rbp-8,   \ add rdi, [rbp]
@@ -346,6 +335,17 @@ immediate
 ' 1- constant native-1-
 : 1-  compiling? if, [lit] 72 c, [lit] 131 c, [lit] 239 c, [lit] 1 c,
   else, native-1- execute then, ; immediate
+```
+
+## Keeping return-stack operations frame-free
+
+A fallback call would add a return address that the return-stack operation
+could mistake for data. `jmp-xt,` instead emits a tail jump.
+`seed->r`, `seed-r>` and `seed-r@` hold the targets; their
+`jmp-seed->r,`, `jmp-seed-r>,` and `jmp-seed-r@,` helpers lay those jumps
+into the interpretation arms (`forth-bootstrap/cc/020-cc-arena.fth:189`):
+
+```forth file=cc/020-cc-arena.fth
 \ The return stack is the x86 stack, so inline >r, r> and r@ are push,
 \ pop and a load from [rsp].  Interpreted, they must not add a call frame
 \ of their own, so they end in a jump to the seed's word (jmp-xt,).
@@ -361,6 +361,20 @@ immediate
 : r@  compiling? if, push-tos, [lit] 72 c, [lit] 139 c, [lit] 60 c, [lit] 36 c, exit, then,
   jmp-seed-r@, ; immediate                                                    \ mov rdi, [rsp]
 
+```
+
+The compilation arms emit `push`, `pop` or a load from `rsp` into the
+caller's body. Their `exit,` finishes emission before control reaches the
+tail-jump arm. The interpreted operation therefore reaches the seed body
+with the return-stack arrangement that body expects.
+
+## Inlining arithmetic and predicates
+
+Multiplication and division retain `seed-star` and `seed-slash` for
+interpretation. The inline division clears `rdx` before unsigned `div`;
+the multiplication transfers its result from `rax` back to `rdi` (`forth-bootstrap/cc/020-cc-arena.fth:204`):
+
+```forth file=cc/020-cc-arena.fth
 \ More primitives copied in: *, /, 0=, nand, and, or.
 ' * constant seed-star
 : *  compiling? if,
@@ -374,6 +388,14 @@ immediate
     [lit] 72 c, [lit] 247 c, [lit] 247 c,                          \ div rdi
     add-rbp-8, mov-rdi-rax,
   else, seed-slash execute then, ; immediate
+```
+
+`0=,` emits the complete zero-test body, with `seed-0=` as its fallback.
+`and,` and `or,` provide reusable binary emitters; `seed-nand` preserves
+NAND, while `native-and` and `native-or` preserve the newly installed
+standalone Boolean bodies (`forth-bootstrap/cc/020-cc-arena.fth:217`):
+
+```forth file=cc/020-cc-arena.fth
 : 0=,  [lit] 72 c, [lit] 133 c, [lit] 255 c,                      \ test rdi, rdi
        [lit] 64 c, [lit] 15 c, [lit] 148 c, [lit] 199 c,          \ sete dil
        [lit] 72 c, [lit] 15 c, [lit] 182 c, [lit] 255 c,          \ movzx rdi, dil
@@ -391,6 +413,14 @@ immediate
 ' or code: or  here code-start !  or, ret,  code-start @ native!
 ' or constant native-or
 : or  compiling? if, or, else, native-or execute then, ; immediate
+```
+
+Character predicates get native range checks through `in-range,`: subtract
+the lower bound, compare unsigned against the count, and use `sbb` to
+materialize the carry flag. `native-over` also replaces the earlier
+fallback with a standalone native body (`forth-bootstrap/cc/020-cc-arena.fth:234`):
+
+```forth file=cc/020-cc-arena.fth
 \ 010-lib.fth's character tests subtract and divide; as x86 they are an
 \ unsigned compare: sub rdi, low; cmp rdi, count; sbb rdi, rdi (-1 below).
 : in-range,  ( low count -- )
@@ -407,6 +437,16 @@ immediate
 ' over constant native-over
 : over  compiling? if, push-tos, [lit] 72 c, [lit] 139 c, [lit] 125 c, [lit] 8 c,
   else, native-over execute then, ; immediate
+```
+
+## Recompiling library clients of the new emitters
+
+Existing compound words need fresh bodies to benefit from inline emission.
+The definitions of `alpha?`, `space?`, `true`, the derived comparisons,
+`nip`, `rot`, `2dup`, `2drop`, `+!` and `-!` keep their established contracts;
+each saved old address is redirected after recompilation (`forth-bootstrap/cc/020-cc-arena.fth:250`):
+
+```forth file=cc/020-cc-arena.fth
 ' alpha? : alpha?  dup alpha-lower? swap alpha-upper? or ;  ' alpha? native!
 ' space? : space?  dup [lit] 32 - 0= over [lit]  9 - 0= or
           over [lit] 10 - 0= or  swap [lit] 13 - 0= or ;  ' space? native!
@@ -421,6 +461,13 @@ immediate
 ' 2drop : 2drop drop drop ;  ' 2drop native!
 ' +! : +!  swap over @ + swap ! ;  ' +! native!
 ' -! : -!  swap over @ swap - swap ! ;  ' -! native!
+```
+
+`bytes-eq` is recompiled for the same reason. Its early mismatch path and
+empty-range path remain intact; `native!` makes earlier callers reach the
+new body too (`forth-bootstrap/cc/020-cc-arena.fth:264`):
+
+```forth file=cc/020-cc-arena.fth
 ' bytes-eq : bytes-eq
   begin,
     dup [lit] 0 >
@@ -434,6 +481,15 @@ immediate
   repeat,
   drop 2drop true ;  ' bytes-eq native!
 
+```
+
+## Comparison emitters and immediate data words
+
+`pop-sub,` supplies the common subtraction, and `flag-al,` converts a
+byte-sized condition result into the Forth flag. `native-=`, `forth-<>`,
+`native-<` and `forth->=` retain the corresponding fallback bodies (`forth-bootstrap/cc/020-cc-arena.fth:277`):
+
+```forth file=cc/020-cc-arena.fth
 \ Comparisons copied in place (same answers as 010-lib.fth's).
 : pop-sub,  mov-rax-[rbp], add-rbp-8, sub-rax-rdi, ;          \ rax = a - b
 : flag-al,  [lit] 72 c, [lit] 15 c, [lit] 182 c, [lit] 248 c, \ movzx rdi, al
@@ -451,6 +507,13 @@ immediate
 : >=  compiling? if, pop-sub, [lit] 248 sar63,
     [lit] 72 c, [lit] 247 c, [lit] 208 c, mov-rdi-rax,        \ not rax
   else, forth->= execute then, ; immediate
+```
+
+Reversing the subtraction avoids emitting a separate swap for `>` and
+`<=`. `pop-rsub,` leaves that result in `rdi`; `forth->`, `forth-<=` and
+`native-0<` complete the fallback set (`forth-bootstrap/cc/020-cc-arena.fth:294`):
+
+```forth file=cc/020-cc-arena.fth
 : pop-rsub,  mov-rax-[rbp], add-rbp-8,
              [lit] 72 c, [lit] 41 c, [lit] 199 c, ;           \ sub rdi, rax: b - a
 ' > constant forth->
@@ -462,6 +525,14 @@ immediate
   else, forth-<= execute then, ; immediate
 ' 0< constant native-0<
 : 0<  compiling? if, [lit] 255 sar63, else, native-0< execute then, ; immediate
+```
+
+A constant or data address can also be embedded directly in its caller.
+`push-or-compile` leaves its value alone during interpretation and emits
+it during compilation. `poc-xt` lets the defining words append a call to
+that decision (`forth-bootstrap/cc/020-cc-arena.fth:305`):
+
+```forth file=cc/020-cc-arena.fth
 \ Constants and variables: a word made by constant, create or variable from
 \ here on is immediate.  Compiling, it lays an inline push of its value
 \ rather than a CALL; interpreted, it pushes the value as before.  Its body
@@ -472,6 +543,22 @@ immediate
 : create  : here [lit] 24 + push-imm64, poc-xt call, ret, [lit] 0 state ! immediate ;
 : variable  create [lit] 0 , ;
 
+```
+
+The new `constant`, `create` and `variable` make immediate words. A
+created word's data begins after its push, call and return, so the address
+calculation must use this new body size. `variable` still supplies an
+initialized cell after that body.
+
+## Indexing the growing Forth dictionary
+
+A separate hash index narrows Forth name lookup to a bucket.
+`fh-buckets` addresses the bucket array, `fh-pool` the node area,
+`fh-pos` its used length and `fh-latest` the last indexed header.
+`fh-a` and `fh-u` retain the current query; `fh-hash` selects its bucket
+(`forth-bootstrap/cc/020-cc-arena.fth:315`):
+
+```forth file=cc/020-cc-arena.fth
 \ The seed's find walks every header from LATEST, and about a third of each
 \ run went there while the compiler's own source was read.  fh-find answers
 \ the same (the newest entry of that name, its header left in LAST_FOUND)
@@ -493,6 +580,19 @@ dup fh-buckets !  [lit] 32768 + fh-pool !
     1- swap 1+ swap
   repeat, 2drop
   r> [lit] 4095 and ;
+```
+
+The hash starts at 5381 and updates by multiplying by 33 and adding the
+next byte. Masking the result selects a bucket. The initial mapping call
+has no failure check here, and the node pool has no capacity guard; these
+are limits of this implementation, not guarantees supplied by `cc-alloc`.
+
+Inserting a node at the bucket head makes insertion order significant.
+`fh-insert` stores the previous head and the dictionary header in the node.
+`fh-index` recurses to the last indexed header before inserting on return,
+so the newer headers finish nearer the head (`forth-bootstrap/cc/020-cc-arena.fth:336`):
+
+```forth file=cc/020-cc-arena.fth
 : fh-insert  ( header -- )
   dup [lit] 10 + over [lit] 9 + c@ fh-hash [lit] 8 * fh-buckets @ +
   fh-pool @ fh-pos @ +
@@ -503,6 +603,14 @@ dup fh-buckets !  [lit] 32768 + fh-pool !
 : fh-index  ( header -- )  \ every header newer than fh-latest, oldest first
   dup fh-latest @ = over 0= or if, drop exit, then,
   dup @ fh-index fh-insert ;
+```
+
+`fh-find` refreshes that index before searching. A matching length and
+byte range yield the execution address, and the matching header is stored
+in LAST_FOUND so the seed can still inspect its flags. Exhausting the
+chain leaves zero (`forth-bootstrap/cc/020-cc-arena.fth:346`):
+
+```forth file=cc/020-cc-arena.fth
 : fh-find  ( c-addr u -- xt | 0 )
   fh-u ! fh-a !
   latest @ fh-latest @ <> if, latest @ fh-index  latest @ fh-latest ! then,
@@ -521,12 +629,15 @@ dup fh-buckets !  [lit] 32768 + fh-pool !
 
 ```
 
-### The lexer's state block
+The final patch redirects the original `find`. This index accelerates
+Forth dictionary lookup while the compiler is loaded; it is separate from
+the compiler's C name tables introduced below.
 
-The reader in section 2 keeps a cursor into the source and a line
-count; the lexer (Ch 23) keeps the token it has just read.  Those
-eight cells are everything that changes as the compiler moves through
-the program, so they live side by side in one block:
+## The lexer's state block
+
+Look-ahead must restore the current token as well as the character cursor.
+`cc-lex-state-size` bounds a contiguous `cc-lex-state` block whose field
+names are addresses, so existing fetch and store words can access them (`forth-bootstrap/cc/020-cc-arena.fth:362`):
 
 ```forth file=cc/020-cc-arena.fth
 \ ----- The lexer's state: one block -----
@@ -549,21 +660,28 @@ cc-lex-state [lit] 56 +  constant cc-tok-pending \ lexer: -1 = current token put
 
 ```
 
-`create cc-lex-state cc-lex-state-size allot` reserves 64 bytes, and
-each `constant` names one cell by its address.  A name like
-`cc-src-pos` then behaves exactly like a `variable`: `cc-src-pos @`
-reads the cell and `cc-src-pos !` writes it.  Keeping the eight cells
-contiguous is what lets a parser that must look several tokens ahead
-copy the whole block away and later copy it back (`cc-lex-mark` and
-`cc-lex-reset`, Ch 23).  The token cells are named here, before Ch 23
-explains tokens, because the block has to exist before the next
-section's `cc-die`, which reports `cc-src-line`.
+| Field | Role |
+|---|---|
+| `cc-src-pos` | Offset of the next source byte |
+| `cc-src-line` | Current source line |
+| `tok-kind` | Current token category |
+| `tok-num` | Numeric, character or punctuation value |
+| `tok-str-addr` | Address of token text |
+| `tok-str-len` | Length of token text |
+| `tok-kw-id` | Keyword identity |
+| `cc-tok-pending` | Whether the current token has been put back |
 
-### Failing: `cc-die`
+Copying this block preserves the moving reader and token state together.
+The source bytes stay in their own buffer, so a saved text address remains
+meaningful. Chapter 29 builds the mark/reset operations and token meanings;
+this layout only reserves their state. The line cell also gives failures
+a location before the lexer is present.
 
-When the compiler cannot go on, whether a table is full, a file is
-missing, or the source is outside the subset, it calls `cc-die` with
-a number that names the failure:
+## Failing: `cc-die`
+
+Diagnostics must go to stderr without consuming the output buffer.
+`cc-err-write` selects that descriptor; `cc-err-dec` fills `cc-err-digits`
+backwards as it extracts decimal digits, then writes only the filled tail (`forth-bootstrap/cc/020-cc-arena.fth:380`):
 
 ```forth file=cc/020-cc-arena.fth
 \ ----- Failing: cc-die -----
@@ -583,6 +701,18 @@ create cc-err-digits  [lit] 20 allot             \ 2^64 has 20 digits
   until,
   nip  cc-err-digits [lit] 20 + over -  cc-err-write ;
 
+```
+
+The loop executes before testing whether the quotient is exhausted, so a
+zero value still contributes a digit. The scratch area belongs to the
+printer and does not allocate from the arena.
+
+`cc-die-where`, `cc-die-what` and `cc-die-end` hold the location prefix,
+error separator and newline. `cc-die` combines them with the current line
+and the caller's code, then exits with that same code. `cc-check-cap`
+connects the existing prospective-size guard to this diagnostic (`forth-bootstrap/cc/020-cc-arena.fth:397`):
+
+```forth file=cc/020-cc-arena.fth
 create cc-die-where  s, cc: bl c, s, line bl c,       \ "cc: line "  9 bytes
 create cc-die-what   char : c, bl c, s, error bl c,   \ ": error "   8 bytes
 create cc-die-end    nl c,                            \ "\n"         1 byte
@@ -607,38 +737,20 @@ create cc-die-end    nl c,                            \ "\n"         1 byte
 
 ```
 
-`cc-die` writes one line to stderr, `cc: line 2: error 30`, then
-exits with the code as its status, so `echo $?` shows it too.  The
-line is `cc-src-line`: where the reader was when the compiler gave
-up.  Appendix G lists every code with the file that owns it; each
-file draws its codes from its own range (this file's are 10–19), so
-a code names one failure.
+The error-code convention keeps failure selection with the caller and
+formatting with `cc-die`. In these files, allocation uses code 10, raw
+input uses 20, output capacity uses 21 and output open failure uses 22.
+`cc-check-cap` accepts equality with the limit and consumes its arguments
+on success. It does not initialize the line cell: the input initializer
+does that. After preprocessing, the location refers to the flattened
+source, not an original include-file location.
 
-`cc-err-dec` is the only number printer in the compiler.  It divides
-by 10 until nothing is left, storing each remainder's digit one byte
-further left in `cc-err-digits`, then writes the digits it filled.
-`until,` (Ch 11) makes it run at least once, so 0 prints as `0`.  The
-three message fragments are laid down with `s,` (Ch 12), `char`
-(Ch 10) and `c,`: `s,` copies one space-free token, so the spaces and the colon
-go in one byte at a time.
+## The arena
 
-`cc-check-cap` is the bounds check every capacity uses: `n` is how
-full a buffer or table will be after the write the caller is about to
-make, and if that exceeds `cap` the compiler dies with the caller's
-code instead of writing past the end.
-
-### The arena
-
-Most of the compiler's state lives in fixed-size parallel arrays: the
-symbol table (Ch 24), the macro table (Ch 22), the label fixup table
-(Ch 30).  Each is a `create NAME N allot` of pre-sized storage with a
-separate counter variable.  That works for anything whose maximum
-count we can pin down in advance.
-
-A few things don't fit that mould: struct descriptors, the fixup
-chains for `goto` labels and forward function references, the case
-list of a `switch`.  For those we need an allocator that hands out
-variable-sized blocks:
+Records that survive until compilation ends can share a region with a
+single moving allocation pointer. `cc-arena-cap` and `cc-arena-base`
+describe the default slab; `cc-arena-start` and `cc-arena-limit` select
+the active region, and `cc-arena-ptr` marks its unused tail (`forth-bootstrap/cc/020-cc-arena.fth:419`):
 
 ```forth file=cc/020-cc-arena.fth
 \ ----- Storage -----
@@ -662,6 +774,19 @@ cc-arena-cap cc-arena-limit !
   dup 0< if, [lit] 10 cc-die then,
   dup cc-arena-start ! cc-arena-ptr ! ;
 
+```
+
+`cc-arena-map` installs an anonymous read/write mapping as the active
+region and resets the pointer to its start. A negative mapping result
+uses the allocation error code. The word does not copy old records, free
+a previous mapping or validate the requested size before the syscall;
+selecting storage belongs before allocating records into it.
+
+`cc-alloc` rounds the requested length, saves the old pointer as its answer,
+and checks the proposed new pointer against the active region before
+committing it (`forth-bootstrap/cc/020-cc-arena.fth:440`):
+
+```forth file=cc/020-cc-arena.fth
 \ ----- cc-alloc -----
 \ cc-alloc ( n -- addr )  Bump n bytes (rounded up to an 8-byte boundary)
 \ off the arena and return the start address of the allocation.  On exhaustion
@@ -682,48 +807,29 @@ cc-arena-cap cc-arena-limit !
   cc-arena-ptr ! ;                               ( -- old-top )
 ```
 
-`[lit] 32768 constant cc-arena-cap` fixes the default budget at 32 KiB.
-`create cc-arena-base cc-arena-cap allot` reserves that storage
-directly inside the dictionary: `create` makes a header for the name
-and `allot` extends its data area by 32 768 bytes.  Forth's own
-defining words serve as the compiler's `malloc`.  `cc-arena-ptr` is
-the bump pointer.
+For the checkpoint's initial request of 16 bytes, let the old pointer be
+`p`. Rounding leaves that length unchanged, the prospective pointer is
+`p + 16`, and the checked usage is `p + 16 - cc-arena-start @`. Success
+stores `p + 16` but returns `p`; the following allocation starts at that
+stored pointer.
 
-The line `cc-arena-base cc-arena-ptr !` runs at load time, so the
-pointer starts at the buffer's first byte. `cc-arena-start` and
-`cc-arena-limit` initially describe that same 32 KiB buffer. An
-explicit `cc-arena-map` call replaces the active base, limit, and
-bump pointer with an anonymous mapping: the direct TinyCC driver
-requests 8 MiB, while the direct-GCC driver requests a fixed 17 MiB.
-The original slab and seed bytes remain unchanged.
+This is a *bump allocator*: allocation advances a pointer and there is no
+individual release operation. Records remain available as long as the
+region does. Chapter 30 uses this facility for type records, Chapter 32
+for call fixups and Chapter 36 for control-flow records.
 
-`cc-alloc` rounds the request up to a multiple of 8 (`(n+7)/8*8`
-keeps every allocation cell-aligned; later passes assume it).  It
-reads the current top, computes the new top, and hands the bytes in
-use to `cc-check-cap`: past the active limit (32 KiB by default), the
-compiler dies with code 10. Mapping failure uses that same error.
-Otherwise it stores the new top and leaves the old top on the stack
-as the address just allocated.
+The rounded length is a multiple of 8; that preserves the base address's
+alignment rather than independently aligning the returned address. A
+zero-length request can return the current pointer without advancing it.
+Callers must supply valid nonnegative sizes whose rounding and pointer
+arithmetic do not overflow. The comment's stack trace names the default
+base and capacity, but the executable definition checks the selected
+`cc-arena-start` and `cc-arena-limit`.
 
-**No `free`.**  The arena only grows.  Every allocation lives for the
-whole compilation, and the kernel reclaims everything at exit.  The
-allocator is one screen long, and double-free, use-after-free and
-leaks are all impossible.
+## The input and source buffers and the reader
 
-## 2. The source reader and output writer
-
-The 287-line file `030-cc-io.fth` has four sections: A, the input and
-source buffers and the reader; B, the output buffer and emitters; C,
-the final file write; D, three helpers the next files share.
-
-### The input and source buffers and the reader
-
-The compiler reads stdin into one large buffer, and the preprocessor
-writes its result into a second; the lexer then walks that one
-character by character.  With the whole source in memory, the
-preprocessor can rewrite it wholesale, the lexer can look ahead, and
-there is no buffered I/O to negotiate on the read side.  Section A
-starts by placing the buffers.
+Raw text, preprocessed text and emitted bytes have different lifetimes and
+writers. The I/O file states that separation before declaring storage (`forth-bootstrap/cc/030-cc-io.fth:1`):
 
 ```forth file=cc/030-cc-io.fth
 \ 030-cc-io.fth — Input and source buffers, output-buffer emitter, file I/O
@@ -743,6 +849,15 @@ starts by placing the buffers.
 \   drop, dup, over, swap, >r, r@, r>, read, write, open, close, bytes-eq;
 \   020-cc-arena.fth: cc-src-pos, cc-src-line, cc-die, cc-check-cap.
 
+```
+
+Large dictionary allocations must clear the VM's reserved pages.
+`skip-vm-pages` precedes the raw buffer. `cc-in-default-cap` sizes
+`cc-in-default-buf`; `cc-in-buffer` and `cc-in-limit` select its current
+address and capacity, exposed by `cc-in-buf` and `cc-in-cap`.
+`cc-in-len` records the valid byte count (`forth-bootstrap/cc/030-cc-io.fth:18`):
+
+```forth file=cc/030-cc-io.fth
 \ ===========================================================================
 \ A. Input buffer, source buffer + reader
 \ ===========================================================================
@@ -764,6 +879,15 @@ cc-in-default-cap cc-in-limit !
 : cc-in-cap ( -- bytes ) cc-in-limit @ ;
 variable cc-in-len
 
+```
+
+Preprocessing needs an independent destination because expansion can
+outgrow the input. `cc-src-default-cap` sizes `cc-src-default-buf`, while
+`cc-src-buffer` and `cc-src-limit` feed the public `cc-src-buf` and
+`cc-src-cap` accessors. `cc-src-len` bounds valid text; `cc-src-init`
+empties it and resets the reader's position and line (`forth-bootstrap/cc/030-cc-io.fth:39`):
+
+```forth file=cc/030-cc-io.fth
 \ cc-src-buf holds the preprocessed source the lexer reads: #include'd files
 \ spliced in, directives blanked. The default is twice the raw capacity;
 \ direct GCC selects separately measured limits. The reader's cursor is in the lexer's
@@ -778,35 +902,26 @@ cc-src-default-cap cc-src-limit !
 : cc-src-cap ( -- bytes ) cc-src-limit @ ;
 variable cc-src-len
 
-```
-
-`skip-vm-pages` is the one trick in the file.  Before
-`create cc-in-default-buf cc-in-default-cap allot` reserves a megabyte of dictionary
-space, it slides HERE (the dictionary's next-byte pointer, Ch 2)
-forward to `0x414000`, one page above the start of the sysvar page
-(Ch 12 defines it), so the buffer lives clear of the seed's reserved
-pages: the data-stack page at `0x410000–0x411000` (with the stack
-itself growing down from the top), the I/O scratch byte at `0x412000`,
-the token buffer at `0x412800`, the sysvars at `0x413000`.  Chs 13–20
-introduced those addresses.
-
-The two source buffers have one writer each.  `cc-in-buf` holds stdin
-exactly as it arrived, and only the preprocessor reads it.
-`cc-src-buf` holds what the preprocessor writes, with every
-`#include "..."` file spliced in, which is why it is twice the size;
-the lexer reads only this one.  Its cursor is `cc-src-pos` and
-`cc-src-line` from the lexer's state block.
-
-With the buffers placed, the reader is a reset word, a load loop built
-on a general file reader, and three accessors:
-
-```forth file=cc/030-cc-io.fth
 \ cc-src-init ( -- )  Empty the source buffer and rewind the reader.
 : cc-src-init
   [lit] 0 cc-src-len !
   [lit] 0 cc-src-pos !
   [lit] 1 cc-src-line ! ;
 
+```
+
+Chapter 28 supplies the transformation from `cc-in-buf` to `cc-src-buf`.
+Keeping both buffers alive lets that transformation retain slices of raw
+text while it appends expanded text elsewhere.
+
+## Reading to a bounded end
+
+`cc-read-all` accepts a descriptor, destination, capacity and failure code.
+The `cc-ra-fd`, `cc-ra-buf`, `cc-ra-cap` and `cc-ra-code` cells retain those
+arguments; `cc-ra-n` accumulates the length. Stdin first receives the
+pending `key-drain` bytes before the ordinary read loop starts (`forth-bootstrap/cc/030-cc-io.fth:59`):
+
+```forth file=cc/030-cc-io.fth
 \ cc-read-all ( fd buf cap code -- n )  Read fd to end of file into buf and
 \ return the byte count.  Each read asks for all the room left.  A buffer
 \ that fills up dies with code: a full buffer and a longer file look the
@@ -832,6 +947,20 @@ variable cc-ra-n
   repeat,
   drop cc-ra-n @ ;
 
+```
+
+Each read requests the remaining space. A positive result extends the
+length; checking the length plus one reserves room to distinguish a full
+buffer from end-of-file. Thus an input exactly filling the capacity is
+rejected. A nonpositive result ends the loop: this implementation treats
+a negative read error like EOF rather than diagnosing it separately.
+
+`cc-load-stdin` resets the source reader before loading raw input, so an
+input-capacity failure has an initialized line. `cc-eof?` compares the
+source position with its length; `cc-peek-char` uses that verdict to avoid
+reading outside valid source text (`forth-bootstrap/cc/030-cc-io.fth:84`):
+
+```forth file=cc/030-cc-io.fth
 \ cc-load-stdin ( -- )  Read all of fd 0 into cc-in-buf; die 20 if it fills.
 \ Rewinds the reader first, so an error here reports line 1.
 : cc-load-stdin
@@ -849,6 +978,13 @@ variable cc-ra-n
   else,
     cc-src-buf cc-src-pos @ + c@
   then, ;
+```
+
+Consuming a byte belongs in `cc-next-char`, which adds newline accounting
+to `cc-peek-char` for the lexer in Chapter 29
+(`forth-bootstrap/cc/030-cc-io.fth:101`):
+
+```forth file=cc/030-cc-io.fth
 
 \ cc-next-char ( -- c )  Returns current byte and advances pos.
 \ Tracks line number when consuming '\n' (10).
@@ -861,26 +997,17 @@ variable cc-ra-n
 
 ```
 
-`cc-read-all` is one `begin, while, repeat,`.  Each iteration calls
-`read` with `(fd, buf+n, cap-n)`, asking for all the room that is
-left, duplicates the returned count and tests it against 0.  If
-positive, it adds the count to `n`, checks the buffer still has a
-free byte, and loops; otherwise it drops the count and returns `n`.
-A buffer that fills up is fatal even if the file happened to end
-exactly there: a full buffer and a longer file look the same, so the
-data must leave one byte unused.  `cc-load-stdin` reads fd 0 into
-`cc-in-buf` this way, with code 20; Ch 22 reads `#include` files into
-their own buffers with the same word.
+`cc-next-char` advances the position even when peek returned the EOF
+sentinel. Callers that need to stop at the end must test `cc-eof?`;
+repeated calls do not pin the cursor at the length.
 
-`cc-peek-char` and `cc-next-char` are the reader interface every later
-pass uses.  `peek` returns the byte at `pos` (or 0 at EOF) without
-advancing.  `next` returns the same byte and advances, bumping
-`cc-src-line` on newline.
+## The output buffer
 
-### The output buffer
-
-Section B declares the output buffer and the primitives that append
-to it.
+Emission needs its own active address, capacity and cursor.
+`cc-out-default-cap` sizes `cc-out-default-buf`; `cc-out-buffer` and
+`cc-out-limit` feed `cc-out-buf` and `cc-out-cap`. `cc-out-pos` is the
+append offset, and `cc-out-init` resets it without clearing the storage
+(`forth-bootstrap/cc/030-cc-io.fth:111`):
 
 ```forth file=cc/030-cc-io.fth
 \ ===========================================================================
@@ -901,6 +1028,13 @@ variable cc-out-pos
 \ cc-out-init ( -- )
 : cc-out-init  [lit] 0 cc-out-pos ! ;
 
+```
+
+Appending through `cc-emit-byte` checks the prospective position before
+writing. `cc-emit-4le` and `cc-emit-8le` direct the established low-byte
+emission sequence into this buffer instead of the Forth dictionary (`forth-bootstrap/cc/030-cc-io.fth:129`):
+
+```forth file=cc/030-cc-io.fth
 \ cc-emit-byte ( b -- )  Append a byte at cc-out-buf[cc-out-pos++]; die 21
 \ if the buffer is full.
 : cc-emit-byte
@@ -924,13 +1058,16 @@ variable cc-out-pos
 
 ```
 
-`cc-emit-byte` is the obvious `c!` plus `+!` pair.  `cc-emit-4le` and
-`cc-emit-8le` peel off bytes from low to high by repeated `/256`.
-These mirror `010-lib.fth`'s `,4` and `,8` (Ch 9), but write into
-`cc-out-buf` rather than at the dictionary's HERE.
+Capacity is checked per byte. If a multi-byte append runs out of room,
+the earlier bytes of that value have already been stored, but the process
+exits instead of returning a partially successful append.
 
-The emitters only append.  Fixing up bytes already written takes a
-second family that writes at an explicit offset:
+## Back-patching output offsets
+
+An unresolved output field needs an offset that remains valid while the
+buffer grows. `cc-out-patch-byte` writes at that offset without advancing
+`cc-out-pos`; `cc-out-patch-4le` keeps the starting offset while placing
+the successive bytes (`forth-bootstrap/cc/030-cc-io.fth:150`):
 
 ```forth file=cc/030-cc-io.fth
 \ cc-out-patch-byte ( v offset -- )  Overwrite cc-out-buf[offset] with low byte of v.
@@ -945,6 +1082,12 @@ second family that writes at an explicit offset:
   [lit] 256 / dup r@ [lit] 2 + cc-out-patch-byte      ( v>>16   ; R: offset )
   [lit] 256 /     r> [lit] 3 + cc-out-patch-byte ;    ( v>>24>>8 popped )
 
+```
+
+`cc-out-patch-8le` extends the same operation to a full cell, consuming the
+saved offset on its final byte store (`forth-bootstrap/cc/030-cc-io.fth:162`):
+
+```forth file=cc/030-cc-io.fth
 \ cc-out-patch-8le ( v offset -- )  Overwrite 8 bytes at offset (LE).
 : cc-out-patch-8le
   >r                                                  ( v       ; R: offset )
@@ -959,16 +1102,18 @@ second family that writes at an explicit offset:
 
 ```
 
-`cc-out-patch-4le` stashes `offset` on the return stack with
-`>r`/`r@`/`r>` (Ch 4) so the four byte-writes can each compute
-`offset+0` through `offset+3`.  This is Ch 11's emit-remember-patch
-pattern, moved from dictionary branch slots to `cc-out-buf` offsets.
-Ch 25 uses it for ELF header fields whose values aren't known until
-the rest of the file is laid out.
+These patchers neither reserve bytes nor check bounds. Their caller must
+have emitted the field already and must supply an offset covering a valid
+range. Chapter 31 uses this interface for executable fields; Chapter 32
+extends its use to call and global fixups. Back-patching here addresses
+output-buffer offsets, independent of dictionary HERE.
 
-### Writing the file
+## Writing the file
 
-Section C writes the buffer to a path.
+A completed output prefix can be written through `cc-write-output`.
+The caller supplies a NUL-terminated path; the wrapper opens with create
+and truncate flags, rejects a negative descriptor, writes the used prefix
+and closes the descriptor (`forth-bootstrap/cc/030-cc-io.fth:174`):
 
 ```forth file=cc/030-cc-io.fth
 \ ===========================================================================
@@ -997,15 +1142,17 @@ Section C writes the buffer to a path.
 
 ```
 
-Flag `577 = O_WRONLY|O_CREAT|O_TRUNC` and mode `493 = 0o755` are the
-only magic numbers in the file, and the comment derives both.  On open
-failure (`fd < 0`) the compiler dies with code 22.
+The wrapper discards both the write result and the close result. It does
+not retry a short write or report those errors, so a successful open alone
+does not establish that the whole file reached disk. Chapter 38 connects
+this operation to the compiler entry point.
 
-### Shared helpers
+## Shared helpers for C names
 
-Section D holds three words that the preprocessor (Ch 22), the lexer
-(Ch 23) and the symbol table (Ch 24) all need, so each is written
-once:
+Identifier spelling and table addressing recur across compiler layers.
+`ident-start?` accepts a letter or underscore; `ident-cont?` also accepts a
+digit. `cell[]` converts an entry index and an array base into the address
+of the corresponding cell (`forth-bootstrap/cc/030-cc-io.fth:198`):
 
 ```forth file=cc/030-cc-io.fth
 \ ===========================================================================
@@ -1024,6 +1171,14 @@ once:
 \ how every parallel-array table (macros, symbols, ...) is indexed.
 : cell[]  swap [lit] 8 * + ;
 
+```
+
+`cc-name-find` applies newest-first slice lookup to parallel address and
+length arrays. `cc-nf-a` and `cc-nf-u` retain the query;
+`cc-nf-addrs` and `cc-nf-lens` retain the arrays while the entry index
+counts down (`forth-bootstrap/cc/030-cc-io.fth:214`):
+
+```forth file=cc/030-cc-io.fth
 \ cc-name-find ( a u addrs lens count -- i | -1 )  Look the name a u up in
 \ a table kept as two parallel arrays, addrs (where each name's bytes are)
 \ and lens (how many), of count entries.  Walks from the newest entry to the
@@ -1048,6 +1203,18 @@ variable cc-nf-lens
     1-                                           \ i--
   repeat, ;                                      \ not found: i = -1
 
+```
+
+A match returns the index directly from the loop. Falling past the first
+entry leaves -1, including when the count was initially zero. The scratch
+cells make this a non-reentrant helper. The caller owns both arrays and
+the name bytes they reference.
+
+Larger tables can use `cc-name-hash` to restrict comparisons to a bucket.
+It uses the same hash recurrence as `fh-hash`, with `cc-name-buckets`
+setting the mask (`forth-bootstrap/cc/030-cc-io.fth:238`):
+
+```forth file=cc/030-cc-io.fth
 \ cc-name-hash ( a u -- h )  djb2 over the name, as the linker hashes
 \ symbols (140-cc-link.fth), masked to cc-name-buckets.  The macro and
 \ symbol tables (040, 070) keep, per hash, their newest entry in a bucket
@@ -1062,6 +1229,21 @@ variable cc-nf-lens
   repeat, 2drop
   r> cc-name-buckets 1- and ;
 
+```
+
+Equal hashes do not establish equal names; a bucket still needs length
+and byte comparisons. Chapters 28 and 30 build the macro and symbol table
+users. Chapter 29 consumes the identifier classifiers. This file supplies
+helpers, not those tables' insertion and scope rules.
+
+## Selecting a larger workspace
+
+The public buffer accessors allow a different storage profile without
+changing the reader and emitter interfaces. `cc-in-direct-cap`,
+`cc-src-direct-cap` and `cc-out-direct-cap` bound the alternate slices;
+`cc-io-direct-base` caches the mapping address (`forth-bootstrap/cc/030-cc-io.fth:252`):
+
+```forth file=cc/030-cc-io.fth
 \ Direct GCC source workspace is opt-in; default buffers stay dictionary-backed.
 \ Measured raw/expanded/output maxima are 2,782,995/5,415,887/3,901,856 bytes.
 \ Raw and output round to whole MiB. Expanded text splices in every included
@@ -1072,6 +1254,19 @@ variable cc-nf-lens
 [lit] 4194304 constant cc-out-direct-cap
 variable cc-io-direct-base
 
+```
+
+The historical size measurements in the comment were not rerun for this
+chapter. The constants specify a fixed profile, not automatic growth in
+response to input.
+
+`cc-workspace-round` rejects invalid sizes before rounding to page units.
+`cc-workspace-syscall` requests anonymous read/write storage through
+`cc-workspace-syscall-fwd`, whose deferred target can be substituted.
+`cc-workspace-map` rejects a nonpositive result using the caller's code
+(`forth-bootstrap/cc/030-cc-io.fth:262`):
+
+```forth file=cc/030-cc-io.fth
 \ Round before mmap only after rejecting zero, negative and overflowing sizes.
 \ Requests are policy constants at callers; this helper never grows a buffer.
 : cc-workspace-round ( bytes code -- page-bytes )
@@ -1085,6 +1280,14 @@ defer cc-workspace-syscall-fwd
 : cc-workspace-map ( bytes code -- address )
   >r r@ cc-workspace-round cc-workspace-syscall-fwd
   dup [lit] 0 <= if, r@ cc-die then, r> drop ;
+```
+
+`cc-io-direct-workspace` maps the combined capacity only when its cached
+base is empty, then places the source slice after input and output after
+source. `cc-io-default-workspace` restores the dictionary-backed addresses
+and limits (`forth-bootstrap/cc/030-cc-io.fth:275`):
+
+```forth file=cc/030-cc-io.fth
 : cc-io-default-workspace ( -- )
   cc-in-default-buf cc-in-buffer ! cc-in-default-cap cc-in-limit !
   cc-src-default-buf cc-src-buffer ! cc-src-default-cap cc-src-limit !
@@ -1100,217 +1303,67 @@ defer cc-workspace-syscall-fwd
   cc-src-buf cc-src-direct-cap + cc-out-buffer ! cc-out-direct-cap cc-out-limit ! ;
 ```
 
-`ident-start?` and `ident-cont?` classify identifier bytes: a letter
-or `_` starts one, and digits may follow.  Every compiler table is a
-set of parallel arrays of 8-byte cells, one array per field, indexed
-by entry number; `cell[]` turns an index into a cell address, so
-`i cc-sym-kind cell[] @` reads entry `i`'s kind.  `cc-name-find` is
-the plain lookup: a table that keeps each name as an address array and
-a length array wants the newest entry with a given name, so a later
-entry hides an earlier one.  It answers the entry's index, or -1.
-Small tables (labels, a macro's parameters) use it as it is.  The
-macro table, the symbol table and the object records hold thousands
-of names when the compiler builds GCC, so they also file each entry
-under `cc-name-hash` and compare only the names in one bucket.
+Neither selector resets lengths or cursors, copies contents, nor releases
+the cached mapping. Select the profile before loading a new input and use
+the ordinary initializers. The later bootstrap drivers choose their
+profiles in Chapters 50–52; their execution is outside this checkpoint.
 
-## 3. Why one big buffer instead of streaming?
+## Why one big buffer instead of streaming?
 
-A streaming compiler would pipe characters through lexer, parser and
-emitter with no intermediate buffers.  This one reads everything,
-walks it, then writes everything out.
+One buffer per responsibility gives the preprocessor stable raw text, the
+lexer stable source slices and the emitter writable output fields. Random
+access is explicit: the reader carries a position, and the patchers accept
+offsets. Streaming would need additional machinery to retain text for
+look-ahead and to revisit unfinished output.
 
-Streaming wins on memory when the source is huge; buffering wins on
-simplicity when it is small.  M2-Planet's largest single translation
-unit is about 220 KiB, so a 1 MiB input cap leaves headroom, and four
-megabytes of address space buy a compiler with no I/O interleaving to
-reason about.  Every cap is checked: input that does not fit is error
-20, output 21.
-
-Several passes also want random access.  The lexer peeks two bytes
-ahead to tell `/` from `//` and `0` from `0x`.  The preprocessor
-reads the whole input buffer and writes the source buffer.  The code
-emitter patches ELF header fields.
-
-This is "one buffer per responsibility" in its simplest form: raw
-input, preprocessed source, emitted ELF bytes and global data each get
-an owner and a cursor.
-
-## 4. How the buffers connect to what's coming
-
-The rest of Part III reaches for these pieces by name.  Ch 22 walks
-`cc-in-buf` with its own cursor and writes its result into
-`cc-src-buf`; Ch 23 reads that through `cc-peek-char` /
-`cc-next-char`, and backs up only by resetting the whole lexer-state
-block.  Every failure from here on ends in `cc-die`.  Ch 24's struct descriptors and Ch 26's forward-call fixup chains
-come from `cc-alloc`.  Chs 25, 26 and 29–31 emit into `cc-out-buf` and
-back-patch with `cc-out-patch-4le` / `cc-out-patch-8le`, and Ch 32
-calls `cc-write-output` last.
+The price is a fixed memory budget and whole-input residency. Capacity
+checks bound ordinary appends; they do not turn unchecked patches, invalid
+allocation requests or ignored I/O errors into safe operations. Each
+interface still has a caller contract.
 
 ## Try it
 
-**Small check:** the repo test script runs the focused probes for
-this chapter's two mechanisms, `test-020-cc-arena.fth` and
-`test-030-cc-io.fth`.
+Run these commands from the `forth-bootstrap` checkout root. They use the
+layer inputs selected in `forth-bootstrap/test.sh:114` and
+`forth-bootstrap/test.sh:119`, without loading later compiler layers.
+
+The arena assertions in `forth-bootstrap/cc/test-020-cc-arena.fth:9` check
+distinct allocations at the requested spacing, preservation of a stored
+value, and matching, mismatching and empty byte comparisons. Despite its
+alignment comment, the test does not check the base address modulo a cell.
+
+The I/O assertions in `forth-bootstrap/cc/test-030-cc-io.fth:10` fill source
+text directly and check peek, consumption, newline accounting and EOF.
+They also check append positions, byte order for both wide emitters, and
+byte and short-field patching. They do not exercise stdin loading, file
+writing, mapped workspace selection or the full-cell patcher.
 
 ```sh
-./seed/build.sh
-./test.sh         # runs cc/test-020-cc-arena.fth and cc/test-030-cc-io.fth
-                  # alongside the lexer / types / sym tests.
+cat forth/010-lib.fth cc/020-cc-arena.fth cc/test-020-cc-arena.fth | ./seed-forth
+printf 'arena exit: %s\n' "$?"
+cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/test-030-cc-io.fth | ./seed-forth
+printf 'io exit: %s\n' "$?"
 ```
 
-`test-020-cc-arena.fth` exercises `cc-alloc` at several sizes and
-asserts the returned addresses are 8-aligned and non-overlapping;
-`test-030-cc-io.fth` round-trips bytes through `cc-emit-byte` and
-`cc-out-patch-4le`.
+Observed output:
 
-**Bootstrap relevance:** the Stage-A gate uses these buffers for every
-input byte and every emitted output byte, starting with the smallest C
-test case.
-
-```sh
-./seed/build.sh && tests/cc/stage-a-check.sh
+```text
+arena exit: 0
+io exit: 0
 ```
 
-That driver has `seed-forth` compile the M2-Planet monolith, runs the
-result on M2-Planet's own sources, and `cmp`s the `.M1` text it
-writes against a GCC-built M2-Planet's.
+The tests themselves are silent. Their final `0= die` converts the
+accumulated assertion flag into the exit status printed by the shell.
 
-**tri.c at this stage:** compile the running example, then replay
-`cc-main`'s steps by hand to watch the buffers fill.  The second
-pipeline loads every file except `120-cc-main.fth` (whose last line
-runs `cc-main`) and prints a cursor after each step:
+## Exercise
 
-```sh
-./seed/build.sh
-tri() { cat <<'C'
-#define ROWS 4
-struct tri { int rows; int stars; };
-struct tri t;
+**Trace — easy.** Follow the arena test's first allocation through
+`cc-alloc`. Identify the value returned, the pointer stored, and the value
+passed as the prospective size to `cc-check-cap`. Then explain why
+rounding the request preserves the base's alignment without proving that
+the base itself is aligned.
 
-void line(int pad, int n) {
-    while (pad > 0) { putchar(' '); pad = pad - 1; }
-    while (n > 0) { putchar('*'); n = n - 1; }
-    putchar('\n');
-}
+**Verify — moderate.** Extend the I/O test locally to patch a full cell
+through `cc-out-patch-8le`. Check every resulting byte and check that
+`cc-out-pos` is unchanged. Use only the library and layers loaded above.
 
-int main() {
-    int w[ROWS];
-    int r;
-    t.rows = ROWS;
-    for (r = 0; r < t.rows; r = r + 1) {
-        w[r] = 1 + r * 2;
-        line(t.rows - 1 - r, w[r]);
-        t.stars = t.stars + w[r];
-    }
-    if (t.stars == ROWS * ROWS) return t.stars;
-    return 1;
-}
-C
-}
-{ cat forth/010-lib.fth $(cc/compiler-layers.sh); tri; } | ./seed-forth
-/tmp/cc-out                         # draws the triangle
-echo "exit: $?"                     # prints "exit: 16"
-{ cat forth/010-lib.fth cc/0[2-9]0-cc-*.fth cc/1[01][0-9]-cc-*.fth
-  cat <<'FORTH'
-: .d  dup [lit] 9 > if, dup [lit] 10 / .d then,
-      dup [lit] 10 / [lit] 10 * - [lit] 48 + emit ;
-: .n  .d [lit] 32 emit ;
-: steps
-  cc-load-stdin        cc-in-len @ .n
-  cc-preprocess        cc-src-len @ .n
-  cc-out-init cc-globals-init
-  cc-emit-elf-header   cc-out-pos @ .n
-  cc-parse-program     cc-out-pos @ .n
-  cc-finalize-globals  cc-out-pos @ .n
-  cc-arena-ptr @ cc-arena-base - .d  bye ;
-steps
-FORTH
-  tri; } | ./seed-forth             # prints "484 466 120 1225 1241 440"
-```
-
-`cc-load-stdin` puts all 484 bytes of `tri.c` in `cc-in-buf`; the
-preprocessor (Ch 22) writes 466 into `cc-src-buf`, the `#define` line
-gone and each `ROWS` now ` 4 `.  `cc-out-buf` holds the 120-byte ELF
-header (Ch 25) before a single token is parsed, 1,225 bytes once both
-functions are compiled, and 1,241 once the 16 bytes of the global `t`
-are appended (Ch 26).  The last number is the arena: 440 bytes, the
-56-byte descriptor header for `struct tri` and its 320-byte field
-table, room for eight 40-byte records (Ch 24), and a 64-byte lexer mark
-for the `for` loop's step expression (Ch 30).  `cc-finalize-elf` and `cc-write-output` then
-send those 1,241 bytes to `/tmp/cc-out` in one `write`.
-
-## Exercises
-
-1. **★★★ Verify.** The arena is 32 KiB.  Could you reduce it to 16 KiB without
-   breaking M2-Planet compilation?  How would you measure?  (Hint:
-   instrument `cc-alloc` to record peak `cc-arena-ptr`.)
-
-2. **★★ Verify.** The input buffer is 1 MiB and the source buffer
-   2 MiB.  What are the actual peak sizes for M2-Planet?  Could you
-   tighten them and save a few megabytes of virtual address space?
-
-3. **★★ Trace.** `cc-out-patch-4le` writes 4 bytes one at a time.  Could you
-   write a faster `patch-cell-le` using `!` and some shuffling?
-   Would it be worth the bytes-of-code?
-
-4. **★★ Modify.** Add `cc-emit-string ( c-addr u -- )` that emits `u` bytes from
-   `c-addr` to the output buffer.  Use it to emit a hardcoded
-   "Hi\n" greeting and confirm.
-
-5. **★★ Trace.** The arena's OOM path dies with code 10.  Grep for
-   `cc-die` in `020-cc-arena.fth` through `070-cc-sym.fth`, list the
-   codes, and check them against Appendix G.  Which range would a new
-   failure in the lexer (050) draw from?
-
-## After this chapter
-
-The compiler has a deterministic memory model: stdin lands in
-`cc-in-buf`, the preprocessed source in `cc-src-buf`, emitted bytes accumulate in `cc-out-buf` and reach disk
-in one `write`, and the arena handles anything that doesn't fit a
-fixed slot.  Every byte the Stage-A check compares passes through
-these buffers.  But `tri.c`'s 484 bytes are not yet C a parser can
-use: line 1, `#define ROWS 4`, is an instruction to a preprocessor,
-and Ch 22 has to decide what to do with it.
-
-## Takeaways
-
-- The default compiler keeps three big buffers (input, source, output) and a 32 KiB arena inside the seed's 16 MiB segment (Ch 13). Optional direct drivers map a separate bounded arena without changing the seed.
-- Reading and writing are batched: stdin arrives in one loop, and the output leaves in one `write` after the whole ELF is laid out.
-- Every capacity is checked with `cc-check-cap`, and every failure ends in `cc-die`, which prints the source line and exits with a code from the owning file's range (Appendix G).
-- Back-patching through `cc-out-patch-4le` and `cc-out-patch-8le` handles forward references inside the emitted ELF, the same trick `if,` uses for Forth-level control flow in Ch 11.
-
-Next: Chapter 22 — The Preprocessor.
-
-### Optional direct-GCC source storage
-
-The default raw and expanded buffers remain 1 MiB and 2 MiB dictionary
-allocations. Their public words now load a selected address or capacity, so
-callers keep exactly the same stack effects. Only the direct-GCC driver opts
-into raw/expanded/output slices of 3/7/4 MiB in one anonymous mapping. The unchanged original
-`insn-attrtab.c` input is 2,782,995 bytes; its expanded text is 2,747,955 bytes.
-The other measured generated unit, `insn-recog.c`, expands to 2,469,308 bytes.
-The raw and output capacities are those maxima rounded up to a whole MiB.
-
-The expanded slice was 3 MiB until binutils. Its `opcodes/i386-opc.c` is a
-small file that includes `i386-tbl.h`, 5,334,945 bytes of generated
-instruction templates, and expands to 5,415,887 bytes. Expanded text holds
-every included byte outside directives and skipped groups, so it shares one
-bound with the direct include pool (Ch 22 §4): the largest measured
-requirement in the binutils 2.30 and GCC 4.0.4 cohort plus a quarter,
-rounded up to a whole MiB, 7 MiB. The same rule sizes the object writer's
-rodata and data (Ch 35). The suppression shadow (Ch 22) covers the 2 MiB
-scratch area and this slice, so it grows from 5 to 9 MiB; with the mapped
-include pool and object sections the direct profile reserves 18.5 MiB more
-address space. An anonymous mapping costs memory only for the pages a unit
-touches.
-
-`cc-workspace-round` rejects zero, negative and overflowing requests before
-rounding to Linux pages. `cc-workspace-map` makes one private read/write mapping
-request and fails through the existing caller-selected diagnostic. The mapping
-is cached within this compiler process; selecting it repeatedly does not grow
-it. Selecting default storage again restores the original buffers. The selectors preserve cursors and counts; selection
-belongs before loading a new source and normal initialization, and `cc-src-init` and `cc-out-init` retain
-their existing cursor-reset roles. The raw reader still reserves one byte to
-distinguish end-of-file: its largest accepted payload is capacity minus one.
-Neither an allocation failure nor a later capacity error is retried at a larger
-size. The seed itself and its 16 MiB segment are unchanged.
