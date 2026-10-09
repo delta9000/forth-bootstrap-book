@@ -1,45 +1,26 @@
-# Chapter 22 — The Preprocessor
+# Chapter 28 — The preprocessor
+
+`#define ROWS 4` makes a later `ROWS` stand for replacement text before C parsing begins. A preprocessor turns that rule, include directives and conditional groups into a rewritten source buffer. The result is a flattened stream ready for the lexer.
+
+## The contract, the sink and the scratch area
+
+The code has this shape:
 
 ```text
-Missing capability: C source still arrives as include-laden, macro-bearing, #if-guarded text.
-New pattern: rewrite cc-in-buf into cc-src-buf, expanding macros and dropping false groups as it goes.
-Artifact after this chapter: a flattened C stream with directives removed and supported macros expanded.
-Proof link: pnut.c, exactly as shipped, comes out token for token what GCC's cpp makes of it.
+cc-in-buf → region walker → cc-src-buf
+                ↕
+       include regions and macro replacements
+                ↕
+       temporary sinks, macro table, conditional stack
 ```
 
-`tri.c` opens with `#define ROWS 4`, a line no C parser accepts, and
-then uses `ROWS` four times.  Before the parser sees the program,
-something has to delete that line and make each `ROWS` mean 4.  That
-is the preprocessor's job, and in this compiler it does all of it in
-one pass over the text, before the lexer starts.  The preprocessor file
-`040-cc-prep.fth` handles `#include "…"` (spliced in recursively),
-object-like and function-like `#define`s with any body, `#undef`, and
-conditional compilation with `#if`, `#ifdef`, `#ifndef`, `#elif`,
-`#else` and `#endif`. What comes out is plain C with directives removed;
-a self-referential macro can intentionally leave its own name behind.
+The recurring operation is *save–switch–restore*: suspend a region or sink,
+process nested text, then resume its caller. The code retains legacy and
+direct preprocessing policies. The TinyCC route and stage0-posix handoff
+remained in the older project (`forth-bootstrap/HISTORY.md:14`); their
+historical presence does not make them steps in the current route.
 
-M2-Planet's own source asks little of this: two headers included
-through the `tests/cc/` fallback and one `#ifndef CC_H` include
-guard.  The rest is there for pnut, the C compiler that
-`tests/pnut/sf-pnut-check.sh` builds from its unmodified `pnut.c`.
-pnut's source is configured almost entirely by `#if` and `#ifdef`
-on names like `target_i386_linux`, and it writes helpers as
-function-like macros: `#define TERNARY(cond, if_true, if_false) …`,
-`#define get_child_(expected_parent_node, node, i) get_child(node, i)`.
-On it, this pass produces the same tokens as GCC's preprocessor
-(the check at the end of the chapter).
-
-The design has three parts.  A *walker* reads a *region* (a buffer, a
-length, a position) byte by byte and writes to a *sink*.  A macro
-use pushes the replacement text as a new region and walks it, which
-is how the result is scanned again for more macros.  Arguments and
-replacements are built in temporary sinks carved out of a scratch
-area.  And a stack of conditional states says whether the current
-line is kept or dropped.
-
-## 1. The contract, the sink and the scratch area
-
-The file's header comment states the whole contract.
+A preprocessor replaces macro names, chooses conditional groups and splices included files into the input stream; the header names the supported directives (`forth-bootstrap/cc/040-cc-prep.fth:1`):
 
 ```forth file=cc/040-cc-prep.fth
 \ 040-cc-prep.fth — the C preprocessor.
@@ -60,6 +41,11 @@ The file's header comment states the whole contract.
 \   4. #error stops the compiler. SysV #line sets presumed source locations;
 \      GNU numeric markers fail explicitly. Other directives are dropped.
 \   5. Everything else is copied through unchanged.
+```
+
+A dropped line still leaves its newline behind. The header connects that rule to the input and source buffers (Chapter 27), with a separate evaluator hook for conditional expressions (`forth-bootstrap/cc/040-cc-prep.fth:19`):
+
+```forth file=cc/040-cc-prep.fth
 \
 \ Every source line keeps its line number, so cc-die's "line N" is the line
 \ of the spliced-together program: a dropped line or directive leaves its
@@ -81,15 +67,7 @@ The file's header comment states the whole contract.
 
 ```
 
-The last paragraph matters to everything after it: the line numbers
-`cc-die` reports (Ch 21) are the flattened program's, and the pass
-keeps them equal to the physical lines of the source with its
-includes spliced in.  A dropped line still leaves its newline behind.
-
-Output goes to a *sink*: a buffer, how much of it is written, its
-size, and the error code to die with when it fills.  The four cells
-sit in one block so that a sink can be parked and restored by copying
-32 bytes, the same trick Ch 23 uses for the lexer's state.
+Output goes to a *sink*: a buffer, its written length, its capacity and its failure code. Keeping that state together lets nested expansion park and restore it (`forth-bootstrap/cc/040-cc-prep.fth:38`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -113,6 +91,11 @@ defer cc-pp-select-flags-fwd
 ' cc-pp-select-flags-default is cc-pp-select-flags-fwd
 
 \ cc-prep-emit-byte ( b -- )  Append b to the sink; die with the sink's
+```
+
+Every append checks the sink's bound and clears stale token metadata before storing a byte. Slice copies go through a hook so they can preserve metadata when needed (`forth-bootstrap/cc/040-cc-prep.fth:59`):
+
+```forth file=cc/040-cc-prep.fth
 \ code if it is full.  Counts lines as it goes, so a failure during the
 \ pass reports the line of the output it had reached.
 : cc-prep-emit-byte
@@ -136,11 +119,7 @@ defer cc-pp-copy-byte-fwd
 
 ```
 
-`cc-prep-emit-byte` is the only word that writes.  It checks the
-capacity, stores, and counts newlines into `cc-src-line`, so a
-failure during the pass reports the line the output had reached.  The
-main sink is `cc-src-buf` (Ch 21) with code 36; the other two kinds
-are below.
+The parked-sink stack holds suspended destinations; `cc-pp-copy4` moves the complete sink record. Scratch capacity bounds how many temporary sinks can be live (`forth-bootstrap/cc/040-cc-prep.fth:81`):
 
 ```forth file=cc/040-cc-prep.fth
 \ cc-pp-copy4 ( src dst -- )  Copy one 4-cell block (a sink).
@@ -161,6 +140,11 @@ are below.
 create cc-pp-sinks  cc-pp-sinks-cap [lit] 32 * allot
 variable cc-pp-sink-depth
 
+```
+
+Sink push and pop apply save–switch–restore: push installs a new sink, and pop resumes the previous destination with its corresponding flags (`forth-bootstrap/cc/040-cc-prep.fth:98`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-sink-push ( addr pos cap code -- )  Park the current sink and make
 \ a new one.
 : cc-pp-sink-push
@@ -177,15 +161,9 @@ variable cc-pp-sink-depth
 
 ```
 
-`cc-pp-sink-push` parks the current sink on a stack and installs a
-new one; `cc-pp-sink-pop` brings the parked one back.  The stack
-needs no check of its own: every sink parked on it, but the first
-two, belongs to a temporary buffer (below), and the scratch area
-those come from runs out first.
+### Temporary text and token marks
 
-A macro call needs text of its own: each argument, expanded, and then
-the body with the arguments put in.  That text is built in *temporary
-sinks* taken from a 2 MiB scratch area, used as a stack.
+A macro call builds arguments and replacement text in scratch storage. A finished temporary keeps only its used text, and the call releases its whole scratch lifetime when expansion ends (`forth-bootstrap/cc/040-cc-prep.fth:112`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -200,6 +178,11 @@ sinks* taken from a 2 MiB scratch area, used as a stack.
 create cc-pp-scratch  cc-pp-scratch-cap allot
 variable cc-pp-scratch-top                        \ first free byte
 [lit] 65536 constant cc-pp-temp-cap               \ one temp buffer's room
+```
+
+An identifier encountered while its macro is disabled must remain unavailable during later rescans. Direct mode stores that property in shadow bytes alongside scratch and source text, leaving C spelling unchanged (`forth-bootstrap/cc/040-cc-prep.fth:124`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ A copied identifier that encountered a disabled macro remains unavailable
 \ during every later argument/replacement rescan. One shadow byte per text
@@ -220,6 +203,11 @@ variable cc-pp-flags-base
 : cc-pp-select-flags
   cc-pp-out @ cc-pp-flag-address cc-pp-out-flags ! ;
 ' cc-pp-select-flags is cc-pp-select-flags-fwd
+```
+
+Forwarding a byte must capture its mark before the append clears the destination mark, including when source and destination coincide (`forth-bootstrap/cc/040-cc-prep.fth:144`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-pp-copy-marked-byte ( address -- )
   dup cc-pp-unavailable? >r c@ cc-prep-emit-byte
   r> cc-pp-out-flags @ 0= 0= and if,
@@ -228,6 +216,11 @@ variable cc-pp-flags-base
 ' cc-pp-copy-marked-byte is cc-pp-copy-byte-fwd
 : cc-pp-flags-init
   [lit] 0 cc-pp-out-flags !
+```
+
+The shadow mapping is allocated on demand and reused. Pasting marked text is rejected because this text engine cannot preserve the full token-level rules for that case (`forth-bootstrap/cc/040-cc-prep.fth:152`):
+
+```forth file=cc/040-cc-prep.fth
   cc-prep-direct @ if,
     cc-src-cap cc-src-direct-cap > if, [lit] 43 cc-die then,
     cc-pp-flags-base @ 0= if,
@@ -247,6 +240,11 @@ variable cc-pp-flags-base
 
 \ cc-pp-scratch-alloc ( n -- a )  Take n bytes; die 43 if they aren't
 \ there (macro calls nested some 32 deep inside each other's arguments).
+```
+
+`cc-pp-temp-begin` reserves room and switches the sink; `cc-pp-temp-end` returns the text, releases unused room and restores the parked sink. The allocator checks the scratch bound before advancing (`forth-bootstrap/cc/040-cc-prep.fth:171`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-pp-scratch-alloc
   cc-pp-scratch-top @ swap over +                  ( a new-top )
   dup cc-pp-scratch - cc-pp-scratch-cap [lit] 43 cc-check-cap
@@ -267,22 +265,9 @@ variable cc-pp-flags-base
 
 ```
 
-`cc-pp-temp-begin` takes 64 KiB off the top of the stack and makes it
-the sink; `cc-pp-temp-end` answers the text written there, gives
-back the part of the 64 KiB it did not use, and resumes the parked
-sink.  So a finished argument occupies only its own length, and the
-next temporary starts right after it.  A macro call remembers
-`cc-pp-scratch-top` before it starts and restores it when it is done
-(§5), which frees everything it built.  An argument that overflows
-its 64 KiB is code 37 (`tests/cc/die-37-macro-scratch-full.sh`); a
-scratch area used up, which takes some 32 macro calls nested inside
-each other's arguments, is 43 (`die-43-macro-scratch-deep.sh`).
+## The macro table
 
-## 2. The macro table
-
-The default macro table is six parallel arrays of 4,096 cells and a counter,
-the same layout Ch 24 uses for the symbol table, indexed with
-`cell[]` (Ch 21). Legacy mode retains its original 1,024-definition limit.
+A macro number indexes parallel arrays for its name, body, parameter count and busy flag. Names and bodies must outlive the source region that supplied them (`forth-bootstrap/cc/040-cc-prep.fth:189`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -303,6 +288,11 @@ the same layout Ch 24 uses for the symbol table, indexed with
 \                         expanded again, so no expansion loops.
 
 
+```
+
+The name and body fields each have a default array, a selected-buffer variable and an accessor. All fields use the same macro index (`forth-bootstrap/cc/040-cc-prep.fth:207`):
+
+```forth file=cc/040-cc-prep.fth
 [lit] 4096 constant cc-macro-default-cap
 variable cc-macro-limit
 cc-macro-default-cap cc-macro-limit !
@@ -323,6 +313,11 @@ create cc-macro-default-body-len cc-macro-default-cap [lit] 8 * allot
 variable cc-macro-body-len-buffer
 cc-macro-default-body-len cc-macro-body-len-buffer !
 : cc-macro-body-len ( -- address ) cc-macro-body-len-buffer @ ;
+```
+
+The parameter field distinguishes object-like macros from function-like macros; the busy field disables recursive replacement. The direct-GCC workspace has a separate capacity and mapping base, while the text pool remains shared (`forth-bootstrap/cc/040-cc-prep.fth:227`):
+
+```forth file=cc/040-cc-prep.fth
 create cc-macro-default-params cc-macro-default-cap [lit] 8 * allot
 variable cc-macro-params-buffer
 cc-macro-default-params cc-macro-params-buffer !
@@ -342,6 +337,11 @@ variable cc-macro-pool-pos
 [lit] 4608 constant cc-macro-direct-cap
 variable cc-macro-direct-base
 \ The selectors that switch these arrays follow the include pool below.
+```
+
+A definition read from an include slot cannot retain pointers into that slot: a later include may overwrite it. `cc-pp-pool-copy` uses save–switch–restore to give names and bodies lasting storage (`forth-bootstrap/cc/040-cc-prep.fth:260`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-pp-to-pool ( -- )  Make the macro pool the sink (die 35 when full).
 : cc-pp-to-pool
@@ -360,19 +360,14 @@ variable cc-macro-direct-base
   cc-macro-pool cc-macro-pool-pos @ + >r          ( a u ; R: a' )
   cc-pp-to-pool  dup >r cc-pp-emit-bytes  cc-pp-from-pool
   r> r> swap ;
-
 ```
 
-A macro's name and body are *copied* into `cc-macro-pool`.  A
-`#define` inside an included file is read out of that file's
-include-pool slot (§4), and the next `#include` at the same depth
-reads a new file into the same slot; a pointer into the slot would
-then point at someone else's bytes.  The pool is filled by making it
-the sink: `cc-pp-to-pool` parks the current sink and writes from the
-pool's end, and `cc-pp-from-pool` keeps what was written.  A full pool
-is code 35.
+### Recording and finding definitions
+
+Hash buckets narrow each lookup to a chain of definitions. A bucket holds an encoded head index, and `cc-macro-hnext` links older entries; resetting clears the heads (`forth-bootstrap/cc/040-cc-prep.fth:264`):
 
 ```forth file=cc/040-cc-prep.fth
+
 \ Lookup goes through a hash table (cc-name-hash, 030): cc-macro-bucket
 \ holds, per bucket, one more than the index of the newest macro whose name
 \ hashes there (0 for none), and cc-macro-hnext links each macro to the
@@ -387,6 +382,11 @@ create cc-macro-hnext   cc-macro-direct-cap [lit] 8 * allot
     [lit] 0 over cc-macro-bucket cell[] !  1+
   repeat, drop ;
 cc-macro-hash-reset
+```
+
+Linking inserts the new record at its bucket's head. `cc-macro-record` checks the selected limit, fills the parallel fields and clears the new entry's busy flag (`forth-bootstrap/cc/040-cc-prep.fth:291`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-macro-link ( i -- )  Put macro i, whose name is filed, at the head of
 \ its bucket.
@@ -412,6 +412,11 @@ cc-macro-hash-reset
   r@ cc-macro-link
   [lit] 0 r> cc-macro-busy cell[] !
   [lit] 1 cc-macro-count +! ;
+```
+
+`cc-macro-add` copies built-in text before recording it. Lookup saves the queried slice in `cc-mf-a` and `cc-mf-u`, then walks the bucket newest-first so a later definition shadows an earlier one (`forth-bootstrap/cc/040-cc-prep.fth:307`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-macro-add ( name-a name-u body-a body-u -- )  Add an object-like
 \ macro, copying name and body into the pool (the built-in macros).
@@ -436,31 +441,9 @@ variable cc-mf-u
 
 ```
 
-`cc-macro-record` files an entry whose name and body are already in
-the pool; a 1,025th macro is code 34.  `cc-macro-add`, which copies
-both first, is for the built-in macros (§8).  Every identifier the
-preprocessor meets is looked up, and GCC's own headers define close to
-5,000 macros, so the table is hashed: `cc-name-hash` (Ch 21) picks one
-of 4,096 buckets, `cc-macro-bucket` remembers the newest macro in each
-and `cc-macro-hnext` the next older one in the same bucket.
-`cc-macro-find` walks that chain newest-first, so a later `#define` of
-the same name still shadows the earlier one.  (A plain walk over the
-whole table, as Ch 21's `cc-name-find` does, made preprocessing cc1's
-`combine.c` take about 50 seconds.)  `#undef` sets the name's length
-to 0: lengths are compared first, and no name has length 0.
+## Regions, owed newlines and the byte walkers
 
-The body of a function-like macro is stored with its parameters
-already found: `#define ADD(a, b) ((a) + (b))` stores the thirteen
-bytes `((` 1 0 `) + (` 1 1 `))`, where 1 0 and 1 1 are two-byte
-markers for parameters 0 and 1.  Byte 1 never occurs in C text, so
-substitution (§5) needs no second look at identifiers.
-
-## 3. Regions, owed newlines and the byte walkers
-
-The preprocessor walks one region at a time: a base address, a length
-and a position.  `cc-prep-in-file` says whether the region is a source
-file, where a line may be a directive, or macro text being scanned
-again, where it may not.
+The walker reads a *region*: base address, length and position. Its file flag distinguishes source that may contain directives from replacement text that must not create directives (`forth-bootstrap/cc/040-cc-prep.fth:326`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -486,6 +469,11 @@ variable cc-prep-at-line-start                    \ true at the start of a line
   else,
     cc-prep-src-addr @ cc-prep-src-pos @ + c@
   then, ;
+```
+
+The cursor helpers inspect or advance the active region without committing to a particular buffer. Blank skipping leaves newlines visible, and paired-byte tests recognize delimiters (`forth-bootstrap/cc/040-cc-prep.fth:349`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-prep-advance ( -- )
 : cc-prep-advance
@@ -515,19 +503,7 @@ variable cc-prep-at-line-start                    \ true at the start of a line
 
 ```
 
-Every read goes through `cc-prep-peek` and `cc-prep-advance`, the same
-shape as Ch 21's `cc-peek-char` / `cc-next-char` but pointed at
-whichever buffer is current: `cc-in-buf` for the program, a 256 KiB
-include slot, or a replacement in the scratch area.  (Ch 21's reader
-cannot be reused: it walks only `cc-src-buf`, and its cursor is the
-lexer's.)  `cc-prep-peek2` looks one byte further, and `cc-prep-at?`
-asks whether the next two bytes are a given pair, which is how `/*`,
-`*/`, `//` and a backslash before a newline are recognised.
-
-Some newlines are consumed without being written: the ones inside a
-`/* … */` that trails a directive, a `#define` continued with a
-backslash, a macro call whose arguments run over several lines.  Each
-is *owed*:
+A directive, comment or macro call can consume newlines without emitting them immediately. These are *owed newlines*: `cc-pp-flush-nl` pays them back after the construct so later source lines retain their positions (`forth-bootstrap/cc/040-cc-prep.fth:386`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -548,18 +524,9 @@ variable cc-pp-pending-nl
 
 ```
 
-`cc-pp-flush-nl` pays them back.  The walker calls it right after a
-directive, a macro call made at file level (§5, §6), or a completed
-literal containing a continued physical line.  The removed newline
-belongs after the token, where it cannot change the string's contents.
-The next line still starts where the source's next line starts.
+### Walking comments and literals
 
-Comments and literals need care in a text pass: a `'` inside a
-comment is not a character literal, a `//` inside a string is not a
-comment, and a `#` inside either is not a directive.  One walker per
-construct steps over each whole.  What happens to the bytes stepped
-over depends on the caller, so it is a mode: copy them (`put-emit`),
-count their newlines as owed (`put-count`), or nothing (`put-drop`).
+A quote inside a comment is inert, as is a comment opener inside a literal. Shared walkers consume each construct whole; the caller selects whether its bytes are emitted, its newlines counted, or everything dropped (`forth-bootstrap/cc/040-cc-prep.fth:392`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -586,6 +553,11 @@ variable cc-pp-location-enabled                 \ direct profile: phase two
 
 \ cc-pp-take ( -- )  Put the current byte and step past it.
 : cc-pp-take  cc-prep-peek cc-pp-put cc-prep-advance ;
+```
+
+Continuation detection accepts LF and CRLF endings. Consuming a continuation sends only its newline through the selected disposal mode while advancing past every physical byte (`forth-bootstrap/cc/040-cc-prep.fth:416`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ Source #line operands fail closed on unsupported splices inside comments.
 \ Detect CRLF as well as LF, even though the general engine only splices LF.
@@ -604,6 +576,11 @@ variable cc-pp-location-enabled                 \ direct profile: phase two
   cc-prep-advance
   cc-prep-peek [lit] 13 = if, cc-prep-advance then,
   cc-pp-take ;
+```
+
+Comment delimiters may be separated by continuations in the location-enabled profile. Lookahead skips those continuations without moving the caller's cursor (`forth-bootstrap/cc/040-cc-prep.fth:434`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ Phase two deletes every backslash-newline before comments are found, so
 \ in the direct profile a comment delimiter may be split by continuations
@@ -620,6 +597,11 @@ variable cc-pp-location-enabled                 \ direct profile: phase two
     cc-prep-advance
   repeat,
   cc-prep-src-pos @ r> cc-prep-src-pos ! ;
+```
+
+`cc-pp-at-spliced?` compares delimiter bytes across continuations. Deleting a splice inside an emitted comment owes its newline instead of writing it there, where it could end a line comment or split a closer (`forth-bootstrap/cc/040-cc-prep.fth:453`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-pp-at-spliced? ( c1 c2 -- f )  Like cc-prep-at?, but in the direct
 \ profile continuations may stand between c1 and c2.
@@ -647,6 +629,13 @@ variable cc-pp-location-enabled                 \ direct profile: phase two
 \ cc-pp-drop-splices ( -- )  Delete a run of continuations.
 : cc-pp-drop-splices
   begin, cc-pp-comment-splice? while, cc-pp-drop-splice repeat, ;
+```
+
+### Comment and literal boundaries
+
+Block comments stop at their closing delimiter; line comments leave the ending newline for their caller. An unterminated block comment in directive processing is an error (`forth-bootstrap/cc/040-cc-prep.fth:477`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-pp-block-comment ( -- )  pos at "/*": walk through the closing "*/",
 \ or to EOR.  An unterminated comment in a directive dies with 49.
@@ -670,6 +659,11 @@ variable cc-pp-location-enabled                 \ direct profile: phase two
   while,
     cc-pp-comment-splice? if, cc-pp-drop-splice else, cc-pp-take then,
   repeat, ;
+```
+
+Literal copying removes LF continuations before handling escapes, so an escaped quote does not close the literal. The removed newlines are owed; ordinary CRLF literal splicing is outside this copier's support (`forth-bootstrap/cc/040-cc-prep.fth:500`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-pp-literal-splices ( -- )  Remove physical continuations before
 \ interpreting escapes, including between a backslash and its escaped byte.
@@ -696,15 +690,14 @@ variable cc-pp-location-enabled                 \ direct profile: phase two
       cc-pp-take
     then,
   again, ;
-
 ```
 
-`cc-pp-literal` handles `'…'` and `"…"` alike, removing physical continuations before keeping each backslash
-with the next logical byte so `"\""` does not end early, and stopping at
-the end of the line if the literal is never closed (C does not let a
-literal cross a line).
+### Directive slices and names
+
+Finishing a directive must step over a trailing block comment whole, even across physical lines. Otherwise a leftover comment closer would leak into the rewritten source (`forth-bootstrap/cc/040-cc-prep.fth:526`):
 
 ```forth file=cc/040-cc-prep.fth
+
 \ cc-prep-skip-to-eol ( -- )  Step to the end of the line: pos stops on the
 \ newline (or at EOR).  A /* comment */ or a backslash-newline on the way
 \ is stepped over whole, and the newlines inside it are owed.  In the
@@ -725,6 +718,11 @@ literal cross a line).
       then,
     then,
   repeat, ;
+```
+
+A continuation joining nonblank bytes could change a token. In a line-control operand, this boundary check rejects that unsupported join rather than treating it as harmless whitespace (`forth-bootstrap/cc/040-cc-prep.fth:547`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ The shared text engine does not join split identifier tokens or splice
 \ line comments. In #line operands fail closed on those phase-two forms;
@@ -737,6 +735,11 @@ literal cross a line).
   cc-prep-src-addr @ cc-prep-src-pos @ + [lit] 2 + c@ space? 0= if,
     [lit] 49 cc-die
   then, ;
+```
+
+`cc-pp-line-slice` returns the unexpanded operand through its logical line end. Comments and continuations remain in the slice for the subsequent expansion walk to account for (`forth-bootstrap/cc/040-cc-prep.fth:563`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-pp-line-slice ( -- a u )  The rest of the directive line, from pos to
 \ (not including) the newline that ends it; pos moves there.  Comments and
@@ -765,20 +768,14 @@ literal cross a line).
     then,
   repeat,
   cc-prep-src-pos @ swap - ;
-
 ```
 
-`cc-prep-skip-to-eol` finishes a directive line.  It leaves the
-newline for the walker to write, and steps over a trailing
-`/* … */` whole even when the comment runs onto the next lines, owing
-their newlines; stopping at the first newline would leave a stray
-`*/` for the lexer (`tests/cc/H-comment-directive.c`).
-`cc-pp-line-slice` is its cousin for `#if` and `#elif`: it answers the
-rest of the line as a slice, to be expanded and evaluated (§7).
+### Identifiers and preprocessing numbers
 
-Names and numbers come next.
+An identifier is retained as an address-length slice of the current region. Reading advances the cursor past the name without copying it (`forth-bootstrap/cc/040-cc-prep.fth:587`):
 
 ```forth file=cc/040-cc-prep.fth
+
 \ ===========================================================================
 \ Identifiers and numbers
 \ ===========================================================================
@@ -799,6 +796,11 @@ variable cc-prep-ident-len
   repeat,
   cc-prep-src-pos @ swap -  cc-prep-ident-len ! ;
 
+```
+
+Directive-name comparison checks length before bytes. Required-name and closing-parenthesis helpers reject malformed operands at the point where the grammar needs them (`forth-bootstrap/cc/040-cc-prep.fth:608`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-prep-ident= ( a u -- f )  True if the identifier just read is a u.
 : cc-prep-ident=
   dup cc-prep-ident-len @ = if,
@@ -821,6 +823,11 @@ variable cc-prep-ident-len
   cc-prep-peek [char] ) <> if, [lit] 47 cc-die then,
   cc-prep-advance ;
 
+```
+
+A preprocessing number is copied with its letters and dots, so a suffix or hexadecimal digit sequence is not mistaken for a macro name. This bounded scan does not absorb exponent signs (`forth-bootstrap/cc/040-cc-prep.fth:630`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-copy-number ( -- )  A number is copied whole, suffix and all, so
 \ the letters in 0x1F or 10UL are never taken for an identifier.
 : cc-pp-copy-number
@@ -832,15 +839,9 @@ variable cc-prep-ident-len
 
 ```
 
-`cc-pp-copy-number` copies a number together with any letters in it,
-so that in `0x1F`, `10UL` or `1e5` nothing is taken for an
-identifier and looked up as a macro.
+## `#include` and its bounded file pool
 
-## 4. `#include` and its bounded file pool
-
-An included file needs somewhere to live while it is walked.  The
-pool has four 256 KiB slots, one per nesting depth (pnut's `exe.c`
-is 145 KB).
+An included file must remain live while its nested includes are scanned. Legacy mode assigns a fixed slot to each nesting depth (`forth-bootstrap/cc/040-cc-prep.fth:639`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -858,6 +859,11 @@ variable cc-prep-inc-top                         \ direct-mode bytes in use
 \ cc-prep-inc-slot-addr ( depth -- addr )
 : cc-prep-inc-slot-addr
   cc-prep-inc-slot-cap *  cc-prep-inc-pool + ;
+```
+
+Direct mode packs live files at `cc-prep-inc-top` instead of reserving a slot per file. Its selected pool has an address and capacity; the direct-GCC workspace supplies a separately mapped pool (`forth-bootstrap/cc/040-cc-prep.fth:654`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ Direct mode packs the live include stack at cc-prep-inc-top into a
 \ selected pool: by default the dictionary pool above, 1 MiB.  The
@@ -873,6 +879,11 @@ variable cc-prep-inc-direct-base
 : cc-prep-inc-buf ( -- address ) cc-prep-inc-buffer @ ;
 : cc-prep-inc-cap ( -- bytes ) cc-prep-inc-limit @ ;
 
+```
+
+The default selector restores every macro-array pointer and the dictionary include pool together. It neither migrates live data nor resets counts (`forth-bootstrap/cc/040-cc-prep.fth:669`):
+
+```forth file=cc/040-cc-prep.fth
 \ Workspace selection for the macro arrays above and the packed include
 \ pool.  Neither selector migrates live data or resets a count.
 : cc-prep-default-workspace ( -- )
@@ -887,6 +898,11 @@ variable cc-prep-inc-direct-base
   cc-prep-inc-slot-cap cc-prep-inc-slot-count * cc-prep-inc-limit !
 ;
 cc-prep-default-workspace
+```
+
+The direct selector maps storage only on first use, then selects disjoint slices for all macro fields and the packed include pool. Capacity and addresses must describe the same workspace (`forth-bootstrap/cc/040-cc-prep.fth:683`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-prep-direct-workspace ( -- )
   cc-macro-direct-base @ 0= if,
     cc-macro-direct-cap [lit] 48 *
@@ -905,42 +921,14 @@ cc-prep-default-workspace
   cc-prep-inc-direct-base @ cc-prep-inc-buffer !
   cc-prep-inc-direct-cap cc-prep-inc-limit !
 ;
-
 ```
 
-Direct mode does not use slots.  It packs each newly opened file at
-`cc-prep-inc-top`, just past the files still open beneath it, and gives
-the bytes back when the file ends, so the pool must hold the *live*
-include stack, not every header the unit ever reads.  `cc-prep-inc-buf`
-and `cc-prep-inc-cap` answer the selected pool, the same address and
-capacity indirection Ch 21 uses for its buffers.  By default that is the
-dictionary pool above, so native direct preprocessing keeps 1 MiB.  The
-two workspace selectors, which also switch the macro arrays of §2, live
-here because they must name both tables.  `cc-prep-direct-workspace`
-maps a separate pool once per process and points the words at it;
-neither selector moves live data or resets a count.
+### Building include paths
 
-The direct-GCC pool's bound is a measurement.  Preprocessing every unit
-of the binutils 2.30 build (opcodes, bfd, libiberty, ld, binutils, zlib;
-gas stops earlier at a `#line` marker) and GCC 4.0.4's `gcc` directory,
-453 units, the largest live stack is 5,334,945 bytes: `opcodes/i386-opc.c`
-includes `i386-tbl.h`, a generated table of every x86 instruction
-template.  The next largest is 453,505 bytes (`ld/ldlex-wrapper.c`).
-Its expanded text is 5,415,887 bytes, nearly twice GCC's largest
-(`insn-attrtab.c`, 2,748,789).  Direct mode keeps comments, and every
-byte outside a directive or a skipped group reaches the expanded
-source, so a pool larger than that buffer could never be filled
-usefully.  The two share one bound, `cc-src-direct-cap`: the measured
-maximum plus a quarter, rounded up to a whole MiB, 7 MiB.  The raw
-reader keeps one byte free to see end of file, so a live stack of
-7 MiB less one byte fits and one more byte is code 32, as is a failed
-mapping.  Only touched pages of an anonymous mapping become resident,
-so the bound costs address space, not memory, for smaller units.
-
-A header is looked up under two names, so the file needs a small path
-builder.
+A bounded path builder appends bytes while reserving room for a terminator. The legacy fallback prefix is stored alongside that builder (`forth-bootstrap/cc/040-cc-prep.fth:701`):
 
 ```forth file=cc/040-cc-prep.fth
+
 \ ===========================================================================
 \ Path building.  Concat prefix + name + NUL into cc-prep-path-buf.
 \ ===========================================================================
@@ -967,6 +955,11 @@ create cc-prep-tests-prefix  s, tests/cc/
     1-
   repeat,
   drop drop ;
+```
+
+`cc-prep-build-path` joins a prefix and name. Direct configuration separately records include directories, the main source pathname and each live file's physical path (`forth-bootstrap/cc/040-cc-prep.fth:731`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-prep-build-path ( pa pu na nu -- )
 \ Build NUL-terminated cc-prep-path-buf = prefix + name + 0.
@@ -978,14 +971,6 @@ create cc-prep-tests-prefix  s, tests/cc/
   cc-prep-append                                   \ append name
   [lit] 0 cc-prep-path-buf cc-prep-path-out @ + c! ;  \ NUL
 
-```
-
-`cc-prep-build-path` concatenates a prefix, the name and a NUL into
-`cc-prep-path-buf`; a path that would not fit its 1,024 bytes is code
-33.  The only prefixes ever used are the empty one and `tests/cc/`,
-and the loader tries them in that order:
-
-```forth file=cc/040-cc-prep.fth
 \ Direct mode keeps include directories explicit and relative to the process
 \ working directory.  Quote includes first search the including file's
 \ directory; angle includes search only the configured directories.
@@ -998,6 +983,13 @@ variable cc-prep-source-len
 create cc-prep-file-paths  cc-prep-direct-depth 1+ cc-prep-path-cap * allot
 create cc-prep-file-lens   cc-prep-direct-depth 1+ [lit] 8 * allot
 variable cc-prep-inc-mode                         \ 1=quote, 2=angle
+```
+
+### Physical and logical locations
+
+A replacement inherits its invocation location, while a raw argument can recover its own physical line. Each include depth keeps an independent physical cursor, logical offset and optional logical filename (`forth-bootstrap/cc/040-cc-prep.fth:751`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ Source provenance is separate from flattened diagnostic line numbers.
 \ Each live file caches a physical-line cursor. Macro replacement text keeps
@@ -1021,6 +1013,11 @@ create cc-pp-file-line    cc-prep-direct-depth 1+ [lit] 8 * allot
 create cc-pp-file-offset  cc-prep-direct-depth 1+ [lit] 8 * allot
 create cc-pp-file-names   cc-prep-direct-depth 1+ cc-prep-path-cap * allot
 create cc-pp-file-name-len cc-prep-direct-depth 1+ [lit] 8 * allot
+```
+
+Entering a file starts its physical cursor and clears its logical override. A virtual filename used by `#line` never changes the path used for relative include search (`forth-bootstrap/cc/040-cc-prep.fth:774`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-pp-logical-name
   cc-prep-inc-depth @ cc-prep-path-cap * cc-pp-file-names + ;
 : cc-pp-location-cell  cc-prep-inc-depth @ swap cell[] ;
@@ -1031,6 +1028,11 @@ create cc-pp-file-name-len cc-prep-direct-depth 1+ [lit] 8 * allot
   [lit] 1 cc-pp-file-line cc-pp-location-cell !
   [lit] 0 cc-pp-file-offset cc-pp-location-cell !
   true cc-pp-file-name-len cc-pp-location-cell ! ;
+```
+
+Argument prescan may revisit an earlier slice. `cc-pp-location-at` subtracts or adds the intervening newlines from its cached cursor, then applies the logical offset (`forth-bootstrap/cc/040-cc-prep.fth:784`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-pp-location-at ( address -- )
   cc-pp-location-enabled @ 0= cc-pp-location-rescan @ or if, drop exit, then,
   dup cc-pp-file-base cc-pp-location-cell @ < if, drop exit, then,
@@ -1052,6 +1054,13 @@ create cc-pp-file-name-len cc-prep-direct-depth 1+ [lit] 8 * allot
   nip cc-pp-file-cursor cc-pp-location-cell !
   cc-pp-file-line cc-pp-location-cell @
   cc-pp-file-offset cc-pp-location-cell @ + cc-pp-location-line ! ;
+```
+
+### Configuring and searching directories
+
+Configuration reset clears direct mode, registered directories and the source name. Copying paths includes a fresh terminator so later searches do not depend on old buffer contents (`forth-bootstrap/cc/040-cc-prep.fth:805`):
+
+```forth file=cc/040-cc-prep.fth
 
 : cc-prep-config-reset
   [lit] 0 cc-prep-direct !  [lit] 0 cc-prep-include-count !
@@ -1067,6 +1076,11 @@ create cc-pp-file-name-len cc-prep-direct-depth 1+ [lit] 8 * allot
 
 : cc-prep-source-name
   dup cc-prep-source-len ! cc-prep-source-path cc-prep-copy-path ;
+```
+
+Registered directories receive a trailing slash when needed. Their lengths and bytes are kept together for ordered searches (`forth-bootstrap/cc/040-cc-prep.fth:820`):
+
+```forth file=cc/040-cc-prep.fth
 
 : cc-prep-add-include
   cc-prep-include-count @ 1+ cc-prep-include-max [lit] 33 cc-check-cap
@@ -1082,6 +1096,11 @@ create cc-pp-file-name-len cc-prep-direct-depth 1+ [lit] 8 * allot
   cc-prep-include-count @ cc-prep-path-cap * cc-prep-include-dirs +
   cc-prep-copy-path
   [lit] 1 cc-prep-include-count +! ;
+```
+
+Relative quote includes start from the includer's physical directory. The successful path is copied into the next depth's record before the shared path buffer is reused (`forth-bootstrap/cc/040-cc-prep.fth:835`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-prep-directory ( a u -- a dir-u )  Prefix through the final slash.
 : cc-prep-directory
@@ -1098,6 +1117,11 @@ create cc-pp-file-name-len cc-prep-direct-depth 1+ [lit] 8 * allot
   cc-prep-path-buf cc-prep-path-out @
   cc-prep-inc-depth @ 1+ cc-prep-path-cap * cc-prep-file-paths +
   cc-prep-copy-path ;
+```
+
+Absolute include names are already complete. Otherwise, a quoted name first tries the includer's directory; failure falls through to the configured search list (`forth-bootstrap/cc/040-cc-prep.fth:851`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ ===========================================================================
 \ File loading.  Reads a file into the current include-pool slot.
@@ -1127,6 +1151,11 @@ variable cc-prep-load-name-u
     cc-prep-build-path cc-prep-path-buf cc-prep-try-open
     dup 0< 0= if, exit, then, drop
   then,
+```
+
+The remaining search walks registered directories in order and returns the first successful descriptor. Exhaustion returns failure to the loader (`forth-bootstrap/cc/040-cc-prep.fth:880`):
+
+```forth file=cc/040-cc-prep.fth
   [lit] 0
   begin, dup cc-prep-include-count @ < while,
     dup cc-prep-path-cap * cc-prep-include-dirs +
@@ -1136,6 +1165,13 @@ variable cc-prep-load-name-u
     dup 0< 0= if, nip exit, then, drop 1+
   repeat,
   drop true ;
+```
+
+### Loading an include region
+
+The loader checks nesting before opening anything. Legacy mode tries the literal name and then the test-directory fallback; direct mode delegates to the explicit search policy (`forth-bootstrap/cc/040-cc-prep.fth:889`):
+
+```forth file=cc/040-cc-prep.fth
 
 : cc-prep-load-file
   cc-prep-load-name-u ! cc-prep-load-name-a !
@@ -1154,6 +1190,11 @@ variable cc-prep-load-name-u
     then,
   then,
   dup 0< if, drop [lit] 30 cc-die then,
+```
+
+Direct files occupy the free tail of the packed pool; legacy files occupy their depth's slot. `cc-read-all` supplies the bytes, and the descriptor is closed before scanning begins (`forth-bootstrap/cc/040-cc-prep.fth:907`):
+
+```forth file=cc/040-cc-prep.fth
   >r
   cc-prep-direct @ if,
     cc-prep-record-path
@@ -1166,29 +1207,14 @@ variable cc-prep-load-name-u
     r@ over cc-prep-inc-slot-cap [lit] 32 cc-read-all
   then,
   r> close drop ;
-
 ```
 
-`cc-prep-load-file` tries the literal path first (which catches
-absolute paths and anything relative to the current directory: pnut's
-`#include "x86.c"` is found because the check runs the compiler in
-`vendor/pnut`), then `tests/cc/<path>`, where the test inputs live.
-If the depth already fills all four slots it dies with code 31; if
-neither path opens, 30.  The hard-coded `tests/cc/` prefix is the only
-coupling between production code and test layout in the compiler, a
-deliberate shortcut.  The file is read with Ch 21's `cc-read-all`,
-aimed at the slot for the current `cc-prep-inc-depth`; a file that
-fills its slot is code 32.  The directive handler that uses all this
-comes in §7.
+## Macro expansion
 
-## 5. Macro expansion
-
-Expansion and walking call each other: the walker (§6) meets a
-macro's name and expands it, and expanding means walking the
-replacement.  The walker and the directive dispatcher are defined
-later, so they are reached through deferred words (Ch 12).
+Expansion is walking: `cc-pp-expand-text` parks the active region, scans a replacement as non-file text and restores the caller. Deferred words (Chapter 25) connect the mutually recursive walker and dispatcher. Separator blanks prevent an expansion from accidentally creating a different token (`forth-bootstrap/cc/040-cc-prep.fth:937`):
 
 ```forth file=cc/040-cc-prep.fth
+
 \ ===========================================================================
 \ Scanning: the main walker and macro expansion
 \ ===========================================================================
@@ -1213,24 +1239,12 @@ defer cc-pp-rescan-tail-fwd
   [lit] 0 cc-prep-in-file !
   bl cc-prep-emit-byte  cc-pp-scan-fwd  bl cc-prep-emit-byte
   r> cc-prep-at-line-start !  r> cc-prep-in-file !
+  r> cc-prep-src-pos !  r> cc-prep-src-len !  r> cc-prep-src-addr ! ;
 ```
 
-`cc-pp-expand-text` is the whole of rescanning.  It parks the current
-region's five cells on the return stack, makes the text a region of
-its own (not a file, so no directives), walks it, and restores.  A
-name met in that walk is looked up and expanded in turn; one met in
-the region below, after the replacement ends, belongs to that
-region's walk.  The blanks it writes on either side keep a
-replacement from gluing onto its neighbours: C's preprocessor works
-on tokens, this one on text, and without them `2-NEG` with `NEG`
-defined as `-1` would become `2--1`, a decrement.
-
-`#if` needs one special name.  While an `#if` line is being expanded,
-`defined NAME` and `defined(NAME)` must be answered before `NAME`
-itself is expanded:
+Inside a conditional expression, `defined NAME` must test the macro table before `NAME` expands. `cc-pp-in-if` enables that special treatment only while expanding such an operand (`forth-bootstrap/cc/040-cc-prep.fth:945`):
 
 ```forth file=cc/040-cc-prep.fth
-  r> cc-prep-src-pos !  r> cc-prep-src-len !  r> cc-prep-src-addr ! ;
 
 \ ---------------------------------------------------------------------------
 \ `defined` in #if and #elif
@@ -1250,17 +1264,16 @@ create cc-pp-n-defined  s, defined
   cc-prep-ident-addr @ cc-prep-ident-len @ cc-macro-find 0< 0=   ( paren? f )
   swap if, cc-pp-need-rparen then,
   if, [char] 1 else, [char] 0 then, cc-prep-emit-byte ;
+```
+
+A function-like macro name becomes a call only when an opening parenthesis follows. Lookahead can cross whitespace and continuations, but restores the cursor if no call is found (`forth-bootstrap/cc/040-cc-prep.fth:964`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ ---------------------------------------------------------------------------
 \ Function-like macro calls
 \ ---------------------------------------------------------------------------
 
-```
-
-A function-like macro's name is a call only if a `(` follows,
-possibly on a later line; otherwise it stays a plain name, as in C.
-
-```forth file=cc/040-cc-prep.fth
 \ cc-pp-paren-ahead? ( -- f )  After a function-like macro's name: true,
 \ with pos past it, if the next thing (blanks, newlines and LF or CRLF
 \ continuations skipped) is '('.  Otherwise pos is left where it was, and
@@ -1281,15 +1294,14 @@ possibly on a later line; otherwise it stays a plain name, as in C.
   else,
     drop  cc-prep-src-pos !  [lit] 0
   then, ;
-
 ```
 
-The arguments are found before anything is expanded.  They are slices
-of the current region, split at commas that are not inside inner
-parentheses, with literals and comments stepped over so that a `,` or
-`)` inside them does not count:
+### Collecting arguments
+
+Argument records point into the current region. The collector tracks the current slice and parenthesis depth, recording a slice only when its boundary is known (`forth-bootstrap/cc/040-cc-prep.fth:989`):
 
 ```forth file=cc/040-cc-prep.fth
+
 \ A call's arguments are recorded as (addr, len) pairs, 16 bytes each, in a
 \ record block taken from the scratch space.
 [lit] 16 constant cc-pp-args-max
@@ -1308,6 +1320,11 @@ variable cc-pp-ca-start                           \ where this argument began
   cc-prep-src-pos @ cc-pp-ca-start @ -  swap [lit] 8 + !
   [lit] 1 cc-pp-ca-n +! ;
 
+```
+
+Commas inside literals, comments or nested parentheses do not separate arguments. The collector delegates those constructs to the shared walkers before testing a comma at the call's outer depth (`forth-bootstrap/cc/040-cc-prep.fth:1008`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-collect-args ( recs -- n )  pos is just past the call's '('.  Split
 \ the arguments at the commas outside inner parentheses, record each as a
 \ slice of the region, and stop past the closing ')'.  A call that runs off
@@ -1327,6 +1344,11 @@ variable cc-pp-ca-start                           \ where this argument began
       drop cc-pp-ca-record cc-prep-advance
       cc-prep-src-pos @ cc-pp-ca-start !
     else,
+```
+
+The closing parenthesis finishes the final argument only when the nested depth returns to the call boundary. Running out of region first is a malformed call (`forth-bootstrap/cc/040-cc-prep.fth:1027`):
+
+```forth file=cc/040-cc-prep.fth
     [char] ) = if,
       [lit] 1 cc-pp-ca-depth -!
       cc-pp-ca-depth @ 0= if,
@@ -1340,11 +1362,9 @@ variable cc-pp-ca-start                           \ where this argument began
 
 ```
 
-Each argument is then expanded on its own into a temporary sink, as C
-requires: in `TWICE(ADD(1, 2))` the inner call is expanded before it
-is put into `TWICE`'s body.  Then the body is written into another
-temporary sink with each parameter marker replaced by its argument's
-expanded text, between blanks for the same reason as above.
+### Raw and expanded arguments
+
+Ordinary substitution needs expanded arguments, while stringification and pasting need raw spelling. The duplicated record block preserves the original slices before expansion replaces their addresses and lengths (`forth-bootstrap/cc/040-cc-prep.fth:1038`):
 
 ```forth file=cc/040-cc-prep.fth
 \ cc-pp-expand-args ( recs n -- )  Expand every argument fully, before it
@@ -1368,6 +1388,11 @@ expanded text, between blanks for the same reason as above.
   repeat,
   drop 2drop r> ;
 
+```
+
+Legacy substitution replaces each encoded parameter with expanded argument text between separator blanks. Missing arguments contribute no bytes, and ordinary body bytes pass through (`forth-bootstrap/cc/040-cc-prep.fth:1059`):
+
+```forth file=cc/040-cc-prep.fth
 variable cc-pp-sub-raw
 variable cc-pp-sub-recs
 variable cc-pp-sub-n
@@ -1397,53 +1422,9 @@ variable cc-pp-sub-n
 
 ```
 
-`busy` stops a macro from expanding inside its own replacement.
-`#define SELF SELF` would otherwise loop forever; with the flag, the
-inner `SELF` is copied as a name (`tests/cc/P2-fn-macros.c` defines
-exactly that and uses `SELF` as a variable).
+### Stringification
 
-### Unavailable tokens across rescans
-
-A busy flag belongs to a macro definition, but suppression must also follow
-an individual token after that definition stops being busy. Consider
-`#define gen_lowpart rtl_hooks.gen_lowpart`: an identity macro around a call
-must retain `rtl_hooks.gen_lowpart(...)`, rather than expand the copied
-member name into another `rtl_hooks.gen_lowpart`. Direct preprocessing marks
-the first byte of an identifier encountered while its macro is disabled.
-Argument and replacement copies retain that mark; ordinary identifier lookup
-and the tail rescan both check it before trying another expansion.
-
-The mark is stored outside the C spelling. One fixed mapping contains a
-2 MiB scratch shadow followed by a 7 MiB source shadow. The active source
-interval uses its selected capacity, so native direct mode with the default
-2 MiB source does not expose the spare part of that shadow. Raw input,
-include storage and saved replacement text have no shadow. The mapping is
-allocated on the first direct preprocessing pass, reused without growth,
-and inactive in legacy mode. A failed mapping or a source capacity larger
-than the fixed shadow reports error 43.
-
-Sink push and pop derive the shadow address from the selected text buffer.
-Every fresh emitted byte clears its old shadow byte, preventing marks from
-an earlier scratch lifetime or preprocessing pass from escaping into new
-text. A forwarding copy captures the source mark before that clearing write,
-which also handles copying a byte to its own address. The normal sink bound
-is checked before either write. No control-byte marker enters the C stream.
-
-This is deliberately a bounded repair. If either raw operand passed to
-`##` contains an unavailable byte anywhere, `cc-pp-paste-bytes` reports
-error 47. The check includes a marked identifier away from the pasted edge,
-and an unavailable operand paired with an empty operand. These inputs were
-accepted by the previous implementation in some cases; the new rejection
-narrows support rather than implementing C's complete token and placemarker
-rules. Ordinary unmarked pastes remain supported.
-
-The suppression checks (`tests/gcc/macro-suppression-README.md`) compare
-maximal-munch preprocessing tokens, preserving punctuator boundaries and
-literal spelling. They also exercise shadow boundaries, mapping failures,
-mode transitions and output preservation. Three inherited mismatches remain:
-deferred-empty tail rescanning, stringification of inserted argument padding,
-and pp-numbers containing an exponent sign. This change does not establish
-general C-preprocessor conformance or a complete GCC build.
+Stringification needs its own cursor and quote state because it reads raw argument spelling. Edge trimming serves paste operands; the string-byte writer escapes quotes and backslashes for the new C literal (`forth-bootstrap/cc/040-cc-prep.fth:1086`):
 
 ```forth file=cc/040-cc-prep.fth
 \ cc-pp-trim-slice ( a u -- a' u' )  Strip argument-edge whitespace.
@@ -1472,6 +1453,11 @@ variable cc-pp-string-u
     cc-pp-string-a @ 1+ c@ = swap cc-pp-string-peek = and
   else, 2drop [lit] 0 then, ;
 
+```
+
+Comments outside literal tokens contribute whitespace during stringification. The comment walker consumes their contents so embedded quotes cannot affect string state (`forth-bootstrap/cc/040-cc-prep.fth:1112`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-pp-string-comment
   [char] / [char] * cc-pp-string-at? if,
     cc-pp-string-step cc-pp-string-step
@@ -1486,6 +1472,11 @@ variable cc-pp-string-u
     while, cc-pp-string-step repeat,
   then, ;
 
+```
+
+The opening of `cc-pp-stringify` clears state and emits the opening quote. Inside a literal token, it preserves spelling while tracking escapes and the matching closing quote (`forth-bootstrap/cc/040-cc-prep.fth:1128`):
+
+```forth file=cc/040-cc-prep.fth
 \ # collapses whitespace and comments, preserving literal contents and
 \ escaping quotes/backslashes in the resulting C string token.
 : cc-pp-stringify
@@ -1509,6 +1500,11 @@ variable cc-pp-string-u
         cc-pp-string-quote @ = if, [lit] 0 cc-pp-string-quote ! then,
       then,
       cc-pp-string-step
+```
+
+Outside literals, pending whitespace and comments collapse to a separator only before another token. That suppresses leading and trailing space before the closing quote is emitted (`forth-bootstrap/cc/040-cc-prep.fth:1149`):
+
+```forth file=cc/040-cc-prep.fth
     else,
       dup space? if,
         drop true cc-pp-string-space ! cc-pp-string-step
@@ -1530,6 +1526,13 @@ variable cc-pp-string-u
   repeat,
   [char] " cc-prep-emit-byte ;
 
+```
+
+### Choosing which arguments to expand
+
+A parameter next to a paste marker needs its raw spelling. `cc-pp-paste-ahead?` looks beyond body whitespace while `cc-pp-arg-paste` remembers the preceding marker (`forth-bootstrap/cc/040-cc-prep.fth:1173`):
+
+```forth file=cc/040-cc-prep.fth
 variable cc-pp-sub-joining
 
 \ The next nonblank body byte after this parameter is the paste marker.
@@ -1539,6 +1542,11 @@ variable cc-pp-sub-joining
 
 variable cc-pp-arg-index
 variable cc-pp-arg-paste
+```
+
+Only a parameter used outside stringification and pasting requires prescan. `cc-pp-arg-expanded?` searches the encoded body for such an occurrence, skipping markers and their parameter indices (`forth-bootstrap/cc/040-cc-prep.fth:1180`):
+
+```forth file=cc/040-cc-prep.fth
 \ Only parameters used outside # and ## undergo argument prescan.
 : cc-pp-arg-expanded?
   cc-pp-arg-index !
@@ -1566,6 +1574,11 @@ variable cc-pp-arg-paste
     then, then, then,
   repeat, 2drop [lit] 0 ;
 
+```
+
+An unused or raw-only argument still owes its physical newlines. The selective expansion loop either expands its slice or counts those newlines, keeping the macro index safe across nested calls (`forth-bootstrap/cc/040-cc-prep.fth:1206`):
+
+```forth file=cc/040-cc-prep.fth
 \ Arguments used only by #/## (or not used) still owe their source
 \ newlines even though no argument prescan walks them.
 : cc-pp-count-raw-lines
@@ -1590,6 +1603,13 @@ variable cc-pp-arg-paste
   repeat,
   2drop r> drop ;
 
+```
+
+### Direct substitution
+
+`cc-pp-sub-argument` chooses the raw or expanded record. Direct substitution trims the sink before a paste and sends a stringification marker's raw argument through the string encoder (`forth-bootstrap/cc/040-cc-prep.fth:1230`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-pp-sub-argument
   \ ( k raw? -- a u )  Missing parameters have empty text.
   if, cc-pp-sub-raw @ else, cc-pp-sub-recs @ then,
@@ -1614,6 +1634,11 @@ variable cc-pp-arg-paste
       [lit] 0 cc-pp-sub-joining !
       swap [lit] 2 + swap [lit] 2 -
     else,
+```
+
+Ordinary parameter markers use expanded text unless either edge is pasted. Marked paste operands are rejected by the earlier copying guard; unmarked joins are rescanned afterward. The selected substitution mode shares the same macro busy cell (`forth-bootstrap/cc/040-cc-prep.fth:1254`):
+
+```forth file=cc/040-cc-prep.fth
     [lit] 1 = if,
       2dup cc-pp-paste-ahead? cc-pp-sub-joining @ or >r
       over 1+ c@ r@ cc-pp-sub-argument
@@ -1636,6 +1661,13 @@ variable cc-pp-arg-paste
 \ The busy flag of macro i.
 : cc-macro-busy-cell  cc-macro-busy cell[] ;       ( i -- cell )
 
+```
+
+### Spelling source locations
+
+Dynamic location macros need C text as their result. The number writer emits decimal digits in forward order, and the filename-byte writer escapes bytes that cannot appear literally in a C string (`forth-bootstrap/cc/040-cc-prep.fth:1276`):
+
+```forth file=cc/040-cc-prep.fth
 create cc-pp-location-digits [lit] 24 allot
 variable cc-pp-location-digit-count
 : cc-pp-location-number ( unsigned -- )
@@ -1659,6 +1691,11 @@ variable cc-pp-location-digit-count
   dup [lit] 64 / [char] 0 + cc-prep-emit-byte
   dup [lit] 8 / [lit] 7 and [char] 0 + cc-prep-emit-byte
   [lit] 7 and [char] 0 + cc-prep-emit-byte ;
+```
+
+A logical filename overrides the physical path; unnamed input uses `<stdin>`. `cc-pp-location-filename` surrounds the selected spelling with quotes and encodes each byte (`forth-bootstrap/cc/040-cc-prep.fth:1306`):
+
+```forth file=cc/040-cc-prep.fth
 create cc-pp-stdin-name s, <stdin>
 \ cc-pp-current-name ( -- a u )  The current file's __FILE__ spelling.
 : cc-pp-current-name
@@ -1673,6 +1710,13 @@ create cc-pp-stdin-name s, <stdin>
     over c@ cc-pp-location-string-byte swap 1+ swap 1-
   repeat, 2drop [char] " cc-prep-emit-byte ;
 
+```
+
+### Mapping flattened lines
+
+An optional line map records where a file's text resumes in the flattened output. Each arena record links to the previous record and stores the output line, source line and filename (`forth-bootstrap/cc/040-cc-prep.fth:1313`):
+
+```forth file=cc/040-cc-prep.fth
 \ An optional map from output lines back to source files, for a diagnostic
 \ that must name the user's file and line (121's error 228). Entering a file
 \ and returning from an include each record the output line where that
@@ -1693,6 +1737,11 @@ create cc-pp-map-resume  cc-prep-direct-depth 1+ [lit] 8 * allot
   repeat, drop 2drop
   r@ [lit] 16 + ! cc-src-line @ r@ [lit] 8 + !
   cc-pp-line-map @ r@ ! r> cc-pp-line-map ! ;
+```
+
+Lookup chooses the latest record at or before the requested output line, then adds the distance from that record. Chapter 41 supplies the diagnostic consumer; this layer only maintains the map (`forth-bootstrap/cc/040-cc-prep.fth:1333`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-line-map-find ( output-line -- a u source-line true | false )
 : cc-pp-line-map-find
   cc-pp-line-map-on @ 0= if, drop [lit] 0 exit, then,
@@ -1704,6 +1753,13 @@ create cc-pp-map-resume  cc-prep-direct-depth 1+ [lit] 8 * allot
     then, @
   repeat, 2drop [lit] 0 ;
 
+```
+
+### Expanding a replacement
+
+Dynamic object macros emit the current line or filename directly. An ordinary object macro is marked busy while its body is walked, so `#define SELF SELF` leaves the inner name rather than recursing forever (`forth-bootstrap/cc/040-cc-prep.fth:1344`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-expand-object ( i -- )  Scan object-like macro i's body in place of
 \ its name.
 : cc-pp-expand-object-body
@@ -1722,6 +1778,11 @@ create cc-pp-map-resume  cc-prep-direct-depth 1+ [lit] 8 * allot
 : cc-pp-expand-object
   true cc-pp-location-begin cc-pp-expand-object-body cc-pp-location-end ;
 
+```
+
+A function call saves its scratch lifetime, collects arguments and preserves raw records. Direct mode expands only arguments that need prescan; legacy mode expands every argument (`forth-bootstrap/cc/040-cc-prep.fth:1362`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-expand-call ( i -- )  The '(' of function-like macro i's call has
 \ been read.  Collect and expand the arguments, substitute them into the
 \ body, and scan the result in place of the call.  A call with more
@@ -1744,6 +1805,11 @@ create cc-pp-map-resume  cc-prep-direct-depth 1+ [lit] 8 * allot
   else,
     2dup cc-pp-expand-args
   then,                                           ( i recs n )
+```
+
+The substituted body is built in a temporary sink, then rescanned with the macro busy. Restoring the saved scratch top releases the arguments and body together before any tail rescan (`forth-bootstrap/cc/040-cc-prep.fth:1384`):
+
+```forth file=cc/040-cc-prep.fth
   r> cc-pp-sub-raw !
   cc-pp-temp-begin
   cc-pp-sub-n ! cc-pp-sub-recs !                   ( i )
@@ -1758,6 +1824,13 @@ create cc-pp-map-resume  cc-prep-direct-depth 1+ [lit] 8 * allot
 : cc-pp-expand-call
   [lit] 0 cc-pp-location-begin cc-pp-expand-call-body cc-pp-location-end ;
 
+```
+
+### Unavailable tokens across rescans
+
+A function-like name at a replacement's end may find its opening parenthesis in the surrounding source. Tail rescanning first trims output whitespace and locates that final identifier (`forth-bootstrap/cc/040-cc-prep.fth:1398`):
+
+```forth file=cc/040-cc-prep.fth
 \ Rescan the final token together with the surrounding source.  This is
 \ essential for both an alias (DEF_BWLX(mov)) and a computed name such as
 \ ELFW(ST_INFO)(bind,type): the final function-like macro's '(' belongs
@@ -1776,6 +1849,11 @@ variable cc-pp-tail-name
     cc-pp-out @ cc-pp-tail-name @ + 1- c@ ident-cont?
   else, [lit] 0 then, while, [lit] 1 cc-pp-tail-name -! repeat,
   cc-pp-tail-name @ cc-pp-tail-end @ = if, exit, then,
+```
+
+A tail token already marked unavailable must stay unexpanded even after its definition stops being busy. An eligible function macro can consume the outer source's parenthesis, replacing the previously emitted name (`forth-bootstrap/cc/040-cc-prep.fth:1416`):
+
+```forth file=cc/040-cc-prep.fth
   cc-pp-out @ cc-pp-tail-name @ + cc-pp-unavailable? if, exit, then,
   cc-pp-out @ cc-pp-tail-name @ + dup c@ ident-start? 0= if, drop exit, then,
   cc-pp-tail-end @ cc-pp-tail-name @ - cc-macro-find
@@ -1791,6 +1869,11 @@ variable cc-pp-tail-name
   else, drop then, ;
 ' cc-pp-rescan-tail is cc-pp-rescan-tail-fwd
 
+```
+
+Normal identifier lookup also preserves unavailable tokens. For `#define gen_lowpart rtl_hooks.gen_lowpart`, the copied member name must retain its suppression mark across an enclosing macro's rescan (`forth-bootstrap/cc/040-cc-prep.fth:1431`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-ident ( -- )  pos is at an identifier.  Replace it if it names a
 \ macro that is not busy (a function-like one only when '(' follows);
 \ otherwise copy it.  Newlines a file-level call swallowed are owed; write
@@ -1812,6 +1895,11 @@ variable cc-pp-tail-name
       r> drop exit,
     then,
   then,
+```
+
+An ordinary name is copied; an eligible macro uses object or call expansion. File-level calls pay back owed newlines, and the wrapper restores the caller's invocation location after nested expansion (`forth-bootstrap/cc/040-cc-prep.fth:1452`):
+
+```forth file=cc/040-cc-prep.fth
   dup 0< if,
     drop cc-prep-ident-addr @ cc-prep-ident-len @ cc-pp-emit-bytes exit,
   then,
@@ -1825,29 +1913,6 @@ variable cc-pp-tail-name
       drop cc-pp-emit-bytes
     then,
   then,
-```
-
-`cc-pp-expand-call` puts the pieces together.  It keeps the scratch
-top on the return stack, takes a record block for up to 16
-arguments (a 17th is code 46), collects and checks them (a call that
-runs off the end of its region is code 44, more arguments than
-parameters 45), expands them, substitutes, and walks the result with
-the macro busy.
-Restoring the scratch top at the end frees the arguments and the
-substituted body in one store.
-
-`cc-pp-ident` is where the walker hands over a name.  After a call
-made at file level it writes the newlines the call's arguments owed,
-so the line after a call spread over three lines is still the line
-after it.
-
-## 6. Conditional groups and the walker
-
-An `#if` opens a *conditional*; its groups are separated by `#elif`
-and `#else` and closed by `#endif`.  The walker needs one fact per
-open conditional: is the current group being kept?
-
-```forth file=cc/040-cc-prep.fth
   cc-prep-in-file @ if, cc-pp-flush-nl then, ;
 : cc-pp-ident
   cc-pp-location-line @ >r
@@ -1855,6 +1920,13 @@ open conditional: is the current group being kept?
   cc-pp-ident-work
   r> cc-pp-location-line ! ;
 
+```
+
+## Conditional groups and the walker
+
+Each open conditional has a state: `cond-take` emits its group, `cond-seek` waits for a successful alternative, and `cond-done` ignores alternatives through the closing directive (`forth-bootstrap/cc/040-cc-prep.fth:1472`):
+
+```forth file=cc/040-cc-prep.fth
 \ ---------------------------------------------------------------------------
 \ Conditional groups
 \ ---------------------------------------------------------------------------
@@ -1876,6 +1948,11 @@ variable cc-pp-cond-depth
 
 \ cc-pp-cond-top ( -- cell )  The innermost open #if's cell.
 : cc-pp-cond-top  cc-pp-cond-depth @ 1- cc-pp-cond cell[] ;
+```
+
+The top state determines whether ordinary text is dropped. Skipping still consumes comments and literals whole, so punctuation inside them cannot invent a directive (`forth-bootstrap/cc/040-cc-prep.fth:1493`):
+
+```forth file=cc/040-cc-prep.fth
 
 \ cc-pp-skipping? ( -- f )  True while lines are being dropped.
 : cc-pp-skipping?
@@ -1883,20 +1960,6 @@ variable cc-pp-cond-depth
     cc-pp-cond-top @ cond-take <>
   else,
     [lit] 0
-```
-
-Three states are enough.  `cond-take` keeps lines.  `cond-seek`
-drops them but lets a later `#elif` or `#else` take over.
-`cond-done` drops everything to the `#endif`, either because a group
-was already taken or because the whole conditional sits inside a
-dropped group.  That last case is why a nested `#if` in a dropped
-group is never evaluated (§7): its expression may name things that do
-not exist in this configuration.
-
-The walker itself deals with one byte at a time, and with whatever
-construct starts there.
-
-```forth file=cc/040-cc-prep.fth
   then, ;
 
 \ ---------------------------------------------------------------------------
@@ -1913,6 +1976,11 @@ construct starts there.
   cc-prep-peek dup [char] " = swap [char] ' = or if, cc-pp-literal exit, then,
   cc-prep-advance ;
 
+```
+
+File comments remain in the flattened text for Chapter 29's lexer. In replacement text they become separator blanks, with physical newlines counted as owed (`forth-bootstrap/cc/040-cc-prep.fth:1516`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-comment ( -- )  pos at a comment.  A file's comments are copied (the
 \ lexer skips them); in macro text a comment is one blank.
 : cc-pp-comment
@@ -1929,6 +1997,13 @@ construct starts there.
   then,
   cc-prep-in-file @ cc-pp-location-enabled @ and if, cc-pp-flush-nl then, ;
 
+```
+
+### Safe source continuations
+
+A source continuation is safe to replace with a newline only when that separator cannot change token boundaries. Lookahead finds the next byte, while the punctuation predicate recognizes tokens that cannot grow by joining (`forth-bootstrap/cc/040-cc-prep.fth:1532`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-splice-next ( -- c )  The byte after the run of LF or CRLF
 \ continuations at pos: nl for a CRLF line end or at EOR.  pos is kept.
 : cc-pp-splice-next
@@ -1950,6 +2025,11 @@ construct starts there.
   over [lit] 41 = or over [lit] 91 = or over [lit] 93 = or
   over [lit] 123 = or over [lit] 125 = or swap [lit] 126 = or ;
 
+```
+
+The safety check accepts boundaries beside whitespace, complete block comments or whole-token punctuation. It rejects continuations that would join identifier, number or multi-byte punctuation spelling (`forth-bootstrap/cc/040-cc-prep.fth:1553`):
+
+```forth file=cc/040-cc-prep.fth
 \ In source text a continuation becomes its newline, which is only safe
 \ where a separator cannot change the tokens: at the start of the input,
 \ before whitespace or EOR, after whitespace, a whole-token punctuator or
@@ -1966,6 +2046,11 @@ construct starts there.
   cc-prep-src-pos @ [lit] 2 < if, drop [lit] 0 exit, then,
   dup c@ [char] / = swap 1- c@ [char] * = and ;
 
+```
+
+The character dispatcher treats file newlines as line starts and replacement newlines as owed separators. A safe source continuation emits its physical newline without creating a new directive boundary (`forth-bootstrap/cc/040-cc-prep.fth:1569`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-scan-char ( -- )  Deal with the byte at pos, and the construct it
 \ starts.  A newline in macro text (an argument spread over lines) is a
 \ blank, and the newline is owed.
@@ -1986,6 +2071,11 @@ construct starts there.
       put-emit cc-pp-put-mode ! cc-pp-take-continuation exit,
     then,
   then,
+```
+
+After handling skipped groups, the dispatcher copies literals, walks comments, removes replacement continuations and delegates numbers and names. Remaining punctuation is copied directly (`forth-bootstrap/cc/040-cc-prep.fth:1589`):
+
+```forth file=cc/040-cc-prep.fth
   cc-prep-in-file @ if,
     cc-pp-skipping? if, cc-pp-skip-char exit, then,
   then,
@@ -2005,21 +2095,9 @@ construct starts there.
 
 ```
 
-In a dropped group, `cc-pp-skip-char` still steps over comments and
-literals whole: an apostrophe in a comment, or a `/*` that closes on a
-later line, must not change where the next directive is found.  The
-line's newline is still written, so dropped lines keep their numbers.
+### Finding directives
 
-In a kept group, a literal is copied with backslash-newline pairs removed,
-and a comment is copied too
-(the lexer skips it, Ch 23), a number is copied whole, and a name goes
-to `cc-pp-ident`.  In macro text, a comment or a newline becomes a
-blank and the newline is owed: such text is an argument that spanned
-lines, and its newlines are paid back after the call. Stringification
-also removes these pairs before quoting the raw argument. This bounded
-stage handles continued string and character tokens and stringified
-arguments; it does not yet implement phase-two splicing of arbitrary
-tokens, such as an identifier split across physical lines.
+Directive-prefix whitespace has a stricter grammar in the location-enabled profile. A carriage return must belong to CRLF, while the other horizontal C whitespace forms can precede the directive (`forth-bootstrap/cc/040-cc-prep.fth:1606`):
 
 ```forth file=cc/040-cc-prep.fth
 \ cc-prep-line-is-directive? ( -- f )  -1 iff the first non-blank byte on
@@ -2041,6 +2119,11 @@ variable cc-prep-isd-save-pos
     else, [lit] 0 then,
   while, cc-prep-advance repeat, ;
 
+```
+
+Prefix scanning uses the shared comment walker both for lookahead and consumption. Save–switch–restore preserves the caller's disposal and line-control modes across that scan (`forth-bootstrap/cc/040-cc-prep.fth:1625`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-prep-directive-prefix ( put-mode -- )
   cc-pp-put-mode @ >r cc-pp-put-mode !
   cc-pp-line-control @ >r [lit] 2 cc-pp-line-control !
@@ -2056,6 +2139,11 @@ variable cc-prep-isd-save-pos
   [char] / [char] / cc-pp-at-spliced? if, cc-pp-line-comment then,
   r> cc-pp-line-control ! r> cc-pp-put-mode ! ;
 
+```
+
+Lookahead restores the source cursor after testing for `#`. It runs only at a line start, so a long indentation is not rescanned for every byte (`forth-bootstrap/cc/040-cc-prep.fth:1640`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-prep-line-is-directive?
   cc-prep-src-pos @ cc-prep-isd-save-pos !
   cc-pp-location-enabled @ if,
@@ -2072,6 +2160,11 @@ variable cc-prep-isd-save-pos
   cc-prep-at-line-start @ 0= if, [lit] 0 exit, then,
   cc-prep-line-is-directive? ;
 
+```
+
+The main walker dispatches directives only in file regions and pays their owed newlines immediately afterward. Replacement regions always use ordinary character scanning (`forth-bootstrap/cc/040-cc-prep.fth:1656`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-scan ( -- )  Walk the current region to its end.  In a file, a line
 \ that starts with '#' is a directive; the newlines it owes are written
 \ right after it.
@@ -2092,36 +2185,15 @@ variable cc-prep-isd-save-pos
 
 ' cc-pp-scan is cc-pp-scan-fwd
 
-\ ===========================================================================
-\ Directives
 ```
 
-A directive is a line whose first non-blank byte is `#`, and only a
-file can have one.  `cc-prep-at-directive?` asks only at the start of
-a line: the look-ahead scans the line's leading blanks, and asking at
-every byte would rescan them once per byte.
-`cc-prep-line-is-directive?` restores the position, so the handler
-starts at the line's leading whitespace, and skips it itself (C
-allows `   #define X 42`; `tests/cc/G-indented-define.c` checks it).
-After a directive, `cc-pp-scan` pays its owed newlines.  The last line
-fills in the deferred word from §5.
+## `#if` and friends
 
-## 7. The directives
-
-### `#if` and friends
-
-`#if` and `#elif` evaluate an integer constant expression.  The
-parser has the same need for array sizes and case labels, so there is
-one evaluator, `cc-parse-const` in Ch 28, reached through a deferred
-word that `100-cc-expr.fth` fills in. In the direct LP64 profile,
-C99 6.10.1 makes signed operands act as 64-bit `intmax_t` and unsigned
-operands as `uintmax_t`. An explicit `U` suffix or a value above
-`INTMAX_MAX` makes a literal unsigned; otherwise it is signed at this
-width. Mixed arithmetic and comparisons convert to unsigned, so
-`#if -1ULL < 0` is false and `#if (0u - 1) > 0` is true. Legacy profiles retain their existing evaluator behaviour. The native
-LP64 profile shares these rules through the same parser.
+Conditional expressions reuse the macro engine, with `defined` answered first, then call `cc-pp-eval`. Chapter 34 supplies the core constant-expression evaluator and Chapter 45 extends typed evaluation; this file defines only the interface (`forth-bootstrap/cc/040-cc-prep.fth:1676`):
 
 ```forth file=cc/040-cc-prep.fth
+\ ===========================================================================
+\ Directives
 \ ===========================================================================
 
 \ ---------------------------------------------------------------------------
@@ -2144,17 +2216,12 @@ defer cc-pp-eval
   [lit] 0 cc-pp-in-if !
   cc-pp-eval 0= 0=
   r> cc-pp-scratch-top ! ;
-
 ```
 
-`cc-pp-if-value` takes the rest of the line as a slice, expands it into
-a temporary sink with `cc-pp-in-if` set (so `defined` is answered
-first, §5), and hands the text to `cc-pp-eval`.  Any name left after
-expansion is 0, as C says.  With `ONE` and `TWO` defined as in
-`tests/cc/P1-conditionals.c`, `#if TWO == 2 && defined(ONE)` reaches
-the evaluator as `( 1 + 1 ) == 2 && 1`, give or take blanks.
+Opening a conditional pushes either take or seek after checking depth. `#ifdef` needs only macro lookup; alternative and closing directives require an already open group (`forth-bootstrap/cc/040-cc-prep.fth:1700`):
 
 ```forth file=cc/040-cc-prep.fth
+
 \ cc-pp-cond-push ( state -- )  Open an #if.  Dies with 38 past
 \ cc-pp-cond-cap nested ones.
 : cc-pp-cond-push
@@ -2174,6 +2241,11 @@ the evaluator as `( 1 + 1 ) == 2 && 1`, give or take blanks.
 \ cc-pp-need-group ( -- )  #elif / #else / #endif with no #if open: die 41.
 : cc-pp-need-group
   cc-pp-cond-depth @ 0= if, [lit] 41 cc-die then, ;
+```
+
+The conditional dispatcher recognizes stored directive names. An `#if` nested inside a dropped group pushes done without evaluating an expression that may be invalid in that configuration (`forth-bootstrap/cc/040-cc-prep.fth:1720`):
+
+```forth file=cc/040-cc-prep.fth
 
 create cc-pp-n-if      s, if
 create cc-pp-n-ifdef   s, ifdef
@@ -2194,6 +2266,11 @@ create cc-pp-n-endif   s, endif
     then,
     true exit,
   then,
+```
+
+`#ifdef` and `#ifndef` use complementary name-existence tests when active. Inside skipped text, both preserve nesting by opening a done group (`forth-bootstrap/cc/040-cc-prep.fth:1740`):
+
+```forth file=cc/040-cc-prep.fth
   cc-pp-n-ifdef [lit] 5 cc-prep-ident= if,
     cc-pp-skipping? if,
       cond-done cc-pp-cond-push
@@ -2210,6 +2287,11 @@ create cc-pp-n-endif   s, endif
     then,
     true exit,
   then,
+```
+
+A taken group becomes done at `#elif`; only seek evaluates another condition. `#else` takes a seeking group, and `#endif` pops the innermost state (`forth-bootstrap/cc/040-cc-prep.fth:1756`):
+
+```forth file=cc/040-cc-prep.fth
   cc-pp-n-elif [lit] 4 cc-prep-ident= if,
     cc-pp-need-group
     cc-pp-cond-top @ cond-take = if, cond-done cc-pp-cond-top ! then,
@@ -2229,23 +2311,15 @@ create cc-pp-n-endif   s, endif
     [lit] 1 cc-pp-cond-depth -!
     true exit,
   then,
-```
-
-`cc-pp-cond-directive` implements the state table.  An `#elif` in a
-group that was taken moves to `cond-done`; in a group still seeking,
-it evaluates and takes over if true; in `cond-done` it does nothing.
-`#else` takes over only from `cond-seek`.  Nesting past 64 is code
-38, an `#elif`, `#else` or `#endif` with no `#if` open is 41, an
-`#ifdef` or `defined` with no name after it is 42, and an `#if` still
-open at the end of the program is 39 (§8).
-`tests/cc/P1-conditionals.c` walks every transition, including a
-dropped group that holds an unclosed quote.
-
-### `#include`
-
-```forth file=cc/040-cc-prep.fth
   [lit] 0 ;
 
+```
+
+## Recursive include processing
+
+An include scan must return to the exact source address, length and position it interrupted. Depth-indexed save arrays keep nested includes from overwriting their callers' restore state (`forth-bootstrap/cc/040-cc-prep.fth:1777`):
+
+```forth file=cc/040-cc-prep.fth
 \ ---------------------------------------------------------------------------
 \ #include
 \ ---------------------------------------------------------------------------
@@ -2269,6 +2343,11 @@ create cc-prep-save-pos   cc-prep-save-count [lit] 8 * allot
 variable cc-prep-inc-end
 variable cc-prep-inc-expanded
 
+```
+
+Literal include parsing selects quote or angle delimiters and records the name's slice. Computed quoted operands step over escaped bytes without decoding their backslashes into a different pathname (`forth-bootstrap/cc/040-cc-prep.fth:1800`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-prep-include-literal
   cc-prep-skip-blanks
   [lit] 0 cc-prep-inc-mode !
@@ -2292,6 +2371,11 @@ variable cc-prep-inc-expanded
         cc-prep-eor? 0= cc-prep-peek nl <> and if, cc-prep-advance then,
       else, cc-prep-advance then,
     repeat,
+```
+
+Direct mode requires a nonempty, closed name. Expanded operands must contain only that header name; internal whitespace in computed angle names is rejected because this text engine cannot preserve its token-joining meaning (`forth-bootstrap/cc/040-cc-prep.fth:1823`):
+
+```forth file=cc/040-cc-prep.fth
     cc-prep-src-pos @ swap -
     cc-prep-direct @ if,
       dup 0= cc-prep-peek cc-prep-inc-end @ <> or if, [lit] 30 cc-die then,
@@ -2310,6 +2394,11 @@ variable cc-prep-inc-expanded
       then,
     then,
     [lit] 0 cc-prep-inc-expanded !
+```
+
+Opening an include uses save–switch–restore for the region as well as the packed-pool top. Entering and leaving record location-map boundaries, and the included region is walked before the caller resumes (`forth-bootstrap/cc/040-cc-prep.fth:1841`):
+
+```forth file=cc/040-cc-prep.fth
     cc-prep-inc-mode @ [lit] 1 = cc-prep-direct @ or if,
       cc-prep-inc-top @ >r
       cc-prep-load-file
@@ -2328,27 +2417,14 @@ variable cc-prep-inc-expanded
       r> cc-prep-inc-top !
       cc-pp-map-resume cc-pp-location-cell @ cc-pp-line-map-note
     else, 2drop then,
+  then, ;
 ```
-
-For a quoted path, the handler measures the name up to the closing
-`"`, loads the file, and stashes the current region triple in
-`cc-prep-save-{addr,len,pos}` at the *outer* depth.  It then bumps the
-depth, points the region globals at the loaded buffer, walks it, and
-reads the triple back.  The save arrays are length 4, matching the
-pool. Legacy mode retains four nested includes (pnut nests two
-deep: `pnut.c` includes `x86.c`, which includes `exe.c` and then
-`elf.c`).
-
-In legacy mode, angle-bracket includes (`#include <stdio.h>`) are dropped: there are
-no system headers in the bootstrap environment.  What a program needs
-from them comes from the compiler itself: the built-in macros of §8,
-the built-in typedefs such as `FILE` and `intptr_t` (Ch 31), and the
-libc shims such as `putchar` and `malloc` (Chs 26 and 31).
 
 ### Computed include operands
 
+An operand such as `#include EXTRA_MODES_FILE` needs expansion before it names a file. Direct mode builds that result in scratch, requires a quote or angle opener and invokes the same include parser while preserving the original file's search context (`forth-bootstrap/cc/040-cc-prep.fth:1860`):
+
 ```forth file=cc/040-cc-prep.fth
-  then, ;
 
 \ A computed operand is rescanned with the same macro engine as C text.
 \ Preserve the original file region while parsing its expanded header token;
@@ -2377,20 +2453,14 @@ libc shims such as `putchar` and `malloc` (Chs 26 and 31).
   r> cc-prep-at-line-start !
   r> cc-prep-src-pos ! r> cc-prep-src-len ! r> cc-prep-src-addr !
   r> cc-pp-scratch-top ! ;
-
 ```
 
-### Parsing C line control
+## Parsing C line control
 
-Generated parsers need to name a grammar file while continuing to read the
-physical generated source. The earlier per-file state keeps those two names
-separate. Here we expand the operand with the existing macro engine, then
-validate only the resulting number and optional filename.
-
-The number is a decimal digit sequence, even when it starts with zero.
-Checking its range after each digit also bounds every intermediate value.
+Generated parser text can use `#line` to identify copied grammar actions. After macro expansion, the operand grammar accepts a positive decimal line and an optional ordinary filename string; it does not evaluate an expression (`forth-bootstrap/cc/040-cc-prep.fth:1888`):
 
 ```forth file=cc/040-cc-prep.fth
+
 \ ---------------------------------------------------------------------------
 \ #line: shared macro expansion followed by a bounded operand grammar
 \ ---------------------------------------------------------------------------
@@ -2418,8 +2488,7 @@ variable cc-pp-line-name-size
 
 ```
 
-Filename escapes need byte values, so these helpers recognize hex and octal
-digits without invoking the C expression parser.
+Filename escapes use local digit decoding. Hexadecimal escapes require a digit and reject overflow while accumulating, keeping malformed provenance from becoming a plausible filename (`forth-bootstrap/cc/040-cc-prep.fth:1914`):
 
 ```forth file=cc/040-cc-prep.fth
 : cc-pp-line-hex ( c -- n|-1 )
@@ -2431,12 +2500,6 @@ digits without invoking the C expression parser.
 : cc-pp-line-octal? ( c -- f )
   dup [char] 0 >= swap [char] 7 <= and ;
 
-```
-
-The escape decoder accepts ordinary C byte escapes. It rejects unsupported
-forms and values that would silently truncate the virtual filename.
-
-```forth file=cc/040-cc-prep.fth
 : cc-pp-line-escape ( -- byte )
   cc-prep-eor? if, [lit] 49 cc-die then,
   cc-prep-peek cc-prep-advance
@@ -2448,6 +2511,11 @@ forms and values that would silently truncate the virtual filename.
       cc-prep-advance
     repeat, drop exit,
   then,
+```
+
+Octal and simple escapes complete the byte grammar. Unsupported escape letters are rejected rather than copied with a different meaning (`forth-bootstrap/cc/040-cc-prep.fth:1934`):
+
+```forth file=cc/040-cc-prep.fth
   dup cc-pp-line-octal? if,
     [char] 0 - [lit] 1
     begin, dup [lit] 3 < cc-prep-peek cc-pp-line-octal? and while,
@@ -2466,9 +2534,7 @@ forms and values that would silently truncate the virtual filename.
 
 ```
 
-The filename walker decodes one string into the current include depth's
-logical-name slot. Empty names remain distinguishable from an unspecified
-physical input name.
+The filename parser requires a closing quote, rejects NUL and oversized byte values, and checks the decoded name's capacity before each store. Empty names are allowed (`forth-bootstrap/cc/040-cc-prep.fth:1950`):
 
 ```forth file=cc/040-cc-prep.fth
 : cc-pp-line-filename
@@ -2489,9 +2555,9 @@ physical input name.
 
 ```
 
-With the operand grammar defined, the handler can use the shared expansion
-engine and restore the original file region. Only after complete validation
-does it change the offset for the next physical source line.
+### Applying a logical location
+
+`cc-prep-handle-line` expands and validates the entire operand in a temporary region. Extra tokens fail before it restores the source cursor and scratch lifetime (`forth-bootstrap/cc/040-cc-prep.fth:1966`):
 
 ```forth file=cc/040-cc-prep.fth
 : cc-prep-handle-line
@@ -2509,6 +2575,11 @@ does it change the offset for the next physical source line.
   r> cc-prep-at-line-start !
   r> cc-prep-src-pos ! r> cc-prep-src-len ! r> cc-prep-src-addr !
   r> cc-pp-scratch-top !
+```
+
+The requested number applies to the following physical line. Updating an offset preserves the physical cursor used by argument prescan and leaves relative include lookup tied to the real pathname (`forth-bootstrap/cc/040-cc-prep.fth:1981`):
+
+```forth file=cc/040-cc-prep.fth
   \ The terminating physical newline is still unread. Set the offset for
   \ the following line only after validating the entire expanded operand.
   cc-prep-src-addr @ cc-prep-src-pos @ + cc-pp-location-at
@@ -2521,11 +2592,9 @@ does it change the offset for the next physical source line.
 
 ```
 
-The include-search path still names the physical source. The logical state
-changes only the source-location macros; compiler diagnostics remain based
-on flattened source lines.
+## `#define` and `#undef`
 
-### `#define` and `#undef`
+A function-like definition records parameter names while its body is encoded. Those names live only until body copying finishes; the stored macro body uses parameter markers instead (`forth-bootstrap/cc/040-cc-prep.fth:1991`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ---------------------------------------------------------------------------
@@ -2544,6 +2613,11 @@ variable cc-pp-param-count
 \ Read the parameter names through the ')'.  Anything but names, commas
 \ and blanks before the ')' dies with 47, more than cc-pp-params-max
 \ parameters with 48.
+```
+
+The legacy parameter reader records source slices separated by commas. `cc-pp-param?` resolves a body identifier against those names so later substitution need not search textual identifiers again (`forth-bootstrap/cc/040-cc-prep.fth:2026`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-pp-read-params
   [lit] 0 cc-pp-param-count !
   begin,
@@ -2567,6 +2641,13 @@ variable cc-pp-param-count
   cc-prep-ident-addr @ cc-prep-ident-len @
   cc-pp-param-addr cc-pp-param-len cc-pp-param-count @ cc-name-find ;
 
+```
+
+### Logical parameter names
+
+In the location-enabled parameter grammar, a continuation joins name bytes without introducing whitespace. Logical parameter names are built in a bounded temporary sink while their physical newlines become owed (`forth-bootstrap/cc/040-cc-prep.fth:2030`):
+
+```forth file=cc/040-cc-prep.fth
 \ Parameter-list phase two is local to the direct grammar: remove LF or
 \ CRLF continuations, retaining their physical newlines as owed. Do not
 \ turn a splice into whitespace: ab\<newline>cd is one parameter name.
@@ -2594,6 +2675,11 @@ variable cc-pp-param-count
   repeat,
   cc-pp-out @ cc-pp-out-pos @ + cc-prep-ident-addr @ - cc-prep-ident-len ! ;
 
+```
+
+The direct parameter reader accepts an empty list or distinct comma-separated identifiers. It rejects duplicates, missing names, trailing commas, comments and variadic forms; its logical-name storage survives until body encoding finishes (`forth-bootstrap/cc/040-cc-prep.fth:2057`):
+
+```forth file=cc/040-cc-prep.fth
 \ Direct lists are empty or comma-separated distinct identifiers. Reject
 \ missing names, trailing commas and duplicates with 47; retain the existing
 \ 16-name limit (48). Comments and variadic forms remain unsupported (47).
@@ -2619,6 +2705,13 @@ variable cc-pp-param-count
     cc-prep-advance cc-pp-param-blanks
   again, ;
 
+```
+
+### Encoding a replacement body
+
+Direct body encoding gives stringification and pasting their own markers. A single `#` must name a parameter; `##` becomes a paste marker for substitution (`forth-bootstrap/cc/040-cc-prep.fth:2082`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-copy-hash ( -- )  Encode #parameter and ## outside literals.
 : cc-pp-copy-hash
   cc-prep-advance
@@ -2631,6 +2724,11 @@ variable cc-pp-param-count
     [lit] 2 cc-prep-emit-byte cc-prep-emit-byte
   then, ;
 
+```
+
+Body copying removes continuations and replaces comments with blanks while retaining their newline debt. Literal contents remain literal, so parameter-looking names inside quotes are never substituted (`forth-bootstrap/cc/040-cc-prep.fth:2094`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-copy-body ( -- )  Copy the rest of the #define line to the sink (the
 \ macro pool): a comment becomes one blank, a backslash-newline joins the
 \ lines (the newline is owed), and a parameter becomes the marker 1, k.
@@ -2653,6 +2751,11 @@ variable cc-pp-param-count
     cc-prep-peek dup [char] " = swap [char] ' = or if,
       put-emit cc-pp-put-mode !  cc-pp-literal
     else,
+```
+
+Outside literals, direct hash operators are encoded, numbers remain whole and recognized parameters become index markers. Other identifiers retain their spelling for lookup when the macro is used (`forth-bootstrap/cc/040-cc-prep.fth:2116`):
+
+```forth file=cc/040-cc-prep.fth
     cc-prep-peek [char] # = cc-prep-direct @ and if,
       cc-pp-copy-hash
     else,
@@ -2671,6 +2774,11 @@ variable cc-pp-param-count
     then, then, then, then, then, then,
   repeat, ;
 
+```
+
+Trailing blanks need not occupy the macro pool. Trimming moves the sink's written length back only as far as this body's start (`forth-bootstrap/cc/040-cc-prep.fth:2134`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-pp-trim ( start -- start )  Drop the blanks that end the text written
 \ to the sink since address start.
 : cc-pp-trim
@@ -2685,6 +2793,13 @@ variable cc-pp-param-count
     [lit] 1 cc-pp-out-pos -!
   repeat, ;
 
+```
+
+### Installing and removing definitions
+
+A definition is function-like only when its opening parenthesis is adjacent to the name. The location-enabled path can preserve that adjacency across a continuation, but rejects a split macro name (`forth-bootstrap/cc/040-cc-prep.fth:2148`):
+
+```forth file=cc/040-cc-prep.fth
 \ cc-prep-handle-define ( -- )  pos is just past "define".  `NAME(` with no
 \ blank before the '(' makes a function-like macro.  The name and the body
 \ go to the pool.  A #define with no name is dropped.
@@ -2707,6 +2822,11 @@ variable cc-pp-param-count
   else,
     [lit] 0 cc-pp-param-count !  true
   then,
+```
+
+After encoding, the name, body and parameter count become a table record and temporary parameter storage is released. `#undef` invalidates every matching definition, so an older shadowed record cannot reappear (`forth-bootstrap/cc/040-cc-prep.fth:2170`):
+
+```forth file=cc/040-cc-prep.fth
   >r                                               ( na nu ; R: saved-scratch params )
   cc-pp-location-enabled @ if, cc-pp-param-blanks else, cc-prep-skip-blanks then,
   cc-macro-pool cc-macro-pool-pos @ +              ( na nu ba )
@@ -2727,50 +2847,15 @@ variable cc-pp-param-count
   while,
     [lit] 0 swap cc-macro-name-len cell[] !
   repeat,
-```
-
-A `(` right after the name, with no blank between, makes the macro
-function-like. The legacy/native reader keeps source slices. In the explicit
-SysV target, `cc-pp-read-direct-params` instead joins physical continuations
-before recognizing names and punctuation. For example, `ar` followed by a
-backslash-newline and `g` names the single parameter `arg`; a join contributes
-no space. A join between an intact macro name and `(` also preserves adjacency.
-
-The SysV reader stores at most 16 distinct names in one 64 KiB temporary
-buffer: code 48 bounds the count, code 37 bounds their combined logical bytes,
-and code 47 rejects malformed or duplicate names. The temporary survives until
-the body has been encoded, then its scratch space is returned. Neither source
-bytes nor physical locations are rewritten. Each LF or CRLF continuation owes
-one output newline, preserving physical `__LINE__` calls and adding no
-continuation-related diagnostic drift. An inherited body-marker caveat remains:
-parameter index 10 is encoded as LF and can increment preprocessing diagnostic
-lines spuriously; this parser repair does not change that encoding.
-Errors inside the definition retain the established flattened start-line
-location because owed newlines have not yet been emitted.
-
-This is a bounded parameter grammar, not a general phase-two pass. Spaces and
-tabs separate names; comments, variadic lists, form feed and vertical tab remain
-unsupported here. A join inside the macro's own name diagnoses 47. Token joins
-inside replacement bodies remain a separate preexisting limitation. The
-focused proof (`tests/gcc/macro-parameter-splices-check.py`) compares host CPP
-and records these boundaries as well as unchanged legacy/native output.
-
-`cc-pp-copy-body` then writes the rest of the line to
-the pool: comments become one blank, a backslash-newline joins the
-next line (its newline is owed), literals are copied whole, and a
-name that is a parameter becomes its marker.  `cc-pp-trim` drops
-trailing blanks, so `#define EMPTY` has an empty body and
-`#define TWO (ONE + ONE)   ` has a clean one.
-
-The body is not expanded here.  `#define TWICE(x) ADD(x, x)` stores
-`ADD(` 1 0 `, ` 1 0 `)`, and `ADD` is looked up when `TWICE` is used,
-so a macro may use one defined after it, as in C.
-
-### The dispatcher
-
-```forth file=cc/040-cc-prep.fth
   drop ;
 
+```
+
+## The dispatcher
+
+The dispatcher consumes the prefix and reads the directive name. In the location-enabled profile it rejects GNU numeric line markers in active text and continuations that split directive names (`forth-bootstrap/cc/040-cc-prep.fth:2192`):
+
+```forth file=cc/040-cc-prep.fth
 \ ---------------------------------------------------------------------------
 \ cc-prep-handle-directive  ( -- )
 \ ---------------------------------------------------------------------------
@@ -2800,6 +2885,11 @@ create cc-prep-name-line     s, line
     cc-pp-location-enabled @ cc-pp-line-continuation? and if,
       [lit] 49 cc-die
     then,
+```
+
+Conditionals are handled even while skipping, because they control nesting. Other directives act only in a kept group; `#error` stops preprocessing, and unrecognized directives are discarded through line end (`forth-bootstrap/cc/040-cc-prep.fth:2221`):
+
+```forth file=cc/040-cc-prep.fth
     cc-pp-cond-directive if, cc-prep-skip-to-eol exit, then,
     cc-pp-skipping? 0= if,
       cc-pp-location-enabled @ if,
@@ -2827,36 +2917,13 @@ create cc-prep-name-line     s, line
 
 ```
 
-`cc-prep-handle-directive` reads the directive's name and tries the
-six conditionals first, because they must be acted on even in a
-dropped group.  The others count only in a kept group: `#include`,
-`#define`, `#undef`, and `#error`, which stops the compiler with code
-40 (`tests/cc/die-40-error-directive.c` has one in an `#if 0` group
-too, which must not fire). The SysV profile handles C `#line` and
-rejects numeric markers with code 49; the other profiles drop them.
-`#pragma` and other unrecognized directives are dropped.  Each handler returns with `exit,` at once: after an
-`#include`, the name just read belongs to the included file.
+## The built-in macros and the pass driver
 
-## 8. The built-in macros and the pass driver
-
-Before the walk starts, the macro table is seeded with the names the
-dropped system headers would have supplied:
+Legacy mode supplies replacement text for names whose system headers it drops. These stored spellings are ordinary object-macro bodies, including the hexadecimal spelling for `EOF` (`forth-bootstrap/cc/040-cc-prep.fth:2246`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
 \ Built-in macros
-```
-
-Eleven macros: `NULL`, `EOF`, `EXIT_SUCCESS`, `EXIT_FAILURE`,
-`stdin`, `stdout`, `stderr` (file descriptors 0 to 2, since this
-compiler's `FILE*` is a descriptor; Appendix F), and `open(2)`'s
-flags `O_RDONLY`, `O_WRONLY`, `O_CREAT`, `O_TRUNC` with their Linux
-values.  `EOF`'s body is `0xFFFFFFFFFFFFFFFF`, one token that the
-lexer's 64-bit accumulator reads as -1 (Ch 23), because Ch 20's number
-parser cannot write a negative literal.  A program that defines one
-of these names itself, as pnut does with `EOF`, shadows the built-in.
-
-```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
 \ What the dropped system headers would have defined and the subset's
 \ programs use: <stdio.h>'s NULL, EOF, stdin/stdout/stderr (file
@@ -2869,6 +2936,11 @@ create cc-pp-t2      s, 2
 create cc-pp-t64     s, 64
 create cc-pp-t512    s, 512
 create cc-pp-teof    s, 0xFFFFFFFFFFFFFFFF
+```
+
+The built-in name objects cover null and exit status, standard streams and open flags. They are separate from their replacement text so the same table-recording path can install them (`forth-bootstrap/cc/040-cc-prep.fth:2260`):
+
+```forth file=cc/040-cc-prep.fth
 
 create cc-builtin-name-NULL          s, NULL
 create cc-builtin-name-EOF           s, EOF
@@ -2882,6 +2954,11 @@ create cc-builtin-name-O_WRONLY      s, O_WRONLY
 create cc-builtin-name-O_CREAT       s, O_CREAT
 create cc-builtin-name-O_TRUNC       s, O_TRUNC
 
+```
+
+`cc-prep-builtins` pairs each name with its body through `cc-macro-add`. User definitions can shadow these entries through the same lookup as any other macro (`forth-bootstrap/cc/040-cc-prep.fth:2273`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-prep-builtins
   cc-builtin-name-NULL          [lit]  4  cc-pp-t0   [lit] 1  cc-macro-add
   cc-builtin-name-EOF           [lit]  3  cc-pp-teof [lit] 18 cc-macro-add
@@ -2895,6 +2972,13 @@ create cc-builtin-name-O_TRUNC       s, O_TRUNC
   cc-builtin-name-O_CREAT       [lit]  7  cc-pp-t64  [lit] 2  cc-macro-add
   cc-builtin-name-O_TRUNC       [lit]  7  cc-pp-t512 [lit] 3  cc-macro-add ;
 
+```
+
+### Dynamic built-ins
+
+Location built-ins use special parameter tags so their values are computed at invocation. They remain real table entries for `defined`, replacement and `#undef`; the target hook is empty until a later layer selects target policy in Chapter 44 (`forth-bootstrap/cc/040-cc-prep.fth:2286`):
+
+```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
 \ cc-preprocess  ( -- )
 \ ===========================================================================
@@ -2917,6 +3001,13 @@ create cc-pp-name-file s, __FILE__
 defer cc-prep-target-fwd
 ' cc-prep-target-default is cc-prep-target-fwd
 
+```
+
+### The pass driver
+
+`cc-preprocess` starts a fresh pass: it resets macro records, include and conditional depth, sink state, line debt and scratch storage, then selects the source buffer as output (`forth-bootstrap/cc/040-cc-prep.fth:2308`):
+
+```forth file=cc/040-cc-prep.fth
 : cc-preprocess
   cc-src-init
   [lit] 0 cc-macro-count !  cc-macro-hash-reset
@@ -2931,6 +3022,11 @@ defer cc-prep-target-fwd
   cc-src-buf cc-pp-out !  [lit] 0 cc-pp-out-pos !
   cc-src-cap cc-pp-out-cap !  [lit] 36 cc-pp-out-code !
   cc-pp-flags-init
+```
+
+The driver installs the selected built-ins, scans raw input and rejects an unclosed conditional. It publishes the sink length and rewinds source position and line state for Chapter 29's lexer (`forth-bootstrap/cc/040-cc-prep.fth:2322`):
+
+```forth file=cc/040-cc-prep.fth
   cc-prep-direct @ 0= if, cc-prep-builtins then,
   [lit] 0 cc-pp-location-enabled ! [lit] 1 cc-pp-location-line !
   [lit] 0 cc-pp-location-rescan ! [lit] 0 cc-pp-location-depth !
@@ -2951,28 +3047,16 @@ defer cc-prep-target-fwd
   [lit] 1 cc-src-line ! ;
 ```
 
-`cc-preprocess` is the only word the rest of the compiler calls.  It
-empties `cc-src-buf`, resets every counter, makes `cc-src-buf` the
-sink, primes the built-in macros, points the region at `cc-in-buf`
-and walks it.  An `#if` still open at the end is code 39.  Then the
-sink's length becomes `cc-src-len`, and resetting `cc-src-pos` to 0
-and `cc-src-line` to 1 means the lexer starts at the top: as far as it
-is concerned, the source it reads is the program.
-
 ## Try it
 
-**Small check:** run the preprocessor on a few lines in the style of
-`tri.c` and print the rewritten buffer.  Seed-forth has no
-file-`include` or `-e` flag, so we concatenate the four Forth files it
-needs onto stdin and then append the C source.  The driver defines a
-one-shot word `dump-prep` that calls `cc-load-stdin` (which slurps
-whatever remains on stdin), runs `cc-preprocess`, and walks the
-rewritten buffer byte by byte.  (`#if` is left out: its evaluator
-lives in `100-cc-expr.fth`, which this driver does not load.
-`#ifdef` needs none.)
+Run this from the `forth-bootstrap` checkout root. The command loads the
+complete Forth library and only the arena, I/O and preprocessor layers.
+`dump-prep` loads the remaining stdin as C text, runs `cc-preprocess` and
+prints the rewritten buffer. `#ifdef` uses macro lookup alone; `#if` is
+excluded because its evaluator belongs to Chapter 34.
 
 ```sh
-./seed/build.sh
+./seed/build.sh > /dev/null
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/040-cc-prep.fth
   cat <<'FORTH'
@@ -2999,10 +3083,7 @@ C
 } | ./seed-forth
 ```
 
-After the REPL executes the final `dump-prep` token, `cc-load-stdin`
-reads the rest of stdin (the C source) into `cc-in-buf`,
-`cc-preprocess` runs, and the loop prints this (the first three lines
-are empty, and so are the three between):
+Observed output, including its blank lines:
 
 ```text
 
@@ -3015,289 +3096,16 @@ are empty, and so are the three between):
     if (t.stars ==  ((   4   ) * (   4   )) ) return t.stars;
 ```
 
-Every directive is gone, and so is the dropped `#else` group, but each
-left its newline behind, so `int w` is still on line 4 and the `if` on
-line 8.  `ROWS` became ` 4 `, blanks and all.  In `SQUARE(ROWS)` the
-argument was expanded first (` 4 `) and then substituted, between
-blanks, for both uses of `x`.
+The directives and inactive branch leave blank lines. `ROWS` expands inside
+the array bound and again before substitution into `SQUARE`; separator
+blanks keep the replacement's tokens distinct from their neighbours.
 
-**Layer check:** there is no root-level `test-040-cc-prep.fth`.  The
-preprocessor's fixtures are gates in `tests/cc/`: `G14a.c` (integer
-`#define`), `G14b.c` (`#include "…"` through the `tests/cc/`
-fallback), `G5.c` (an elided `#include <stdio.h>` plus the built-in
-macros), `G-indented-define.c` and `H-comment-directive.c` (§6, §3),
-`P1-conditionals.c` (every conditional directive) and
-`P2-fn-macros.c` (function-like macros, rescanning, a self-referring
-macro, a call over three lines).  `tests/cc/run-gates.sh` runs them with
-the rest, and its die gates `die-30-*` through `die-48-*` check that
-each limit and each malformed directive fails with its code and line.
+## Exercise
 
-**Bootstrap relevance:** Stage A exercises the include path, the
-`#ifndef CC_H` guard around `cc.h` (included a second time, through
-`cc_emit.h`, and now dropped the second time) and built-in macros
-such as `NULL` and `stdout`.  `tests/pnut/sf-pnut-check.sh` exercises
-the rest: pnut's four source files hold some 850 conditional
-directives.
+**Trace — easy.** Follow `SQUARE(ROWS)` through argument expansion,
+substitution and replacement rescanning. Account for each separator blank
+around the expanded argument in the observed output.
 
-```sh
-./seed/build.sh
-tests/cc/stage-a-check.sh
-tests/pnut/sf-pnut-check.sh
-```
-
-## Direct TinyCC preprocessing
-
-The default mode preserves the original M2-Planet and pnut contract.
-The opt-in direct mode instead reads the real portable headers and
-supports the operators used by the pinned TinyCC source. Before calling
-`cc-preprocess`, set `true cc-prep-direct !`, register each explicit
-include directory with `cc-prep-add-include ( address length -- )`, and
-set the main input's pathname with `cc-prep-source-name` when the input
-is the file itself. `cc-prep-config-reset` clears that configuration;
-ordinary preprocessing preserves it for the next input.
-
-Quoted includes try the directory of the including file before the
-registered directories, in order. Angle includes use the registered
-directories. Missing angle headers now fail with code 30 rather than
-silently disappearing. Included file paths are kept at each nesting
-depth, so a header's own relative include does not depend on the shell's
-working directory. Direct mode packs the live file contents into the
-same 1 MiB include pool, with a depth limit of 32, and raises the macro
-limits to 4,096 definitions and a 256 KiB text pool. The direct-GCC driver
-selects a separately mapped 4,608-entry table and a mapped 7 MiB include
-pool (§4); its text-pool bound is unchanged. Legacy limits and
-diagnostic codes are retained.
-
-A direct function-macro call keeps both raw and expanded arguments.
-Stringizing reads the raw spelling, compresses whitespace and comments,
-and escapes characters inside literal tokens. Pasting strips surrounding
-whitespace, joins raw spellings, and rescans the resulting identifier.
-Only parameters used outside `#` and `##` are prescanned. Finally, the
-last function-macro token is rescanned with the following source, so
-both `DEF_BWLX(mov)` and `ELFW(ST_INFO)(bind,type)` can find the opening
-parenthesis outside their own replacement regions. This is the targeted
-TinyCC profile, not a claim of a complete ISO C preprocessor: variadic
-macros and general hide-set rescanning remain outside it.
-
-### C line control for generated parser sources
-
-Original `oyacc-6.6/reader.c` defines the format `#line %d "%s"\n`.
-Generated parsers need that
-provenance to compile their copied grammar actions. In the SysV profile,
-`#line` now changes `__LINE__` and optionally `__FILE__` from the following
-source line onward. The directive passes its operand through the existing
-macro engine, so aliases, function macros, stringification, and dynamic
-location macros retain the engine's established invocation semantics. It
-then requires a decimal digit sequence from 1 through 2147483647 and at most
-one ordinary string literal. No expression evaluation or string concatenation
-is implied. Leading zeroes still mean decimal, as C line control requires.
-
-Each live include has a physical cursor and an independent logical offset
-and filename. Resetting a physical cursor for reverse argument prescan keeps
-that offset. Entering a header initializes its own state; returning restores
-the includer's state by depth. The physical include-search path never changes
-when `#line` names a virtual file. Repeated `cc-preprocess` calls reset the
-main input's state. Continuations and comments consumed by a directive count
-as physical lines before the following line receives its requested number.
-
-A diagnostic made after preprocessing knows only a flattened line, the line
-of the preprocessed text. When `cc-pp-line-map-on` is set (the driver does so
-for `-Werror=implicit-function-declaration`, Ch 36), entering a file, each
-`#line`, and returning from an include record an arena entry: the output line
-where that file's text continues, its `__FILE__` name and its logical line
-there. Because every physical newline reaches the output, including spliced
-and macro-argument ones, `cc-pp-line-map-find` turns a flattened line into a
-name and line by counting on from the latest earlier entry. The directive's
-own line is computed before a computed operand replaces the region, so the
-includer resumes at the right line. With the flag clear nothing is recorded.
-
-Filename strings decode standard simple, octal, and hexadecimal byte escapes,
-then use the existing `__FILE__` string encoder. Empty names are valid. This
-bounded implementation rejects NUL bytes, values exceeding 255, unsupported
-Unicode/wide string forms, invalid escapes, and filenames beyond 1023 decoded
-bytes with code 49. Unknown macros, suffixes, signs, expressions, missing
-quotes, unterminated comments, extra tokens and out-of-range numbers also
-fail; the driver preserves
-an existing output on failure. GNU numeric line markers remain rejected49.
-Skipped groups do not execute either form of line control. Whitespace-separated
-continuations, continuations within filename literals and continuations
-inside or splitting comments (below) are supported. A nonliteral
-continuation with non-whitespace on both sides of it, outside a comment, is
-explicitly rejected49 in a `#line` operand: the shared engine does not yet
-join split tokens. Its other existing macro-expansion limits remain
-unchanged.
-
-Directive boundaries in the SysV profile recognize space, tab, form feed,
-vertical tab and CRLF endings. A bare carriage return in the prefix is
-rejected49, since this engine tracks LF source lines. Complete block comments
-before `#` or between `#` and the directive name are consumed by the shared
-comment walker, in active and skipped groups. Lookahead drops their bytes;
-consumption counts their newlines so source locations and conditional nesting
-stay balanced. A directive cannot vanish behind a comment prefix.
-
-Prefix lookahead also crosses ordinary source comments. Translation phase
-two deletes every backslash-newline before phase three finds comments, and
-the direct profile's comment walkers follow it exactly. Inside a comment a
-continuation simply vanishes, so a `//` comment goes on to the next line.
-Between the bytes of a delimiter it vanishes too: `/\` at a line end
-followed by `*` opens a comment, and `*\` followed by `/` closes one. The
-unchanged GCC `ansidecl.h` has a continuation in a commented-out macro
-example, and the banner comments of binutils 2.30 `gas/flonum.h` end their
-first line with `*\`, which needs the `*` rule (it is not a closer, since
-the next line starts with a blank). `cc-pp-at-spliced?` recognizes the
-delimiters past continuations wherever a walker looks for a comment, in
-ordinary text, skipped groups, directive prefixes, `#define` bodies, macro
-arguments and `#line` operands. A deleted continuation's newline goes through
-the walker's put mode, except that a comment copied to the output owes it
-instead: written inside the comment it could end a `//` comment or split a
-`*/`. The owed newline follows the comment, so later lines keep their
-numbers. Only an unterminated comment inside a directive is still
-rejected49. `cc-prep-skip-to-eol` also walks a `//` comment in this profile,
-so a `/*` inside one (`#endif // was /*`) no longer swallows the following
-lines. Legacy profiles keep their previous comment bytes.
-Continuations between prefix whitespace and complete comments are consumed
-with the same newline disposal operation in lookahead and dispatch. This also
-handles a continuation immediately after a complete source comment, as emitted
-by the unchanged Flex scanner skeleton. In ordinary file text a continuation
-is replaced by its physical newline, which phase two would have deleted. That
-is the same token sequence wherever the bytes on either side could not have
-joined: at the start of the input; before whitespace or the end of input,
-looking past any further continuations; or after whitespace, a complete block
-comment, or a punctuator that is always a whole token (`, ; ( ) [ ] { } ~`).
-The unchanged binutils 2.30 `bfd/cofflink.c` continues a call's argument
-list as `addend,\` followed by indentation, which needs the last two rules.
-The newline is emitted without turning the next byte into a new directive
-line, and location macros still count the original source bytes. The lookahead
-for a function-like macro's `(` skips continuations like other blanks, so
-`F \` followed by `(1,2)` on the next line is still a call. Other nonliteral
-source continuations — those that would join an identifier, number or
-multi-byte punctuator — and splices splitting a directive name fail49; the
-shared engine does not yet join those phase-two tokens
-(`tests/gcc/file-splice-check.py`).
-Legacy/native and TinyCC directive dispatch retain their previous bytes.
-
-The unchanged ordinary string-literal copier still preserves a backslash followed
-by CRLF instead of performing line splicing. That boundary is recorded as a
-known limitation; the token-boundary and comment repairs do not establish full
-translation-phase-two handling for arbitrary source text.
-
-This maps location macros only. Compiler diagnostics still use flattened
-source line numbers; no diagnostic or debug-location remapping is claimed.
-The legacy/native and direct TinyCC profiles keep their previous policy.
-
-The semantic references are [C draft N1570, section 6.10.4](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf)
-and [GCC line control](https://gcc.gnu.org/onlinedocs/cpp/Line-Control.html).
-`tests/gcc/line-control-check.py` compares host CPP tokens, checks Forth-built
-executable values and nested physical includes, and verifies fail-closed
-rejections and repeated preprocessing.
-
-### Computed include operands
-
-Original GCC `genmodes.c` selects a target definition file through
-`#include EXTRA_MODES_FILE`. Merely accepting that directive without reading
-the named file produces a plausible, incomplete program. Direct mode now
-expands a nonliteral include operand using the ordinary macro engine and
-requires the result to contain exactly one header name. It then uses the same
-search order and include recursion as a directly written header. Unknown,
-empty, malformed, cyclic, or missing results fail with code 30 and preserve
-the prior output artifact.
-
-The expanded operand occupies a temporary scratch region. The caller's
-original file region and position are restored afterward; relative searches
-and `__FILE__`/`__LINE__` still refer to the actual including and included
-files. Quoted computed names preserve backslashes literally, including an
-escaped quote in the string token. Whitespace-free computed angle operands
-are supported. Internal whitespace in a computed angle result is explicitly
-rejected: the current text macro engine adds separator blanks and cannot yet
-preserve GNU's full token-spacing rule. A function macro that stringifies its
-header argument provides an unambiguous supported form.
-
-The [GNU computed-include documentation](https://gcc.gnu.org/onlinedocs/cpp/Computed-Includes.html)
-explains why token joining matters. `tests/gcc/computed-include-check.py`
-compares supported forms with an independent host preprocessor, runs a
-Forth-built program dependent on a selected header, and checks every token
-of the pinned original `i386-modes.def` after a computed include. The input
-hash and target-specific markers prevent the earlier silent omission from
-being mistaken for successful generator reconstruction.
-
-The seed-only checks run without writing the shared compiler output:
-
-```sh
-tests/tcc/prep-check.sh --legacy-pnut
-tests/tcc/prep-check.sh --target build-out/tcc-sources
-```
-
-The optional target check requires the already staged, pinned and
-patched kit. `tests/tcc/prep-stage-sources.py OUTPUT` prepares a fresh
-source-only tree directly from the pinned tarball and portable libc,
-checking input and output hashes for every exact patch. This Python
-helper is an explicitly host-side source-preparation step; it does not
-run pnut or produce executable code.
-
-The target check preprocesses TinyCC and portable libc independently,
-and then libc before TinyCC in one combined input. That order matters:
-TinyCC's header redefines `malloc`, `free` and `realloc`, while portable
-libc needs those identifiers unchanged to define its implementations.
-An optional `--oracle` directory may contain separately generated host
-preprocessor output for token comparison; it is never compilation input
-on the seed path. The focused tests also pin the exact legacy output
-for the existing conditional and function-macro fixtures.
-
-## Exercises
-
-1. **★ Trace.** In the Try-it output, why does `SQUARE(ROWS)` produce
-   three blanks on each side of `4`?  Count where each one comes from
-   (§5).
-
-2. **★★ Verify.** Write a function-like macro call whose arguments run
-   over three lines, followed by an undefined name on the line after.
-   Which line does `cc-die` report?  Now remove the `cc-pp-flush-nl` in
-   `cc-pp-ident` and try again.
-
-3. **★★ Analyse.** This preprocessor keeps a macro busy while its own
-   replacement is walked, but not while the text *after* the
-   replacement is walked.  Find a C program where the two rules differ
-   (hint: a function-like macro whose name ends a replacement, with its
-   `(` in the source after the call).  What does this pass do, and what
-   does C require?
-
-4. **★★★ Trace.** Direct mode encodes `#parameter` as bytes `2, k`
-   and `##` as byte `3`. Explain why `ElfW(Sym)` needs the raw argument,
-   while an ordinary parameter needs its expanded spelling. Trace a
-   macro that uses the same parameter both ways.
-
-5. **★★ Modify.** There is no `#include` cycle check.  What stops a file
-   that includes itself, at what depth, and with which error code?
-   (`tests/cc/die-31-include-deep.c` is such a file.)  Sketch the
-   smallest patch that would report a cycle as a cycle instead.
-
-## After this chapter
-
-The compiler can flatten C source: project includes splice in
-recursively, macros are expanded, and dropped groups are gone.  The
-lexer sees one continuous stream with its position reset to zero,
-and every line is where the source had it.  For `tri.c` that stream
-is 466 bytes of characters, with `ROWS` already `4` in all four
-places.  Ch 23 turns it into tokens.
-
-## Takeaways
-
-- The preprocessor is a separate pass that reads the raw input in `cc-in-buf` and writes the flattened source into `cc-src-buf`, with supported macros expanded and dropped groups removed; intentionally unavailable macro names remain ordinary tokens.
-- Expansion is walking: a macro's replacement becomes a region of its own and is walked by the same code, with the macro marked busy so it cannot expand inside itself; arguments are expanded first, in temporary sinks from a scratch stack.
-- Line numbers survive: dropped lines leave their newlines, and newlines swallowed by a directive or a multi-line macro call are paid back right after it.
-- Every limit is checked, each with its own code (30–48): include depth, path length, include size, macro count, macro pool, scratch, conditional nesting, output size, malformed directives and macro calls, and `#error`.
-
-Next: Chapter 23 — The Lexer.
-
-### Direct-GCC macro-table selection
-
-The unchanged original `expr.c` needs 4,120 recorded macro definitions,
-including records subsequently hidden or undefined. Its pool uses 238,367
-bytes, below the existing 256 KiB direct limit. The opt-in table therefore has
-4,608 entries, the next 512-entry quantum above the measured count. Each of
-its six parallel arrays occupies 36,864 bytes, an integral number of pages.
-One mapping contains all six disjoint slices. Every address and the capacity
-come from the same selected workspace. No pool, include or scratch limit is
-raised. The legacy profile still enforces 1,024 records and 64 KiB of pool text.
-`cc-preprocess` resets the count and pool cursor; recording a macro clears its
-busy cell before it can be used. A reused mapping keeps its fixed size.
+**Verify — easy.** In the checkpoint input, change `#ifdef ROWS` to
+`#ifdef ABSENT` and rerun. Check which array declaration remains and whether
+the following statement retains its line position.

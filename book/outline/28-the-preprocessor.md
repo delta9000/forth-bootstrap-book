@@ -10,7 +10,7 @@ Prerequisites: [27 — Arena and I/O buffers](27-arena-and-io-buffers.md)
 
 Checkpoint: TODO — the cumulative core checkpoint is Stage A at the end of the core compiler sequence.
 
-Reuses: [22-the-preprocessor.md](../22-the-preprocessor.md) — Reuse the source walkthrough: Follow include processing, macro expansion, and conditional compilation.
+Reuses: [22-the-preprocessor.md](../28-the-preprocessor.md) — Reuse the source walkthrough: Follow include processing, macro expansion, and conditional compilation.
 
 TODO:
 

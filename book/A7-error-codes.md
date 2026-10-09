@@ -87,7 +87,7 @@ to its call site.
 | 46  | `040-cc-prep.fth:1002` | `cc-pp-ca-record`: a macro call with more than 16 arguments. |
 | 47  | `040-cc-prep.fth:165,627,2067,2070,2078,2090,2161` | `cc-pp-need-rparen`: no `)` to close `defined(NAME` or a malformed `#define` parameter list; direct token pasting also rejects any unavailable byte in either raw operand. |
 | 48  | `040-cc-prep.fth:2012,2068` | `cc-pp-read-params`: a function-like `#define` with more than 16 parameters. |
-| 49  | `040-cc-prep.fth` | Invalid or unsupported direct-profile directive syntax, including malformed `#line`, GNU numeric markers, unterminated comments in directives, splices splitting a directive name, and source-text continuations that would join two tokens (continuations inside or splitting comments follow phase two). See [C line control](22-the-preprocessor.md#c-line-control-for-generated-parser-sources). |
+| 49  | `040-cc-prep.fth` | Invalid or unsupported direct-profile directive syntax, including malformed `#line`, GNU numeric markers, unterminated comments in directives, splices splitting a directive name, and source-text continuations that would join two tokens (continuations inside or splitting comments follow phase two). See [C line control](28-the-preprocessor.md). |
 | 50  | `060-cc-types.fth:313` | `cc-sd-field-rec`: a struct or union with more members than the target allows: 1023 in LP64 modes (C99 §5.2.4.1; anonymous members counted once flattened), 16 in the legacy subset. |
 | 60  | `070-cc-sym.fth:102` | `cc-sym-add`: more than 8,192 live symbols. |
 | 61  | `070-cc-sym.fth:190` | `cc-scope-push`: scopes nested more than 64 deep. |

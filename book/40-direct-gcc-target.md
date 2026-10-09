@@ -54,7 +54,7 @@ A backwards raw-argument scan resets its file cursor before counting again.
 Command-line macro text is processed before the real source's cursor starts.
 
 The direct profile supports the bounded C `#line` form described in
-[Chapter 22](22-the-preprocessor.md#c-line-control-for-generated-parser-sources):
+[Chapter 22](28-the-preprocessor.md):
 macro-expanded decimal line numbers and an optional ordinary filename string.
 Logical locations affect these macros; physical paths still resolve includes.
 Malformed directives, GNU numeric markers, and unsupported prefix/comment

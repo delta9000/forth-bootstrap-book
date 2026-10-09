@@ -38,8 +38,7 @@
 # Part 3 — compiler
 
 - [Arena and I/O buffers](27-arena-and-io-buffers.md)
-- [The preprocessor](outline/28-the-preprocessor.md)
-  - [Chapter 22 — The Preprocessor](22-the-preprocessor.md)
+- [The preprocessor](28-the-preprocessor.md)
 - [The lexer](outline/29-the-lexer.md)
   - [Chapter 23 — The Lexer](23-the-lexer.md)
 - [Types and symbols](outline/30-types-and-symbols.md)
