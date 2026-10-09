@@ -140,6 +140,9 @@ Token reader and comment skipping | 09 The dictionary and token reader | idea; `
 `:` | 10 The colon compiler | seed primitive; `colon_code`'s anatomy
 `;` | 10 The colon compiler | seed primitive; `semicolon_code` in five operations
 `[lit]` | 10 The colon compiler | seed primitive; compiler word (`cc/020-cc-arena.fth`); `bracket_lit_code`: interpreting and compiling literals
+`branch` | 11 Branches and inline cells | transfers control to the inline destination without changing the data stack ( -- )
+`0branch` | 11 Branches and inline cells | consumes a flag; branches to the inline destination on zero, else continues past the cell ( flag -- )
+Consumed-slot property | 11 Branches and inline cells | a branch removes the return address that points at its inline cell, leaving no extra return-stack entry
 `bracket_lit_code` | 10 The colon compiler | seed label; `bracket_lit_code`: interpreting and compiling literals
 `colon_code` | 10 The colon compiler | seed label; `colon_code`'s anatomy
 `compile_call` | 10 The colon compiler | seed label; `compile_call`: one `CALL`, laid down at HERE
