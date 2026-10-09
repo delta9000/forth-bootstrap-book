@@ -6,7 +6,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 |---|---|---|---|---|
 | [00-prologue.md](../02-prologue.md) | Prologue — Seventeen Hundred and Seventy-Two Bytes | front matter | [Prologue: Seventeen hundred and seventy-two bytes](02-prologue.md) | keep |
 | [01-stacks-and-words.md](../14-lib-01-stacks-and-words.md) | Chapter 1 — Stacks and Words | 2 | [Stacks and words](14-lib-01-stacks-and-words.md) | shorten |
-| [02-code-emission-and-here.md](../02-code-emission-and-here.md) | Chapter 2 — Code Emission and the HERE Pointer | 2 | [Code emission and HERE](15-lib-02-code-emission-and-here.md) | shorten |
+| [02-code-emission-and-here.md](../15-lib-02-code-emission-and-here.md) | Chapter 2 — Code Emission and the HERE Pointer | 2 | [Code emission and HERE](15-lib-02-code-emission-and-here.md) | shorten |
 | [03-logic-from-nand.md](../03-logic-from-nand.md) | Chapter 3 — Logic from One Primitive | 2 | [Logic from NAND](16-lib-03-logic-from-nand.md) | shorten |
 | [04-return-stack-over-subtract.md](../04-return-stack-over-subtract.md) | Chapter 4 — The Return Stack: `over` and Subtract | 2 | [The return stack, over, and subtraction](17-lib-04-return-stack-over-subtract.md) | shorten |
 | [05-syscalls.md](../05-syscalls.md) | Chapter 5 — Talking to Linux: `syscall6` Wrappers | 2 | [Linux syscall wrappers](18-lib-05-syscalls.md) | shorten |

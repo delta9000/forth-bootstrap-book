@@ -10,7 +10,7 @@ Prerequisites: [14 — Stacks and words](14-lib-01-stacks-and-words.md); [13 —
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [02-code-emission-and-here.md](../02-code-emission-and-here.md) — Reuse the source walkthrough: Teach byte and cell emission through the allocation cursor.
+Reuses: [02-code-emission-and-here.md](../15-lib-02-code-emission-and-here.md) — Reuse the source walkthrough: Teach byte and cell emission through the allocation cursor.
 
 TODO:
 

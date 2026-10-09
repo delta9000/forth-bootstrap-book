@@ -60,7 +60,7 @@ for which chapter depends on which, the
 - `@` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `@`: replace an address with its contents](06-stack-primitives.md#-replace-an-address-with-its-contents) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `[char]` — *Forth word (`forth/010-lib.fth`)* — [Ch 10 §7 `call,` and `[char]`: compiling by hand](10-immediacy-and-constants.md#7-call-and-char-compiling-by-hand)
 - `[lit]` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 10, `bracket_lit_code`: write what `lit_code` will read](10-colon-compiler.md#bracket_lit_code-write-what-lit_code-will-read) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [Ch 13, The table](13-primitive-reference.md#the-table)
-- **[lit] convention (explicit literals)** — [Ch 2 §2 `here-addr` — a one-line preview of the \[lit\] convention](02-code-emission-and-here.md#2-here-addr--a-one-line-preview-of-the-lit-convention) · [Ch 12, Why no auto-number parsing?](12-repl.md#why-no-auto-number-parsing)
+- **[lit] convention (explicit literals)** — [Ch 10, `bracket_lit_code`: write what `lit_code` will read](10-colon-compiler.md#bracket_lit_code-write-what-lit_code-will-read) · [Ch 12, Why no auto-number parsing?](12-repl.md#why-no-auto-number-parsing)
 
 ## A
 
@@ -303,7 +303,7 @@ for which chapter depends on which, the
 
 - **C subset (what is supported)** — [App. F, Types](A6-c-subset.md#types) · [App. F, What an ISO C programmer should expect *not* to find](A6-c-subset.md#what-an-iso-c-programmer-should-expect-not-to-find)
 - `c!` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `c!`: narrow the store, preserve the cleanup](06-stack-primitives.md#c-narrow-the-store-preserve-the-cleanup) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [Ch 13, The table](13-primitive-reference.md#the-table)
-- `c,` — *Forth word (`forth/010-lib.fth`)* — [Ch 2 §3 `c,` and the workhorse pattern](02-code-emission-and-here.md#3-c-and-the-workhorse-pattern)
+- `c,` — *Forth word (`forth/010-lib.fth`)* — [Ch 15, `c,` and the workhorse pattern](15-lib-02-code-emission-and-here.md#c-and-the-workhorse-pattern)
 - `c@` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `c@`: widen a byte into a cell](06-stack-primitives.md#c-widen-a-byte-into-a-cell) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `call,` — *Forth word (`forth/010-lib.fth`)* — [Ch 10 §7 `call,` and `[char]`: compiling by hand](10-immediacy-and-constants.md#7-call-and-char-compiling-by-hand)
 - **Calling convention (six register arguments)** — [Ch 31 §2 The call codegen](31-functions-and-scope.md#2-the-call-codegen)
@@ -2566,10 +2566,10 @@ for which chapter depends on which, the
 ## H
 
 - `here` — *seed primitive* — [Ch 9, `here_code` and `comma_code`: append a cell](09-dictionary.md#here_code-and-comma_code-append-a-cell) · [Ch 13, The table](13-primitive-reference.md#the-table)
-- **HERE (dictionary pointer)** — [Ch 2 §1 Why a "HERE" exists at all](02-code-emission-and-here.md#1-why-a-here-exists-at-all) · [Ch 9, `here_code` and `comma_code`: append a cell](09-dictionary.md#here_code-and-comma_code-append-a-cell)
+- **HERE (dictionary pointer)** — [Ch 9, `here_code` and `comma_code`: append a cell](09-dictionary.md#here_code-and-comma_code-append-a-cell) · [Ch 15, The address of the cursor](15-lib-02-code-emission-and-here.md#the-address-of-the-cursor)
 - `here-13` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `here-8` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `here-addr` — *Forth word (`forth/010-lib.fth`)* — [Ch 2 §2 `here-addr` — a one-line preview of the \[lit\] convention](02-code-emission-and-here.md#2-here-addr--a-one-line-preview-of-the-lit-convention)
+- `here-addr` — *Forth word (`forth/010-lib.fth`)* — [Ch 15, The address of the cursor](15-lib-02-code-emission-and-here.md#the-address-of-the-cursor)
 - `here_code` — *seed label* — [Ch 9, `here_code` and `comma_code`: append a cell](09-dictionary.md#here_code-and-comma_code-append-a-cell)
 - `hex-val` — *assembler word (`forth/130-asm.fth`)* — [Ch 33 §7 Numbers](33-the-assembler.md#7-numbers)
 
