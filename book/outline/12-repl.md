@@ -15,3 +15,4 @@ Reuses: [20-number-parser-and-repl.md](../20-number-parser-and-repl.md) — Reus
 TODO:
 
 - TODO Write the seed build and REPL checkpoint with expected size and exit behavior.
+- TODO Rewrite the running byte-count table for the new chapter numbering (old rows 13/14 now unchecked).

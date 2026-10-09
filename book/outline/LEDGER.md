@@ -53,6 +53,17 @@ System-variable cells | 05 ELF, entry, and the memory map | fixed mutable cells 
 `swap` | 06 Stack and memory primitives | seed primitive; compiler word (`cc/020-cc-arena.fth`); `swap` in 12 bytes
 `to_r_code` | 06 Stack and memory primitives | seed label; `>r` ( n -- ; R: -- n )
 TOS in rdi / data stack at rbp | 06 Stack and memory primitives | idea; The push and pop shapes
+`dup` | 06 Stack and memory primitives | copies the cached top into a new data-stack slot ( a -- a a )
+`drop` | 06 Stack and memory primitives | discards the top and reloads the next value ( a -- )
+`swap` | 06 Stack and memory primitives | exchanges the top two values through a temporary register ( a b -- b a )
+Return-address shelter | 06 Stack and memory primitives | holding a primitive's own return address aside while it moves data on the return stack
+`>r` | 06 Stack and memory primitives | moves the data-stack top onto the caller's return stack ( n -- ; R: -- n )
+`r>` | 06 Stack and memory primitives | moves a saved return-stack value onto the data stack ( -- n ; R: n -- )
+`r@` | 06 Stack and memory primitives | copies the saved return-stack value without removing it ( -- n ; R: n -- n )
+`@` | 06 Stack and memory primitives | replaces an address with the cell stored there ( addr -- v )
+`!` | 06 Stack and memory primitives | stores a cell and consumes both operands ( v addr -- )
+`c@` | 06 Stack and memory primitives | loads a byte and zero-extends it ( addr -- b )
+`c!` | 06 Stack and memory primitives | stores the value's low byte and consumes both operands ( b addr -- )
 `*` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `*` and the `IMUL` instruction
 `+` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `+` in 9 bytes
 `/` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `/` and the `DIV` instruction
