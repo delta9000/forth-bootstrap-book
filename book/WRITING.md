@@ -72,7 +72,7 @@ per Part I chapter, ~80–180 for Parts II and III.
 ### Voice
 
 Match the tone of [00-prologue.md](02-prologue.md) and
-[01-stacks-and-words.md](01-stacks-and-words.md):
+[01-stacks-and-words.md](14-lib-01-stacks-and-words.md):
 - second-person ("you") for instructions, first-person plural
   ("we") for shared reasoning
 - short paragraphs (2–4 sentences)

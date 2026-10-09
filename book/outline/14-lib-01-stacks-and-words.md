@@ -10,7 +10,7 @@ Prerequisites: [13 — The 32 seed primitives: reference](13-primitive-reference
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [01-stacks-and-words.md](../01-stacks-and-words.md) — Reuse the source walkthrough: Use stack-effect notation to read Forth definitions and dictionary lookup.
+Reuses: [01-stacks-and-words.md](../14-lib-01-stacks-and-words.md) — Reuse the source walkthrough: Use stack-effect notation to read Forth definitions and dictionary lookup.
 
 TODO:
 

@@ -21,8 +21,7 @@
 
 # Part 2 — Forth
 
-- [Stacks and words](outline/14-lib-01-stacks-and-words.md)
-  - [Chapter 1 — Stacks and Words](01-stacks-and-words.md)
+- [Stacks and words](14-lib-01-stacks-and-words.md)
 - [Code emission and HERE](outline/15-lib-02-code-emission-and-here.md)
   - [Chapter 2 — Code Emission and the HERE Pointer](02-code-emission-and-here.md)
 - [Logic from NAND](outline/16-lib-03-logic-from-nand.md)

@@ -2488,7 +2488,7 @@ for which chapter depends on which, the
 
 ## D
 
-- **Data stack** — [Ch 1, 1.1  Reverse Polish, one more time](01-stacks-and-words.md#11--reverse-polish-one-more-time) · [Ch 6, The push and pop shapes](06-stack-primitives.md#the-push-and-pop-shapes)
+- **Data stack** — [Ch 14, Postfix evaluation](14-lib-01-stacks-and-words.md#postfix-evaluation) · [Ch 6, The push and pop shapes](06-stack-primitives.md#the-push-and-pop-shapes)
 - **De Morgan's law** — [Ch 3 §3 `or` in six words](03-logic-from-nand.md#3-or-in-six-words)
 - `defer` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
 - `defer-code-size` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
@@ -2970,7 +2970,7 @@ for which chapter depends on which, the
 - `report_token` — *seed label* — [Ch 9, `report_token` and `fatal_token`: failing out loud](09-dictionary.md#report_token-and-fatal_token-failing-out-loud)
 - `ret,` — *Forth word (`forth/010-lib.fth`)* — [Ch 10 §5 `constant`'s runtime body](10-immediacy-and-constants.md#5-constants-runtime-body)
 - **Return stack** — [Ch 4 §1 Why two stacks at all?](04-return-stack-over-subtract.md#1-why-two-stacks-at-all) · [Ch 6, Return-address shelter: bridging the two stacks](06-stack-primitives.md#return-address-shelter-bridging-the-two-stacks)
-- **Reverse Polish notation** — [Ch 1, 1.1  Reverse Polish, one more time](01-stacks-and-words.md#11--reverse-polish-one-more-time)
+- **Reverse Polish notation** — [Ch 14, Postfix evaluation](14-lib-01-stacks-and-words.md#postfix-evaluation)
 - `rot` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 8 §1 The four shuffles](08-stack-shufflers.md#1-the-four-shuffles) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - **Runtime body (push-imm64)** — [Ch 10 §5 `constant`'s runtime body](10-immediacy-and-constants.md#5-constants-runtime-body)
 
@@ -3008,7 +3008,7 @@ for which chapter depends on which, the
 - `sk-typedef` — *compiler word (constant, `cc/070-cc-sym.fth`)* — [Ch 24 §2 The symbol-table parallel arrays](24-types-and-symbols.md#2-the-symbol-table-parallel-arrays)
 - `skip-vm-pages` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §1 `allot` in one line](12-defining-words-and-bytes-eq.md#1-allot-in-one-line)
 - `space?` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 6 §4 `space?`: four-way OR](06-character-classification.md#4-space-four-way-or) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- **Stack-effect notation** — [Ch 1, 1.2  Stack-effect comments](01-stacks-and-words.md#12--stack-effect-comments)
+- **Stack-effect notation** — [Ch 14, Stack-effect comments](14-lib-01-stacks-and-words.md#stack-effect-comments)
 - **Stage-A parity proof** — [Ch 32 §4 Stage A: the parity proof](32-main-and-bootstrap-chain.md#4-stage-a-the-parity-proof)
 - `star_code` — *seed label* — [Ch 7, Low-product contract](07-arithmetic-and-logic.md#low-product-contract)
 - `_start` — *seed label* — [Ch 5, Give the registers their starting values](05-elf-and-entry.md#give-the-registers-their-starting-values)
