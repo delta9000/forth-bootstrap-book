@@ -27,7 +27,8 @@
 #     ```
 #
 # Commands:
-#   extract OUTDIR  Tangle book/*.md into OUTDIR/<target-file>.
+#   extract OUTDIR  Tangle the chapters, in book/SUMMARY.md order, into
+#                   OUTDIR/<target-file>.
 #   verify          For each file mentioned in the book, every tangled
 #                   line must appear in the source file in non-decreasing
 #                   order.  Used while the book is in progress.
@@ -50,12 +51,33 @@ usage() {
     exit 2
 }
 
+# chapters: the book's top-level chapter files in reading order -- the
+# order book/SUMMARY.md links them, then any numbered chapter it does not
+# link, by name.  A file's fences are concatenated in this order, so a
+# chapter that moves (a new number, a new part) keeps its place by its
+# position in SUMMARY.md, not by its file name.
+chapters() {
+    local f seen=" "
+    while IFS= read -r f; do
+        case $f in */*|*\ *) continue ;; esac
+        [ -f "$BOOK_DIR/$f" ] || continue
+        case $seen in *" $f "*) continue ;; esac
+        seen="$seen$f "
+        printf '%s\n' "$BOOK_DIR/$f"
+    done < <(grep -o '](\([^)#]*\.md\)' "$BOOK_DIR/SUMMARY.md" | sed 's/^](//')
+    for f in "$BOOK_DIR"/[0-9]*.md; do
+        case $seen in *" ${f##*/} "*) continue ;; esac
+        printf '%s\n' "$f"
+    done
+}
+
 cmd_extract() {
     local outdir="${1:-}"
     [ -n "$outdir" ] || { echo "extract: missing OUTDIR" >&2; exit 2; }
     mkdir -p "$outdir"
-    awk -f "$TANGLE_AWK" -v OUTDIR="$outdir" \
-        "$BOOK_DIR"/[0-9]*.md
+    local files=()
+    mapfile -t files < <(chapters)
+    awk -f "$TANGLE_AWK" -v OUTDIR="$outdir" "${files[@]}"
 }
 
 cmd_verify() {
@@ -152,10 +174,10 @@ cmd_status() {
 
     printf '%-28s %10s %10s %8s\n' "file" "covered" "total" "%"
     printf '%-28s %10s %10s %8s\n' "----" "-------" "-----" "-"
-    for src in "$REPO_ROOT"/[0-9]*.fth "$REPO_ROOT"/[0-9]*.hex0; do
+    for src in "$REPO_ROOT"/seed/[0-9]*.hex0 "$REPO_ROOT"/forth/[0-9]*.fth "$REPO_ROOT"/cc/[0-9]*.fth; do
         [ -f "$src" ] || continue
         local base nt ns pct
-        base="$(basename "$src")"
+        base="${src#"$REPO_ROOT"/}"
         ns=$(wc -l <"$src")
         if [ -f "$tmpdir/$base" ]; then
             nt=$(wc -l <"$tmpdir/$base")
