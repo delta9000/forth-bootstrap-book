@@ -71,6 +71,11 @@ Canonical flag | 07 Arithmetic and logic in machine code | zero is false; an all
 `0=` | 07 Arithmetic and logic in machine code | normalizes a zero test into a canonical flag ( n -- flag )
 `/` | 07 Arithmetic and logic in machine code | returns the unsigned quotient; the divisor must be nonzero ( a b -- quotient )
 `*` | 07 Arithmetic and logic in machine code | returns the low cell of the product ( a b -- product )
+`bye` | 08 The seed’s Linux boundary | terminates the process with status zero ( -- )
+`emit` | 08 The seed’s Linux boundary | consumes a character and writes its low byte to stdout ( c -- )
+`key` | 08 The seed’s Linux boundary | reads a byte from stdin, returning zero at EOF ( -- c )
+`syscall6` | 08 The seed’s Linux boundary | transfers stack operands to syscall registers and returns the kernel result ( a b c d e f n -- rax )
+Prepare–call–recover | 08 The seed’s Linux boundary | prepare kernel operands, invoke Linux, then establish the resulting Forth stack
 `*` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `*` and the `IMUL` instruction
 `+` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `+` in 9 bytes
 `/` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `/` and the `DIV` instruction
