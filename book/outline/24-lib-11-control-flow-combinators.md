@@ -10,7 +10,7 @@ Prerequisites: [23 — Immediacy and constants](23-lib-10-immediacy-and-constant
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [11-control-flow-combinators.md](../11-control-flow-combinators.md) — Reuse the source walkthrough: Construct structured conditionals and loops by emitting and patching branches.
+Reuses: [11-control-flow-combinators.md](../24-lib-11-control-flow-combinators.md) — Reuse the source walkthrough: Construct structured conditionals and loops by emitting and patching branches.
 
 TODO:
 

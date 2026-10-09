@@ -42,7 +42,7 @@ for which chapter depends on which, the
 - `0=` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 7, Zero-test contract](07-arithmetic-and-logic.md#zero-test-contract) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `0=,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `0branch` — *seed primitive* — [Ch 11, `zbranch_code`: consume the flag and choose](11-branches.md#zbranch_code-consume-the-flag-and-choose) · [Ch 13, The table](13-primitive-reference.md#the-table)
-- `0branch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 11 §3 `branch-xt` and `0branch-xt`: a load-time snapshot](11-control-flow-combinators.md#3-branch-xt-and-0branch-xt-a-load-time-snapshot)
+- `0branch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 24, `branch-xt` and `0branch-xt`: a load-time snapshot](24-lib-11-control-flow-combinators.md#branch-xt-and-0branch-xt-a-load-time-snapshot)
 - `1+` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 17, Step by one: `1+` and `1-`](17-lib-04-return-stack-over-subtract.md#step-by-one-1-and-1-) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `1-` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 17, Step by one: `1+` and `1-`](17-lib-04-return-stack-over-subtract.md#step-by-one-1-and-1-) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `2^63` — *Forth word (`forth/010-lib.fth`)* — [Ch 20, The `2^63` trick](20-lib-07-comparisons-from-division.md#the-263-trick)
@@ -84,7 +84,7 @@ for which chapter depends on which, the
 - `ag-stack` — *compiler word (`cc/131-cc-aggregate-abi.fth`)* — [Ch 48, Canonical source](48-direct-gcc-aggregate-abi.md#canonical-source)
 - `ag-target` — *compiler word (`cc/131-cc-aggregate-abi.fth`)* — [Ch 48, Canonical source](48-direct-gcc-aggregate-abi.md#canonical-source)
 - `ag-type` — *compiler word (`cc/131-cc-aggregate-abi.fth`)* — [Ch 48, Canonical source](48-direct-gcc-aggregate-abi.md#canonical-source)
-- `again,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §8 `until,`, `again,` and `exit,`](11-control-flow-combinators.md#8-until-again-and-exit) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `again,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, `until,` and `again,`: closing a known destination](24-lib-11-control-flow-combinators.md#until-and-again-closing-a-known-destination) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `allot` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §1 `allot` in one line](12-defining-words-and-bytes-eq.md#1-allot-in-one-line)
 - `alpha-lower?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, `alpha-lower?` and `alpha-upper?`: change the interval](19-lib-06-character-classification.md#alpha-lower-and-alpha-upper-change-the-interval)
 - `alpha-upper?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, `alpha-lower?` and `alpha-upper?`: change the interval](19-lib-06-character-classification.md#alpha-lower-and-alpha-upper-change-the-interval)
@@ -279,8 +279,8 @@ for which chapter depends on which, the
 ## B
 
 - `backslash` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
-- **Backward loops** — [Ch 11 §7 Backward loops: `begin,` / `while,` / `repeat,`](11-control-flow-combinators.md#7-backward-loops-begin--while--repeat)
-- `begin,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §7 Backward loops: `begin,` / `while,` / `repeat,`](11-control-flow-combinators.md#7-backward-loops-begin--while--repeat) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- **Backward loops** — [Ch 24, Backward loops: `begin,` / `while,` / `repeat,`](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat)
+- `begin,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, Backward loops: `begin,` / `while,` / `repeat,`](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `bl` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
 - `bo-compound` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 27 §5 The operator table](27-expressions-part-1.md#5-the-operator-table)
 - `bo-emitter` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 27 §5 The operator table](27-expressions-part-1.md#5-the-operator-table)
@@ -291,7 +291,7 @@ for which chapter depends on which, the
 - **Bootstrap chain** — [Ch 32 §5 The wider chain](32-main-and-bootstrap-chain.md#5-the-wider-chain) · [App. C, The chain at a glance](A3-reproducibility-chain.md#the-chain-at-a-glance)
 - `bracket_lit_code` — *seed label* — [Ch 10, `bracket_lit_code`: write what `lit_code` will read](10-colon-compiler.md#bracket_lit_code-write-what-lit_code-will-read)
 - `branch` — *seed primitive* — [Ch 11, `branch_code`: replace the return address](11-branches.md#branch_code-replace-the-return-address) · [Ch 13, The table](13-primitive-reference.md#the-table)
-- `branch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 11 §3 `branch-xt` and `0branch-xt`: a load-time snapshot](11-control-flow-combinators.md#3-branch-xt-and-0branch-xt-a-load-time-snapshot)
+- `branch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 24, `branch-xt` and `0branch-xt`: a load-time snapshot](24-lib-11-control-flow-combinators.md#branch-xt-and-0branch-xt-a-load-time-snapshot)
 - `branch_code` — *seed label* — [Ch 11, `branch_code`: replace the return address](11-branches.md#branch_code-replace-the-return-address)
 - **Break/continue fixup lists** — [Ch 30 §3 Break/continue fixup lists](30-statements-if-while-for-return.md#3-breakcontinue-fixup-lists)
 - `bye` — *seed primitive* — [Ch 8, `bye`: leave the process](08-seed-io.md#bye-leave-the-process) · [Ch 13, The table](13-primitive-reference.md#the-table)
@@ -2466,7 +2466,7 @@ for which chapter depends on which, the
 - `cc-zalloc` — *compiler word (`cc/060-cc-types.fth`)* — [Ch 24 §1 The one-word type encoding](24-types-and-symbols.md#1-the-one-word-type-encoding)
 - `cell[]` — *compiler word (`cc/030-cc-io.fth`)* — [Ch 21, Shared helpers](21-arena-and-io-buffers.md#shared-helpers)
 - `cfetch_code` — *seed label* — [Ch 6, `c@`: widen a byte into a cell](06-stack-primitives.md#c-widen-a-byte-into-a-cell)
-- **Chained fixups (else,)** — [Ch 11 §6 `else,`: chained fixups](11-control-flow-combinators.md#6-else-chained-fixups)
+- **Chained fixups (else,)** — [Ch 24, `else,`: chained fixups](24-lib-11-control-flow-combinators.md#else-chained-fixups)
 - `char` — *Forth word (`forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
 - `close` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
 - `code-start` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -2508,11 +2508,11 @@ for which chapter depends on which, the
 
 ## E
 
-- **Early exit (exit,)** — [Ch 11 §8 `until,`, `again,` and `exit,`](11-control-flow-combinators.md#8-until-again-and-exit)
+- **Early exit (exit,)** — [Ch 24, `exit,`: early return with a clean return stack](24-lib-11-control-flow-combinators.md#exit-early-return-with-a-clean-return-stack)
 - **ELF header and program header** — [Ch 5, Identify the executable and its entry](05-elf-and-entry.md#identify-the-executable-and-its-entry) · [Ch 5, Make storage exist](05-elf-and-entry.md#make-storage-exist) · [Ch 25 §1 `080-cc-elf.fth`: the ELF wrapper](25-elf-and-codegen-part-1.md#1-080-cc-elffth-the-elf-wrapper)
-- `else,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §6 `else,`: chained fixups](11-control-flow-combinators.md#6-else-chained-fixups) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `else,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, `else,`: chained fixups](24-lib-11-control-flow-combinators.md#else-chained-fixups) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `emit` — *seed primitive* — [Ch 8, `emit`: consume a character](08-seed-io.md#emit-consume-a-character) · [Ch 13, The table](13-primitive-reference.md#the-table)
-- **Emit, remember, patch** — [Ch 11 §5 Forward branches: `if,` and `then,` as a pair](11-control-flow-combinators.md#5-forward-branches-if-and-then-as-a-pair) · [Ch 25 §7 Branches and `rel32` placeholders](25-elf-and-codegen-part-1.md#7-branches-and-rel32-placeholders) · [Ch 30 §1 The forward reference, compound blocks, and `if`](30-statements-if-while-for-return.md#1-the-forward-reference-compound-blocks-and-if)
+- **Emit, remember, patch** — [Ch 24, Forward branches: `if,` and `then,` as a pair](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair) · [Ch 25 §7 Branches and `rel32` placeholders](25-elf-and-codegen-part-1.md#7-branches-and-rel32-placeholders) · [Ch 30 §1 The forward reference, compound blocks, and `if`](30-statements-if-while-for-return.md#1-the-forward-reference-compound-blocks-and-if)
 - `emit_code` — *seed label* — [Ch 8, `emit`: consume a character](08-seed-io.md#emit-consume-a-character)
 - **Entry point (_start)** — [Ch 5, Give the registers their starting values](05-elf-and-entry.md#give-the-registers-their-starting-values)
 - **Entry stub** — [Ch 31 §8 The entry stub and the top-level driver](31-functions-and-scope.md#8-the-entry-stub-and-the-top-level-driver)
@@ -2522,8 +2522,8 @@ for which chapter depends on which, the
 - `execute` — *seed primitive* — [Ch 9, `execute`: enter the code address](09-dictionary.md#execute-enter-the-code-address) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `execute-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
 - `execute_code` — *seed label* — [Ch 9, `execute`: enter the code address](09-dictionary.md#execute-enter-the-code-address)
-- **Execution token (xt)** — [Ch 11 §3 `branch-xt` and `0branch-xt`: a load-time snapshot](11-control-flow-combinators.md#3-branch-xt-and-0branch-xt-a-load-time-snapshot) · [Ch 9, `tick_code`: read a name and find its xt](09-dictionary.md#tick_code-read-a-name-and-find-its-xt)
-- `exit,` — *Forth word (`forth/010-lib.fth`)* — [Ch 11 §8 `until,`, `again,` and `exit,`](11-control-flow-combinators.md#8-until-again-and-exit)
+- **Execution token (xt)** — [Ch 9, The header layout](09-dictionary.md#the-header-layout) · [Ch 9, `tick_code`: read a name and find its xt](09-dictionary.md#tick_code-read-a-name-and-find-its-xt) · [Ch 24, `branch-xt` and `0branch-xt`: a load-time snapshot](24-lib-11-control-flow-combinators.md#branch-xt-and-0branch-xt-a-load-time-snapshot)
+- `exit,` — *Forth word (`forth/010-lib.fth`)* — [Ch 24, `exit,`: early return with a clean return stack](24-lib-11-control-flow-combinators.md#exit-early-return-with-a-clean-return-stack)
 - **Expectation helpers** — [Ch 29 §2 Expectation helpers and ignored specifiers](29-declarations-types-globals.md#2-expectation-helpers-and-ignored-specifiers)
 
 ## F
@@ -2544,7 +2544,7 @@ for which chapter depends on which, the
 - `fh-u` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `find` — *seed primitive* — [Ch 9, The header layout](09-dictionary.md#the-header-layout) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `find_code` — *seed label* — [Ch 9, `find_code`: compare, follow, return](09-dictionary.md#find_code-compare-follow-return)
-- **Fixup on the stack** — [Ch 11 §5 Forward branches: `if,` and `then,` as a pair](11-control-flow-combinators.md#5-forward-branches-if-and-then-as-a-pair)
+- **Fixup on the stack** — [Ch 24, Forward branches: `if,` and `then,` as a pair](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair)
 - `flag-al,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `flag-test,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - **for-step rewind** — [Ch 30 §4 `while` and `for` (with step rewind)](30-statements-if-while-for-return.md#4-while-and-for-with-step-rewind)
@@ -2577,7 +2577,7 @@ for which chapter depends on which, the
 
 - `ident-cont?` — *compiler word (`cc/030-cc-io.fth`)* — [Ch 21, Shared helpers](21-arena-and-io-buffers.md#shared-helpers)
 - `ident-start?` — *compiler word (`cc/030-cc-io.fth`)* — [Ch 21, Shared helpers](21-arena-and-io-buffers.md#shared-helpers)
-- `if,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §5 Forward branches: `if,` and `then,` as a pair](11-control-flow-combinators.md#5-forward-branches-if-and-then-as-a-pair) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `if,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, Forward branches: `if,` and `then,` as a pair](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `immediate` — *Forth word (`forth/010-lib.fth`)* — [Ch 23, The IMMEDIATE flag: `immediate`](23-lib-10-immediacy-and-constants.md#the-immediate-flag-immediate)
 - **IMMEDIATE flag** — [Ch 10, Why `;` is IMMEDIATE](10-colon-compiler.md#why--is-immediate) · [Ch 23, The IMMEDIATE flag: `immediate`](23-lib-10-immediacy-and-constants.md#the-immediate-flag-immediate)
 - `in-range,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -2964,7 +2964,7 @@ for which chapter depends on which, the
 - `read_word` — *seed label* — [Ch 9, `read_word`, the token reader](09-dictionary.md#read_word-the-token-reader)
 - **Register convention (rdi accumulator)** — [Ch 25 §2 `090-cc-emit.fth`, part 1: register convention](25-elf-and-codegen-part-1.md#2-090-cc-emitfth-part-1-register-convention)
 - `rel32!` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `repeat,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §7 Backward loops: `begin,` / `while,` / `repeat,`](11-control-flow-combinators.md#7-backward-loops-begin--while--repeat) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `repeat,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, Backward loops: `begin,` / `while,` / `repeat,`](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `repl` — *seed label* — [Ch 12, The REPL loop](12-repl.md#the-repl-loop)
 - **REPL (interpret/compile loop)** — [Ch 12, The REPL loop](12-repl.md#the-repl-loop)
 - `report_token` — *seed label* — [Ch 9, `report_token` and `fatal_token`: failing out loud](09-dictionary.md#report_token-and-fatal_token-failing-out-loud)
@@ -3033,7 +3033,7 @@ for which chapter depends on which, the
 ## T
 
 - `tab` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
-- `then,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §5 Forward branches: `if,` and `then,` as a pair](11-control-flow-combinators.md#5-forward-branches-if-and-then-as-a-pair) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `then,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, Forward branches: `if,` and `then,` as a pair](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `tib` — *Forth word (`forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
 - `tick_code` — *seed label* — [Ch 9, `tick_code`: read a name and find its xt](09-dictionary.md#tick_code-read-a-name-and-find-its-xt)
 - `tk-chr` — *compiler word (constant, `cc/050-cc-lex.fth`)* — [Ch 23 §1 Token kinds and punctuation IDs](23-the-lexer.md#1-token-kinds-and-punctuation-ids)
@@ -3089,7 +3089,7 @@ for which chapter depends on which, the
 
 ## U
 
-- `until,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §8 `until,`, `again,` and `exit,`](11-control-flow-combinators.md#8-until-again-and-exit) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `until,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, `until,` and `again,`: closing a known destination](24-lib-11-control-flow-combinators.md#until-and-again-closing-a-known-destination) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 
 ## V
 
@@ -3097,7 +3097,7 @@ for which chapter depends on which, the
 
 ## W
 
-- `while,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §7 Backward loops: `begin,` / `while,` / `repeat,`](11-control-flow-combinators.md#7-backward-loops-begin--while--repeat) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `while,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, Backward loops: `begin,` / `while,` / `repeat,`](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `write` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `read` and `write`: a symmetric pair](18-lib-05-syscalls.md#read-and-write-a-symmetric-pair)
 
 ## Z
