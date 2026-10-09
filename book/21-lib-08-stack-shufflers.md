@@ -1,8 +1,7 @@
 # Chapter 21 — Stack shufflers
 
 `nip`, `rot`, `2dup`, and `2drop` give names to common operand rearrangements.
-Until these definitions, callers must spell those rearrangements as sequences
-of existing words. Composing those words gives a vocabulary for keeping a
+Composing existing words gives a vocabulary for keeping a
 result, rotating operands, copying a pair, and discarding a pair.
 
 The skeleton is the set of effects the bodies must produce:

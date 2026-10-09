@@ -10,7 +10,7 @@ Prerequisites: [21 — Stack shufflers](21-lib-08-stack-shufflers.md); [13 — T
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [09-memory-and-cell-writers.md](../09-memory-and-cell-writers.md) — Reuse the source walkthrough: Combine fetch, store, and arithmetic into memory updates.
+Reuses: [09-memory-and-cell-writers.md](../22-lib-09-memory-and-cell-writers.md) — Reuse the source walkthrough: Combine fetch, store, and arithmetic into memory updates.
 
 TODO:
 
