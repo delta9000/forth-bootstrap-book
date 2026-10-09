@@ -241,6 +241,10 @@ Canonicalisation (0= 0=) | 20 Comparisons from unsigned division | preserves zer
 Sign test by division (2^63) | 20 Comparisons from unsigned division | unsigned division by 2^63 gives the sign bit as 0 or 1
 Signed-overflow domain of < | 20 Comparisons from unsigned division | exact while a and b are less than 2^63 apart; outside it the subtraction wraps
 Comparison cascade | 20 Comparisons from unsigned division | > <= >= derived from < by operand reversal and flag negation
+`nip` | 21 Stack shufflers | swap drop ( a b -- b )
+`rot` | 21 Stack shufflers | >r swap r> swap ( a b c -- b c a )
+`2dup` | 21 Stack shufflers | over over ( a b -- a b a b )
+`2drop` | 21 Stack shufflers | drop drop ( a b -- )
 `close` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `close`: one real arg, five padding zeros
 `die` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `die`: exit unconditionally
 `open` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `open`: three real args, three padding zeros
