@@ -88,6 +88,14 @@ read_char | 09 The dictionary and token reader | returns an input byte in rdx an
 report_token / fatal_token | 09 The dictionary and token reader | report rejected input as token?; fatal_token then exits with status 2
 `state` / `latest` | 09 The dictionary and token reader | push the addresses of the STATE and LATEST cells ( -- addr )
 `'` (tick) | 09 The dictionary and token reader | reads the next token and looks it up ( -- xt-or-0 )
+Subroutine threading | 10 The colon compiler | compiled bodies call the native code of their component words
+Colon definition | 10 The colon compiler | a named body opened by `:` and completed by `;`
+Compilation state | 10 The colon compiler | STATE 0 interprets, STATE 1 compiles
+IMMEDIATE flag | 10 The colon compiler | header flag that makes a word execute during compilation
+compile_call | 10 The colon compiler | appends a native CALL rel32 to an xt at HERE ( xt -- )
+Inline-cell convention | 10 The colon compiler | data follows a call; the helper reads it and resumes beyond it
+`lit` | 10 The colon compiler | pushes the inline cell after its call and returns past it ( -- v )
+`[lit]` | 10 The colon compiler | reads a decimal value and pushes it, or compiles CALL lit plus the cell ( -- n )
 `*` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `*` and the `IMUL` instruction
 `+` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `+` in 9 bytes
 `/` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `/` and the `DIV` instruction
