@@ -23,8 +23,7 @@
 
 - [Stacks and words](14-lib-01-stacks-and-words.md)
 - [Code emission and HERE](15-lib-02-code-emission-and-here.md)
-- [Logic from NAND](outline/16-lib-03-logic-from-nand.md)
-  - [Chapter 3 — Logic from One Primitive](03-logic-from-nand.md)
+- [Logic from NAND](16-lib-03-logic-from-nand.md)
 - [The return stack, over, and subtraction](outline/17-lib-04-return-stack-over-subtract.md)
   - [Chapter 4 — The Return Stack: `over` and Subtract](04-return-stack-over-subtract.md)
 - [Linux syscall wrappers](outline/18-lib-05-syscalls.md)

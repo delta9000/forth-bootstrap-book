@@ -89,7 +89,7 @@ for which chapter depends on which, the
 - `alpha-lower?` — *Forth word (`forth/010-lib.fth`)* — [Ch 6 §3 `digit?`, `alpha-lower?`, `alpha-upper?`, `alpha?`](06-character-classification.md#3-digit-alpha-lower-alpha-upper-alpha)
 - `alpha-upper?` — *Forth word (`forth/010-lib.fth`)* — [Ch 6 §3 `digit?`, `alpha-lower?`, `alpha-upper?`, `alpha?`](06-character-classification.md#3-digit-alpha-lower-alpha-upper-alpha)
 - `alpha?` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 6 §3 `digit?`, `alpha-lower?`, `alpha-upper?`, `alpha?`](06-character-classification.md#3-digit-alpha-lower-alpha-upper-alpha) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `and` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 3 §2 `and` in three words](03-logic-from-nand.md#2-and-in-three-words) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `and` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 16, `and` in three words](16-lib-03-logic-from-nand.md#and-in-three-words) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `and,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `arc-add-index` — *compiler word (`cc/141-archive.fth`)* — [Ch 44, Canonical source](44-direct-gcc-archives.md#canonical-source)
 - `arc-add-object` — *compiler word (`cc/141-archive.fth`)* — [Ch 44 §1 Make an archive without a host archiver](44-direct-gcc-archives.md#1-make-an-archive-without-a-host-archiver)
@@ -2489,7 +2489,7 @@ for which chapter depends on which, the
 ## D
 
 - **Data stack** — [Ch 14, Postfix evaluation](14-lib-01-stacks-and-words.md#postfix-evaluation) · [Ch 6, The push and pop shapes](06-stack-primitives.md#the-push-and-pop-shapes)
-- **De Morgan's law** — [Ch 3 §3 `or` in six words](03-logic-from-nand.md#3-or-in-six-words)
+- **De Morgan's law** — [Ch 16, `or` in six words](16-lib-03-logic-from-nand.md#or-in-six-words)
 - `defer` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
 - `defer-code-size` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
 - **Deferred words** — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
@@ -2556,7 +2556,7 @@ for which chapter depends on which, the
 - **Forward-call fixup list** — [Ch 26 §1 `movabs rdi, imm64` and the forward-call fixup list](26-codegen-part-2.md#1-movabs-rdi-imm64-and-the-forward-call-fixup-list)
 - **Function frame (256 bytes, 32 slots)** — [Ch 31 §3 Parameter lists and the spill](31-functions-and-scope.md#3-parameter-lists-and-the-spill) · [Ch 29 §1 File header and bookkeeping](29-declarations-types-globals.md#1-file-header-and-bookkeeping)
 - **Function pointers** — [Ch 29 §4 Function pointers and the declaration engine](29-declarations-types-globals.md#4-function-pointers-and-the-declaration-engine)
-- **Functional completeness of NAND** — [Ch 3 §1 Why "logic from nand" matters](03-logic-from-nand.md#1-why-logic-from-nand-matters)
+- **Functional completeness of NAND** — [Ch 16, Why "logic from nand" matters](16-lib-03-logic-from-nand.md#why-logic-from-nand-matters)
 
 ## G
 
@@ -2903,7 +2903,7 @@ for which chapter depends on which, the
 - **One buffer instead of streaming** — [Ch 21 §3 Why one big buffer instead of streaming?](21-arena-and-io-buffers.md#3-why-one-big-buffer-instead-of-streaming)
 - `open` — *Forth word (`forth/010-lib.fth`)* — [Ch 5 §2 `open`: three real args, three padding zeros](05-syscalls.md#2-open-three-real-args-three-padding-zeros)
 - **Operator table** — [Ch 27 §5 The operator table](27-expressions-part-1.md#5-the-operator-table)
-- `or` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 3 §3 `or` in six words](03-logic-from-nand.md#3-or-in-six-words) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `or` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 16, `or` in six words](16-lib-03-logic-from-nand.md#or-in-six-words) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `or,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `over` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 4 §3 `over` via the return stack](04-return-stack-over-subtract.md#3-over-via-the-return-stack) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 
@@ -2918,7 +2918,7 @@ for which chapter depends on which, the
 - **Postfix operators** — [Ch 28, The postfix operators](28-expressions-part-2.md#the-postfix-operators)
 - **Precedence cascade** — [Ch 27 §6 The level template: `cc-parse-mul`](27-expressions-part-1.md#6-the-level-template-cc-parse-mul) · [Ch 27 §12 The cascade in motion](27-expressions-part-1.md#12-the-cascade-in-motion)
 - **Preprocessor** — [Ch 22 §8 The built-in macros and the pass driver](22-the-preprocessor.md#8-the-built-in-macros-and-the-pass-driver)
-- **Primitive vs derived word (the byte trade)** — [Ch 3 §5 What this buys](03-logic-from-nand.md#5-what-this-buys) · [Ch 4 §5 Why subtraction isn't a primitive](04-return-stack-over-subtract.md#5-why-subtraction-isnt-a-primitive)
+- **Primitive vs derived word (the byte trade)** — [Ch 16, What this buys](16-lib-03-logic-from-nand.md#what-this-buys) · [Ch 4 §5 Why subtraction isn't a primitive](04-return-stack-over-subtract.md#5-why-subtraction-isnt-a-primitive)
 - **Private all-stack ABI** — [Ch 34 §3 Private stack calls and whole programs](34-direct-tinycc.md#3-private-stack-calls-and-whole-programs)
 - `pt-amp-eq` — *compiler word (constant, `cc/050-cc-lex.fth`)* — [Ch 23 §1 Token kinds and punctuation IDs](23-the-lexer.md#1-token-kinds-and-punctuation-ids)
 - `pt-and-and` — *compiler word (constant, `cc/050-cc-lex.fth`)* — [Ch 23 §1 Token kinds and punctuation IDs](23-the-lexer.md#1-token-kinds-and-punctuation-ids)

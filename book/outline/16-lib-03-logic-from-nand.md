@@ -10,7 +10,7 @@ Prerequisites: [15 — Code emission and HERE](15-lib-02-code-emission-and-here.
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [03-logic-from-nand.md](../03-logic-from-nand.md) — Reuse the source walkthrough: Derive Boolean operations from the seed NAND primitive.
+Reuses: [03-logic-from-nand.md](../16-lib-03-logic-from-nand.md) — Reuse the source walkthrough: Derive Boolean operations from the seed NAND primitive.
 
 TODO:
 
