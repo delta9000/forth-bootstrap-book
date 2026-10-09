@@ -10,7 +10,7 @@ Prerequisites: [09 — The dictionary and token reader](09-dictionary.md)
 
 Checkpoint: TODO — use the complete-seed build and REPL checkpoint at the end of this walkthrough.
 
-Reuses: [18-the-colon-compiler.md](../18-the-colon-compiler.md) — Reuse the source walkthrough: Explain how colon definitions append native calls and return instructions.
+Reuses: [18-the-colon-compiler.md](../10-colon-compiler.md) — Reuse the source walkthrough: Explain how colon definitions append native calls and return instructions.
 
 TODO:
 
