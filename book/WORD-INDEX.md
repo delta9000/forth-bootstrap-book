@@ -29,17 +29,17 @@ for which chapter depends on which, the
 
 - `!` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `!`: store, then consume the operands](06-stack-primitives.md#-store-then-consume-the-operands) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `'` — *seed primitive* — [Ch 17 §9 `tick_code`: from name to xt](17-the-dictionary.md#9-tick_code-from-name-to-xt) · [App. A, The table](A1-32-seed-primitives.md#the-table)
-- `*` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 15 §5 `*` and the `IMUL` instruction](15-arithmetic-and-logic.md#5--and-the-imul-instruction) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
-- `+` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 15 §1 `+` in 9 bytes](15-arithmetic-and-logic.md#1--in-9-bytes) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
+- `*` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 7, Low-product contract](07-arithmetic-and-logic.md#low-product-contract) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
+- `+` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 7, Addition contract](07-arithmetic-and-logic.md#addition-contract) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `+!` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 9 §1 `+!` and `-!`: idiomatic increment](09-memory-and-cell-writers.md#1--and---idiomatic-increment) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `,` — *seed primitive* — [Ch 17 §3 `here_code` and `comma_code`](17-the-dictionary.md#3-here_code-and-comma_code) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `,4` — *Forth word (`forth/010-lib.fth`)* — [Ch 9 §2 `,4` and `,8`: cell-sized emission](09-memory-and-cell-writers.md#2-4-and-8-cell-sized-emission)
 - `,8` — *Forth word (`forth/010-lib.fth`)* — [Ch 9 §2 `,4` and `,8`: cell-sized emission](09-memory-and-cell-writers.md#2-4-and-8-cell-sized-emission)
 - `-` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 4 §4 `-` from `+` and `nand`](04-return-stack-over-subtract.md#4---from--and-nand) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `-!` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 9 §1 `+!` and `-!`: idiomatic increment](09-memory-and-cell-writers.md#1--and---idiomatic-increment) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `/` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 15 §4 `/` and the `DIV` instruction](15-arithmetic-and-logic.md#4--and-the-div-instruction) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
+- `/` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 7, Unsigned division contract](07-arithmetic-and-logic.md#unsigned-division-contract) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `0<` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 7 §4 `0<` and the `0= 0=` canonicalisation](07-comparisons-from-division.md#4-0-and-the-0-0-canonicalisation) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `0=` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 15 §3 `0=` in 15 bytes](15-arithmetic-and-logic.md#3-0-in-15-bytes) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
+- `0=` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 7, Zero-test contract](07-arithmetic-and-logic.md#zero-test-contract) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `0=,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `0branch` — *seed primitive* — [Ch 19 §3 `zbranch_code` in eleven instructions](19-branches-and-inline-cells.md#3-zbranch_code-in-eleven-instructions) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `0branch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 11 §3 `branch-xt` and `0branch-xt`: a load-time snapshot](11-control-flow-combinators.md#3-branch-xt-and-0branch-xt-a-load-time-snapshot)
@@ -2499,7 +2499,7 @@ for which chapter depends on which, the
 - `digit?` — *Forth word (`forth/010-lib.fth`)* — [Ch 6 §3 `digit?`, `alpha-lower?`, `alpha-upper?`, `alpha?`](06-character-classification.md#3-digit-alpha-lower-alpha-upper-alpha)
 - **Direct TinyCC bootstrap** — [Ch 34 §6 What the bootstrap result proves](34-direct-tinycc.md#6-what-the-bootstrap-result-proves)
 - **Diverse double-compiling** — [App. C, Cross-check against stage0-posix (diverse double-compiling)](A3-reproducibility-chain.md#cross-check-against-stage0-posix-diverse-double-compiling)
-- `divide_code` — *seed label* — [Ch 15 §4 `/` and the `DIV` instruction](15-arithmetic-and-logic.md#4--and-the-div-instruction)
+- `divide_code` — *seed label* — [Ch 7, Unsigned division contract](07-arithmetic-and-logic.md#unsigned-division-contract)
 - **Division as a right shift** — [Ch 9 §3 Why divide by 256?](09-memory-and-cell-writers.md#3-why-divide-by-256)
 - `drop` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `drop`: replace the old top](06-stack-primitives.md#drop-replace-the-old-top) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `drop_code` — *seed label* — [Ch 6, `drop`: replace the old top](06-stack-primitives.md#drop-replace-the-old-top)
@@ -2827,8 +2827,8 @@ for which chapter depends on which, the
 
 ## N
 
-- `nand` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 15 §2 `nand` in 12 bytes](15-arithmetic-and-logic.md#2-nand-in-12-bytes) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
-- `nand_code` — *seed label* — [Ch 15 §2 `nand` in 12 bytes](15-arithmetic-and-logic.md#2-nand-in-12-bytes)
+- `nand` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 7, Bitwise NAND contract](07-arithmetic-and-logic.md#bitwise-nand-contract) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
+- `nand_code` — *seed label* — [Ch 7, Bitwise NAND contract](07-arithmetic-and-logic.md#bitwise-nand-contract)
 - `native!` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `native-0<` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `native-1+` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -2910,7 +2910,7 @@ for which chapter depends on which, the
 ## P
 
 - `parse_decimal_code` — *seed label* — [Ch 20 §1 `parse_decimal_code` ( c-addr u -- n true | 0 false )](20-number-parser-and-repl.md#1-parse_decimal_code--c-addr-u----n-true--0-false-)
-- `plus_code` — *seed label* — [Ch 15 §1 `+` in 9 bytes](15-arithmetic-and-logic.md#1--in-9-bytes)
+- `plus_code` — *seed label* — [Ch 7, Addition contract](07-arithmetic-and-logic.md#addition-contract)
 - `poc-xt` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `pop-rsub,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `pop-sub,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -3010,7 +3010,7 @@ for which chapter depends on which, the
 - `space?` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 6 §4 `space?`: four-way OR](06-character-classification.md#4-space-four-way-or) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - **Stack-effect notation** — [Ch 1, 1.2  Stack-effect comments](01-stacks-and-words.md#12--stack-effect-comments)
 - **Stage-A parity proof** — [Ch 32 §4 Stage A: the parity proof](32-main-and-bootstrap-chain.md#4-stage-a-the-parity-proof)
-- `star_code` — *seed label* — [Ch 15 §5 `*` and the `IMUL` instruction](15-arithmetic-and-logic.md#5--and-the-imul-instruction)
+- `star_code` — *seed label* — [Ch 7, Low-product contract](07-arithmetic-and-logic.md#low-product-contract)
 - `_start` — *seed label* — [Ch 5, Give the registers their starting values](05-elf-and-entry.md#give-the-registers-their-starting-values)
 - `state` — *seed primitive* — [Ch 17 §8 `state_code` and `latest_code`](17-the-dictionary.md#8-state_code-and-latest_code) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - **STATE (interpret vs compile mode)** — [Ch 10 §1 `STATE` and the two modes](10-immediacy-and-constants.md#1-state-and-the-two-modes) · [Ch 18 §1 `colon_code`'s anatomy](18-the-colon-compiler.md#1-colon_codes-anatomy)
@@ -3103,4 +3103,4 @@ for which chapter depends on which, the
 ## Z
 
 - `zbranch_code` — *seed label* — [Ch 19 §3 `zbranch_code` in eleven instructions](19-branches-and-inline-cells.md#3-zbranch_code-in-eleven-instructions)
-- `zeq_code` — *seed label* — [Ch 15 §3 `0=` in 15 bytes](15-arithmetic-and-logic.md#3-0-in-15-bytes)
+- `zeq_code` — *seed label* — [Ch 7, Zero-test contract](07-arithmetic-and-logic.md#zero-test-contract)

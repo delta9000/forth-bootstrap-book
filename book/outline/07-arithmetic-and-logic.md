@@ -10,7 +10,7 @@ Prerequisites: [06 — Stack and memory primitives](06-stack-primitives.md)
 
 Checkpoint: TODO — use the complete-seed build and REPL checkpoint at the end of this walkthrough.
 
-Reuses: [15-arithmetic-and-logic.md](../15-arithmetic-and-logic.md) — Reuse the source walkthrough: Decode the arithmetic and Boolean primitives the Forth library will extend.
+Reuses: [15-arithmetic-and-logic.md](../07-arithmetic-and-logic.md) — Reuse the source walkthrough: Decode the arithmetic and Boolean primitives the Forth library will extend.
 
 TODO:
 
