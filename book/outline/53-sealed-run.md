@@ -6,7 +6,7 @@ Scope: Audit the host run whose initial root contains only hex0-seed as an execu
 
 Sources taught: `chain/plumbing-root.sh`; `MANIFEST.sha256`; `tools/fetch-archives.py` — TODO: these sources have no line ranges in INVENTORY.md; inventory them before drafting.
 
-Prerequisites: [52 — Owning the tools](52-owning-the-tools.md)
+Prerequisites: [52 — GCC 4.0.4: stages C and D](52-gcc-4-fixed-point.md)
 
 Checkpoint: `python3 tools/fetch-archives.py`; `sha256sum -c MANIFEST.sha256`; `sh chain/plumbing-root.sh` — requires bwrap, strace, and user namespaces; allow 20–40 minutes and inspect the trace and fixed-point report.
 
