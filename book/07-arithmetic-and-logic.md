@@ -1,19 +1,13 @@
 # Chapter 07 — Arithmetic and logic in machine code
 
-Missing capability: we can move and store operands, but cannot yet account for the seed's arithmetic results.
-New idea: each primitive has a register-level contract that determines both its result and its stack effect.
-Artifact after this chapter: reference contracts for `+`, `nand`, `0=`, `/`, and `*`, tied to their machine code.
-Payoff link: Chapter 16 builds logic, Chapter 17 builds subtraction, and Chapter 20 builds comparisons on these contracts.
+You can move and store operands, but cannot yet account for the seed's
+arithmetic results. Each primitive's register-level contract ties its result
+and stack effect to its machine code, giving you reference contracts for
+`+`, `nand`, `0=`, `/`, and `*`. Chapter 16 builds logic on these contracts,
+Chapter 17 builds subtraction, and Chapter 20 builds comparisons.
 
-Chapter 6 established the stack and memory operations; here we follow only
-what happens when operands become a result. The reader needs C integer
-operations and the instruction-decoding conventions from Chapter 4.
-
-| Rung | Built in | Artifact | Treated as machinery by |
-|---|---|---|---|
-| Move values | Chapter 6 | Stack and memory primitives | This chapter |
-| **Compute values** | **Chapter 7** | **Arithmetic and Boolean contracts** | Chapters 16, 17, and 20 |
-| Reach Linux | Chapter 8 | Input, output, and exit primitives | Later interactive checkpoints |
+Recall the stack and memory operations from Chapter 6 and the
+instruction-decoding conventions from Chapter 4.
 
 The path through the seed is: stack and memory → **arithmetic and logic** →
 Linux boundary → dictionary → compiler → REPL. Chapter 8 takes the next step;
@@ -31,10 +25,8 @@ Call this the **binary reduction pattern**. Some bodies compute directly in
 `rdi`; others use temporary registers and copy the answer back. `0=` is the
 unary exception: it replaces the top without releasing a slot.
 
-In each source fragment below, the instructions are **focus** and the
-preceding dictionary header is **context**. Chapter 9 teaches those headers;
-we retain them here because they belong to the source chunks. All fragments
-are in `forth-bootstrap/seed/000-seed.hex0`.
+Each primitive's instructions follow its dictionary header. Chapter 9
+teaches those headers.
 
 ## Addition contract
 
@@ -44,9 +36,8 @@ are in `forth-bootstrap/seed/000-seed.hex0`.
 The return stack is unchanged after the return; `rdi` holds the sum and
 `rbp` advances by a cell.
 
-To fill the computing step of the binary reduction pattern, `plus_code`
-adds the memory operand directly into the cached operand (**focus**, after
-the header beginning at `forth-bootstrap/seed/000-seed.hex0:191`).
+In `forth-bootstrap/seed/000-seed.hex0:191`, `plus_code` adds the memory
+operand directly into the cached operand, without a temporary register.
 
 ```hex0 chunk=plus
 ;; --- + @ 0x1AC --- header
@@ -61,11 +52,9 @@ C3                                        ; ret
 
 ```
 
-The sum now occupies the surviving stack position, with no temporary register.
-
-At `forth-bootstrap/seed/000-seed.hex0:197`, `48 03` selects the cell-width
-register-from-memory addition; the remaining addressing bytes select
-`rdi` and `[rbp]`, using Chapter 4's ModRM rules. The following `add rbp, 8`
+`48 03` selects the cell-width register-from-memory addition.
+The remaining addressing bytes select `rdi` and `[rbp]`, using Chapter 4's
+ModRM rules. The following `add rbp, 8`
 is stack bookkeeping, not part of the numeric result. `ret` completes the
 same return convention used in Chapter 6.
 
@@ -81,9 +70,8 @@ this [addition contract](#plus-contract) for subtraction.
 **`nand` — `( a b -- bits )`:** return the cell-wide complement of `a & b`.
 This is a bitwise operation; its inputs need not be truth values.
 
-To compute NAND, `nand_code` fills the same computing step with AND followed
-by NOT (**focus**, immediately after addition at
-`forth-bootstrap/seed/000-seed.hex0:201`).
+In `forth-bootstrap/seed/000-seed.hex0:201`, `nand_code` computes NAND
+with AND followed by NOT, using the same binary reduction pattern.
 
 ```hex0 chunk=nand
 ;; --- nand @ 0x1C0 --- header
@@ -99,8 +87,6 @@ C3                                        ; ret
 
 ```
 
-The binary reduction pattern now produces a complemented intersection of the operands' bits.
-
 `48 23` selects AND into the register, and `48 F7 D7` complements `rdi`;
 the stack-release and return instructions repeat addition's ending.
 The body is 12 bytes. A bit in the result is clear exactly when the
@@ -108,8 +94,7 @@ corresponding bits in both inputs are set. This is C's `~(a & b)` on
 cell-sized unsigned bit patterns, not C's logical `!(a && b)`.
 
 Chapter 16 derives the library logic words from this
-[NAND contract](#nand-contract). Their definitions are not needed to decode
-the primitive.
+[NAND contract](#nand-contract).
 
 ## Zero-test contract
 
@@ -119,9 +104,9 @@ the primitive.
 cell for zero input; interpreted as a signed cell, that true value is `-1`.
 `rbp` does not move.
 
-To turn an instruction condition into a full-cell flag, `zeq_code` tests,
-materializes, widens, and negates the result (**focus**, after NAND at
-`forth-bootstrap/seed/000-seed.hex0:212`).
+In `forth-bootstrap/seed/000-seed.hex0:212`, `zeq_code` turns an instruction
+condition into a full-cell flag by testing, materializing, widening, and
+negating the result.
 
 ```hex0 chunk=zeq
 ;; --- 0= @ 0x1DA --- header
@@ -138,12 +123,9 @@ C3                                        ; ret
 
 ```
 
-The cached top now contains a canonical Forth flag without changing the stack depth.
-
-Follow the data dependency rather than treating each instruction as a
-separate trick. `test rdi, rdi` sets the zero condition without changing the
-operand. `sete dil` writes a byte containing zero or one. Because that write
-leaves the rest of `rdi` untouched, `movzx rdi, dil` is necessary before
+`test rdi, rdi` sets the zero condition without changing the operand.
+`sete dil` writes a byte containing zero or one. Because that write leaves
+the rest of `rdi` untouched, `movzx rdi, dil` is necessary before
 negation: it removes the old operand's remaining bits. Finally, `neg rdi`
 turns one into `-1` and leaves zero unchanged. The body is 15 bytes.
 
@@ -165,10 +147,9 @@ require a nonzero divisor `b`, and return the integer quotient, discarding
 the remainder. It clobbers `rax` and `rdx` as well as updating the data-stack
 registers.
 
-To supply the dividend where the processor requires it, `divide_code`
-uses temporary registers before finishing the binary reduction pattern
-(**focus**, after the zero test at
-`forth-bootstrap/seed/000-seed.hex0:224`).
+In `forth-bootstrap/seed/000-seed.hex0:224`, `divide_code` uses temporary
+registers to supply the dividend where the processor requires it, then
+finishes the binary reduction pattern.
 
 ```hex0 chunk=divide
 ;; --- / @ 0x1F5 --- header
@@ -188,24 +169,23 @@ C3                                        ; ret
 
 ```
 
-The cached top now holds the unsigned quotient; the remainder is not a Forth result.
-
 The order matters. `mov rax, [rbp]` loads the dividend `a`, while `rdi`
 retains the divisor `b`. `xor rdx, rdx` clears the high half of the
 processor's dividend pair, `rdx:rax`. `div rdi` places the quotient in
 `rax` and the remainder in `rdx`. Releasing the consumed slot and moving
-`rax` into `rdi` restores the primitive's exit contract. The body is 18 bytes.
+`rax` into `rdi` restores the primitive's exit contract. The remainder is
+not a Forth result. The body is 18 bytes.
 
-Clearing the high half is part of correctness, not merely initialization
-for tidiness: an old remainder in `rdx` would change the next dividend.
+An old remainder in `rdx` would change the next dividend, so clearing the
+high half is necessary for correctness.
 With the high half clear and a nonzero cell-sized divisor, the quotient
 fits in a cell.
 
 The opcode is unsigned `DIV`, not signed `IDIV`. An all-set cell is therefore
 treated as the largest unsigned operand, even though we call the same bit
 pattern `-1` when interpreting a canonical flag. Division by zero has no
-fallback in this body; the source explicitly identifies it as a trap
-(`forth-bootstrap/seed/000-seed.hex0:231`). Do not use it as ordinary input.
+fallback in this body; the source identifies it as a trap. Do not use it
+as ordinary input.
 Chapter 20 builds comparisons from this [division contract](#divide-contract).
 
 ## Low-product contract
@@ -215,9 +195,8 @@ Chapter 20 builds comparisons from this [division contract](#divide-contract).
 **`*` — `( a b -- product )`:** retain the low cell of the product, with
 wrapping on overflow. `rax` is temporary; the result returns in `rdi`.
 
-To compute the product, `star_code` routes an operand through `rax` and
-then finishes the binary reduction pattern (**focus**, after division at
-`forth-bootstrap/seed/000-seed.hex0:239`).
+In `forth-bootstrap/seed/000-seed.hex0:239`, `star_code` computes the
+product through `rax`, then finishes the binary reduction pattern.
 
 ```hex0 chunk=star
 ;; --- * @ 0x212 --- header
@@ -234,8 +213,6 @@ C3                                        ; ret
 
 ```
 
-The product now replaces the operands, with the same net stack change as addition.
-
 `mov rax, rdi` copies `b`; `imul rax, [rbp]` multiplies it by `a`.
 This form of `IMUL` keeps only the low cell in its destination. It does
 not produce a separate high-half result in `rdx`. The final move restores
@@ -249,9 +226,7 @@ promise: its quotient depends on the interpretation of the operands.
 
 ## Contracts for Part 2
 
-These links are the reference targets for the library chapters; the
-machine-code explanations above establish them without introducing the
-library implementations.
+The Part 2 library words build on these contracts.
 
 | Primitive contract | Result rule | Later reader |
 |---|---|---|
@@ -263,41 +238,40 @@ library implementations.
 
 ## Exercise
 
-**Trace — easy.** In `zeq_code`, consider an input with a set bit outside
-its low byte. Trace `test`, `sete`, `movzx`, and `neg`. Which instruction
-prevents that old bit from contaminating the false result? Then explain
-why the same body needs no slot-release instruction.
+**Trace — easy.** Trace `test`, `sete`, `movzx`, and `neg` in `zeq_code`
+for an input with a set bit outside its low byte. Which instruction keeps
+that bit out of the false result? Why does the body need no slot-release
+instruction?
 
-**Trace — moderate.** Follow the checkpoint's stack on paper, using signed
+**Trace — moderate.** Trace the checkpoint's stack on paper, using signed
 notation for the all-set cell. After each arithmetic word, record the
-cached top and whether `rbp` moved. Explain why the division receives a
-nonzero divisor even though the sequence begins with zero.
+cached top and whether `rbp` moved. Why does division receive a nonzero
+divisor even though the sequence begins with zero?
 
 ## Try it: complete-seed arithmetic checkpoint
 
-Run these commands from the `forth-bootstrap` checkout. The build command
-writes `seed-forth` there (`forth-bootstrap/seed/build.sh:12` and
-`forth-bootstrap/seed/build.sh:27`). This checkpoint uses the complete seed
-as an execution tool; Chapter 12 explains its REPL implementation.
+This checkpoint uses the complete seed; Chapter 12 explains its REPL
+implementation.
 
-Recall the initialized cached zero from Chapter 5
-(`forth-bootstrap/seed/000-seed.hex0:65`). The first `dup` preserves it
-while the first `0=` supplies an all-set operand. The arithmetic results
-in order are `-1`, `-2`, `4`, `1`, `-2`, and `0`: addition doubles the flag,
+Recall the initialized cached zero from Chapter 5. The first `dup`
+preserves it while the first `0=` supplies an all-set operand. The arithmetic
+results in order are `-1`, `-2`, `4`, `1`, `-2`, and `0`: addition doubles the flag,
 multiplication squares that result, division divides the square by itself,
 and NAND complements the intersection before the final zero test.
 The final `drop`, from Chapter 6, restores the initial stack state.
 
-This is an execution smoke test, not a printed-value assertion: it checks
-successful exit and absence of diagnostics. The result sequence above is
-a worked trace. No output word or literal-loading word from a later
-chapter is required. End of input exits the complete seed, as specified
-at `forth-bootstrap/seed/000-seed.hex0:668`.
+The checkpoint checks successful exit and absence of diagnostics; it does
+not assert printed values. The result sequence above is a worked trace.
+It needs no output word or literal-loading word from a later chapter.
+End of input exits the complete seed.
 
 The seed writes its unknown-word diagnostic to standard output
 (`echo nosuchword | ./seed-forth` prints `nosuchword?`), so empty output
-means no diagnostic. The shell wrapper below (**boilerplate**, run in that
-checkout) prints its message only when the output is empty.
+means no diagnostic. The shell wrapper prints its message only when the
+output is empty.
+
+Run these commands from the `forth-bootstrap` checkout. The build command
+in `forth-bootstrap/seed/build.sh:27` writes `seed-forth` there.
 
 ```sh
 ./seed/build.sh > /dev/null
@@ -306,7 +280,6 @@ output=$(printf '%s\n' 'dup 0= dup + dup * dup / dup nand 0= drop' | ./seed-fort
 # prints "Arithmetic checkpoint: clean exit, no diagnostics."
 ```
 
-The complete seed now executes the arithmetic sequence without a diagnostic.
 Observed output from this command:
 
 ```text
