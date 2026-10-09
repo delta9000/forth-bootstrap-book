@@ -469,6 +469,16 @@ Bump allocator | 27 Arena and I/O buffers | cc-alloc rounds a length and advance
 One buffer per responsibility | 27 Arena and I/O buffers | separate raw input, preprocessed source and emitted output buffers
 Output back-patching | 27 Arena and I/O buffers | rewrite earlier output fields by offset without moving the append cursor
 Workspace selection | 27 Arena and I/O buffers | switch buffer addresses and capacities between default and mapped storage
+Preprocessor | 28 The preprocessor | rewrites raw C into a flattened source buffer before lexing
+Macro table | 28 The preprocessor | parallel arrays of macro names, bodies, parameters and suppression state
+Macro expansion | 28 The preprocessor | collect arguments, substitute, then rescan the replacement
+Include pool | 28 The preprocessor | keeps included files while nested scans use their bytes
+Conditional compilation | 28 The preprocessor | take, seek and done states for nested #if/#ifdef groups
+Save-switch-restore | 28 The preprocessor | suspend a region or sink, process nested text, resume the caller
+Owed newlines | 28 The preprocessor | consumed newlines emitted later to keep line positions and token boundaries
+Unavailable tokens | 28 The preprocessor | shadow marks keep a macro from re-expanding across rescans
+Computed include operand | 28 The preprocessor | expand macros before validating and opening a header name
+Logical source location | 28 The preprocessor | presumed file and line, tracked apart from physical include paths
 `asm-next-char` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
 `asm-nl-byte` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); The output side
 `asm-number-bounds` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
