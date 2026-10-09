@@ -158,6 +158,9 @@ Subroutine threading | 10 The colon compiler | idea; `compile_call`: one `CALL`,
 `branch`, `0branch` | 11 Branches and inline cells | concept (Forth primitives (treated as black boxes in Part I)); introduced in old Ch 19
 `zbranch_code` | 11 Branches and inline cells | seed label; `zbranch_code` in eleven instructions
 Consumed-slot property | 11 Branches and inline cells | concept (Seed VM internals (Part II)); introduced in old Ch 19
+Decimal accumulation | 12 Decimal parsing and the REPL | convert digits by repeatedly computing n * 10 + digit
+parse_decimal_code | 12 Decimal parsing and the REPL | validates an unsigned decimal token; returns the value and a true flag, or 0 and false ( c-addr u -- n flag )
+REPL dispatch | 12 Decimal parsing and the REPL | look up a token, then IMMEDIATE and STATE choose execution or call compilation; a miss reports token? and continues
 push rax; ret (indirect jump) | 11 Branches and inline cells | idea; Why `push rax; ret` and not `jmp rax`?
 `parse_decimal_code` | 12 Decimal parsing and the REPL | seed label; `parse_decimal_code` ( c-addr u -- n true \| 0 false )
 `repl` | 12 Decimal parsing and the REPL | seed label; The REPL loop
