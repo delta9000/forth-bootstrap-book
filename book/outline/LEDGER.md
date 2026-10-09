@@ -165,6 +165,9 @@ Consumed-slot property | 11 Branches and inline cells | concept (Seed VM interna
 Decimal accumulation | 12 Decimal parsing and the REPL | convert digits by repeatedly computing n * 10 + digit
 parse_decimal_code | 12 Decimal parsing and the REPL | validates an unsigned decimal token; returns the value and a true flag, or 0 and false ( c-addr u -- n flag )
 REPL dispatch | 12 Decimal parsing and the REPL | look up a token, then IMMEDIATE and STATE choose execution or call compilation; a miss reports token? and continues
+Postfix evaluation (reverse Polish notation) | 14 Stacks and words | operands precede operators and wait on the data stack; word order replaces precedence and parentheses
+Stack-effect notation | 14 Stacks and words | ( before -- after ) describes a word's inputs and results, top of stack at the right
+Stack trace | 14 Stacks and words | apply each component word's contract in body order to check a definition's combined effect
 push rax; ret (indirect jump) | 11 Branches and inline cells | idea; Why `push rax; ret` and not `jmp rax`?
 `parse_decimal_code` | 12 Decimal parsing and the REPL | seed label; `parse_decimal_code` ( c-addr u -- n true \| 0 false )
 `repl` | 12 Decimal parsing and the REPL | seed label; The REPL loop
