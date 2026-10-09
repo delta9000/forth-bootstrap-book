@@ -21,7 +21,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [14-stack-primitives.md](../06-stack-primitives.md) | Chapter 14 — Stack Primitives in Machine Code | 1 | [Stack and memory primitives](06-stack-primitives.md) | keep |
 | [15-arithmetic-and-logic.md](../07-arithmetic-and-logic.md) | Chapter 15 — Arithmetic, Logic, Comparison | 1 | [Arithmetic and logic in machine code](07-arithmetic-and-logic.md) | keep |
 | [16-io-emit-key-syscall6.md](../08-seed-io.md) | Chapter 16 — I/O: `emit`, `key`, `syscall6` | 1 | [The seed’s Linux boundary](08-seed-io.md) | keep |
-| [17-the-dictionary.md](../17-the-dictionary.md) | Chapter 17 — The Dictionary | 1 | [The dictionary and token reader](09-dictionary.md) | keep |
+| [17-the-dictionary.md](../09-dictionary.md) | Chapter 17 — The Dictionary | 1 | [The dictionary and token reader](09-dictionary.md) | keep |
 | [18-the-colon-compiler.md](../18-the-colon-compiler.md) | Chapter 18 — The Colon Compiler | 1 | [The colon compiler](10-colon-compiler.md) | keep |
 | [19-branches-and-inline-cells.md](../19-branches-and-inline-cells.md) | Chapter 19 — Branches and Inline Cells | 1 | [Branches and inline cells](11-branches.md) | keep |
 | [20-number-parser-and-repl.md](../20-number-parser-and-repl.md) | Chapter 20 — The Number Parser and REPL | 1 | [Decimal parsing and the REPL](12-repl.md) | keep |

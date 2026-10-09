@@ -10,7 +10,7 @@ Prerequisites: [08 — The seed’s Linux boundary](08-seed-io.md)
 
 Checkpoint: TODO — use the complete-seed build and REPL checkpoint at the end of this walkthrough.
 
-Reuses: [17-the-dictionary.md](../17-the-dictionary.md) — Reuse the source walkthrough: Follow name lookup, dictionary headers, execution addresses, and the growing allocation cursor.
+Reuses: [17-the-dictionary.md](../09-dictionary.md) — Reuse the source walkthrough: Follow name lookup, dictionary headers, execution addresses, and the growing allocation cursor.
 
 TODO:
 
