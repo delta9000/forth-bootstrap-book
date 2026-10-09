@@ -168,6 +168,9 @@ REPL dispatch | 12 Decimal parsing and the REPL | look up a token, then IMMEDIAT
 Postfix evaluation (reverse Polish notation) | 14 Stacks and words | operands precede operators and wait on the data stack; word order replaces precedence and parentheses
 Stack-effect notation | 14 Stacks and words | ( before -- after ) describes a word's inputs and results, top of stack at the right
 Stack trace | 14 Stacks and words | apply each component word's contract in body order to check a definition's combined effect
+`here-addr` | 15 Code emission and HERE | pushes the address of the HERE cell, for updating the allocation cursor ( -- a )
+`c,` | 15 Code emission and HERE | stores the low byte at HERE and advances HERE by one ( b -- )
+Store-and-advance | 15 Code emission and HERE | write a payload at HERE, then advance HERE by the payload's width
 push rax; ret (indirect jump) | 11 Branches and inline cells | idea; Why `push rax; ret` and not `jmp rax`?
 `parse_decimal_code` | 12 Decimal parsing and the REPL | seed label; `parse_decimal_code` ( c-addr u -- n true \| 0 false )
 `repl` | 12 Decimal parsing and the REPL | seed label; The REPL loop
