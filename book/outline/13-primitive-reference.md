@@ -10,7 +10,7 @@ Prerequisites: [04 — x86-64 encoding and the two-stack machine](04-x86-64-and-
 
 Checkpoint: `seed/build.sh`; `echo 'bye' | ./seed-forth` — Part 1 checkpoint.
 
-Reuses: [A1-32-seed-primitives.md](../A1-32-seed-primitives.md) — Reuse the primitive names, stack effects, and opcode reference.
+Reuses: [A1-32-seed-primitives.md](../13-primitive-reference.md) — Reuse the primitive names, stack effects, and opcode reference.
 
 TODO:
 

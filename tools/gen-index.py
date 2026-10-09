@@ -91,7 +91,7 @@ CONCEPTS = [
     ("Counted names as data (s,)", [("12-", "names as data")]),
     ("ELF header and program header", [("05-", "Identify the executable and its entry"), ("05-", "Make storage exist"), ("25-", "the ELF wrapper")]),
     ("Entry point (_start)", [("05-", "Give the registers their starting values")]),
-    ("Sysvar page (STATE, LATEST, HERE, LAST_FOUND)", [("05-", "Initialize the mutable system variables"), ("A1-", "A note on the sysvar page")]),
+    ("Sysvar page (STATE, LATEST, HERE, LAST_FOUND)", [("05-", "Initialize the mutable system variables")]),
     ("TOS in rdi / data stack at rbp", [("14-", "The push and pop shapes")]),
     ("Subroutine threading", [("18-", "compile_call")]),
     ("Inline cell after a CALL", [("18-", "inline-cell trick"), ("19-", "The compiled shape")]),
@@ -466,7 +466,7 @@ def render(chapters):
             if l not in links:
                 links.append(l)
         if "seed primitive" in kinds:
-            a1 = by_file.get(next((c.file for c in chapters if c.file.startswith("A1-")), ""), None)
+            a1 = by_file.get(next((c.file for c in chapters if c.file.startswith("13-primitive")), ""), None)
             if a1 and a1.find_heading("The table"):
                 links.append(link(a1, a1.find_heading("The table")))
         line = "- %s — *%s* — %s" % (code_span(name), "; ".join(kinds), " · ".join(links))

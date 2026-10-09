@@ -17,8 +17,7 @@
 - [The colon compiler](10-colon-compiler.md)
 - [Branches and inline cells](11-branches.md)
 - [Decimal parsing and the REPL](12-repl.md)
-- [The 32 seed primitives: reference](outline/13-primitive-reference.md)
-  - [Appendix A — The 32 seed primitives](A1-32-seed-primitives.md)
+- [The 32 seed primitives: reference](13-primitive-reference.md)
 
 # Part 2 — Forth
 

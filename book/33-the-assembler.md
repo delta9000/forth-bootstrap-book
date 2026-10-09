@@ -1626,7 +1626,7 @@ to every line of source between it and the output.
 
 The appendices are reference cards for a second pass:
 
-- **[A — The 32 seed primitives](A1-32-seed-primitives.md):** every
+- **[Chapter 13 — the 32 seed primitives](13-primitive-reference.md):** every
   primitive in one table.
 - **[B — The memory map](05-elf-and-entry.md#read-the-seed-memory-map):** every fixed address
   the book referenced.
