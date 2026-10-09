@@ -10,7 +10,7 @@ Prerequisites: [10 — The colon compiler](10-colon-compiler.md)
 
 Checkpoint: TODO — use the complete-seed build and REPL checkpoint at the end of this walkthrough.
 
-Reuses: [19-branches-and-inline-cells.md](../19-branches-and-inline-cells.md) — Reuse the source walkthrough: Decode unconditional and conditional branches and their inline destinations.
+Reuses: [19-branches-and-inline-cells.md](../11-branches.md) — Reuse the source walkthrough: Decode unconditional and conditional branches and their inline destinations.
 
 TODO:
 

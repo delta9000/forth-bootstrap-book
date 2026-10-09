@@ -96,7 +96,7 @@ CONCEPTS = [
     ("Subroutine threading", [("18-", "compile_call")]),
     ("Inline cell after a CALL", [("18-", "inline-cell trick"), ("19-", "The compiled shape")]),
     ("Consumed-slot property", [("19-", "The consumed-slot property")]),
-    ("push rax; ret (indirect jump)", [("19-", "Why `push rax; ret`")]),
+    ("push rax; ret (indirect jump)", [("11-branches", "`branch_code`: replace the return address")]),
     ("Token reader and comment skipping", [("17-", "the token reader")]),
     ("Loud token errors (token?, exit 2)", [("17-", "failing out loud"), ("A7-", "The seed's own code")]),
     ("Linear dictionary search", [("17-", "`find_code`"), ("17-", "The chain")]),
