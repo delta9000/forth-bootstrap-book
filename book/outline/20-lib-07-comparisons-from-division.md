@@ -10,7 +10,7 @@ Prerequisites: [19 — Character classification](19-lib-06-character-classificat
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [07-comparisons-from-division.md](../07-comparisons-from-division.md) — Reuse the source walkthrough: Construct comparison words from unsigned division and Boolean operations.
+Reuses: [07-comparisons-from-division.md](../20-lib-07-comparisons-from-division.md) — Reuse the source walkthrough: Construct comparison words from unsigned division and Boolean operations.
 
 TODO:
 

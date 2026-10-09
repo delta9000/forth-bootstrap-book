@@ -11,7 +11,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [04-return-stack-over-subtract.md](../17-lib-04-return-stack-over-subtract.md) | Chapter 4 — The Return Stack: `over` and Subtract | 2 | [The return stack, over, and subtraction](17-lib-04-return-stack-over-subtract.md) | shorten |
 | [05-syscalls.md](../18-lib-05-syscalls.md) | Chapter 5 — Talking to Linux: `syscall6` Wrappers | 2 | [Linux syscall wrappers](18-lib-05-syscalls.md) | shorten |
 | [06-character-classification.md](../19-lib-06-character-classification.md) | Chapter 6 — Character Classification | 2 | [Character classification](19-lib-06-character-classification.md) | shorten |
-| [07-comparisons-from-division.md](../07-comparisons-from-division.md) | Chapter 7 — Comparisons from Unsigned Division | 2 | [Comparisons from unsigned division](20-lib-07-comparisons-from-division.md) | shorten |
+| [07-comparisons-from-division.md](../20-lib-07-comparisons-from-division.md) | Chapter 7 — Comparisons from Unsigned Division | 2 | [Comparisons from unsigned division](20-lib-07-comparisons-from-division.md) | shorten |
 | [08-stack-shufflers.md](../08-stack-shufflers.md) | Chapter 8 — Stack Shufflers | 2 | [Stack shufflers](21-lib-08-stack-shufflers.md) | shorten |
 | [09-memory-and-cell-writers.md](../09-memory-and-cell-writers.md) | Chapter 9 — Memory Updates and Cell Writers | 2 | [Memory updates and cell writers](22-lib-09-memory-and-cell-writers.md) | shorten |
 | [10-immediacy-and-constants.md](../10-immediacy-and-constants.md) | Chapter 10 — Immediacy and Constants | 2 | [Immediacy and constants](23-lib-10-immediacy-and-constants.md) | shorten |
