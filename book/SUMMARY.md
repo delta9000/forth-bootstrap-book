@@ -13,8 +13,7 @@
 
 - [x86-64 encoding and the two-stack machine](04-x86-64-and-two-stacks.md)
 - [ELF, entry, and the memory map](05-elf-and-entry.md)
-- [Stack and memory primitives](outline/06-stack-primitives.md)
-  - [Chapter 14 — Stack Primitives in Machine Code](14-stack-primitives.md)
+- [Stack and memory primitives](06-stack-primitives.md)
 - [Arithmetic and logic in machine code](outline/07-arithmetic-and-logic.md)
   - [Chapter 15 — Arithmetic, Logic, Comparison](15-arithmetic-and-logic.md)
 - [The seed’s Linux boundary](outline/08-seed-io.md)
