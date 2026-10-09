@@ -10,7 +10,7 @@ Prerequisites: [24 — Control-flow combinators](24-lib-11-control-flow-combinat
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [12-defining-words-and-bytes-eq.md](../12-defining-words-and-bytes-eq.md) — Reuse the source walkthrough: Teach allot, create, variable, and byte-sequence comparison.
+Reuses: [12-defining-words-and-bytes-eq.md](../25-lib-12-defining-words-and-bytes-eq.md) — Reuse the source walkthrough: Teach allot, create, variable, and byte-sequence comparison.
 
 TODO:
 

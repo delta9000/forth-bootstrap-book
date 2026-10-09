@@ -16,7 +16,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [09-memory-and-cell-writers.md](../22-lib-09-memory-and-cell-writers.md) | Chapter 9 — Memory Updates and Cell Writers | 2 | [Memory updates and cell writers](22-lib-09-memory-and-cell-writers.md) | shorten |
 | [10-immediacy-and-constants.md](../23-lib-10-immediacy-and-constants.md) | Chapter 10 — Immediacy and Constants | 2 | [Immediacy and constants](23-lib-10-immediacy-and-constants.md) | shorten |
 | [11-control-flow-combinators.md](../24-lib-11-control-flow-combinators.md) | Chapter 11 — Control-Flow Combinators (the climax of Part I) | 2 | [Control-flow combinators](24-lib-11-control-flow-combinators.md) | shorten |
-| [12-defining-words-and-bytes-eq.md](../12-defining-words-and-bytes-eq.md) | Chapter 12 — `allot`, `create`, `variable`, `bytes-eq` | 2 | [Defining words and byte equality](25-lib-12-defining-words-and-bytes-eq.md) | shorten |
+| [12-defining-words-and-bytes-eq.md](../25-lib-12-defining-words-and-bytes-eq.md) | Chapter 12 — `allot`, `create`, `variable`, `bytes-eq` | 2 | [Defining words and byte equality](25-lib-12-defining-words-and-bytes-eq.md) | shorten |
 | [13-elf-and-entry.md](../13-elf-and-entry.md) | Chapter 13 — The ELF and the Entry Point | 1 | [ELF, entry, and the memory map](05-elf-and-entry.md) | keep |
 | [14-stack-primitives.md](../06-stack-primitives.md) | Chapter 14 — Stack Primitives in Machine Code | 1 | [Stack and memory primitives](06-stack-primitives.md) | keep |
 | [15-arithmetic-and-logic.md](../07-arithmetic-and-logic.md) | Chapter 15 — Arithmetic, Logic, Comparison | 1 | [Arithmetic and logic in machine code](07-arithmetic-and-logic.md) | keep |

@@ -85,7 +85,7 @@ for which chapter depends on which, the
 - `ag-target` — *compiler word (`cc/131-cc-aggregate-abi.fth`)* — [Ch 48, Canonical source](48-direct-gcc-aggregate-abi.md#canonical-source)
 - `ag-type` — *compiler word (`cc/131-cc-aggregate-abi.fth`)* — [Ch 48, Canonical source](48-direct-gcc-aggregate-abi.md#canonical-source)
 - `again,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, `until,` and `again,`: closing a known destination](24-lib-11-control-flow-combinators.md#until-and-again-closing-a-known-destination) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `allot` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §1 `allot` in one line](12-defining-words-and-bytes-eq.md#1-allot-in-one-line)
+- `allot` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `allot` and `skip-vm-pages`: making room](25-lib-12-defining-words-and-bytes-eq.md#allot-and-skip-vm-pages-making-room)
 - `alpha-lower?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, `alpha-lower?` and `alpha-upper?`: change the interval](19-lib-06-character-classification.md#alpha-lower-and-alpha-upper-change-the-interval)
 - `alpha-upper?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, `alpha-lower?` and `alpha-upper?`: change the interval](19-lib-06-character-classification.md#alpha-lower-and-alpha-upper-change-the-interval)
 - `alpha?` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 19, `alpha?`: combine the letter tests](19-lib-06-character-classification.md#alpha-combine-the-letter-tests) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -296,8 +296,8 @@ for which chapter depends on which, the
 - **Break/continue fixup lists** — [Ch 30 §3 Break/continue fixup lists](30-statements-if-while-for-return.md#3-breakcontinue-fixup-lists)
 - `bye` — *seed primitive* — [Ch 8, `bye`: leave the process](08-seed-io.md#bye-leave-the-process) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `bye_code` — *seed label* — [Ch 8, `bye`: leave the process](08-seed-io.md#bye-leave-the-process)
-- `bytes,` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §5 `s,`: names as data](12-defining-words-and-bytes-eq.md#5-s-names-as-data)
-- `bytes-eq` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 12 §6 `bytes-eq`: stop at the first mismatch](12-defining-words-and-bytes-eq.md#6-bytes-eq-stop-at-the-first-mismatch) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `bytes,` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `s,`: names as data](25-lib-12-defining-words-and-bytes-eq.md#s-names-as-data)
+- `bytes-eq` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 25, `bytes-eq`: stop at the first mismatch](25-lib-12-defining-words-and-bytes-eq.md#bytes-eq-stop-at-the-first-mismatch) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 
 ## C
 
@@ -2482,17 +2482,17 @@ for which chapter depends on which, the
 - `constant` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 23, `constant` and the two modes](23-lib-10-immediacy-and-constants.md#constant-and-the-two-modes) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - **Constant expressions** — [Ch 28 §9 Constant expressions](28-expressions-part-2.md#9-constant-expressions) · [Ch 27 §5 The operator table](27-expressions-part-1.md#5-the-operator-table)
 - **Consumed-slot property** — [Ch 11, The consumed-slot property](11-branches.md#the-consumed-slot-property)
-- **Counted names as data (s,)** — [Ch 12 §5 `s,`: names as data](12-defining-words-and-bytes-eq.md#5-s-names-as-data)
-- `create` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 12 §2 `create`'s runtime body](12-defining-words-and-bytes-eq.md#2-creates-runtime-body) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- **Counted names as data (s,)** — [Ch 25, `s,`: names as data](25-lib-12-defining-words-and-bytes-eq.md#s-names-as-data)
+- `create` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 25, `create`'s runtime body and `variable`'s cell](25-lib-12-defining-words-and-bytes-eq.md#creates-runtime-body-and-variables-cell) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `cstore_code` — *seed label* — [Ch 6, `c!`: narrow the store, preserve the cleanup](06-stack-primitives.md#c-narrow-the-store-preserve-the-cleanup)
 
 ## D
 
 - **Data stack** — [Ch 14, Postfix evaluation](14-lib-01-stacks-and-words.md#postfix-evaluation) · [Ch 6, The push and pop shapes](06-stack-primitives.md#the-push-and-pop-shapes)
 - **De Morgan's law** — [Ch 16, `or` in six words](16-lib-03-logic-from-nand.md#or-in-six-words)
-- `defer` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
-- `defer-code-size` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
-- **Deferred words** — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
+- `defer` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
+- `defer-code-size` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
+- **Deferred words** — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 - **#define and macro expansion** — [Ch 22 §5 Macro expansion](22-the-preprocessor.md#5-macro-expansion) · [Ch 22, `#define` and `#undef`](22-the-preprocessor.md#define-and-undef)
 - **Dictionary header layout** — [Ch 9, The header layout](09-dictionary.md#the-header-layout)
 - `die` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
@@ -2520,7 +2520,7 @@ for which chapter depends on which, the
 - **Error codes and cc-die** — [Ch 21, Failing: `cc-die`](21-arena-and-io-buffers.md#failing-cc-die) · [App. G, How the codes are organised](A7-error-codes.md#how-the-codes-are-organised)
 - **Escape decoding (string literals)** — [Ch 26 §2 String-literal bytes with C-escape decoding](26-codegen-part-2.md#2-string-literal-bytes-with-c-escape-decoding)
 - `execute` — *seed primitive* — [Ch 9, `execute`: enter the code address](09-dictionary.md#execute-enter-the-code-address) · [Ch 13, The table](13-primitive-reference.md#the-table)
-- `execute-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
+- `execute-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 - `execute_code` — *seed label* — [Ch 9, `execute`: enter the code address](09-dictionary.md#execute-enter-the-code-address)
 - **Execution token (xt)** — [Ch 9, The header layout](09-dictionary.md#the-header-layout) · [Ch 9, `tick_code`: read a name and find its xt](09-dictionary.md#tick_code-read-a-name-and-find-its-xt) · [Ch 24, `branch-xt` and `0branch-xt`: a load-time snapshot](24-lib-11-control-flow-combinators.md#branch-xt-and-0branch-xt-a-load-time-snapshot)
 - `exit,` — *Forth word (`forth/010-lib.fth`)* — [Ch 24, `exit,`: early return with a clean return stack](24-lib-11-control-flow-combinators.md#exit-early-return-with-a-clean-return-stack)
@@ -2530,7 +2530,7 @@ for which chapter depends on which, the
 
 - **Fail-closed bootstrap runtime** — [Ch 34 §5 A finite Linux boundary](34-direct-tinycc.md#5-a-finite-linux-boundary)
 - `fatal_token` — *seed label* — [Ch 9, `report_token` and `fatal_token`: failing out loud](09-dictionary.md#report_token-and-fatal_token-failing-out-loud)
-- `fetch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
+- `fetch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 - `fetch_code` — *seed label* — [Ch 6, `@`: replace an address with its contents](06-stack-primitives.md#-replace-an-address-with-its-contents)
 - `fh-a` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `fh-buckets` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -2584,7 +2584,7 @@ for which chapter depends on which, the
 - **#include and the include pool** — [Ch 22 §4 `#include` and its bounded file pool](22-the-preprocessor.md#4-include-and-its-bounded-file-pool)
 - **Inline cell after a CALL** — [Ch 10, `lit_code` and the inline-cell trick](10-colon-compiler.md#lit_code-and-the-inline-cell-trick) · [Ch 11, The compiled shape](11-branches.md#the-compiled-shape)
 - **Input, source and output buffers** — [Ch 21, The input and source buffers and the reader](21-arena-and-io-buffers.md#the-input-and-source-buffers-and-the-reader) · [Ch 21, The output buffer](21-arena-and-io-buffers.md#the-output-buffer)
-- `is` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
+- `is` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 
 ## J
 
@@ -2976,7 +2976,7 @@ for which chapter depends on which, the
 
 ## S
 
-- `s,` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §5 `s,`: names as data](12-defining-words-and-bytes-eq.md#5-s-names-as-data)
+- `s,` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `s,`: names as data](25-lib-12-defining-words-and-bytes-eq.md#s-names-as-data)
 - `sar63,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - **Scope stack** — [Ch 24 §4 Scopes are a stack of integers](24-types-and-symbols.md#4-scopes-are-a-stack-of-integers)
 - `seed-0=` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -3006,7 +3006,7 @@ for which chapter depends on which, the
 - `sk-local` — *compiler word (constant, `cc/070-cc-sym.fth`)* — [Ch 24 §2 The symbol-table parallel arrays](24-types-and-symbols.md#2-the-symbol-table-parallel-arrays)
 - `sk-struct` — *compiler word (constant, `cc/070-cc-sym.fth`)* — [Ch 24 §2 The symbol-table parallel arrays](24-types-and-symbols.md#2-the-symbol-table-parallel-arrays)
 - `sk-typedef` — *compiler word (constant, `cc/070-cc-sym.fth`)* — [Ch 24 §2 The symbol-table parallel arrays](24-types-and-symbols.md#2-the-symbol-table-parallel-arrays)
-- `skip-vm-pages` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §1 `allot` in one line](12-defining-words-and-bytes-eq.md#1-allot-in-one-line)
+- `skip-vm-pages` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `allot` and `skip-vm-pages`: making room](25-lib-12-defining-words-and-bytes-eq.md#allot-and-skip-vm-pages-making-room)
 - `space?` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 19, `space?`: four-way OR](19-lib-06-character-classification.md#space-four-way-or) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - **Stack-effect notation** — [Ch 14, Stack-effect comments](14-lib-01-stacks-and-words.md#stack-effect-comments)
 - **Stage-A parity proof** — [Ch 32 §4 Stage A: the parity proof](32-main-and-bootstrap-chain.md#4-stage-a-the-parity-proof)
@@ -3050,7 +3050,7 @@ for which chapter depends on which, the
 - `tok-num` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 21, The lexer's state block](21-arena-and-io-buffers.md#the-lexers-state-block)
 - `tok-str-addr` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 21, The lexer's state block](21-arena-and-io-buffers.md#the-lexers-state-block)
 - `tok-str-len` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 21, The lexer's state block](21-arena-and-io-buffers.md#the-lexers-state-block)
-- `token` — *Forth word (`forth/010-lib.fth`)* — [Ch 12 §5 `s,`: names as data](12-defining-words-and-bytes-eq.md#5-s-names-as-data)
+- `token` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `s,`: names as data](25-lib-12-defining-words-and-bytes-eq.md#s-names-as-data)
 - **Token kinds** — [Ch 23 §1 Token kinds and punctuation IDs](23-the-lexer.md#1-token-kinds-and-punctuation-ids)
 - **Token reader and comment skipping** — [Ch 9, `read_word`, the token reader](09-dictionary.md#read_word-the-token-reader)
 - `top-fndef` — *compiler word (constant, `cc/116-cc-prog.fth`)* — [Ch 31 §6 Top-level elision](31-functions-and-scope.md#6-top-level-elision)
@@ -3093,7 +3093,7 @@ for which chapter depends on which, the
 
 ## V
 
-- `variable` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 12 §3 `variable` = `create` + a cell](12-defining-words-and-bytes-eq.md#3-variable--create--a-cell) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
+- `variable` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 25, `create`'s runtime body and `variable`'s cell](25-lib-12-defining-words-and-bytes-eq.md#creates-runtime-body-and-variables-cell) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 
 ## W
 
