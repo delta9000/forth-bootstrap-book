@@ -1,0 +1,966 @@
+# Chapter 25 — ELF Emission and Codegen, Part 1: Instructions
+
+```text
+Missing capability: compiled C needs executable bytes.
+New pattern: emit machine-code bytes into cc-out-buf, then patch ELF and rel32 placeholders.
+Artifact after this chapter: a valid ELF header plus primitive x86-64 instruction encoders.
+Proof link: later Stage-A compilation can place code at stable virtual addresses.
+```
+
+After Ch 24 the compiler knows what types and symbols exist, but it
+cannot yet write a single byte of machine code.  The first bytes it
+must write pose a puzzle: `tri.c`'s executable opens with a 120-byte
+ELF header that states the file's size, 1,241 bytes, and the header
+is written before any code has been compiled.  This chapter and the
+next build the output side.  There is no assembler in between: every
+x86-64 instruction the compiler emits has its own Forth word that
+writes the instruction's exact bytes into `cc-out-buf`.
+
+The 80-line file `080-cc-elf.fth` writes the ELF wrapper: two entry
+points (`cc-emit-elf-header`, `cc-finalize-elf`) and one assumption,
+that the output is a single R-W-X PT_LOAD, exactly like the seed.
+That assumption keeps the ELF layer tiny: no section header table, no
+separate read-only segment, no relocation records.
+
+`090-cc-emit.fth` is the bigger of the pair: 1384 lines of
+instruction encoders.  This chapter covers lines 1–433, the primitive
+encoders that know nothing about calls, strings or globals.  Ch 26
+covers the rest.
+
+## 1. `080-cc-elf.fth`: the ELF wrapper
+
+```forth file=cc/080-cc-elf.fth
+\ 080-cc-elf.fth — ELF64 header + program header emission for our compiled output.
+\
+\ Layout: 64-byte ELF64_Ehdr + 56-byte Elf64_Phdr (one PT_LOAD) = 120 bytes.
+\ Code begins at vaddr 0x400078, file offset 120.
+\
+\ Depends on 030-cc-io.fth (cc-emit-byte, cc-emit-4le, cc-emit-8le, cc-out-pos,
+\ cc-out-patch-4le).
+
+[lit] 4194304 constant cc-base-vaddr            \ 0x400000
+[lit] 4194424 constant cc-entry-vaddr           \ 0x400078
+
+\ cc-here-vaddr ( -- vaddr )  The address the next emitted byte will have
+\ when the output runs: its file offset (cc-out-pos) plus the load address.
+: cc-here-vaddr  cc-base-vaddr cc-out-pos @ + ;
+
+\ p_filesz lives at file offset 96, 8 bytes LE.
+\ p_memsz lives at file offset 104.
+[lit] 96 constant cc-filesz-offset
+[lit] 104 constant cc-memsz-offset
+
+\ cc-emit-elf-header ( -- )  Emit the 120-byte header at start of cc-out-buf.
+\ p_filesz left at 0 (patched in cc-finalize-elf).
+: cc-emit-elf-header
+  \ e_ident: 7F 45 4C 46 (magic), class=2, data=1, version=1, osabi=0, pad=8
+  [lit] 127 cc-emit-byte [lit]  69 cc-emit-byte
+  [lit]  76 cc-emit-byte [lit]  70 cc-emit-byte
+  [lit]   2 cc-emit-byte [lit]   1 cc-emit-byte [lit]   1 cc-emit-byte
+  [lit]   0 cc-emit-byte
+  [lit]   0 cc-emit-byte [lit]   0 cc-emit-byte [lit]   0 cc-emit-byte [lit]   0 cc-emit-byte
+  [lit]   0 cc-emit-byte [lit]   0 cc-emit-byte [lit]   0 cc-emit-byte [lit]   0 cc-emit-byte
+  \ e_type=2 (ET_EXEC), e_machine=0x3E (AMD64) — both 16-bit LE
+  [lit] 2 cc-emit-byte [lit] 0 cc-emit-byte
+  [lit] 62 cc-emit-byte [lit] 0 cc-emit-byte
+  \ e_version (32-bit LE)
+  [lit] 1 cc-emit-4le
+  \ e_entry (64-bit LE) = 0x400078
+  cc-entry-vaddr cc-emit-8le
+  \ e_phoff = 64
+  [lit] 64 cc-emit-8le
+  \ e_shoff = 0
+  [lit] 0 cc-emit-8le
+  \ e_flags
+  [lit] 0 cc-emit-4le
+  \ e_ehsize=64, e_phentsize=56, e_phnum=1, then 6 bytes of zero
+  [lit] 64 cc-emit-byte [lit] 0 cc-emit-byte
+  [lit] 56 cc-emit-byte [lit] 0 cc-emit-byte
+  [lit]  1 cc-emit-byte [lit] 0 cc-emit-byte
+  [lit]  0 cc-emit-byte [lit] 0 cc-emit-byte
+  [lit]  0 cc-emit-byte [lit] 0 cc-emit-byte
+  [lit]  0 cc-emit-byte [lit] 0 cc-emit-byte
+  \ Program header (56 bytes, one PT_LOAD):
+  [lit] 1 cc-emit-4le                            \ p_type = PT_LOAD
+  [lit] 7 cc-emit-4le                            \ p_flags = R|W|X
+  [lit] 0 cc-emit-8le                            \ p_offset = 0
+  cc-base-vaddr cc-emit-8le                      \ p_vaddr = 0x400000
+  cc-base-vaddr cc-emit-8le                      \ p_paddr = 0x400000
+  [lit] 0 cc-emit-8le                            \ p_filesz (patched later)
+  [lit] 81920 cc-emit-8le                        \ p_memsz = 0x14000
+  [lit] 4096 cc-emit-8le ;                       \ p_align = 0x1000
+
+\ cc-bss-size ( -- a )  Bytes of zeroed memory the program needs after its
+\ file image (its bss, 090-cc-emit.fth); cc-finalize-globals sets it.
+variable cc-bss-size
+
+\ cc-finalize-elf ( -- )  After codegen, patch p_filesz to current cc-out-pos.
+\ We patch only the low 4 bytes — our outputs are well under 4 GiB and the
+\ high 4 bytes were already emitted as zero.  p_memsz covers the file image
+\ plus the bss; it keeps the 0x14000 it was emitted with unless that is
+\ too small (otherwise large outputs like the M2-Planet monolith — well
+\ past the 0x14000 default — would produce an invalid ELF that the kernel
+\ won't load correctly).  Small outputs keep the 0x14000 minimum as
+\ headroom past their file image.
+: cc-finalize-elf
+  cc-out-pos @ cc-filesz-offset cc-out-patch-4le
+  cc-out-pos @ cc-bss-size @ +                   ( memsz )
+  dup [lit] 81920 > if,
+    cc-memsz-offset cc-out-patch-4le
+  else,
+    drop
+  then, ;
+```
+
+The output's virtual-address layout is identical to the seed's: base
+at `0x400000` (Linux's traditional ELF load address), entry at
+`0x400078` (right past the 120-byte ehdr+phdr block).  The single
+PT_LOAD segment maps file bytes 0 through `p_filesz` to vaddrs
+`0x400000` through `0x400000 + p_filesz`, with zero-filled memory up
+to `p_memsz`, the same BSS-style headroom the seed uses.
+
+Because file offset and address differ only by that base, the
+compiler can name the address of whatever it emits next:
+`cc-here-vaddr` is `cc-base-vaddr` plus `cc-out-pos`.  Every jump
+target, function entry, label and string address in Chs 28–31 is
+read from it.
+
+The flags `R|W|X = 7` put code and data in one writable, executable
+segment, so there is no separate `.data` program header.  By modern
+standards this is wasteful (the kernel can't mark code pages
+read-only), but it costs one phdr instead of two: 56 bytes saved, and
+one cursor for both code and data.
+
+`cc-emit-elf-header` writes the 120 bytes top to bottom, with every
+magic number literal in the source.  The fields follow `Elf64_Ehdr`:
+`e_ident` (16 bytes of identification), `e_type` (2), `e_machine`
+(2), `e_version` (4), `e_entry` (8), `e_phoff` (8), `e_shoff` (8,
+zeroed because there are no section headers), `e_flags` (4),
+`e_ehsize` (2), `e_phentsize` (2), `e_phnum` (2), then 6 zeroed bytes
+of `e_shentsize/e_shnum/e_shstrndx`.  The program header at file
+offset 64 follows: `p_type = PT_LOAD = 1`, `p_flags = R|W|X = 7`, then
+`p_offset`, `p_vaddr`, `p_paddr`, `p_filesz`, `p_memsz`, `p_align`.
+
+`p_filesz` is the one field the header cannot know when it is
+written, because no code exists yet.  So the header writes `0`, the
+offset (96) is a constant, and `cc-finalize-elf` patches in
+`cc-out-pos` at the end: Ch 11's emit-remember-patch pattern, applied
+to a file-size field instead of a branch target.
+
+`p_memsz` defaults to `81920 = 0x14000`, so the segment is mapped at
+80 KiB even when the file is smaller, and the kernel zero-fills
+everything past the file image.  `p_memsz` counts the file image too:
+a 10 KiB program gets 70 KiB of zeroed headroom, not 80.
+
+That zero-filled tail is also where a program's global *arrays* live:
+its *bss*.  They start zeroed, so they need memory but no bytes in the
+file.  `cc-bss-size`, which Ch 26's `cc-finalize-globals` sets, is how
+much the program needs past the file image, and `cc-finalize-elf`
+makes `p_memsz` the file image plus that, if the sum is past the
+default.  The compiled M2-Planet has no global arrays and is about
+202 KB, well under the 1 MiB `cc-out-cap` but past the default, and
+would otherwise get a `p_memsz` smaller than its `p_filesz`, an
+invalid ELF the kernel refuses.  The compiled pnut is 151 KB of file and a 4.6 MB
+bss (its string pool, heap and code buffer are global arrays), so its
+segment is mostly zeroes the kernel supplies.
+
+## 2. `090-cc-emit.fth`, part 1: register convention
+
+```forth file=cc/090-cc-emit.fth
+\ 090-cc-emit.fth — code-emission helpers for the C-subset compiler.
+\ Builds tiny instruction-encoders on top of cc-emit-byte / cc-emit-4le from
+\ 030-cc-io.fth.  All output goes to cc-out-buf; nothing here touches the seed's
+\ HERE pointer.
+\
+\ Register convention for the compiled code:
+\   rdi  — scratch / current expression result
+\   rcx  — temp for binary-op right operand
+\   rax  — used by idiv (low quotient/remainder); also by SYS-V return
+\   rbp  — frame base; locals at [rbp - 8*(slot+1)]
+\
+\ Depends on 020-cc-arena.fth (cc-die, cc-check-cap, cc-alloc) and
+\ 030-cc-io.fth (cc-emit-byte, cc-emit-4le, cell[]).  cc-decode-escape comes
+\ from 050-cc-lex.fth.
+
+```
+
+The file header fixes the register convention.  Four registers have
+fixed roles in compiled code: `rdi` (current expression result),
+`rcx` (binary-op right operand), `rax` (`idiv` and the SYS-V return
+value), `rbp` (frame base).  Locals live at `[rbp - 8*(slot+1)]`.
+Everything else (`rsi`, `rdx`, `r8`–`r15`) is scratch unless a
+specific encoder claims it.
+
+The convention is deliberately rigid.  A register allocator could
+keep more values in registers, but the simplest expression evaluator
+pushes intermediates to the machine stack and pops them when needed.
+The parser's binary-op pattern is "evaluate left into `rdi`, push,
+evaluate right into `rdi`, move it to `rcx`, pop the left back into
+`rdi`, apply the operator."
+
+## 3. Stack ops and immediate loads
+
+```forth file=cc/090-cc-emit.fth
+\ ===========================================================================
+\ Immediate-load instructions (REX.W + C7 /0 + imm32)
+\ ===========================================================================
+
+\ cc-emit-mov-rdi-imm32 ( v -- )   48 C7 C7 <imm32>
+: cc-emit-mov-rdi-imm32
+  [lit]  72 cc-emit-byte
+  [lit] 199 cc-emit-byte
+  [lit] 199 cc-emit-byte
+  cc-emit-4le ;
+
+\ ===========================================================================
+\ Stack ops
+\ ===========================================================================
+
+\ Optional compile-time accounting; native defaults emit no extra bytes.
+: cc-emit-track-noop ;
+defer cc-emit-track-push-fwd
+defer cc-emit-track-pop-fwd
+' cc-emit-track-noop is cc-emit-track-push-fwd
+' cc-emit-track-noop is cc-emit-track-pop-fwd
+
+\ push rdi: 0x57
+: cc-emit-push-rdi  cc-emit-track-push-fwd [lit]  87 cc-emit-byte ;
+
+\ pop rdi:  0x5F
+: cc-emit-pop-rdi   cc-emit-track-pop-fwd [lit]  95 cc-emit-byte ;
+
+\ pop rsi:  0x5E
+: cc-emit-pop-rsi   cc-emit-track-pop-fwd [lit]  94 cc-emit-byte ;
+
+\ pop rdx:  0x5A
+: cc-emit-pop-rdx   cc-emit-track-pop-fwd [lit]  90 cc-emit-byte ;
+
+\ pop rcx:  0x59
+: cc-emit-pop-rcx   cc-emit-track-pop-fwd [lit]  89 cc-emit-byte ;
+
+\ pop r8:   0x41 0x58  (REX.B + pop)
+: cc-emit-pop-r8    cc-emit-track-pop-fwd [lit]  65 cc-emit-byte [lit]  88 cc-emit-byte ;
+
+\ pop r9:   0x41 0x59
+: cc-emit-pop-r9    cc-emit-track-pop-fwd [lit]  65 cc-emit-byte [lit]  89 cc-emit-byte ;
+
+\ push rbx (0x53) / pop rbx (0x5B).  Used by switch to preserve the outer
+\ value of rbx across the switch (which uses rbx to hold the scrutinee).
+: cc-emit-push-rbx  [lit]  83 cc-emit-byte ;
+: cc-emit-pop-rbx   [lit]  91 cc-emit-byte ;
+
+```
+
+`cc-emit-mov-rdi-imm32` is the immediate loader: `48 C7 C7 <imm32>`,
+7 bytes.  REX.W (`48`) is the 64-bit operand-size prefix, and `C7 /0`
+is "MOV r/m64, imm32" with ModR/M selecting `rdi`.  The CPU
+sign-extends the imm32 to 64 bits, so this only works for values that
+fit in 32 signed bits; `cc-emit-movabs-rdi-imm64` (Ch 26) handles the
+larger case.
+
+The stack ops are one byte per push or pop for each register the
+compiler uses, plus two-byte REX.B-prefixed variants for `r8`/`r9`
+(the extended registers added in x86-64).
+
+## 4. Local-variable addressing
+
+Locals are addressed as `[rbp - 8*(slot+1)]`.  This section holds the
+encoders; Ch 26 and the parser chapters use them.
+
+```forth file=cc/090-cc-emit.fth
+\ ===========================================================================
+\ Local-variable access
+\ ===========================================================================
+\ Locals live at [rbp - 8*(slot+1)].  Slots 0..15 have displacements
+\ -8..-128, which fit a signed disp8 (ModR/M mod=01); deeper slots need the
+\ disp32 form (mod=10).  cc-emit-local-ea picks the right one per slot.
+\ Note: the frame itself is fixed at 256 bytes = 32 slots (cc-frame-slots in
+\ 110-cc-decl.fth, which dies rather than hand out a 33rd) — the encoding
+\ handles any slot; the frame does not.
+\
+\ cc-disp8-from-slot ( slot -- byte )
+\   = (256 - 8*(slot+1)) AND 255 = the unsigned-byte representation of the
+\   signed displacement -8*(slot+1).  Only valid for slots 0..15.
+
+: cc-disp8-from-slot
+  1+ [lit] 8 *                                   \ 8 * (slot+1)
+  [lit] 0 swap -                                  \ negate
+  [lit] 255 and ;                                 \ low byte
+
+\ cc-emit-local-ea ( slot modrm8 -- )
+\   Emit the ModR/M byte + displacement for [rbp + disp] access to a local
+\   slot.  modrm8 is the mod=01 (disp8) form of the ModR/M byte.  Slots
+\   0..15 emit it unchanged plus a disp8; deeper slots switch to mod=10
+\   (modrm8 + 0x40) plus the 32-bit two's-complement displacement.
+: cc-emit-local-ea
+  over [lit] 16 < >r over [lit] 0 [lit] 16 - >= r> and if,
+    cc-emit-byte
+    cc-disp8-from-slot cc-emit-byte
+  else,
+    [lit] 64 + cc-emit-byte                       \ mod=01 -> mod=10
+    1+ [lit] 8 *                                  \ 8 * (slot+1)
+    [lit] 0 swap - cc-emit-4le                    \ negate; low 4 bytes = disp32
+  then, ;
+
+\ mov rdi, [rbp + disp]:  48 8B 7D <disp8>  (or 48 8B BD <disp32>)
+: cc-emit-load-local                              ( slot -- )
+  [lit]  72 cc-emit-byte
+  [lit] 139 cc-emit-byte
+  [lit] 125 cc-emit-local-ea ;
+
+\ mov [rbp + disp], rdi:  48 89 7D <disp8>  (or 48 89 BD <disp32>)
+: cc-emit-store-local                             ( slot -- )
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit] 125 cc-emit-local-ea ;
+
+```
+
+`cc-disp8-from-slot` converts a slot to the 8-bit two's-complement
+byte that ModR/M's `disp8` field wants: slot 0 → -8 → 248, slot 1 →
+-16 → 240, slot 2 → -24 → 232, and so on.
+
+Slots 0..15 keep the displacement in signed-byte range (-128..-8).
+Past that the encoding needs `disp32`: ModR/M mod=10 instead of
+mod=01, and a four-byte displacement instead of one.
+`cc-emit-local-ea` makes the choice per slot.  It takes the disp8-form
+ModR/M byte and either emits it with `cc-disp8-from-slot`'s byte, or
+adds 0x40 (mod=01 → mod=10) and emits the 32-bit two's-complement
+displacement.  M2-Planet's functions never exceed 16 slots, so its
+compiled output is all-disp8.  The frame does not grow to match the
+encoding, though: the parser always asks `cc-emit-prologue` for a
+fixed 256 bytes, so only 32 slots exist per function.
+
+`cc-emit-load-local` and `cc-emit-store-local` are `48 8B` and `48 89`
+followed by `cc-emit-local-ea`: four bytes apiece in the disp8 case.
+The next group applies the same ModR/M arithmetic to address-of,
+dereference, and pointer arithmetic:
+
+```forth file=cc/090-cc-emit.fth
+\ lea rdi, [rbp + disp]:  48 8D 7D <disp8>  (or 48 8D BD <disp32>)
+\ ModR/M(mod=01, reg=rdi=7, rm=rbp=5) = 0x7D.  Loads the *address* of the local
+\ slot into rdi (used to implement `&local`).
+: cc-emit-lea-rdi-local                           ( slot -- )
+  [lit]  72 cc-emit-byte
+  [lit] 141 cc-emit-byte
+  [lit] 125 cc-emit-local-ea ;
+
+\ mov rdi, [rdi]:  48 8B 3F
+\ ModR/M(mod=00, reg=rdi=7, rm=rdi=7) = 0x3F.  Loads the qword at the address
+\ currently in rdi into rdi (dereference).
+: cc-emit-load-via-rdi
+  [lit]  72 cc-emit-byte
+  [lit] 139 cc-emit-byte
+  [lit]  63 cc-emit-byte ;
+
+\ movzx rdi, BYTE PTR [rdi]:  48 0F B6 3F
+\ Zero-extends a single byte from [rdi] into rdi.  Used by `s[i]` rvalue use
+\ where s is `char*` (or any other byte-element access path).
+: cc-emit-load-byte-via-rdi
+  [lit]  72 cc-emit-byte
+  [lit]  15 cc-emit-byte
+  [lit] 182 cc-emit-byte
+  [lit]  63 cc-emit-byte ;
+
+\ movzx edi, dil:  40 0F B6 FF
+\ Keeps only rdi's low byte (writing edi clears the upper half of rdi).
+\ REX=0x40 selects dil rather than bh.  Used by a (char) cast.
+: cc-emit-zx-byte-rdi
+  [lit]  64 cc-emit-byte
+  [lit]  15 cc-emit-byte
+  [lit] 182 cc-emit-byte
+  [lit] 255 cc-emit-byte ;
+
+\ mov [rcx], rdi:  48 89 39
+\ ModR/M(mod=00, reg=rdi=7, rm=rcx=1) = 0x39.  Stores rdi to the qword address
+\ in rcx (assignment via dereference).
+: cc-emit-store-via-rcx
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit]  57 cc-emit-byte ;
+
+\ mov BYTE PTR [rcx], dil:  40 88 39
+\ Stores the low byte of rdi to [rcx].  REX=0x40 is needed to select dil
+\ instead of bh.  Used by `s[i] = c;` where s is char*.
+: cc-emit-store-byte-via-rcx
+  [lit]  64 cc-emit-byte
+  [lit] 136 cc-emit-byte
+  [lit]  57 cc-emit-byte ;
+
+\ shl rdi, imm8:  48 C1 E7 <imm8>
+\ ModR/M(mod=11, reg=/4 = SHL, rm=rdi=7) = 11_100_111 = 0xE7.  Multiplies rdi
+\ by 2^imm8 (used to scale array index by sizeof(T) when T is 8 bytes).
+: cc-emit-shl-rdi-imm8                            ( imm8 -- )
+  [lit]  72 cc-emit-byte
+  [lit] 193 cc-emit-byte
+  [lit] 231 cc-emit-byte
+  cc-emit-byte ;
+
+\ Convenience: rdi <<= 3 (multiply by 8 = sizeof(int)/sizeof(ptr)).
+: cc-emit-shl-rdi-3   [lit] 3 cc-emit-shl-rdi-imm8 ;
+
+\ add rdi, imm32:  48 81 C7 <imm32>
+\ ModR/M(mod=11, reg=/0 = ADD, rm=rdi=7) = 11_000_111 = 0xC7.  Used to bias
+\ a struct base/pointer in rdi by a field offset.  imm32 is sign-extended.
+: cc-emit-add-rdi-imm32                           ( imm32 -- )
+  [lit]  72 cc-emit-byte
+  [lit] 129 cc-emit-byte
+  [lit] 199 cc-emit-byte
+  cc-emit-4le ;
+
+```
+
+`cc-emit-lea-rdi-local` loads a local's address (`48 8D 7D <disp8>`).
+`cc-emit-load-via-rdi`, `cc-emit-load-byte-via-rdi`,
+`cc-emit-store-via-rcx` and `cc-emit-store-byte-via-rcx` are the
+dereference patterns, three or four bytes each.  The comments give the
+ModR/M arithmetic; read one and you can predict the rest.
+`cc-emit-zx-byte-rdi` is the odd one out: it loads nothing, it keeps
+only `rdi`'s low byte, which is what a `(char)` cast does (Ch 29).
+
+`cc-emit-shl-rdi-imm8` and `cc-emit-add-rdi-imm32` are
+pointer-arithmetic primitives: shift left for array indexing
+(multiply by `sizeof(T)`), add an immediate for a struct field offset.
+The section ends with the words that spill arguments into local slots
+and call through a function pointer:
+
+```forth file=cc/090-cc-emit.fth
+\ Param-spill helpers: store the SYS-V argument register holding the i'th
+\ argument into local slot i.  Each one is `mov [rbp + disp8], <reg>`.
+\ ModR/M byte: mod=01 (disp8), rm=rbp(=5).  reg field varies per source reg.
+\ REX byte is 48 (W only) for rsi/rdx/rcx, 4C (W+R) for r8/r9.
+\
+\   reg=rsi(6): 01_110_101 = 0x75
+\   reg=rdx(2): 01_010_101 = 0x55
+\   reg=rcx(1): 01_001_101 = 0x4D
+\   reg=r8 (0 with R bit): 01_000_101 = 0x45
+\   reg=r9 (1 with R bit): 01_001_101 = 0x4D
+
+: cc-emit-store-local-from-rsi                    ( slot -- )
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit] 117 cc-emit-local-ea ;                    \ 0x75
+
+: cc-emit-store-local-from-rdx                    ( slot -- )
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit]  85 cc-emit-local-ea ;                    \ 0x55
+
+: cc-emit-store-local-from-rcx                    ( slot -- )
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit]  77 cc-emit-local-ea ;                    \ 0x4D
+
+: cc-emit-store-local-from-r8                     ( slot -- )
+  [lit]  76 cc-emit-byte                          \ REX.W+R = 0x4C
+  [lit] 137 cc-emit-byte
+  [lit]  69 cc-emit-local-ea ;                    \ 0x45
+
+: cc-emit-store-local-from-r9                     ( slot -- )
+  [lit]  76 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit]  77 cc-emit-local-ea ;                    \ 0x4D
+
+\ mov rax, [rbp + disp]:  48 8B 45 <disp8>  (or 48 8B 85 <disp32>)
+\ ModR/M(mod=01, reg=rax=0, rm=rbp=5) = 01_000_101 = 0x45.  Used to load a
+\ function-pointer local into rax just before an indirect `call rax` — keeps
+\ rdi/rsi/etc. (already loaded with SYS-V args) untouched.
+: cc-emit-load-local-into-rax                     ( slot -- )
+  [lit]  72 cc-emit-byte
+  [lit] 139 cc-emit-byte
+  [lit]  69 cc-emit-local-ea ;                    \ 0x45
+
+\ call rax:  FF D0   (no REX needed; rax = reg 0).
+\ ModR/M(mod=11, reg=/2 = CALL r/m64, rm=rax=0) = 11_010_000 = 0xD0.
+: cc-emit-call-rax
+  [lit] 255 cc-emit-byte
+  [lit] 208 cc-emit-byte ;
+
+```
+
+The param-spill helpers (`cc-emit-store-local-from-rsi` and friends)
+are five variants of `mov [rbp+disp8], <reg>` for the SYS-V argument
+registers.  They sit with the locals because they target the same
+`[rbp+disp8]` locations; Ch 31's `cc-parse-function` uses them right
+after the prologue.
+
+`cc-emit-load-local-into-rax` serves indirect calls: it loads a
+function-pointer local into `rax`, leaving the argument registers
+(already loaded with the call's arguments in `rdi`, `rsi`, …) intact.
+`cc-emit-call-rax` then dispatches.
+
+## 5. Register-to-register moves, ALU, and prologue/epilogue
+
+```forth file=cc/090-cc-emit.fth
+\ ===========================================================================
+\ Register-to-register moves
+\ ===========================================================================
+\ ADD/SUB/IMUL r/m64, r64 has reg-field=src, rm-field=dst.  We use rdi as the
+\ destination accumulator and rcx for the right-operand temp.
+
+\ mov rcx, rdi:  48 89 F9     (89 /r, mod=11 reg=rdi=7 rm=rcx=1 -> 11_111_001 = F9)
+: cc-emit-mov-rcx-rdi
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit] 249 cc-emit-byte ;
+
+\ mov rax, rdi:  48 89 F8     (mod=11 reg=rdi=7 rm=rax=0 -> 11_111_000 = F8)
+: cc-emit-mov-rax-rdi
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit] 248 cc-emit-byte ;
+
+\ mov rdi, rax:  48 89 C7     (mod=11 reg=rax=0 rm=rdi=7 -> 11_000_111 = C7)
+\ Used after a function call to transfer the SYS-V return value into our
+\ scratch rdi so the rest of the expression machinery sees it.
+: cc-emit-mov-rdi-rax
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit] 199 cc-emit-byte ;
+
+\ mov rbx, rdi:  48 89 FB   (89 /r, mod=11 reg=rdi=7 rm=rbx=3 -> 11_111_011 = FB)
+\ Used at switch entry to stash the scrutinee in a callee-saved register so
+\ it survives across case-body codegen (including any function calls).
+: cc-emit-mov-rbx-rdi
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit] 251 cc-emit-byte ;
+
+\ cmp rbx, imm32:  48 81 FB <imm32>   (81 /7, mod=11 /7=111 rm=rbx=3 -> FB)
+\ Used by switch dispatch to compare the saved scrutinee against each case
+\ constant.  Sets ZF iff rbx == imm32.  imm32 is sign-extended to 64 bits.
+: cc-emit-cmp-rbx-imm32                           ( v -- )
+  [lit]  72 cc-emit-byte
+  [lit] 129 cc-emit-byte
+  [lit] 251 cc-emit-byte
+  cc-emit-4le ;
+
+\ xor rax, rax:  48 31 C0     (zero rax in 3 bytes; for implicit return).
+: cc-emit-xor-rax-rax
+  [lit]  72 cc-emit-byte
+  [lit]  49 cc-emit-byte
+  [lit] 192 cc-emit-byte ;
+
+```
+
+Four register-to-register moves (`mov rcx, rdi`, `mov rax, rdi`,
+`mov rdi, rax`, `mov rbx, rdi`) sit alongside `cmp rbx, imm32` and
+`xor rax, rax`.  Each move is 3 bytes (`48 89 <ModR/M>`); `cmp rbx,
+imm32` is `48 81 <ModR/M> <imm32>`.  `xor rax, rax` is the standard
+3-byte register-zeroing idiom, shorter than `mov rax, 0`.
+
+```forth file=cc/090-cc-emit.fth
+\ ===========================================================================
+\ ALU on rdi using rcx as the right operand
+\ ===========================================================================
+\ The binary-op pattern emitted by the parser is:
+\     <eval left>          ; rdi = left
+\     push rdi
+\     <eval right>         ; rdi = right
+\     mov rcx, rdi         ; rcx = right
+\     pop rdi              ; rdi = left
+\     <op> rdi, rcx        ; rdi = left <op> right
+\
+\ ADD r/m64, r64 (0x01 /r): rm=dst, reg=src.
+\   add rdi, rcx -> mod=11 reg=rcx=1 rm=rdi=7 -> 11_001_111 = 0xCF
+: cc-emit-add-rdi-rcx
+  [lit]  72 cc-emit-byte
+  [lit]   1 cc-emit-byte
+  [lit] 207 cc-emit-byte ;
+
+\ SUB r/m64, r64 (0x29 /r): same encoding shape.
+\   sub rdi, rcx -> 0xCF
+: cc-emit-sub-rdi-rcx
+  [lit]  72 cc-emit-byte
+  [lit]  41 cc-emit-byte
+  [lit] 207 cc-emit-byte ;
+
+\ IMUL r64, r/m64 (0x0F AF /r): reg=dst, rm=src (NOTE the operand order is
+\ flipped from add/sub).
+\   imul rdi, rcx -> mod=11 reg=rdi=7 rm=rcx=1 -> 11_111_001 = 0xF9
+: cc-emit-imul-rdi-rcx
+  [lit]  72 cc-emit-byte
+  [lit]  15 cc-emit-byte
+  [lit] 175 cc-emit-byte
+  [lit] 249 cc-emit-byte ;
+
+\ Signed division: idiv divides rdx:rax by r/m64, leaving quotient in rax,
+\ remainder in rdx.  We want rdi := rdi / rcx (or rdi % rcx).  Sequence:
+\     mov rax, rdi      ; 48 89 F8
+\     cqo               ; 48 99            (sign-extend rax into rdx)
+\     idiv rcx          ; 48 F7 F9         (F7 /7, mod=11 rm=rcx=1 -> 11_111_001=0xF9)
+\     mov rdi, rax|rdx  ; 48 89 C7 (rax) or 48 89 D7 (rdx)
+: cc-emit-idiv-quotient
+  [lit]  72 cc-emit-byte [lit] 137 cc-emit-byte [lit] 248 cc-emit-byte
+  [lit]  72 cc-emit-byte [lit] 153 cc-emit-byte
+  [lit]  72 cc-emit-byte [lit] 247 cc-emit-byte [lit] 249 cc-emit-byte
+  [lit]  72 cc-emit-byte [lit] 137 cc-emit-byte [lit] 199 cc-emit-byte ;
+
+: cc-emit-idiv-remainder
+  [lit]  72 cc-emit-byte [lit] 137 cc-emit-byte [lit] 248 cc-emit-byte
+  [lit]  72 cc-emit-byte [lit] 153 cc-emit-byte
+  [lit]  72 cc-emit-byte [lit] 247 cc-emit-byte [lit] 249 cc-emit-byte
+  [lit]  72 cc-emit-byte [lit] 137 cc-emit-byte [lit] 215 cc-emit-byte ;
+
+```
+
+The ALU section covers `add`, `sub`, `imul`, and signed `idiv` in two
+flavours (`cc-emit-idiv-quotient` for `/`, `cc-emit-idiv-remainder`
+for `%`).  `idiv` is the long one at eleven bytes: `mov rax, rdi` to
+put the dividend in place, `cqo` to sign-extend `rax` into `rdx:rax`,
+`idiv rcx`, then either `mov rdi, rax` (quotient) or `mov rdi, rdx`
+(remainder).
+
+```forth file=cc/090-cc-emit.fth
+\ ===========================================================================
+\ Function prologue / epilogue
+\ ===========================================================================
+\ Prologue:  push rbp ; mov rbp, rsp ; sub rsp, imm32
+\ Epilogue:  mov rsp, rbp ; pop rbp ; ret
+
+: cc-emit-prologue                                ( frame-bytes -- )
+  [lit]  85 cc-emit-byte                          \ push rbp
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit] 229 cc-emit-byte                          \ mov rbp, rsp
+  [lit]  72 cc-emit-byte
+  [lit] 129 cc-emit-byte
+  [lit] 236 cc-emit-byte                          \ sub rsp, imm32 prefix
+  cc-emit-4le ;
+
+: cc-emit-restore-noop ;
+defer cc-emit-restore-callee-fwd
+' cc-emit-restore-noop is cc-emit-restore-callee-fwd
+
+: cc-emit-epilogue
+  cc-emit-restore-callee-fwd
+  [lit]  72 cc-emit-byte
+  [lit] 137 cc-emit-byte
+  [lit] 236 cc-emit-byte                          \ mov rsp, rbp
+  [lit]  93 cc-emit-byte                          \ pop rbp
+  [lit] 195 cc-emit-byte ;                        \ ret
+
+```
+
+`cc-emit-prologue` and `cc-emit-epilogue` are the standard SYS-V
+AMD64 frame builders.  The prologue is `push rbp ; mov rbp, rsp ; sub
+rsp, <frame-bytes>`: 1 + 3 + 7 = 11 bytes, where the `sub` carries a
+4-byte immediate behind a 3-byte opcode prefix.  The epilogue is `mov
+rsp, rbp ; pop rbp ; ret`, 5 bytes.  The prologue takes a frame size,
+but the parser never computes one.  Ch 31's `cc-parse-function` emits
+the prologue before it has seen the body's locals, so it always
+passes 256, the 32-slot frame from §4.
+
+## 6. Comparisons and conditional set
+
+```forth file=cc/090-cc-emit.fth
+\ ===========================================================================
+\ Comparisons: set rdi to 0 or 1 based on signed comparison of left/right.
+\ ===========================================================================
+\ The binary-op pattern (same as ALU) leaves rdi=left, rcx=right.  Each helper
+\ emits 12 bytes:
+\     xor rax, rax     48 31 C0
+\     cmp rdi, rcx     48 39 CF      (sets flags from rdi - rcx = left - right)
+\     setX al          0F 9X C0      (X = 4=E, 5=NE, C=L, D=GE, E=LE, F=G)
+\     mov rdi, rax     48 89 C7
+\
+\ cc-emit-cmp-set ( setX-opcode -- )  Common tail; caller passes the second
+\ byte of the setcc opcode (0x94, 0x95, 0x9C, 0x9D, 0x9E, 0x9F).
+: cc-emit-cmp-set
+  [lit]  72 cc-emit-byte [lit]  49 cc-emit-byte [lit] 192 cc-emit-byte   \ xor rax,rax
+  [lit]  72 cc-emit-byte [lit]  57 cc-emit-byte [lit] 207 cc-emit-byte   \ cmp rdi,rcx
+  [lit]  15 cc-emit-byte                                                  \ 0F prefix
+  cc-emit-byte                                                            \ setX opcode
+  [lit] 192 cc-emit-byte                                                  \ ModR/M for AL
+  [lit]  72 cc-emit-byte [lit] 137 cc-emit-byte [lit] 199 cc-emit-byte ; \ mov rdi,rax
+
+: cc-emit-cmp-eq  [lit] 148 cc-emit-cmp-set ;     \ 0x94 setE
+: cc-emit-cmp-ne  [lit] 149 cc-emit-cmp-set ;     \ 0x95 setNE
+: cc-emit-cmp-lt  [lit] 156 cc-emit-cmp-set ;     \ 0x9C setL
+: cc-emit-cmp-ge  [lit] 157 cc-emit-cmp-set ;     \ 0x9D setGE
+: cc-emit-cmp-le  [lit] 158 cc-emit-cmp-set ;     \ 0x9E setLE
+: cc-emit-cmp-gt  [lit] 159 cc-emit-cmp-set ;     \ 0x9F setG
+
+```
+
+`cc-emit-cmp-set` is the shared tail for all six comparisons: the
+12-byte `xor`/`cmp`/`setX`/`mov` sequence spelled out in its header
+comment.  `rax` is cleared first because `setX al` writes only the low
+byte, and the final `mov` must carry a clean 0 or 1 into `rdi`.
+
+The six `cc-emit-cmp-*` words differ only in the second byte of the
+`setX` opcode: `0x94` (setE), `0x95` (setNE), `0x9C` (setL), `0x9D`
+(setGE), `0x9E` (setLE), `0x9F` (setG).  The signed variants
+(`setL`/`setGE`/`setLE`/`setG`) give C's `<`, `>=`, `<=`, `>` their
+signed-integer semantics for `int`.
+
+The result is a clean 0/1 boolean, not the seed Forth's `-1/0`, and
+Ch 27's `&&` / `||` short-circuit codegen relies on that.  This is the
+one place where the two conventions sit side by side.  Forth, by
+tradition and by the seed's `0=` primitive (Ch 15), uses **`-1` (all
+bits set) for true and `0` for false**, so a flag can be fed back into
+`nand` bitwise.  The compiled C must match ISO C, so it uses **`1` for
+true and `0` for false**; the `setcc al; mov rdi, rax` sequence
+guarantees `rdi ∈ {0,1}` after every relational operator.  The two
+never meet at run time.  Forth flags are produced by the Forth REPL and
+consumed by `if,` / `0branch`; C booleans are produced by emitted
+machine code and consumed by emitted `test rdi, rdi; jz` sequences.
+Keep the boundary in mind only if you ever read compiled output
+alongside Forth code while debugging.
+
+## 7. Branches and `rel32` placeholders
+
+```forth file=cc/090-cc-emit.fth
+\ ===========================================================================
+\ Conditional / unconditional branches with rel32 fixups.
+\ ===========================================================================
+
+\ test rdi, rdi  -> 48 85 FF  (sets ZF=1 iff rdi == 0).
+: cc-emit-test-rdi
+  [lit]  72 cc-emit-byte
+  [lit] 133 cc-emit-byte
+  [lit] 255 cc-emit-byte ;
+
+\ cc-emit-jz-rel32-placeholder ( -- patch-offset )
+\ Emits `0F 84 00 00 00 00`; returns the file-offset of the rel32 cell
+\ so the caller can later patch it with cc-patch-rel32-to-here.
+: cc-emit-jz-rel32-placeholder
+  [lit]  15 cc-emit-byte
+  [lit] 132 cc-emit-byte
+  cc-out-pos @
+  [lit] 0 cc-emit-4le ;
+
+\ cc-emit-jmp-rel32-placeholder ( -- patch-offset )
+\ Emits `E9 00 00 00 00`; returns the rel32 file-offset.
+: cc-emit-jmp-rel32-placeholder
+  [lit] 233 cc-emit-byte
+  cc-out-pos @
+  [lit] 0 cc-emit-4le ;
+
+\ cc-emit-call-rel32-placeholder ( -- patch-offset )
+\ Emits `E8 00 00 00 00`; returns the rel32 file-offset.  Used for forward
+\ function calls whose target vaddr is not yet known.  The caller threads the
+\ patch offset onto a fixup list attached to the callee's prototype symbol;
+\ the list is walked and patched when the function is later defined.
+: cc-emit-call-rel32-placeholder
+  [lit] 232 cc-emit-byte
+  cc-out-pos @
+  [lit] 0 cc-emit-4le ;
+
+\ cc-emit-jnz-rel32-placeholder ( -- patch-offset )
+\ Emits `0F 85 00 00 00 00`; returns the rel32 file-offset.  Used by `||`'s
+\ short-circuit fast-path: if LHS is non-zero, skip RHS and produce 1.
+: cc-emit-jnz-rel32-placeholder
+  [lit]  15 cc-emit-byte
+  [lit] 133 cc-emit-byte
+  cc-out-pos @
+  [lit] 0 cc-emit-4le ;
+
+\ cc-patch-rel32-to-here ( patch-offset -- )
+\ rel32 = current cc-out-pos - (patch-offset + 4).
+: cc-patch-rel32-to-here
+  cc-out-pos @                                    ( patch-off target-off )
+  over [lit] 4 + -                                ( patch-off rel32 )
+  swap cc-out-patch-4le ;
+
+\ NOTE: cc-emit-jmp-vaddr (which emits a backward unconditional jump to an
+\ absolute vaddr — needed for `while`/`for` loops) lives in 112-cc-stmt.fth
+\ alongside the loop constructs that use it, not here with the primitive
+\ encoders.  Both cc-base-vaddr and cc-out-pos are already available when this
+\ file loads, so the split is organizational, not a load-order dependency.
+
+```
+
+The branch encoders are the codegen form of Forth's `if,` (Ch 11):
+emit a jump with a placeholder displacement, remember where the
+placeholder went, fill in the value when the target is known.
+
+`cc-emit-jz-rel32-placeholder` emits `0F 84 00 00 00 00` and returns
+the offset of the four-byte rel32.  `cc-emit-jnz-rel32-placeholder`
+is the same with opcode `0F 85`.  `cc-emit-jmp-rel32-placeholder`
+emits `E9 00 00 00 00`, and `cc-emit-call-rel32-placeholder` emits
+`E8 00 00 00 00`.
+
+`cc-patch-rel32-to-here` reads `cc-out-pos`, computes `target -
+(patch-off + 4)` (the displacement counts from the byte after the
+rel32), and writes it with `cc-out-patch-4le`.
+
+The closing NOTE explains why backward jumps to an *absolute* vaddr
+(for `while`/`for` loops) live in `112-cc-stmt.fth` with the loop
+constructs.  The split is a layering choice (`090` holds primitive
+encoders, `112` statement-level control flow), not a load-order
+dependency.
+
+## 8. The shape of the rest
+
+Ch 26 picks up `090-cc-emit.fth` at line 421 with:
+- `movabs rdi, imm64` and its placeholder variant for
+  forward-declared function loads;
+- `cc-add-fixup-to-list` (the linked list of patch offsets that Ch 31
+  walks when a forward-declared function gets defined);
+- `cc-emit-string-bytes` (the string-literal escape decoder);
+- the eleven libc shims (`putchar` through `free`);
+- bitwise / shift / `inc-mem` / `dec-mem` / unary `!`;
+- global-data emission and global-vaddr fixups.
+
+All of it calls into the encoders defined here.
+
+## Try it
+
+**Small check:** the encoder probe below emits a few instructions,
+writes them to `/tmp/cc-out`, and disassembles the bytes.
+
+**Layer check:** there is no standalone root-level unit test for
+`090-cc-emit.fth`; the focused C fixtures under `tests/cc/G*.c`
+exercise these encoders through compiled programs.
+
+**Bootstrap relevance:** this chapter's ELF header and primitive
+encoders are covered by the Stage-A parity gate below.  One path parity
+cannot see has a gate of its own: `tests/cc/A-locals18.c` forces
+locals past slot 15, where the `[rbp + disp8]` encoding overflows
+and `cc-emit-local-ea` must switch to `disp32`.  M2-Planet's
+functions never reach that slot, so without the gate this encoder
+boundary would be untested.
+
+```sh
+./seed/build.sh
+tests/cc/stage-a-check.sh   # builds M2-Planet via cc-out and compares
+                            # the .M1 output to the GCC-built reference
+```
+
+If `stage-a-check.sh` passes, the codegen is producing byte-correct
+machine code at scale.
+
+To run the small check, drive the compiler from stdin with a
+one-shot Forth word that emits a few encoded instructions to a
+NUL-terminated path and writes the result.  `120-cc-main.fth` isn't
+loaded here, so the snippet defines its own `probe-path` with the
+same bytes as that file's `cc-out-path`: `/tmp/cc-out` plus a NUL.
+We don't use `s"`, since `s"` is not NUL-terminated and
+`cc-write-output` requires NUL termination:
+
+```sh
+./seed/build.sh
+{
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
+      cc/040-cc-prep.fth cc/050-cc-lex.fth \
+      cc/060-cc-types.fth cc/070-cc-sym.fth \
+      cc/080-cc-elf.fth cc/090-cc-emit.fth
+  cat <<'FORTH'
+    create probe-path
+    [lit]  47 c, [lit] 116 c, [lit] 109 c, [lit] 112 c,
+    [lit]  47 c, [lit]  99 c, [lit]  99 c, [lit]  45 c,
+    [lit] 111 c, [lit] 117 c, [lit] 116 c, [lit]   0 c,
+
+    : probe
+      cc-out-init  cc-emit-elf-header
+      [lit] 42 cc-emit-mov-rdi-imm32
+      cc-emit-push-rdi
+      cc-emit-add-rdi-rcx
+      probe-path cc-write-output
+      bye ;
+    probe
+FORTH
+} | ./seed-forth
+
+objdump -D -b binary -m i386:x86-64 -M intel /tmp/cc-out | tail -10
+```
+
+You should see `mov rdi, 0x2a ; push rdi ; add rdi, rcx` in the
+disassembly after the 120-byte ELF preamble.
+
+**tri.c at this stage:** compile the running example and read the
+header back:
+
+```sh
+./seed/build.sh
+{
+  cat forth/010-lib.fth $(cc/compiler-layers.sh)
+  cat <<'C'
+#define ROWS 4
+struct tri { int rows; int stars; };
+struct tri t;
+
+void line(int pad, int n) {
+    while (pad > 0) { putchar(' '); pad = pad - 1; }
+    while (n > 0) { putchar('*'); n = n - 1; }
+    putchar('\n');
+}
+
+int main() {
+    int w[ROWS];
+    int r;
+    t.rows = ROWS;
+    for (r = 0; r < t.rows; r = r + 1) {
+        w[r] = 1 + r * 2;
+        line(t.rows - 1 - r, w[r]);
+        t.stars = t.stars + w[r];
+    }
+    if (t.stars == ROWS * ROWS) return t.stars;
+    return 1;
+}
+C
+} | ./seed-forth
+readelf -l /tmp/cc-out | tail -n 4
+```
+
+```text
+  Type           Offset             VirtAddr           PhysAddr
+                 FileSiz            MemSiz              Flags  Align
+  LOAD           0x0000000000000000 0x0000000000400000 0x0000000000400000
+                 0x00000000000004d9 0x0000000000014000  RWE    0x1000
+```
+
+`FileSiz` is `0x4d9`, 1,241: the zero `cc-emit-elf-header` wrote
+at offset 96 was overwritten by `cc-finalize-elf` after the last
+byte of `t`'s storage went in.  `MemSiz` kept its default `0x14000`,
+since 1,241 is far below 81,920.  The first instruction after the
+header, at `0x400078`, is the entry stub's (Ch 31); `line` starts at
+`0x40020a` and `main` at `0x4002e2` with the same 11-byte prologue
+from §5, `push rbp; mov rbp, rsp; sub rsp, 0x100`.
+
+## Exercises
+
+1. **★ Trace.** `p_filesz` is written as 0 and patched at the end.
+   Suppose the compiler appended a section-header table after the
+   code (for `objdump -h`).  Which header fields could then only be
+   filled in at the end, at which file offsets, and would
+   `cc-finalize-elf` need anything beyond `cc-out-patch-4le`-style
+   patching to do it?
+
+2. **★★ Trace.** The single R-W-X segment is unusual.  Real-world ELFs separate
+   `.text` (R-X) from `.data` (R-W) for memory safety.  What
+   would adding a second program header cost in bytes and in
+   complexity?
+
+3. **★★ Verify.** Tabulate every instruction encoder by name and bytes-emitted.
+   Roughly how many distinct x86-64 instructions does this
+   codegen know?
+
+4. **★★★ Extend.** Add an `imul rax, rbx, imm32` encoder.  Where would it be
+   useful?  (Hint: scalar multiplication by a constant could
+   replace `mov rcx, imm ; imul rdi, rcx` for known constants.)
+
+5. **★★★ Modify.** The `cmp-set` helpers emit 12 bytes; a tighter encoding would
+   use `setX r/m8` directly into `dil` and `movzx rdi, dil`.
+   Estimate the saving and decide whether it's worth the code
+   change.
+
+## After this chapter
+
+The compiler can write executable bytes: a valid 120-byte ELF preamble
+is emitted up front, and the primitive encoders for `mov`,
+`push`/`pop`, ALU operations, frame-pointer addressing, comparisons
+and rel32 placeholders are in place.  Every byte before the first
+compiled instruction is now fixed, so from here on Stage-A parity is
+purely a matter of codegen.  Two things in `tri.c` still have no
+bytes: `putchar` has no libc to call, and `t` has no address until
+the code before it has ended.  Ch 26 supplies both.
+
+## Takeaways
+
+- The output ELF is a single R-W-X PT_LOAD at `0x400000` with no section headers, no relocations and no separate data segment, and `cc-finalize-elf` patches its size fields last.
+- Each x86-64 instruction the compiler emits has its own Forth word, so the opcode bytes live in the source rather than in an assembler's table.
+- `rel32` placeholders plus `cc-patch-rel32-to-here` are the codegen equivalent of Forth's `if,` fixup, and the same mechanism serves `if`, `while`, `for`, `||`, `&&` and forward calls (Chs 27, 30, 31).
+
+Next: Chapter 26 — Codegen, Part 2: Calls, Shims, and Globals.

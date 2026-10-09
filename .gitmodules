@@ -1,0 +1,3 @@
+[submodule "forth-bootstrap"]
+	path = forth-bootstrap
+	url = /home/ben/code/forth-bootstrap
