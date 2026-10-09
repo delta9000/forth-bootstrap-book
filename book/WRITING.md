@@ -5,7 +5,7 @@ so you can sit down, follow the checklist, and finish a chapter without
 re-deriving "wait, what was I supposed to do?" each time.
 
 > **Note.**  The 34-chapter book is now complete (all rows ✅ in the
-> [README.md](README.md) TOC and `tools/tangle.sh verify --strict`
+> [README.md](01-reading-the-book.md) TOC and `tools/tangle.sh verify --strict`
 > passing).  The procedure below is preserved for two cases: editing
 > an existing chapter, and writing entirely new chapters (e.g. for a
 > future extension of the bootstrap chain).  Status transitions
@@ -16,7 +16,7 @@ re-deriving "wait, what was I supposed to do?" each time.
 1. **Pick a chapter whose dependencies are written.**  Open
    [CONCEPTS.md](CONCEPTS.md), find the chapter in the dependency
    graph, and confirm every chapter it lists in "Concepts carried in"
-   is at least partly written (📝 or ✅ in [README.md](README.md)).
+   is at least partly written (📝 or ✅ in [README.md](01-reading-the-book.md)).
    If not, write those first.
 
 2. **Open three panes:**
@@ -172,7 +172,7 @@ for `file=NNN-cc-NAME.fth` and using Forth blocks instead of hex.
 
 After committing a chapter's prose:
 
-1. Open [README.md](README.md).
+1. Open [README.md](01-reading-the-book.md).
 2. Find the chapter row in the TOC table.
 3. Change ✏️ to 📝 (in progress) or ✅ (done).
 4. Re-run `tools/tangle.sh status` to confirm coverage rose.
@@ -207,7 +207,7 @@ sweeping in unrelated changes.
 
 - **Stub drift.**  If you change the line range in "Source coverage,"
   also update [CONCEPTS.md](CONCEPTS.md) and the corresponding row in
-  [README.md](README.md).
+  [README.md](01-reading-the-book.md).
 - **Forward references.**  If you write "we'll see this in Ch X"
   and then move things around later, the reference rots.  Prefer
   "Ch N introduces this" with the actual current number, and grep
@@ -260,6 +260,6 @@ Update [CONCEPTS.md](CONCEPTS.md) when:
 - a chapter adds a "Concept introduced" that wasn't there before;
 - a chapter is renamed or split.
 
-If [README.md](README.md)'s TOC and `CONCEPTS.md` disagree,
+If [README.md](01-reading-the-book.md)'s TOC and `CONCEPTS.md` disagree,
 `CONCEPTS.md` is the source of truth for concepts; the TOC is the
 source of truth for filenames.

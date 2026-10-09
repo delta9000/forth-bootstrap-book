@@ -10,7 +10,7 @@ Prerequisites: None.
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [README.md](../README.md) — Reuse the reader orientation and setup overview.
+Reuses: [README.md](../01-reading-the-book.md) — Reuse the reader orientation and setup overview.
 
 TODO:
 

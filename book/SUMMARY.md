@@ -2,8 +2,7 @@
 
 # Front matter
 
-- [Reading the book](outline/01-reading-the-book.md)
-  - [Forth From a 1772-Byte Seed](README.md)
+- [Reading the book](01-reading-the-book.md)
 - [Prologue: Seventeen hundred and seventy-two bytes](outline/02-prologue.md)
   - [Prologue — Seventeen Hundred and Seventy-Two Bytes](00-prologue.md)
 - [Where this fits: routes and history](outline/03-where-this-fits.md)
