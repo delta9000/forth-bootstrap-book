@@ -10,7 +10,7 @@ Prerequisites: [07 — Arithmetic and logic in machine code](07-arithmetic-and-l
 
 Checkpoint: TODO — use the complete-seed build and REPL checkpoint at the end of this walkthrough.
 
-Reuses: [16-io-emit-key-syscall6.md](../16-io-emit-key-syscall6.md) — Reuse the source walkthrough: Follow byte input, byte output, process exit, and the generic six-argument syscall bridge.
+Reuses: [16-io-emit-key-syscall6.md](../08-seed-io.md) — Reuse the source walkthrough: Follow byte input, byte output, process exit, and the generic six-argument syscall bridge.
 
 TODO:
 

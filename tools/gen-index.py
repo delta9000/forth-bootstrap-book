@@ -69,7 +69,7 @@ CONCEPTS = [
     ("De Morgan's law", [("03-", "`or` in six words")]),
     ("Two's complement", [("04-", "from `+` and `nand`")]),
     ("Primitive vs derived word (the byte trade)", [("03-", "What this buys"), ("04-", "Why subtraction isn't a primitive")]),
-    ("Syscall ABI (x86-64 Linux)", [("05-", "sidebar on the syscall ABI"), ("16-", "Why six args")]),
+    ("Syscall ABI (x86-64 Linux)", [("05-", "sidebar on the syscall ABI"), ("08-seed", "`syscall6`: let the caller choose")]),
     ("Range-check trick", [("06-", "The range-check trick")]),
     ("Sign test by division (2^63)", [("07-", "The `2^63` trick")]),
     ("Forth boolean (-1 / 0)", [("07-", "canonicalisation")]),
