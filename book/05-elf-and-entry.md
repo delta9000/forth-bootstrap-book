@@ -310,18 +310,6 @@ Adding `0x5DF` gives `0x699`, so the fixed-base contract places the target at
 `0x400699`. Chapter 12 teaches what happens inside that loop; Chapter 6
 next begins the primitive walkthrough.
 
-## Exercises
-
-- **Trace — easy.** Calculate `e_entry` from the end of the program header,
-  then calculate the final startup jump's target. Explain why one uses
-  the file base and the other uses the next instruction.
-- **Verify — easy.** Match the checkpoint's `LOAD` fields `FileSiz`,
-  `MemSiz`, and `VirtAddr` to the map. Identify the entry instructions
-  in the `od` output.
-- **Trace — medium.** Locate the `HERE` cell and its initial contents.
-  Which address lies in the system-variable area? Which points into
-  the dictionary allocation area?
-
 ## Try it: check the loading contract
 
 Run these commands from the `forth-bootstrap` checkout at `./forth-bootstrap`.
@@ -368,3 +356,15 @@ Program Headers:
  48 bd 00 10 41 00 00 00 00 00 48 31 ff
 exit status 0
 ```
+
+## Exercises
+
+- **Trace — easy.** Calculate `e_entry` from the end of the program header,
+  then calculate the final startup jump's target. Explain why one uses
+  the file base and the other uses the next instruction.
+- **Verify — easy.** Match the checkpoint's `LOAD` fields `FileSiz`,
+  `MemSiz`, and `VirtAddr` to the map. Identify the entry instructions
+  in the `od` output.
+- **Trace — medium.** Locate the `HERE` cell and its initial contents.
+  Which address lies in the system-variable area? Which points into
+  the dictionary allocation area?

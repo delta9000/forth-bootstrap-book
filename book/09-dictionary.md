@@ -380,12 +380,6 @@ E9 21 FE FF FF                            ; jmp find_code  (rel32 = 0x303 - 0x4E
 
 The reader produces `( c-addr u )`; lookup consumes that pair. The tail jump lets `find` return directly to tick's caller. Thus `' dup` obtains the code address without executing `dup`. Comments between tick and the name are skipped by the same reader.
 
-## Exercises
-
-- **Trace — easy.** Trace a lookup with a matching length but a different final byte. Which registers still identify the original input when `.skip` follows the next link?
-- **Trace — easy.** Compare the inputs `' (skipped` and `' ( skipped ) dup`. Which name does tick pass to lookup in each case, and which result is safe to pass to `execute`?
-- **Trace — medium.** In the checkpoint's allocation command, track the saved address through `,` and `@`. Why does the store change `HERE` without adding a searchable word?
-
 ## Try it
 
 From the book repository, run `cd forth-bootstrap`, then build the complete seed:
@@ -419,3 +413,8 @@ Observed output, with no trailing newline:
 HHHH
 ```
 
+## Exercises
+
+- **Trace — easy.** Trace a lookup with a matching length but a different final byte. Which registers still identify the original input when `.skip` follows the next link?
+- **Trace — easy.** Compare the inputs `' (skipped` and `' ( skipped ) dup`. Which name does tick pass to lookup in each case, and which result is safe to pass to `execute`?
+- **Trace — medium.** In the checkpoint's allocation command, track the saved address through `,` and `@`. Why does the store change `HERE` without adding a searchable word?

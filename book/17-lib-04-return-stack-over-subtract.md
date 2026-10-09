@@ -114,13 +114,6 @@ that definition without needing another arithmetic mechanism.
 Chapter 19 applies subtraction to character predicates; Chapter 27
 covers the compiler's own vocabulary.
 
-## Exercise
-
-**Trace — easy.** Trace `over` on `a b`, then repeat the trace with
-its final `swap` omitted. Give the altered stack effect and explain
-why restoring the borrowed return-stack slot alone does not establish
-`over`'s contract.
-
 ## Try it
 
 Run this command from the `forth-bootstrap` checkout at
@@ -155,3 +148,10 @@ Observed output:
 0
 53
 ```
+
+## Exercise
+
+**Trace — easy.** Trace `over` on `a b`, then repeat the trace with
+its final `swap` omitted. Give the altered stack effect and explain
+why restoring the borrowed return-stack slot alone does not establish
+`over`'s contract.

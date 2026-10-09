@@ -206,16 +206,6 @@ against the chunks its chapter defines.
 Chapter 13 collects the primitive contracts as a reference. Chapter 14
 begins using the seed to build the Forth library.
 
-## Exercises
-
-- **Trace — easy.** Follow `: star [lit] 42 emit ; star` through the
-  dispatch paths. Which input tokens does the REPL read, and which does
-  another word consume? Identify when decimal conversion happens and
-  when output happens.
-- **Trace — intermediate.** Move the stack reload in the miss path before
-  `report_token` on paper. Explain why the reordered path fails to preserve
-  the prior stack top.
-
 ## Try it
 
 Run these commands from the `forth-bootstrap` checkout. From the book
@@ -279,3 +269,13 @@ exit status: 0
 12a?
 exit status: 2
 ```
+
+## Exercises
+
+- **Trace — easy.** Follow `: star [lit] 42 emit ; star` through the
+  dispatch paths. Which input tokens does the REPL read, and which does
+  another word consume? Identify when decimal conversion happens and
+  when output happens.
+- **Trace — intermediate.** Move the stack reload in the miss path before
+  `report_token` on paper. Explain why the reordered path fails to preserve
+  the prior stack top.

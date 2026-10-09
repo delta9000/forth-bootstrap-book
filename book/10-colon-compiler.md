@@ -237,13 +237,6 @@ loads the cell and returns past it, `emit` consumes the value, and the
 body's final return finishes the call. Defining `twice` in terms of
 `letter` adds another level of calls without changing this sequence.
 
-## Exercise
-
-**Trace — easy.** Follow the return addresses when `twice` calls `letter`
-in the checkpoint below. Which return address does `lit_code` adjust?
-Which return instruction brings execution back into `twice`? Explain why
-the inline cell is never executed as an instruction.
-
 ## Try it
 
 From the book repository, enter the source checkout with
@@ -273,3 +266,10 @@ Observed output:
 ```text
 AA
 ```
+
+## Exercise
+
+**Trace — easy.** Follow the return addresses when `twice` calls `letter`
+in the checkpoint above. Which return address does `lit_code` adjust?
+Which return instruction brings execution back into `twice`? Explain why
+the inline cell is never executed as an instruction.

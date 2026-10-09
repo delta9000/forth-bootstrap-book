@@ -321,16 +321,6 @@ write does not change how many stack operands the word consumes.
 
 Chapter 22 combines these accesses into memory-update words.
 
-## Exercises
-
-- **Trace — easy.** From `[p]=a, rdi=b`, trace `swap` followed by `drop`.
-  Name the surviving top and the final `rbp` relative to `p`.
-- **Trace — medium.** Draw the return stack before and after each instruction
-  in `>r`. Label the primitive's return address separately from the saved data.
-  Explain why replacing the balancing `r>` with `r@` fails.
-- **Verify — easy.** Match each operand in the checkpoint disassembly to the
-  `swap` trace above. Identify the instruction that preserves `a`.
-
 ## Try it
 
 Run these commands from the `forth-bootstrap` checkout, at `./forth-bootstrap`
@@ -370,3 +360,12 @@ Disassembly of section .data:
 exit status 0
 ```
 
+## Exercises
+
+- **Trace — easy.** From `[p]=a, rdi=b`, trace `swap` followed by `drop`.
+  Name the surviving top and the final `rbp` relative to `p`.
+- **Trace — medium.** Draw the return stack before and after each instruction
+  in `>r`. Label the primitive's return address separately from the saved data.
+  Explain why replacing the balancing `r>` with `r@` fails.
+- **Verify — easy.** Match each operand in the checkpoint disassembly to the
+  `swap` trace above. Identify the instruction that preserves `a`.

@@ -138,13 +138,7 @@ The request is `write(stdout, buffer, count)`: `eax=1` chooses Linux `write`, `e
 
 The syscall conflicts with the cached-top pattern: `rdi` cannot simultaneously hold the Forth top and the syscall's first argument. A boundary routine must arrange the data before assigning the Linux roles. Chapter 8 follows that arrangement and the handling of the result through the complete `emit`, `key`, `bye`, and `syscall6` chunks. Chapter 18 later gives those calls library wrappers.
 
-## Trace exercise — easy
-
-Decode `48 8B 7D 00` at `forth-bootstrap/seed/000-seed.hex0:92` without looking at its assembly comment. Name the destination, effective address, and instruction length. Compare it with the store above. Why does changing the opcode reverse the direction while the ModRM byte stays the same?
-
-For a second trace, recover the entry jump's destination from its bytes. What error results from adding the displacement at the instruction's start instead of its end?
-
-## Checkpoint: read the entry jump
+## Try it: read the entry jump
 
 Check the entry jump’s bytes in the built executable, then compare your hand-decoded destination with the disassembler’s result.
 
@@ -191,3 +185,9 @@ Disassembly of section .data:
 00000000000000b5 <.data+0xb5>:
   b5:	e9 df 05 00 00       	jmp    0x699
 ```
+
+## Exercise
+
+**Trace — easy.** Decode `48 8B 7D 00` at `forth-bootstrap/seed/000-seed.hex0:92` without looking at its assembly comment. Name the destination, effective address, and instruction length. Compare it with the store above. Why does changing the opcode reverse the direction while the ModRM byte stays the same?
+
+For a second trace, recover the entry jump's destination from its bytes. What error results from adding the displacement at the instruction's start instead of its end?

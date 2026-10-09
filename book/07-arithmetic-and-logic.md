@@ -236,18 +236,6 @@ The Part 2 library words build on these contracts.
 | [`/`](#divide-contract) | Unsigned quotient; divisor must be nonzero | Chapter 20, comparisons |
 | [`*`](#multiply-contract) | Low cell of the product | Part 2 arithmetic users |
 
-## Exercise
-
-**Trace — easy.** Trace `test`, `sete`, `movzx`, and `neg` in `zeq_code`
-for an input with a set bit outside its low byte. Which instruction keeps
-that bit out of the false result? Why does the body need no slot-release
-instruction?
-
-**Trace — moderate.** Trace the checkpoint's stack on paper, using signed
-notation for the all-set cell. After each arithmetic word, record the
-cached top and whether `rbp` moved. Why does division receive a nonzero
-divisor even though the sequence begins with zero?
-
 ## Try it: complete-seed arithmetic checkpoint
 
 This checkpoint uses the complete seed; Chapter 12 explains its REPL
@@ -285,3 +273,15 @@ Observed output from this command:
 ```text
 Arithmetic checkpoint: clean exit, no diagnostics.
 ```
+
+## Exercise
+
+**Trace — easy.** Trace `test`, `sete`, `movzx`, and `neg` in `zeq_code`
+for an input with a set bit outside its low byte. Which instruction keeps
+that bit out of the false result? Why does the body need no slot-release
+instruction?
+
+**Trace — moderate.** Trace the checkpoint's stack on paper, using signed
+notation for the all-set cell. After each arithmetic word, record the
+cached top and whether `rbp` moved. Why does division receive a nonzero
+divisor even though the sequence begins with zero?

@@ -144,10 +144,6 @@ On return, `add rbp, 48` releases the six argument cells. Moving `rax` into `rdi
 
 Chapter 18 builds readable Linux syscall wrappers on this bridge. Here the distinction is already useful: `emit` hides the write result, while `syscall6` lets the caller inspect it. If the selected operation terminates the process, the recovery instructions are never reached.
 
-## Exercise
-
-**Trace — easy.** Follow `syscall6` with an older value below `a`. Mark where `n` is saved, which instruction releases the argument cells, and where the older value sits when the result becomes the cached top. Then explain what would break if the first `mov rax, rdi` were moved after the load of `a`.
-
 ## Try it
 
 Run the following checkpoint from the `forth-bootstrap` checkout (`cd forth-bootstrap` from the book repository). `./seed/build.sh` builds the complete seed; its output below was observed with that command. We use its existing command reader as a tool; Chapter 9 explains token reading and Chapter 12 explains the REPL.
@@ -171,3 +167,7 @@ Built seed-forth (1772 bytes) using vendor/stage0-posix/bootstrap-seeds/POSIX/AM
 A
 syscall6 exit status: 42
 ```
+
+## Exercise
+
+**Trace — easy.** Follow `syscall6` with an older value below `a`. Mark where `n` is saved, which instruction releases the argument cells, and where the older value sits when the result becomes the cached top. Then explain what would break if the first `mov rax, rdi` were moved after the load of `a`.

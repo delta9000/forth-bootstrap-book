@@ -100,17 +100,10 @@ rather than copied numeric addresses. Consult Chapter 13 for `state`,
 `latest`, and tick when those names occur. Chapter 15 applies this
 convention to code emission and HERE.
 
-## Exercise
-
-**Trace — easy.** For a body consisting of `+ emit`, begin with the symbolic
-stack `a b`. Use Chapter 13 to write the stack after each word, then write
-the body’s combined stack-effect comment. Repeat with an untouched value
-`x` below `a b`. Check your answer against the trace below before running it.
-
 ## Try it
 
 Run from the `forth-bootstrap` checkout at `./forth-bootstrap`, with the
-seed built in Part 1. This scratch definition puts the exercise’s contract
+seed built in Part 1. This scratch definition puts its contract
 beside its body. It uses only seed words; it is not an addition to the
 library source.
 
@@ -145,3 +138,10 @@ With `x` below the inputs, the trace ends with `x`. Thus `( a b -- )`
 describes the consumed inputs without requiring an otherwise empty stack.
 The invocation supplies values whose sum emits `A`; the final literal and
 `emit` supply the newline.
+
+## Exercise
+
+**Trace — easy.** For a body consisting of `+ emit`, begin with the symbolic
+stack `a b`. Use Chapter 13 to write the stack after each word, then write
+the body’s combined stack-effect comment. Repeat with an untouched value
+`x` below `a b`. Check your answer against the trace in Try it above.

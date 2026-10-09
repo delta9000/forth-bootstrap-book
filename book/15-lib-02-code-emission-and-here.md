@@ -97,13 +97,6 @@ Chapter 22 builds further cell writers and memory-update helpers.
 Chapter 23 uses emission to construct constants, and Chapter 24 builds
 control-flow combinators.
 
-## Exercise
-
-**Trace — easy.** Begin with HERE containing `A` and run the body of `c,`
-for a byte `b`, then for a byte `d`. Write the destination of each store
-and the contents of HERE after each call. Explain which store would go
-to the wrong address if the final `here-addr` were replaced with `here`.
-
 ## Try it
 
 Run from the `forth-bootstrap` checkout at `./forth-bootstrap`, with the
@@ -135,3 +128,10 @@ Observed output:
 ```text
 ABCD
 ```
+
+## Exercise
+
+**Trace — easy.** Begin with HERE containing `A` and run the body of `c,`
+for a byte `b`, then for a byte `d`. Write the destination of each store
+and the contents of HERE after each call. Explain which store would go
+to the wrong address if the final `here-addr` were replaced with `here`.

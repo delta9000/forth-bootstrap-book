@@ -135,12 +135,6 @@ Chapter 17 reuses self-NAND in subtraction. Chapter 19 uses these
 Boolean words in character predicates; Chapter 27 covers the compiler's
 own vocabulary.
 
-## Exercise
-
-**Trace — easy.** Trace `or` with false beneath true, writing the
-stack after every word. Then remove `swap` on paper and trace the
-same inputs. Explain the difference using self-NAND.
-
 ## Try it
 
 Run from the `forth-bootstrap` checkout at `./forth-bootstrap`, using
@@ -182,3 +176,9 @@ Observed output:
 0111
 8A
 ```
+
+## Exercise
+
+**Trace — easy.** Trace `or` with false beneath true, writing the
+stack after every word. Then remove `swap` on paper and trace the
+same inputs. Explain the difference using self-NAND.

@@ -131,16 +131,6 @@ structured conditionals and loops. Its runtime reference points are
 [unconditional branch](#branch) and [branch on zero](#0branch). The
 consumed-slot property is the contract those combinators depend on.
 
-## Exercises
-
-- **Trace — easy.** Start with `caller-return` beneath `slot` on the return
-  stack. Follow a zero flag and then a nonzero flag through `zbranch_code`.
-  Record `rax`, the return-stack top, and the instruction pointer just
-  before and just after the final `ret`.
-- **Verify — easy.** In the checkpoint, replace the nonzero flag with
-  `[lit] 89`. Predict the output before running it. Explain why the flag
-  itself is never printed.
-
 ## Try it
 
 Use an already defined word as the destination so its address is known
@@ -184,3 +174,13 @@ Observed output:
 ```text
 YANBYC
 ```
+
+## Exercises
+
+- **Trace — easy.** Start with `caller-return` beneath `slot` on the return
+  stack. Follow a zero flag and then a nonzero flag through `zbranch_code`.
+  Record `rax`, the return-stack top, and the instruction pointer just
+  before and just after the final `ret`.
+- **Verify — easy.** In the checkpoint, replace the nonzero flag with
+  `[lit] 89`. Predict the output before running it. Explain why the flag
+  itself is never printed.
