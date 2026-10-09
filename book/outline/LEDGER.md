@@ -64,6 +64,13 @@ Return-address shelter | 06 Stack and memory primitives | holding a primitive's 
 `!` | 06 Stack and memory primitives | stores a cell and consumes both operands ( v addr -- )
 `c@` | 06 Stack and memory primitives | loads a byte and zero-extends it ( addr -- b )
 `c!` | 06 Stack and memory primitives | stores the value's low byte and consumes both operands ( b addr -- )
+Binary reduction pattern | 07 Arithmetic and logic in machine code | combine operands, release the consumed slot, and return the result in rdi
+`+` | 07 Arithmetic and logic in machine code | returns the low cell of the sum ( a b -- sum )
+`nand` | 07 Arithmetic and logic in machine code | returns the cell-wide complement of the operands' bitwise intersection ( a b -- bits )
+Canonical flag | 07 Arithmetic and logic in machine code | zero is false; an all-set cell (-1) is true
+`0=` | 07 Arithmetic and logic in machine code | normalizes a zero test into a canonical flag ( n -- flag )
+`/` | 07 Arithmetic and logic in machine code | returns the unsigned quotient; the divisor must be nonzero ( a b -- quotient )
+`*` | 07 Arithmetic and logic in machine code | returns the low cell of the product ( a b -- product )
 `*` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `*` and the `IMUL` instruction
 `+` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `+` in 9 bytes
 `/` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `/` and the `DIV` instruction
