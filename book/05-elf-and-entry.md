@@ -1,39 +1,29 @@
 # Chapter 05 — ELF, entry, and the memory map
 
-Missing capability: instruction bytes alone do not tell Linux where to load the seed or where to begin execution.
-New idea: ELF headers establish a fixed address map, and entry code prepares the state that uses it.
-Artifact after this chapter: an audited loading and startup contract for the complete seed executable.
-Payoff link: Chapter 6 uses this initialized machine, and Chapter 31 builds an ELF emitter for compiled programs.
+Instruction bytes alone do not tell Linux where to load the seed or where
+execution begins. ELF headers establish a fixed address map, and entry
+code prepares the state that uses it. Together they define the complete
+seed's loading and startup contract: Chapter 6 uses this initialized
+machine, and Chapter 31 builds an ELF emitter for compiled programs.
 
-Chapter 4 gave us the instruction-reading method and register conventions;
-now we place that machine in a Linux process. For a reader who knows C,
-think of this chapter as the work that must happen before a program can
-enter its main loop: storage must exist, pointers must be initialized,
-and control must reach the intended code.
-
-| Rung | Built in | Artifact | Used by |
-|---|---|---|---|
-| Instruction reading | Chapter 4 | Register and encoding conventions | This chapter's entry-code audit |
-| **Loading and startup** | **Chapter 5** | **Mapped image and initialized seed state** | **Chapter 6 onward** |
-| Seed behavior | Chapters 6–12 | Primitives, dictionary, compiler, and REPL | The Forth library in Part 2 |
-| Compiler output | Chapter 31 | Generated executable headers | Compiled C programs |
+Recall the instruction-reading method and register conventions from
+Chapter 4. Before the seed can enter its main loop, storage must exist,
+pointers must be initialized, and control must reach the intended code.
 
 The route through the file is:
 
 **ELF header → loadable segment → entry registers → system variables → REPL**.
 
-We will call the relationship between a file offset and its loaded address
-the **fixed-base contract**: for a byte in this seed image, its address is
-`0x400000 + file offset`. The program header will establish that contract;
-the entry address and initial pointers will rely on it.
+The **fixed-base contract** relates a file offset to its loaded address:
+for a byte in this seed image, its address is `0x400000 + file offset`.
+The program header establishes that contract; the entry address and initial
+pointers rely on it.
 
 ## The source skeleton
 
-Before interpreting bytes, locate the pieces that contribute them.
-The following is the **context** skeleton of `forth-bootstrap/seed/000-seed.hex0`:
-its root block lists the chunks in file order. It is an assembly manifest,
-not another instruction listing; the references after `jmp-to-repl` are
-supplied by Chapters 6–12 and are not defined here.
+The root block at `forth-bootstrap/seed/000-seed.hex0:1` lists the chunks
+in file order. It is an assembly manifest; Chapters 6–12 supply the chunks
+after `jmp-to-repl`.
 
 ```hex0 file=seed/000-seed.hex0
 <<file-header-comment>>
@@ -82,12 +72,10 @@ supplied by Chapters 6–12 and are not defined here.
 <<repl>>
 ```
 
-This fixes the order of the image while letting us read each startup
-responsibility separately. The source comments retain the earlier edition's
-chapter numbering: “Chs 14–20” corresponds to Chapters 6–12 here, and “Ch 20”
-means Chapter 12.
+The source comments retain the earlier edition's chapter numbering:
+“Chs 14–20” corresponds to Chapters 6–12 here, and “Ch 20” means Chapter 12.
 
-The **boilerplate** preamble at `forth-bootstrap/seed/000-seed.hex0:1`
+The preamble at `forth-bootstrap/seed/000-seed.hex0:1`
 records how to read the source; preserve it with the bytes it documents.
 
 ```hex0 chunk=file-header-comment
@@ -116,9 +104,8 @@ material the loader will read.
 
 ## Identify the executable and its entry
 
-The **focus** fragment at `forth-bootstrap/seed/000-seed.hex0:19` identifies
-the executable and tells Linux where to find both its program header and
-its entry point.
+The ELF header at `forth-bootstrap/seed/000-seed.hex0:19` identifies the
+executable and tells Linux where to find its program header and entry point.
 
 ```hex0 chunk=elf-header
 ;; ===== ELF64 header (64 bytes) @ 0x000 =====
@@ -146,9 +133,8 @@ its entry point.
 
 ```
 
-The loader now has a description of the file and the location of its loading
-instructions. Recall little-endian from Chapter 4 when comparing the byte
-columns with the field values in the comments.
+Recall little-endian from Chapter 4 when comparing the byte columns with
+the field values in the comments.
 
 Read the fields in groups. `e_ident`, `e_type`, and `e_machine` identify an
 ELF64 executable for x86-64. `e_entry` selects the first instruction's
@@ -163,8 +149,8 @@ after we know what the program header maps.
 
 ## Make storage exist
 
-The **focus** fragment at `forth-bootstrap/seed/000-seed.hex0:42` supplies
-the mapping that makes the seed's embedded addresses usable.
+The program header at `forth-bootstrap/seed/000-seed.hex0:42` supplies the
+mapping that makes the seed's embedded addresses usable.
 
 ```hex0 chunk=program-header
 ;; ===== Program header (56 bytes) @ 0x040, one PT_LOAD =====
@@ -184,10 +170,10 @@ additional zero-filled storage. `p_offset = 0` and `p_vaddr = 0x400000`
 establish the fixed-base contract: the beginning of the file becomes the
 beginning of this mapping.
 
-The important size distinction is between `p_filesz`, the bytes supplied by
-the file, and `p_memsz`, the bytes provided in memory. Here the file supplies
-1,772 bytes, while the segment spans 16 MiB. The interval after the file
-image is zero-filled, so the seed can store data beyond its on-disk bytes.
+Distinguish `p_filesz`, the bytes supplied by the file, from `p_memsz`, the
+bytes provided in memory. Here the file supplies 1,772 bytes, while the
+segment spans 16 MiB. The interval after the file image is zero-filled,
+so the seed can store data beyond its on-disk bytes.
 These are virtual addresses; the header does not promise that all of that
 storage is physically resident at startup.
 
@@ -197,16 +183,16 @@ will later write; Chapter 10 teaches that compiler. `p_align = 0x1000`
 records the segment alignment, with file offset and virtual address
 congruent at that alignment.
 
-Now compute the entry position. The ELF header occupies 64 bytes and its
-program header occupies 56 bytes: together they occupy 120 bytes, or
-`0x78`. Applying the fixed-base contract gives
+Compute the entry position from the header sizes. The ELF header occupies
+64 bytes and its program header occupies 56 bytes: together they occupy
+120 bytes, or `0x78`. Applying the fixed-base contract gives
 `0x400000 + 0x78 = 0x400078`, exactly `e_entry`. The entry is immediately
 after the headers, not at the ELF magic.
 
 ## Give the registers their starting values
 
-The **focus** fragment at `forth-bootstrap/seed/000-seed.hex0:52` records the
-seed's address conventions and initializes the data-stack registers.
+The entry code at `forth-bootstrap/seed/000-seed.hex0:52` records the seed's
+address conventions and initializes the data-stack registers.
 
 ```hex0 chunk=entry-point
 ;; ===== Code at 0x400078 =====
@@ -226,8 +212,8 @@ seed's address conventions and initializes the data-stack registers.
 
 ```
 
-Entry now has `rbp = 0x411000` and a cleared `rdi`; recall the cached-top
-pattern from Chapter 4. Chapter 6 will follow the actual stack transfers.
+The entry instructions set `rbp = 0x411000` and clear `rdi`; recall the
+cached-top pattern from Chapter 4. Chapter 6 follows the stack transfers.
 The instructions here occupy 13 bytes, so the next startup responsibility
 begins at file offset `0x085`.
 
@@ -238,9 +224,9 @@ loadable segment, and has no fixed address in this map.
 
 ## Initialize the mutable system variables
 
-Mapped storage alone does not choose the seed's initial state, so the
-**focus** fragment at `forth-bootstrap/seed/000-seed.hex0:67` writes the
-system-variable cells before entering the loop.
+Mapped storage alone does not choose the seed's initial state. The stores
+at `forth-bootstrap/seed/000-seed.hex0:67` initialize the system-variable
+cells before execution enters the loop.
 
 ```hex0 chunk=sysvar-init
 ;; ----- sysvar_init @ 0x085  STATE, LATEST, HERE, LAST_FOUND -----
@@ -251,9 +237,9 @@ system-variable cells before entering the loop.
 
 ```
 
-The seed now has an initial mode, dictionary head, allocation cursor, and
-lookup scratch value. Each instruction stores a cell at its named absolute
-address; the repeated operation is initialization, not an allocation request.
+These stores set the initial mode, dictionary head, allocation cursor, and
+lookup scratch value. Each writes a cell at its named absolute address;
+the operation initializes existing storage.
 
 | Cell address | Name | Initial contents | Meaning here |
 |---|---|---|---|
@@ -270,16 +256,14 @@ starts in the zero-filled extension. This is the fixed-base contract again,
 now supporting pointers rather than the entry address.
 
 Chapter 9 teaches dictionary headers, lookup, and the allocation cursor's
-operations. Chapter 10 teaches the mode changes that use `STATE`. Here we
-need only their locations and initial values. The stores to `STATE` and
-`LAST_FOUND` explicitly write zero even though those cells are in the
-zero-filled part of the segment.
+operations. Chapter 10 teaches the mode changes that use `STATE`. The stores
+to `STATE` and `LAST_FOUND` explicitly write zero even though those cells
+are in the zero-filled part of the segment.
 
 ## Read the seed memory map
 
-The following map combines the program header with the startup conventions
-at `forth-bootstrap/seed/000-seed.hex0:42` and
-`forth-bootstrap/seed/000-seed.hex0:52`. Range ends are exclusive.
+The program header and startup conventions give this memory map.
+Range ends are exclusive.
 
 | Address or interval | Role at startup |
 |---|---|
@@ -311,8 +295,8 @@ layouts are not part of this startup contract.
 
 ## Hand control to the loop
 
-The final **focus** fragment at `forth-bootstrap/seed/000-seed.hex0:73`
-transfers control after all startup assignments have finished.
+The jump at `forth-bootstrap/seed/000-seed.hex0:73` transfers control to
+the REPL after all startup assignments have finished.
 
 ```hex0 chunk=jmp-to-repl
 ;; ----- jmp_repl @ 0x0B5  enter the REPL (Ch 20) -----
@@ -320,32 +304,30 @@ E9 DF 05 00 00                            ; jmp repl  (rel32 = 0x699 - 0x0BA)
 
 ```
 
-Startup now reaches the REPL. Recall `rel32` from Chapter 4: the displacement
-is checked against the next instruction, here at file offset `0x0BA`.
+Recall `rel32` from Chapter 4: check the displacement against the next
+instruction, here at file offset `0x0BA`.
 Adding `0x5DF` gives `0x699`, so the fixed-base contract places the target at
 `0x400699`. Chapter 12 teaches what happens inside that loop; Chapter 6
 next begins the primitive walkthrough.
 
 ## Exercises
 
-- **Trace — easy.** Follow the fixed-base contract from the end of the
-  program header to `e_entry`, then from the final startup jump to its
-  target; explain why one calculation uses a file base and the other uses
-  the next instruction.
-- **Verify — easy.** In the checkpoint below, match the `LOAD` row's
-  `FileSiz`, `MemSiz`, and `VirtAddr` to the map, and identify the entry
-  instructions in the `od` output.
-- **Trace — medium.** Locate the `HERE` cell and the address initially
-  stored in it; explain which is part of the system-variable area and
-  which points into the dictionary allocation area.
+- **Trace — easy.** Calculate `e_entry` from the end of the program header,
+  then calculate the final startup jump's target. Explain why one uses
+  the file base and the other uses the next instruction.
+- **Verify — easy.** Match the checkpoint's `LOAD` fields `FileSiz`,
+  `MemSiz`, and `VirtAddr` to the map. Identify the entry instructions
+  in the `od` output.
+- **Trace — medium.** Locate the `HERE` cell and its initial contents.
+  Which address lies in the system-variable area? Which points into
+  the dictionary allocation area?
 
 ## Try it: check the loading contract
 
-Run the commands from the `forth-bootstrap` checkout at `./forth-bootstrap`,
-not from the book repository root. The build script invokes its hex0
-assembler and writes `seed-forth` in that checkout
-(`forth-bootstrap/seed/build.sh:12`, `forth-bootstrap/seed/build.sh:27`).
-This builds the complete seed so the startup code has its real destination.
+Run these commands from the `forth-bootstrap` checkout at `./forth-bootstrap`.
+Build the complete seed so the startup code has its real destination.
+The build script at `forth-bootstrap/seed/build.sh:27` invokes its hex0
+assembler and writes `seed-forth` in that checkout.
 
 ```sh
 ./seed/build.sh
@@ -357,14 +339,12 @@ Observed output:
 Built seed-forth (1772 bytes) using vendor/stage0-posix/bootstrap-seeds/POSIX/AMD64/hex0-seed
 ```
 
-For the checkpoint, use `readelf` to inspect the loading recipe, and `od`
-to read the entry bytes at the file offset calculated above. Then supply
-empty input to the executable: the loop's end-of-input path exits, without
-requiring a Forth word from a later chapter. That path is recorded at
-`forth-bootstrap/seed/000-seed.hex0:664`; its implementation belongs to
-Chapter 12. The shell prints the process's exit status. This verifies
-header acceptance and an end-to-end startup path, rather than every possible
-future use of the memory map.
+Use `readelf` to inspect the loading recipe and `od` to read the entry bytes
+at the calculated file offset. Then supply empty input and print the exit
+status. This checks header acceptance and the startup path through to exit;
+it does not test every future use of the memory map. Empty input takes the
+loop's end-of-input path at `forth-bootstrap/seed/000-seed.hex0:664`, without
+requiring a Forth word from a later chapter. Chapter 12 teaches that path.
 
 ```sh
 readelf -lW ./seed-forth
