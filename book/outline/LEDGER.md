@@ -203,6 +203,11 @@ De Morgan's law | 16 Logic from NAND | idea; `or` in six words
 De Morgan's law as code | 16 Logic from NAND | concept (Forth-level ideas); introduced in old Ch 3
 Functional completeness of NAND | 16 Logic from NAND | concept (Forth-level ideas); introduced in old Ch 3
 Primitive vs derived word (the byte trade) | 16 Logic from NAND | idea; What this buys
+`over` | 17 The return stack, over, and subtraction | copies the second item to the top via a balanced return-stack transfer ( a b -- a b a )
+`-` | 17 The return stack, over, and subtraction | subtracts by adding the two's-complement negation ( a b -- a-b )
+`1+` | 17 The return stack, over, and subtraction | adds one with cell wraparound ( n -- n+1 )
+`1-` | 17 The return stack, over, and subtraction | subtracts one using the derived `-` ( n -- n-1 )
+Two's complement | 17 The return stack, over, and subtraction | ~b + 1 is the additive inverse of b in cell arithmetic
 `-` | 17 The return stack, over, and subtraction | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); `-` from `+` and `nand`
 `1+` | 17 The return stack, over, and subtraction | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); Why subtraction isn't a primitive
 `1-` | 17 The return stack, over, and subtraction | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); Why subtraction isn't a primitive
