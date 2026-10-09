@@ -76,6 +76,18 @@ Canonical flag | 07 Arithmetic and logic in machine code | zero is false; an all
 `key` | 08 The seed’s Linux boundary | reads a byte from stdin, returning zero at EOF ( -- c )
 `syscall6` | 08 The seed’s Linux boundary | transfers stack operands to syscall registers and returns the kernel result ( a b c d e f n -- rax )
 Prepare–call–recover | 08 The seed’s Linux boundary | prepare kernel operands, invoke Linux, then establish the resulting Forth stack
+Dictionary header | 09 The dictionary and token reader | link, flags, and counted name immediately preceding the code
+Execution token (xt) | 09 The dictionary and token reader | address of a word's first instruction: header + 10 + name length
+Newest-first lookup | 09 The dictionary and token reader | search linked headers from LATEST toward older entries; the newest match wins
+`find` | 09 The dictionary and token reader | resolves an address-length name to an xt or zero ( c-addr u -- xt-or-0 )
+`here` | 09 The dictionary and token reader | returns the current allocation cursor ( -- addr )
+`,` | 09 The dictionary and token reader | appends a cell and advances the allocation cursor ( v -- )
+`execute` | 09 The dictionary and token reader | consumes an xt and tail-jumps to its code ( xt -- )
+read_word | 09 The dictionary and token reader | collects a token while skipping whitespace and comments ( -- c-addr u )
+read_char | 09 The dictionary and token reader | returns an input byte in rdx and a whitespace verdict in ZF
+report_token / fatal_token | 09 The dictionary and token reader | report rejected input as token?; fatal_token then exits with status 2
+`state` / `latest` | 09 The dictionary and token reader | push the addresses of the STATE and LATEST cells ( -- addr )
+`'` (tick) | 09 The dictionary and token reader | reads the next token and looks it up ( -- xt-or-0 )
 `*` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `*` and the `IMUL` instruction
 `+` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `+` in 9 bytes
 `/` | 07 Arithmetic and logic in machine code | seed primitive; compiler word (`cc/020-cc-arena.fth`); `/` and the `DIV` instruction
