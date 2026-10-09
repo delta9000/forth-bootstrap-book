@@ -459,6 +459,16 @@ Deferred words (`defer`/`is`: call a word defined later) | 25 Defining words and
 `asm-labels` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); The label table
 `asm-load-stdin` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
 `asm-main` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); `asm-main`
+Native redirection | 27 Arena and I/O buffers | code: makes a fresh header; native! patches an old word's entry to JMP rel32 to the new body
+Inline/fallback compilation | 27 Arena and I/O buffers | emit native instructions when compiling, run the saved implementation when interpreting
+Buffered key handoff | 27 Arena and I/O buffers | prefetched input passes through key-drain before further reads
+Dictionary hash index | 27 Arena and I/O buffers | index new Forth headers to speed lookup without changing its result
+Lexer state block | 27 Arena and I/O buffers | reader and token state kept together so it can be snapshotted and restored
+Error codes and cc-die | 27 Arena and I/O buffers | report the source line and a caller-chosen code, then exit; cc-check-cap bounds appends
+Bump allocator | 27 Arena and I/O buffers | cc-alloc rounds a length and advances a bounded region's pointer
+One buffer per responsibility | 27 Arena and I/O buffers | separate raw input, preprocessed source and emitted output buffers
+Output back-patching | 27 Arena and I/O buffers | rewrite earlier output fields by offset without moving the append cursor
+Workspace selection | 27 Arena and I/O buffers | switch buffer addresses and capacities between default and mapped storage
 `asm-next-char` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
 `asm-nl-byte` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); The output side
 `asm-number-bounds` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
