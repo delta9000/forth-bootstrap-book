@@ -4,6 +4,15 @@ One line per concept: `term | chapter | definition`, chapter as the new stub num
 
 term | chapter | definition
 --- | --- | ---
+Cached-top pattern | 04 x86-64 encoding and the two-stack machine | `rdi` holds the top of the data stack; `rbp` points at the next value in memory, so a push stores the old top and moves `rbp` down
+Return stack (`rsp`) | 04 x86-64 encoding and the two-stack machine | the stack `rsp` addresses: hardware return addresses, and data a routine saves there explicitly
+Cell | 04 x86-64 encoding and the two-stack machine | an eight-byte (64-bit) stack value
+Little-endian | 04 x86-64 encoding and the two-stack machine | multi-byte values are stored least significant byte first
+ModRM | 04 x86-64 encoding and the two-stack machine | the byte whose mod, reg and r/m fields select an instruction's registers or memory-addressing form
+SIB | 04 x86-64 encoding and the two-stack machine | the scale/index/base byte that some memory-addressing forms add after ModRM
+REX | 04 x86-64 encoding and the two-stack machine | the 0100WRXB prefix: W selects a 64-bit operand; R, X and B extend the reg, index and base fields
+rel32 | 04 x86-64 encoding and the two-stack machine | a signed 32-bit displacement added to the address of the next instruction
+Linux syscall register convention | 04 x86-64 encoding and the two-stack machine | number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11
 `_start` | 05 ELF, entry, and the memory map | seed label; `_start` at `0x400078`
 `jmp_repl` | 05 ELF, entry, and the memory map | seed label; `JMP repl` at `0x0B5`
 `sysvar_init` | 05 ELF, entry, and the memory map | seed label; The sysvar init at `0x085`
