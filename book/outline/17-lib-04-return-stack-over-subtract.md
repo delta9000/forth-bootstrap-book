@@ -10,7 +10,7 @@ Prerequisites: [16 — Logic from NAND](16-lib-03-logic-from-nand.md); [13 — T
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [04-return-stack-over-subtract.md](../04-return-stack-over-subtract.md) — Reuse the source walkthrough: Use return-stack transfers to preserve operands and define over.
+Reuses: [04-return-stack-over-subtract.md](../17-lib-04-return-stack-over-subtract.md) — Reuse the source walkthrough: Use return-stack transfers to preserve operands and define over.
 
 TODO:
 
