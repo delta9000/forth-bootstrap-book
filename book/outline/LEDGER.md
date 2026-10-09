@@ -221,6 +221,13 @@ Two's complement | 17 The return stack, over, and subtraction | concept (Forth-l
 `close` | 18 Linux syscall wrappers | fd and five padding zeros, syscall 3 ( fd -- err )
 `die` | 18 Linux syscall wrappers | exits unconditionally with status n via syscall 60 ( n -- )
 Pad-and-call | 18 Linux syscall wrappers | caller arguments, zero padding, a fixed syscall number, then syscall6
+`digit?` | 19 Character classification | (c-48)/10 0= accepts ASCII 48..57 ( c -- flag )
+`alpha-lower?` | 19 Character classification | (c-97)/26 0= accepts ASCII a..z ( c -- flag )
+`alpha-upper?` | 19 Character classification | (c-65)/26 0= accepts ASCII A..Z ( c -- flag )
+`alpha?` | 19 Character classification | lowercase or uppercase test, combined with `or` ( c -- flag )
+`space?` | 19 Character classification | accepts space, tab, LF or CR ( c -- flag )
+Range-check trick | 19 Character classification | subtract the base, divide unsigned by the range size, test for zero; below-range bytes wrap and fail
+Preserve-and-combine | 19 Character classification | keep the input available for every component test, then combine the flags
 `close` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `close`: one real arg, five padding zeros
 `die` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `die`: exit unconditionally
 `open` | 18 Linux syscall wrappers | Forth word (`forth/010-lib.fth`); `open`: three real args, three padding zeros
