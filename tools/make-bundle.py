@@ -6,9 +6,13 @@
 Writes book/bundles/NN/ (gitignored), everything a chapter writer reads
 (see AGENTS.md):
 
-  stub.md      the chapter's outline stub, book/outline/NN-*.md
+  stub.md      the chapter's outline stub, book/outline/NN-*.md, headed by
+               a `Target:` line naming the chapter file, book/NN-<slug>.md
   spine.md     every stub in reading order, two or three lines each
-  ledger.md    a copy of book/outline/LEDGER.md
+  ledger.md    the lines of book/outline/LEDGER.md for chapters before NN
+  replaces.txt the old chapter files this chapter replaces: those it
+               reuses that no earlier stub reuses (each old file is
+               replaced by exactly one new chapter, the first that mines it)
   prereqs.md   for each prerequisite chapter: the closing paragraph of its
                written chapter if one exists (book/NN-*.md under the new
                numbering is not used yet), else of its stub's Scope
@@ -17,7 +21,8 @@ Writes book/bundles/NN/ (gitignored), everything a chapter writer reads
                submodule), and source/chunks/NAME.md: each chunk the
                chapter owns, as the exact fenced block from the old book
   owns.txt     the file= fences and chunk= names this chapter owns: those
-               INVENTORY.md lists for the old chapters it reuses
+               INVENTORY.md lists for the old chapters in replaces.txt, so
+               each fence belongs to exactly one new chapter
 """
 import glob, os, re, shutil, sys
 
@@ -56,6 +61,15 @@ def spine():
         if src and not src.startswith("None"):
             out.append(f"  Sources: {src[:200]}{'...' if len(src) > 200 else ''}")
     return "\n".join(out) + "\n"
+
+
+def reusers():
+    """old chapter file -> the stub numbers that reuse it, in order."""
+    out = {}
+    for nn, _, t in stubs():
+        for old in dict.fromkeys(re.findall(r"\]\(\.\./([^)#]+\.md)\)", field(t, "Reuses"))):
+            out.setdefault(old, []).append(nn)
+    return out
 
 
 def owned(reused):
@@ -104,9 +118,16 @@ def main():
     shutil.rmtree(out, ignore_errors=True)
     os.makedirs(os.path.join(out, "old"))
     os.makedirs(os.path.join(out, "source", "chunks"))
-    shutil.copy(sp, os.path.join(out, "stub.md"))
+    target = "book/" + os.path.basename(sp)
+    open(os.path.join(out, "stub.md"), "w").write(f"Target: {target}\n\n" + text)
     open(os.path.join(out, "spine.md"), "w").write(spine())
-    shutil.copy(os.path.join(OUTLINE, "LEDGER.md"), os.path.join(out, "ledger.md"))
+    ledger = open(os.path.join(OUTLINE, "LEDGER.md")).read().split("\n")
+    head = ledger[:ledger.index("--- | --- | ---") + 1]
+    rows = [l for l in ledger[len(head):] if re.match(r".* \| (\d\d) ", l)
+            and int(re.match(r".* \| (\d\d) ", l).group(1)) < int(nn)]
+    open(os.path.join(out, "ledger.md"), "w").write(
+        "\n".join(head[:2] + [f"Only the concepts of chapters before {nn}; spine.md shows what later "
+                               "chapters teach.", ""] + head[2:] + rows) + "\n")
 
     pre = ["# Prerequisites: what the reader can already do", ""]
     for pnn in re.findall(r"\]\((\d\d)-[^)]*\.md\)", field(text, "Prerequisites")):
@@ -132,18 +153,22 @@ def main():
                 shutil.copy(f, dest)
             copied.append(os.path.relpath(f, SRC))
 
-    fences, chunks = owned(reused)
-    blocks = chunk_blocks(reused, {n for _, n in chunks})
+    users = reusers()
+    replaces = [old for old in reused if users.get(old, [nn])[0] == nn]
+    open(os.path.join(out, "replaces.txt"), "w").write(
+        "".join(f"book/{old}\n" for old in replaces))
+    fences, chunks = owned(replaces)
+    blocks = chunk_blocks(replaces, {n for _, n in chunks})
     for name, bs in blocks.items():
         open(os.path.join(out, "source", "chunks", f"{name}.md"), "w").write("\n\n".join(bs) + "\n")
     own = [f"# Fences and chunks chapter {nn} owns (from book/outline/INVENTORY.md,",
-           "# for the old chapters it reuses).  Claim nothing else.", ""]
+           "# for the old chapters in replaces.txt).  Claim nothing else.", ""]
     own += [f"file= {f}" for f in fences] or ["# file= fences: none"]
     own += [f"chunk= {n}  ({f})" for f, n in chunks] or ["# chunk= blocks: none"]
     open(os.path.join(out, "owns.txt"), "w").write("\n".join(own) + "\n")
-    print(f"make-bundle: book/bundles/{nn}: stub, spine, ledger, prereqs, {len(reused)} old "
-          f"chapter(s), {len(copied)} source path(s), {len(blocks)} chunk(s), "
-          f"{len(fences)} fence span(s)")
+    print(f"make-bundle: book/bundles/{nn}: target {target}; {len(rows)} ledger lines; "
+          f"{len(reused)} old chapter(s), {len(replaces)} replaced; {len(copied)} source path(s), "
+          f"{len(blocks)} chunk(s), {len(fences)} fence span(s)")
 
 
 main()
