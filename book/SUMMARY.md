@@ -11,7 +11,7 @@
 
 # Part 1 — asm
 
-- [x86-64 encoding and the two-stack machine](outline/04-x86-64-and-two-stacks.md)
+- [x86-64 encoding and the two-stack machine](04-x86-64-and-two-stacks.md)
 - [ELF, entry, and the memory map](outline/05-elf-and-entry.md)
   - [Chapter 13 — The ELF and the Entry Point](13-elf-and-entry.md)
   - [Appendix B — The memory map](A2-memory-map.md)
