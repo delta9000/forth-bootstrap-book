@@ -75,9 +75,8 @@ linker runs, and nothing is compared with a GCC-built binary; that
 is `./verify.sh`'s job.  The script's header lists the trust base
 exactly, and `REPRODUCIBLE.md` records the hashes.
 
-For a wider-angle dataflow picture (showing where this rung sits
-inside the Bootstrappable / Full Source Bootstrap ladder),
-[Where this fits](where-this-fits.md) has the ladder diagram.
+For routes and history, see
+[Where this fits](03-where-this-fits.md).
 The rest of this appendix is operator-facing: the exact commands
 that turn each row of the table above into a verifiable artifact.
 

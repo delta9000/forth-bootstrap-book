@@ -67,4 +67,4 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [README.md](../01-reading-the-book.md) | Forth From a 1772-Byte Seed | front matter | [Reading the book](01-reading-the-book.md) | keep |
 | [WORD-INDEX.md](../WORD-INDEX.md) | Index | back matter | [Word index](64-word-index.md) | keep |
 | [WRITING.md](../WRITING.md) | How to write a chapter | back matter | [Editorial notes](65-editorial-notes.md) | regroup |
-| [where-this-fits.md](../where-this-fits.md) | Where this fits in the bootstrap ecosystem | front matter | [Where this fits: routes and history](03-where-this-fits.md) | shorten |
+| [where-this-fits.md](../03-where-this-fits.md) | Where this fits in the bootstrap ecosystem | front matter | [Where this fits: routes and history](03-where-this-fits.md) | shorten |

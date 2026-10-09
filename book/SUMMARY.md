@@ -4,8 +4,7 @@
 
 - [Reading the book](01-reading-the-book.md)
 - [Prologue: Seventeen hundred and seventy-two bytes](02-prologue.md)
-- [Where this fits: routes and history](outline/03-where-this-fits.md)
-  - [Where this fits in the bootstrap ecosystem](where-this-fits.md)
+- [Where this fits: routes and history](03-where-this-fits.md)
 
 # Part 1 — asm
 

@@ -337,8 +337,8 @@ M2-Planet builds, and pnut's kit carries that on to
 publishes (`./verify.sh`, step 8).  That is a path from the 1,772-byte
 seed to TinyCC with no Mes and no GCC in it.
 
-[Where this fits](where-this-fits.md) sets the two routes side by
-side.  With Ch 33, the book walks every component along the
+[Where this fits](03-where-this-fits.md) covers the routes and
+their history.  With Ch 33, the book walks every component along the
 seed-forth path:
 
 - Ch 13–20: the 1,772-byte seed itself (`000-seed.hex0`).

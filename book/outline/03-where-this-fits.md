@@ -10,7 +10,7 @@ Prerequisites: [02 — Prologue: Seventeen hundred and seventy-two bytes](02-pro
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [where-this-fits.md](../where-this-fits.md) — Keep the ecosystem context; rewrite the older project’s route account.
+Reuses: [where-this-fits.md](../03-where-this-fits.md) — Keep the ecosystem context; rewrite the older project’s route account.
 
 TODO:
 
