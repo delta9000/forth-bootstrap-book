@@ -295,6 +295,20 @@ Emit-and-divide | 22 Memory updates and cell writers | write the low byte, then 
 `[char]` | 23 Immediacy and constants | IMMEDIATE: compiles CALL lit plus the character cell, 13 bytes ( "tok" -- )
 `tab` `nl` `bl` `lparen` `backslash` | 23 Immediacy and constants | constants for characters char cannot quote
 Emit versus execute | 23 Immediacy and constants | an emitter runs now to write instructions another word executes later
+`branch-xt` `0branch-xt` | 24 Control-flow combinators | constants capturing the xts of branch and 0branch at load time ( -- xt )
+`if,` | 24 Control-flow combinators | IMMEDIATE: emits CALL 0branch plus a zero slot; leaves the slot address ( -- F )
+`then,` | 24 Control-flow combinators | IMMEDIATE: patches the slot to HERE ( F -- )
+`else,` | 24 Control-flow combinators | IMMEDIATE: emits CALL branch and a new slot, patches the if-slot to here ( I -- E )
+`begin,` | 24 Control-flow combinators | IMMEDIATE: records HERE as the back-target ( -- B )
+`while,` | 24 Control-flow combinators | IMMEDIATE: emits a conditional exit slot above the back-target ( B -- B F )
+`repeat,` | 24 Control-flow combinators | IMMEDIATE: emits a branch to B and patches the exit slot ( B F -- )
+`until,` | 24 Control-flow combinators | IMMEDIATE: emits 0branch to B; false repeats ( B -- )
+`again,` | 24 Control-flow combinators | IMMEDIATE: emits an unconditional branch to B ( B -- )
+`exit,` | 24 Control-flow combinators | IMMEDIATE: emits ret; the return stack must be clean on that path ( -- )
+Emit, remember, patch | 24 Control-flow combinators | reserve a destination slot, keep its address, fill it when the destination is known
+Fixup on the stack | 24 Control-flow combinators | the address of an unresolved slot, kept on the data stack during compilation
+Chained fixups | 24 Control-flow combinators | else, resolves one slot while passing a new one to then,
+Backward loops | 24 Control-flow combinators | branches to a destination recorded earlier by begin,
 `2dup` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
 `nip` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
 `rot` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
