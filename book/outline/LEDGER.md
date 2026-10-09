@@ -276,6 +276,13 @@ Sign test by division (2^63) | 20 Comparisons from unsigned division | idea; The
 Sign-extraction via `/2^63` | 20 Comparisons from unsigned division | concept (Forth-level ideas); introduced in old Ch 7
 Signed-overflow domain of < | 20 Comparisons from unsigned division | idea; The cascade
 `2drop` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
+`+!` | 22 Memory updates and cell writers | swap over @ + swap ! : adds n to the cell at addr ( n addr -- )
+`-!` | 22 Memory updates and cell writers | subtracts n from the cell at addr ( n addr -- )
+`,4` | 22 Memory updates and cell writers | appends the low four bytes of v at HERE, little-endian ( v -- )
+`,8` | 22 Memory updates and cell writers | appends all eight bytes of v at HERE: low ,4 then high ,4 ( v -- )
+Division as a right shift | 22 Memory updates and cell writers | unsigned / 256 shifts right by eight bits
+Little-endian cell writers | 22 Memory updates and cell writers | emit a value from its least significant byte upward
+Emit-and-divide | 22 Memory updates and cell writers | write the low byte, then divide by 256 to expose the next byte
 `2dup` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
 `nip` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
 `rot` | 21 Stack shufflers | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); The four shuffles
