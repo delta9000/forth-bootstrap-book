@@ -60,7 +60,7 @@ for which chapter depends on which, the
 - `@` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `@`: replace an address with its contents](06-stack-primitives.md#-replace-an-address-with-its-contents) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
 - `[char]` — *Forth word (`forth/010-lib.fth`)* — [Ch 10 §7 `call,` and `[char]`: compiling by hand](10-immediacy-and-constants.md#7-call-and-char-compiling-by-hand)
 - `[lit]` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 10, `bracket_lit_code`: write what `lit_code` will read](10-colon-compiler.md#bracket_lit_code-write-what-lit_code-will-read) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile) · [App. A, The table](A1-32-seed-primitives.md#the-table)
-- **[lit] convention (explicit literals)** — [Ch 2 §2 `here-addr` — a one-line preview of the \[lit\] convention](02-code-emission-and-here.md#2-here-addr--a-one-line-preview-of-the-lit-convention) · [Ch 20 §3 Why no auto-number parsing in interpret mode?](20-number-parser-and-repl.md#3-why-no-auto-number-parsing-in-interpret-mode)
+- **[lit] convention (explicit literals)** — [Ch 2 §2 `here-addr` — a one-line preview of the \[lit\] convention](02-code-emission-and-here.md#2-here-addr--a-one-line-preview-of-the-lit-convention) · [Ch 12, Why no auto-number parsing?](12-repl.md#why-no-auto-number-parsing)
 
 ## A
 
@@ -2872,7 +2872,7 @@ for which chapter depends on which, the
 - `ni-type` — *compiler word (`cc/118-cc-native-init.fth`)* — [Ch 34 §4 Initializers reuse expression fixups](34-direct-tinycc.md#4-initializers-reuse-expression-fixups)
 - `nip` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 8 §1 The four shuffles](08-stack-shufflers.md#1-the-four-shuffles) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `nl` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 10 §7 `call,` and `[char]`: compiling by hand](10-immediacy-and-constants.md#7-call-and-char-compiling-by-hand)
-- **Number parser** — [Ch 20 §1 `parse_decimal_code` ( c-addr u -- n true | 0 false )](20-number-parser-and-repl.md#1-parse_decimal_code--c-addr-u----n-true--0-false-)
+- **Number parser** — [Ch 12, Decimal conversion: `parse_decimal_code`](12-repl.md#decimal-conversion-parse_decimal_code)
 
 ## O
 
@@ -2909,7 +2909,7 @@ for which chapter depends on which, the
 
 ## P
 
-- `parse_decimal_code` — *seed label* — [Ch 20 §1 `parse_decimal_code` ( c-addr u -- n true | 0 false )](20-number-parser-and-repl.md#1-parse_decimal_code--c-addr-u----n-true--0-false-)
+- `parse_decimal_code` — *seed label* — [Ch 12, Decimal conversion: `parse_decimal_code`](12-repl.md#decimal-conversion-parse_decimal_code)
 - `plus_code` — *seed label* — [Ch 7, Addition contract](07-arithmetic-and-logic.md#addition-contract)
 - `poc-xt` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `pop-rsub,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -2965,8 +2965,8 @@ for which chapter depends on which, the
 - **Register convention (rdi accumulator)** — [Ch 25 §2 `090-cc-emit.fth`, part 1: register convention](25-elf-and-codegen-part-1.md#2-090-cc-emitfth-part-1-register-convention)
 - `rel32!` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `repeat,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §7 Backward loops: `begin,` / `while,` / `repeat,`](11-control-flow-combinators.md#7-backward-loops-begin--while--repeat) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `repl` — *seed label* — [Ch 20 §2 The REPL loop](20-number-parser-and-repl.md#2-the-repl-loop)
-- **REPL (interpret/compile loop)** — [Ch 20 §2 The REPL loop](20-number-parser-and-repl.md#2-the-repl-loop)
+- `repl` — *seed label* — [Ch 12, The REPL loop](12-repl.md#the-repl-loop)
+- **REPL (interpret/compile loop)** — [Ch 12, The REPL loop](12-repl.md#the-repl-loop)
 - `report_token` — *seed label* — [Ch 9, `report_token` and `fatal_token`: failing out loud](09-dictionary.md#report_token-and-fatal_token-failing-out-loud)
 - `ret,` — *Forth word (`forth/010-lib.fth`)* — [Ch 10 §5 `constant`'s runtime body](10-immediacy-and-constants.md#5-constants-runtime-body)
 - **Return stack** — [Ch 4 §1 Why two stacks at all?](04-return-stack-over-subtract.md#1-why-two-stacks-at-all) · [Ch 6, Return-address shelter: bridging the two stacks](06-stack-primitives.md#return-address-shelter-bridging-the-two-stacks)

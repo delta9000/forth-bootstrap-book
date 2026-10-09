@@ -19,8 +19,7 @@
 - [The dictionary and token reader](09-dictionary.md)
 - [The colon compiler](10-colon-compiler.md)
 - [Branches and inline cells](11-branches.md)
-- [Decimal parsing and the REPL](outline/12-repl.md)
-  - [Chapter 20 — The Number Parser and REPL](20-number-parser-and-repl.md)
+- [Decimal parsing and the REPL](12-repl.md)
 - [The 32 seed primitives: reference](outline/13-primitive-reference.md)
   - [Appendix A — The 32 seed primitives](A1-32-seed-primitives.md)
 

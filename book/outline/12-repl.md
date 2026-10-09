@@ -10,7 +10,7 @@ Prerequisites: [11 — Branches and inline cells](11-branches.md)
 
 Checkpoint: `seed/build.sh`; `echo 'bye' | ./seed-forth` — build the 1,772-byte seed and confirm that its REPL accepts `bye`.
 
-Reuses: [20-number-parser-and-repl.md](../20-number-parser-and-repl.md) — Reuse the source walkthrough: Follow decimal conversion and the loop that chooses lookup, literal compilation, or execution.
+Reuses: [20-number-parser-and-repl.md](../12-repl.md) — Reuse the source walkthrough: Follow decimal conversion and the loop that chooses lookup, literal compilation, or execution.
 
 TODO:
 

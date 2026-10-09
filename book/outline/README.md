@@ -7,7 +7,7 @@ This skeleton places the book in four parts without drafting chapter prose. SUMM
 | Front matter | 3 |
 | Part 1 — asm | 12 |
 | Part 2 — Forth | 14 |
-| Part 3 — compiler | 27 |
+| Part 3 — compiler | 28 |
 | Part 4 — bootstrap | 16 |
 | Back matter | 9 |
-| Total | 81 |
+| Total | 82 |

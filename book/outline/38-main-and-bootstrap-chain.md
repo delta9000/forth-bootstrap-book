@@ -15,3 +15,4 @@ Reuses: [32-main-and-bootstrap-chain.md](../32-main-and-bootstrap-chain.md) — 
 TODO:
 
 - TODO Adjust the chapter’s prerequisites and cross-references to the four-part order.
+- TODO Restore the old Ch 20 'Bridge to Part III' demo (feeding the C compiler's Forth into the REPL), cut from Ch 12.
