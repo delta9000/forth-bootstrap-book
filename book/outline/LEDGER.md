@@ -371,6 +371,20 @@ Fixup-on-the-stack | 24 Control-flow combinators | concept (Forth-level ideas); 
 `allot` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); `allot` in one line
 `bytes,` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); `s,`: names as data
 `bytes-eq` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); `bytes-eq`: stop at the first mismatch
+Self-contained assembler | 26 The M1 assembler and hex2 linker | 130-asm.fth runs on the seed and 010-lib.fth alone: load both, then asm-main
+Label table | 26 The M1 assembler and hex2 linker | records of name slice and address; newest-first slice lookup, newest declaration wins
+M1 macro | 26 The M1 assembler and hex2 linker | DEFINE name value: textual, non-recursive substitution before assembly
+Sigil | 26 The M1 assembler and hex2 linker | ! @ ~ % (relative, 1-4 bytes, from field end), $ & (absolute, 2 and 4 bytes); %a>b gives a - b
+Two-pass assembly | 26 The M1 assembler and hex2 linker | pass 1 counts bytes and records labels, pass 2 resolves and emits
+Prospective-size check | 26 The M1 assembler and hex2 linker | asm-check-cap: die with a code unless the size after an append fits
+Newest-first slice lookup | 26 The M1 assembler and hex2 linker | search records newest to oldest by length then bytes-eq; shared by labels and macros
+asm buffers and cursor | 26 The M1 assembler and hex2 linker | asm-src-* asm-exp-* asm-cur-* asm-use-src asm-use-exp asm-reset-pos asm-load-stdin asm-eof? asm-peek-char asm-next-char
+asm output | 26 The M1 assembler and hex2 linker | asm-out-* asm-emit-byte asm-emit-le asm-write-output (fixed path /tmp/asm-out)
+asm labels | 26 The M1 assembler and hex2 linker | asm-labels asm-rec asm-count asm-store-label asm-find-label asm-base asm-ip asm-pass
+asm numbers and bounds | 26 The M1 assembler and hex2 linker | asm-parse-number asm-dec-* asm-hex-char? hex-val asm-label-bounds asm-number-bounds asm-fit
+asm tokens and dispatch | 26 The M1 assembler and hex2 linker | asm-read-token asm-skip-ws asm-process-token asm-do-ref asm-do-pct-ref asm-do-hex asm-check-hex asm-do-label-decl asm-tok-err
+asm macros | 26 The M1 assembler and hex2 linker | asm-defs asm-def-store asm-def-find asm-is-define? asm-exp-bytes asm-exp-string-double asm-exp-string-single asm-expand-pass
+`asm-main` | 26 The M1 assembler and hex2 linker | load stdin, expand, pass 1, rewind, pass 2, write /tmp/asm-out, bye
 `create` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); `create`'s runtime body
 `defer-code-size` | 25 Defining words and byte equality | Forth word (constant, `forth/010-lib.fth`); `defer` and `is`: a name now, a meaning later
 `defer` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); `defer` and `is`: a name now, a meaning later
