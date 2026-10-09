@@ -2468,7 +2468,7 @@ for which chapter depends on which, the
 - `cfetch_code` — *seed label* — [Ch 6, `c@`: widen a byte into a cell](06-stack-primitives.md#c-widen-a-byte-into-a-cell)
 - **Chained fixups (else,)** — [Ch 11 §6 `else,`: chained fixups](11-control-flow-combinators.md#6-else-chained-fixups)
 - `char` — *Forth word (`forth/010-lib.fth`)* — [Ch 10 §7 `call,` and `[char]`: compiling by hand](10-immediacy-and-constants.md#7-call-and-char-compiling-by-hand)
-- `close` — *Forth word (`forth/010-lib.fth`)* — [Ch 5 §4 `close`: one real arg, five padding zeros](05-syscalls.md#4-close-one-real-arg-five-padding-zeros)
+- `close` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
 - `code-start` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `code:` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `colon_code` — *seed label* — [Ch 10, `colon_code`: give the body a name](10-colon-compiler.md#colon_code-give-the-body-a-name)
@@ -2495,7 +2495,7 @@ for which chapter depends on which, the
 - **Deferred words** — [Ch 12 §4 `defer` and `is`: a name now, a meaning later](12-defining-words-and-bytes-eq.md#4-defer-and-is-a-name-now-a-meaning-later)
 - **#define and macro expansion** — [Ch 22 §5 Macro expansion](22-the-preprocessor.md#5-macro-expansion) · [Ch 22, `#define` and `#undef`](22-the-preprocessor.md#define-and-undef)
 - **Dictionary header layout** — [Ch 10 §3 Dictionary header layout](10-immediacy-and-constants.md#3-dictionary-header-layout) · [Ch 9, The header layout](09-dictionary.md#the-header-layout)
-- `die` — *Forth word (`forth/010-lib.fth`)* — [Ch 5 §5 `die`: exit unconditionally](05-syscalls.md#5-die-exit-unconditionally)
+- `die` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
 - `digit?` — *Forth word (`forth/010-lib.fth`)* — [Ch 6 §3 `digit?`, `alpha-lower?`, `alpha-upper?`, `alpha?`](06-character-classification.md#3-digit-alpha-lower-alpha-upper-alpha)
 - **Direct TinyCC bootstrap** — [Ch 34 §6 What the bootstrap result proves](34-direct-tinycc.md#6-what-the-bootstrap-result-proves)
 - **Diverse double-compiling** — [App. C, Cross-check against stage0-posix (diverse double-compiling)](A3-reproducibility-chain.md#cross-check-against-stage0-posix-diverse-double-compiling)
@@ -2901,7 +2901,7 @@ for which chapter depends on which, the
 - `om-symbol` — *compiler word (`cc/123-cc-object-program.fth`)* — [Ch 36 §4 Carry code and storage into a relocatable object](36-direct-gcc-calls.md#4-carry-code-and-storage-into-a-relocatable-object)
 - `om-type` — *compiler word (`cc/123-cc-object-program.fth`)* — [Ch 36 §4 Carry code and storage into a relocatable object](36-direct-gcc-calls.md#4-carry-code-and-storage-into-a-relocatable-object)
 - **One buffer instead of streaming** — [Ch 21 §3 Why one big buffer instead of streaming?](21-arena-and-io-buffers.md#3-why-one-big-buffer-instead-of-streaming)
-- `open` — *Forth word (`forth/010-lib.fth`)* — [Ch 5 §2 `open`: three real args, three padding zeros](05-syscalls.md#2-open-three-real-args-three-padding-zeros)
+- `open` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `open`: a path, flags, and mode](18-lib-05-syscalls.md#open-a-path-flags-and-mode)
 - **Operator table** — [Ch 27 §5 The operator table](27-expressions-part-1.md#5-the-operator-table)
 - `or` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 16, `or` in six words](16-lib-03-logic-from-nand.md#or-in-six-words) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
 - `or,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
@@ -2959,7 +2959,7 @@ for which chapter depends on which, the
 - `r_at_code` — *seed label* — [Ch 6, `r@`: copy without removing](06-stack-primitives.md#r-copy-without-removing)
 - `r_from_code` — *seed label* — [Ch 6, `r>`: recover the saved value](06-stack-primitives.md#r-recover-the-saved-value)
 - **Range-check trick** — [Ch 6 §2 The range-check trick](06-character-classification.md#2-the-range-check-trick)
-- `read` — *Forth word (`forth/010-lib.fth`)* — [Ch 5 §3 `read` and `write`: a symmetric pair](05-syscalls.md#3-read-and-write-a-symmetric-pair)
+- `read` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `read` and `write`: a symmetric pair](18-lib-05-syscalls.md#read-and-write-a-symmetric-pair)
 - `read_char` — *seed label* — [Ch 9, `read_char`: a byte and a verdict](09-dictionary.md#read_char-a-byte-and-a-verdict)
 - `read_word` — *seed label* — [Ch 9, `read_word`, the token reader](09-dictionary.md#read_word-the-token-reader)
 - **Register convention (rdi accumulator)** — [Ch 25 §2 `090-cc-emit.fth`, part 1: register convention](25-elf-and-codegen-part-1.md#2-090-cc-emitfth-part-1-register-convention)
@@ -3024,7 +3024,7 @@ for which chapter depends on which, the
 - `swap_code` — *seed label* — [Ch 6, `swap`: preserve depth, exchange positions](06-stack-primitives.md#swap-preserve-depth-exchange-positions)
 - **switch with deferred dispatch** — [Ch 30 §6 `switch` with deferred dispatch](30-statements-if-while-for-return.md#6-switch-with-deferred-dispatch)
 - **Symbol table** — [Ch 24 §2 The symbol-table parallel arrays](24-types-and-symbols.md#2-the-symbol-table-parallel-arrays) · [Ch 24 §3 Adding and finding symbols](24-types-and-symbols.md#3-adding-and-finding-symbols)
-- **Syscall ABI (x86-64 Linux)** — [Ch 5 §1 A sidebar on the syscall ABI](05-syscalls.md#1-a-sidebar-on-the-syscall-abi) · [Ch 8, `syscall6`: let the caller choose](08-seed-io.md#syscall6-let-the-caller-choose)
+- **Syscall ABI (x86-64 Linux)** — [Ch 18, A sidebar on the syscall ABI](18-lib-05-syscalls.md#a-sidebar-on-the-syscall-abi) · [Ch 8, `syscall6`: let the caller choose](08-seed-io.md#syscall6-let-the-caller-choose)
 - `syscall6` — *seed primitive* — [Ch 8, `syscall6`: let the caller choose](08-seed-io.md#syscall6-let-the-caller-choose) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `syscall6_code` — *seed label* — [Ch 8, `syscall6`: let the caller choose](08-seed-io.md#syscall6-let-the-caller-choose)
 - **Sysvar page (STATE, LATEST, HERE, LAST_FOUND)** — [Ch 5, Initialize the mutable system variables](05-elf-and-entry.md#initialize-the-mutable-system-variables)
@@ -3098,7 +3098,7 @@ for which chapter depends on which, the
 ## W
 
 - `while,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 11 §7 Backward loops: `begin,` / `while,` / `repeat,`](11-control-flow-combinators.md#7-backward-loops-begin--while--repeat) · [Ch 21, Arithmetic, input and a light optimizing compile](21-arena-and-io-buffers.md#arithmetic-input-and-a-light-optimizing-compile)
-- `write` — *Forth word (`forth/010-lib.fth`)* — [Ch 5 §3 `read` and `write`: a symmetric pair](05-syscalls.md#3-read-and-write-a-symmetric-pair)
+- `write` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `read` and `write`: a symmetric pair](18-lib-05-syscalls.md#read-and-write-a-symmetric-pair)
 
 ## Z
 

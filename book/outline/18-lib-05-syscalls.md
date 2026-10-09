@@ -10,7 +10,7 @@ Prerequisites: [17 — The return stack, over, and subtraction](17-lib-04-return
 
 Checkpoint: `./test.sh` — cumulative seed, library, and initial compiler-layer regression check.
 
-Reuses: [05-syscalls.md](../05-syscalls.md) — Reuse the source walkthrough: Give Linux calls readable Forth interfaces around syscall6.
+Reuses: [05-syscalls.md](../18-lib-05-syscalls.md) — Reuse the source walkthrough: Give Linux calls readable Forth interfaces around syscall6.
 
 TODO:
 
