@@ -2,7 +2,7 @@
 
 Generated from book/*.md and the forth-bootstrap submodule: every chapter, its length, and the source lines its `file=` blocks teach.
 
-| chapter file | title | lines | file= spans (source lines taught, in order) |
+| chapter file | title | lines | file= spans (source lines in root blocks; chunk-assembled files are listed under "Chunks by chapter") |
 |---|---|---|---|
 | 00-prologue.md | Prologue: Seventeen hundred and seventy-two bytes | 134 |  |
 | 01-stacks-and-words.md | Stacks and words | 425 | forth/010-lib.fth 1-10 |
@@ -80,7 +80,7 @@ Source sizes (forth-bootstrap):
 - cc/080-cc-elf.fth: 80 lines, all covered by fences: True
 - cc/081-cc-object.fth: 507 lines, all covered by fences: True
 - cc/090-cc-emit.fth: 1384 lines, all covered by fences: True
-- cc/100-cc-expr.fth: 2657 lines, all covered by fences: False
+- cc/100-cc-expr.fth: 2657 lines, assembled from chunks (below); tangle --strict proves it complete
 - cc/110-cc-decl.fth: 808 lines, all covered by fences: True
 - cc/112-cc-stmt.fth: 905 lines, all covered by fences: True
 - cc/114-cc-func.fth: 310 lines, all covered by fences: True
@@ -105,14 +105,20 @@ Source sizes (forth-bootstrap):
 - cc/141-archive.fth: 413 lines, all covered by fences: True
 - forth/010-lib.fth: 469 lines, all covered by fences: True
 - forth/130-asm.fth: 785 lines, all covered by fences: True
-- seed/000-seed.hex0: 689 lines, all covered by fences: False
+- seed/000-seed.hex0: 689 lines, assembled from chunks (below); tangle --strict proves it complete
 
-seed/000-seed.hex0 is assembled by the file= root in 13-elf-and-entry.md from <<chunk>> references; the chunks are defined in chapters 13-20 (and their order in the root is the file order):
-- 13-elf-and-entry.md: file-header-comment elf-header program-header entry-point sysvar-init jmp-to-repl 
-- 14-stack-primitives.md: dup drop swap to-r r-from r-at fetch store cfetch cstore 
-- 15-arithmetic-and-logic.md: plus nand zeq divide star 
-- 16-io-emit-key-syscall6.md: bye emit key syscall6 
-- 17-the-dictionary.md: find here comma execute read-word read-char report-token state latest tick 
-- 18-the-colon-compiler.md: colon semicolon compile-call lit bracket-lit 
-- 19-branches-and-inline-cells.md: branch zbranch 
-- 20-number-parser-and-repl.md: parse-decimal repl 
+## Chunks by chapter
+
+Two files are assembled from `<<chunk>>` references rather than read straight through: `seed/000-seed.hex0` (root block in 13-elf-and-entry.md) and `cc/100-cc-expr.fth` (root block in 27-expressions-part-1.md).  For each chapter, the chunks it defines, by source file, in definition order:
+
+- 13-elf-and-entry.md: seed/000-seed.hex0: file-header-comment, elf-header, program-header, entry-point, sysvar-init, jmp-to-repl
+- 14-stack-primitives.md: seed/000-seed.hex0: dup, drop, swap, to-r, r-from, r-at, fetch, store, cfetch, cstore
+- 15-arithmetic-and-logic.md: seed/000-seed.hex0: plus, nand, zeq, divide, star
+- 16-io-emit-key-syscall6.md: seed/000-seed.hex0: bye, emit, key, syscall6
+- 17-the-dictionary.md: seed/000-seed.hex0: find, here, comma, execute, read-word, read-char, report-token, state, latest, tick
+- 18-the-colon-compiler.md: seed/000-seed.hex0: colon, semicolon, compile-call, lit, bracket-lit
+- 19-branches-and-inline-cells.md: seed/000-seed.hex0: branch, zbranch
+- 20-number-parser-and-repl.md: seed/000-seed.hex0: parse-decimal, repl
+- 27-expressions-part-1.md: cc/100-cc-expr.fth: expr-header, expr-tok-tests, expr-fwd-refs, expr-binops, expr-mul, expr-add, expr-shift, expr-rel, expr-eq, expr-bit, expr-log
+- 28-expressions-part-2.md: cc/100-cc-expr.fth: expr-lvalue, expr-struct-field, expr-array-index, expr-primary, expr-primary-postfix, expr-primary-operand, expr-primary-literals, expr-primary-ident, expr-primary-fn-rvalue, expr-primary-global, expr-primary-local, expr-primary-paren, expr-primary-postfix-incdec, expr-primary-postfix-index, expr-primary-postfix-field, expr-unary, expr-ternary, expr-assign, expr-top
+- 31-functions-and-scope.md: cc/100-cc-expr.fth: expr-call
