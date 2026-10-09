@@ -33,8 +33,7 @@
 - [Immediacy and constants](23-lib-10-immediacy-and-constants.md)
 - [Control-flow combinators](24-lib-11-control-flow-combinators.md)
 - [Defining words and byte equality](25-lib-12-defining-words-and-bytes-eq.md)
-- [The M1 assembler and hex2 linker](outline/26-m1-and-hex2.md)
-  - [Chapter 33 — The Assembler: M1 and hex2 in Forth](33-the-assembler.md)
+- [The M1 assembler and hex2 linker](26-m1-and-hex2.md)
 
 # Part 3 — compiler
 

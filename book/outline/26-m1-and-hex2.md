@@ -10,7 +10,7 @@ Prerequisites: [25 — Defining words and byte equality](25-lib-12-defining-word
 
 Checkpoint: `./test.sh`; TODO — forth-bootstrap has no script yet to demonstrate that this assembler reproduces M1/hex2.
 
-Reuses: [33-the-assembler.md](../33-the-assembler.md) — Reuse the source walkthrough: Teach the two-pass assembler and linker in Forth as the library’s capstone.
+Reuses: [33-the-assembler.md](../26-m1-and-hex2.md) — Reuse the source walkthrough: Teach the two-pass assembler and linker in Forth as the library’s capstone.
 
 TODO:
 
