@@ -6,6 +6,8 @@ term | chapter | definition
 --- | --- | ---
 Checkpoint | 01 Reading the book | a command and its observed result that test one specific operation
 Checkpoint working directory | 01 Reading the book | the forth-bootstrap checkout root, where checkpoint commands run
+Inherited executable | 03 Where this fits: routes and history | machine code already present when a bootstrap route begins (here, the 229-byte hex0-seed)
+Inherited source | 03 Where this fits: routes and history | upstream source that still needs a builder inside the route
 Cached-top pattern | 04 x86-64 encoding and the two-stack machine | `rdi` holds the top of the data stack; `rbp` points at the next value in memory, so a push stores the old top and moves `rbp` down
 Return stack (`rsp`) | 04 x86-64 encoding and the two-stack machine | the stack `rsp` addresses: hardware return addresses, and data a routine saves there explicitly
 Cell | 04 x86-64 encoding and the two-stack machine | an eight-byte (64-bit) stack value
