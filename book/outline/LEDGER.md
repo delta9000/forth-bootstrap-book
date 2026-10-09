@@ -348,6 +348,19 @@ The IMMEDIATE flag | 23 Immediacy and constants | concept (Forth-level ideas); i
 `until,` | 24 Control-flow combinators | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); `until,`, `again,` and `exit,`
 `while,` | 24 Control-flow combinators | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); Backward loops: `begin,` / `while,` / `repeat,`
 Backward loops | 24 Control-flow combinators | idea; Backward loops: `begin,` / `while,` / `repeat,`
+`allot` | 25 Defining words and byte equality | advances HERE by n bytes without initializing them ( n -- )
+`skip-vm-pages` | 25 Defining words and byte equality | moves HERE to state + 4096, above the seed's fixed pages ( -- )
+`create` | 25 Defining words and byte equality | defines a word whose 19-byte body pushes the address just past it ( "name" -- )
+`variable` | 25 Defining words and byte equality | create plus one zero cell ( "name" -- )
+`fetch-xt` `execute-xt` | 25 Defining words and byte equality | constants holding the xts of @ and execute ( -- xt )
+`defer-code-size` | 25 Defining words and byte equality | 29, the offset of a deferred word's target cell ( -- n )
+`defer` | 25 Defining words and byte equality | defines a word that fetches and executes the xt stored in its cell ( "name" -- )
+`is` | 25 Defining words and byte equality | stores an xt into a deferred word's target cell ( xt "name" -- )
+Deferred words | 25 Defining words and byte equality | a stable entry point whose target can be set later
+`token` | 25 Defining words and byte equality | reads the next token; leaves its buffer address and length ( "tok" -- a u )
+`bytes,` | 25 Defining words and byte equality | copies a byte range to HERE ( a u -- )
+`s,` | 25 Defining words and byte equality | token bytes, : copies the next token's bytes, no length or terminator ( "tok" -- )
+`bytes-eq` | 25 Defining words and byte equality | compares two byte ranges, returning early on the first mismatch ( a b u -- f )
 Chained fixups (else,) | 24 Control-flow combinators | idea; `else,`: chained fixups
 Early exit (exit,) | 24 Control-flow combinators | idea; `until,`, `again,` and `exit,`
 Early return with `exit,` (return stack must be clean) | 24 Control-flow combinators | concept (Forth-level ideas); introduced in old Ch 11
