@@ -2311,6 +2311,7 @@ hdb result export | 55 Linux 7.2.8 and kexec under QEMU | finish.sh writes the L
 Linux boot parameters | 55 Linux 7.2.8 and kexec under QEMU | K1 builds boot_params, the command line and the e820 map before jumping to Linux
 kexec-style handover | 55 Linux 7.2.8 and kexec under QEMU | the running K1 loads its successor kernel and jumps to it without firmware
 Init greeting evidence | 55 Linux 7.2.8 and kexec under QEMU | init's greeting and /proc/version show the built kernel ran a chain-built program
+GCC 15 route integration | 56 Epilogue: onward to GCC 15.2 | bringing seed-forth's GCC 15.2 climb into forth-bootstrap needs pinned inputs, guest recipes, measurements and new evidence
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
