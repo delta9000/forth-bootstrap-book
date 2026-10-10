@@ -49,8 +49,8 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [42-direct-gcc-varargs.md](../46-varargs.md) | 42. Variadic lists across the System V boundary | 3 | [System V varargs](46-varargs.md) | regroup |
 | [43-direct-gcc-stdio.md](../43-runtime-and-libc.md) | 43. Generator streams and integer formatting | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
 | [44-direct-gcc-archives.md](../42-linker-and-archives.md) | Chapter 44 — Indexed archives and lazy member selection | 3 | [Linker and archives](42-linker-and-archives.md) | regroup |
-| [45-direct-gcc-binary64.md](../45-direct-gcc-binary64.md) | 45. Binary32 and binary64 scalar values | 3 | [Floating values and exact literals](47-floats.md) | regroup |
-| [46-direct-gcc-float-literals.md](../46-direct-gcc-float-literals.md) | Chapter 46 — Exact decimal binary64 literals | 3 | [Floating values and exact literals](47-floats.md) | regroup |
+| [45-direct-gcc-binary64.md](../47-floats.md) | 45. Binary32 and binary64 scalar values | 3 | [Floating values and exact literals](47-floats.md) | regroup |
+| [46-direct-gcc-float-literals.md](../47-floats.md) | Chapter 46 — Exact decimal binary64 literals | 3 | [Floating values and exact literals](47-floats.md) | regroup |
 | [47-direct-gcc-bitfields.md](../47-direct-gcc-bitfields.md) | Chapter 47 — Integer record bitfields | 3 | [Record bitfields](48-bitfields.md) | regroup |
 | [48-direct-gcc-aggregate-abi.md](../48-direct-gcc-aggregate-abi.md) | 48. Record values at the System V boundary | 3 | [Aggregates and extended floating values](49-aggregate-abi.md) | regroup |
 | [49-direct-gcc-cc1.md](../49-direct-gcc-cc1.md) | Chapter 49 — Building GCC's compiler proper | 4 | [GCC 4.0.4: stages C and D](52-gcc-4-fixed-point.md) | keep |

@@ -222,7 +222,7 @@ bit after signed truncation. Float and double use their corresponding `fld`
 and `fstp` memory widths, rounding directly at the destination precision.
 As in C, nonfinite and out-of-range integer conversions have no defined result.
 
-Static constants use [chapter 46](46-direct-gcc-float-literals.md)'s exact
+Static constants use [chapter 46](47-floats.md)'s exact
 integer ratios. Extended constants carry a 64-bit explicit significand and a
 sign/exponent field. Decimal and hexadecimal `l/L` literals, arithmetic, casts,
 comparisons and selected conditional arms round to nearest, ties to even.

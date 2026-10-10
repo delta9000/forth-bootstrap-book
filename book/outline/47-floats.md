@@ -10,7 +10,7 @@ Prerequisites: [46 — System V varargs](46-varargs.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [45-direct-gcc-binary64.md](../45-direct-gcc-binary64.md) — Reuse binary32 and binary64 values, arithmetic, conversions, and ABI handling; [46-direct-gcc-float-literals.md](../46-direct-gcc-float-literals.md) — Reuse exact decimal conversion and correctly rounded binary64 literals.
+Reuses: [45-direct-gcc-binary64.md](../47-floats.md) — Reuse binary32 and binary64 values, arithmetic, conversions, and ABI handling; [46-direct-gcc-float-literals.md](../47-floats.md) — Reuse exact decimal conversion and correctly rounded binary64 literals.
 
 TODO:
 
