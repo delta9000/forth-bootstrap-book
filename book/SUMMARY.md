@@ -81,15 +81,14 @@
 - [Appendix D: worked exercises](58-worked-exercises.md)
 - [Appendix E: further reading](59-further-reading.md)
 - [Appendix F: the C subset](60-c-subset.md)
-- [Appendix G: compiler exit codes](61-error-codes.md)
+- [Appendix G: compiler error codes](61-error-codes.md)
 - [Glossary](62-glossary.md)
 - [Concept index and dependencies](63-concepts.md)
-- [Word index](outline/64-word-index.md)
-  - [Index](WORD-INDEX.md)
-- [Editorial notes](outline/65-editorial-notes.md)
-  - [How to write a chapter](WRITING.md)
-  - [Learning Story Plan — third version (post-rollout)](LEARNING_STORY_PLAN.md)
+- [Word index](WORD-INDEX.md)
+- [Editorial notes](65-editorial-notes.md)
 
 # Retired
 
+- [How to write a chapter (previous edition)](WRITING.md)
+- [Learning Story Plan (previous edition)](LEARNING_STORY_PLAN.md)
 - [Chapter 34 — Compiling TinyCC Directly](34-direct-tinycc.md)
