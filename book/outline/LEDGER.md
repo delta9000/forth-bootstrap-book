@@ -1303,6 +1303,11 @@ Token kinds (`KW_*`, `ID`, `PUNCT`, `NUM`, `STR`, `CHR`) | 29 The lexer | concep
 `ty-void` | 30 Types and symbols | compiler word (constant, `cc/060-cc-types.fth`); The one-word type encoding
 Compact type encoding (one word per type) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
 Scope stack | 30 Types and symbols | idea; Scopes are a stack of integers
+ELF wrapper | 31 ELF emission and instruction encoding | cc-emit-elf-header lays down a 120-byte ELF header and program header; cc-finalize-elf patches sizes
+Register convention (rdi accumulator) | 31 ELF emission and instruction encoding | emitted expressions keep their current result in rdi; binary operations put the right operand in rcx
+Frame-pointer local addressing | 31 ELF emission and instruction encoding | locals are rbp-relative slots; cc-emit-local-ea picks the short or long displacement form
+System V AMD64 calling convention | 31 ELF emission and instruction encoding | integer and pointer arguments go in rdi rsi rdx rcx r8 r9; results return in rax
+rel32 placeholder and patch | 31 ELF emission and instruction encoding | emit a jump with a zero displacement, then cc-patch-rel32-to-here fixes it to the current position
 Scope stack (push/pop count) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
 Struct descriptor | 30 Types and symbols | idea; How types and symbols connect
 Struct descriptor (16 + 40·N legacy, 32 + 48·N LP64 bytes) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
