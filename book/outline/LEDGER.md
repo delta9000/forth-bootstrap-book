@@ -1322,6 +1322,11 @@ Operator table | 33 Expressions: precedence | rows tie punctuation and compound 
 Left associativity | 33 Expressions: precedence | each loop iteration's result becomes the next iteration's left operand
 Short-circuit logical AND/OR | 33 Expressions: precedence | conditional branches skip the right operand when the left decides the result
 Operand snapshot | 33 Expressions: precedence | saved left-operand metadata survives recursive parsing of the right operand
+Lvalue vs rvalue | 34 Expressions: operands and assignment | an operand designating storage becomes a value only through a delayed read
+Lvalue tracking | 34 Expressions: operands and assignment | expression metadata keeps storage location, type, qualifiers and array shape
+Postfix operators | 34 Expressions: operands and assignment | suffix handlers transform an operand while keeping the metadata later operations need
+Assignment (snapshot, recurse, store) | 34 Expressions: operands and assignment | save destination state, parse the source recursively, then emit the store
+Constant expressions | 34 Expressions: operands and assignment | evaluate expression syntax at compile time, suppressing arithmetic in unselected arms
 Scope stack (push/pop count) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
 Struct descriptor | 30 Types and symbols | idea; How types and symbols connect
 Struct descriptor (16 + 40·N legacy, 32 + 48·N LP64 bytes) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
