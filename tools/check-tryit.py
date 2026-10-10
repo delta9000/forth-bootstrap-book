@@ -81,7 +81,7 @@ MARK_RE = re.compile(r"<!--\s*tryit:\s*(skip|loops)\s*-->")
 
 NEEDS = [
     (re.compile(r"\bgforth\b"), "needs gforth"),
-    (re.compile(r"\bgcc\b"), "needs gcc"),
+    (re.compile(r"(?<![\w/-])gcc(?![\w/-])"), "needs gcc"),
     (re.compile(r"(^|[\s;&|])make\b"), "needs make"),
     (re.compile(r"\bgit\s"), "needs git"),
     (re.compile(r"\bvendor/"), "needs vendor/ checkouts"),

@@ -42,12 +42,12 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [35-direct-gcc-objects.md](../40-objects-and-relocations.md) | Chapter 35 — Forth-written relocatable objects | 3 | [Objects and relocations](40-objects-and-relocations.md) | regroup |
 | [36-direct-gcc-calls.md](../41-system-v-calls.md) | Chapter 36: Scalar calls across the System V boundary | 3 | [System V calls and separate compilation](41-system-v-calls.md) | regroup |
 | [37-direct-gcc-linker.md](../42-linker-and-archives.md) | Chapter 37 — Linking independent AMD64 objects | 3 | [Linker and archives](42-linker-and-archives.md) | regroup |
-| [38-direct-gcc-runtime.md](../38-direct-gcc-runtime.md) | 38. The runtime syscall boundary | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
-| [39-direct-gcc-libc.md](../39-direct-gcc-libc.md) | 39. A bounded C runtime from source | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
+| [38-direct-gcc-runtime.md](../43-runtime-and-libc.md) | 38. The runtime syscall boundary | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
+| [39-direct-gcc-libc.md](../43-runtime-and-libc.md) | 39. A bounded C runtime from source | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
 | [40-direct-gcc-target.md](../40-direct-gcc-target.md) | 40. Choosing the target header dialect | 3 | [Target headers](44-target-headers.md) | regroup |
 | [41-direct-gcc-constants.md](../41-direct-gcc-constants.md) | 41. Typed constants without executing target code | 3 | [Typed constants](45-typed-constants.md) | regroup |
 | [42-direct-gcc-varargs.md](../42-direct-gcc-varargs.md) | 42. Variadic lists across the System V boundary | 3 | [System V varargs](46-varargs.md) | regroup |
-| [43-direct-gcc-stdio.md](../43-direct-gcc-stdio.md) | 43. Generator streams and integer formatting | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
+| [43-direct-gcc-stdio.md](../43-runtime-and-libc.md) | 43. Generator streams and integer formatting | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
 | [44-direct-gcc-archives.md](../42-linker-and-archives.md) | Chapter 44 — Indexed archives and lazy member selection | 3 | [Linker and archives](42-linker-and-archives.md) | regroup |
 | [45-direct-gcc-binary64.md](../45-direct-gcc-binary64.md) | 45. Binary32 and binary64 scalar values | 3 | [Floating values and exact literals](47-floats.md) | regroup |
 | [46-direct-gcc-float-literals.md](../46-direct-gcc-float-literals.md) | Chapter 46 — Exact decimal binary64 literals | 3 | [Floating values and exact literals](47-floats.md) | regroup |

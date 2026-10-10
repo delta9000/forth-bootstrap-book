@@ -10,7 +10,7 @@ Prerequisites: [42 — Linker and archives](42-linker-and-archives.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [38-direct-gcc-runtime.md](../38-direct-gcc-runtime.md) — Reuse process entry, syscall wrappers, and errno storage; [39-direct-gcc-libc.md](../39-direct-gcc-libc.md) — Reuse source-built allocation, memory, and string operations; [43-direct-gcc-stdio.md](../43-direct-gcc-stdio.md) — Reuse streams, file operations, and bounded formatting.
+Reuses: [38-direct-gcc-runtime.md](../43-runtime-and-libc.md) — Reuse process entry, syscall wrappers, and errno storage; [39-direct-gcc-libc.md](../43-runtime-and-libc.md) — Reuse source-built allocation, memory, and string operations; [43-direct-gcc-stdio.md](../43-runtime-and-libc.md) — Reuse streams, file operations, and bounded formatting.
 
 TODO:
 
