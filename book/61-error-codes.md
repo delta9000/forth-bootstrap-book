@@ -472,10 +472,12 @@ For a particular diagnostic, search the owning source file for its literal code 
 
 Run from the `forth-bootstrap` checkout root with the seed built in Part 1. The layer-list script puts the executing main last (`forth-bootstrap/cc/compiler-layers.sh:6`). This input triggers the preprocessor entry for active `#error`; the final test checks its status after printing the diagnostic.
 
+<!-- tryit: expect "cc: line 1: error 40\ncompiler status: 40" -->
 ```sh
 (
-{ cat forth/010-lib.fth $(cc/compiler-layers.sh); printf '%s\n' '#error appendix diagnostic probe'; } | ./seed-forth 2>&1
-status=$?
+set -o pipefail
+status=0
+{ cat forth/010-lib.fth $(cc/compiler-layers.sh); printf '%s\n' '#error appendix diagnostic probe'; } | ./seed-forth 2>&1 || status=$?
 printf 'compiler status: %s\n' "$status"
 test "$status" -eq 40
 )

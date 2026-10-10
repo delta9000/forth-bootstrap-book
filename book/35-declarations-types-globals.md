@@ -1088,15 +1088,20 @@ The final adapter, `cc-native-sizeof-type`, returns a parsed type together with 
 
 Run from the `forth-bootstrap` checkout root with the seed built in Part 1. This driver loads through `cc/110-cc-decl.fth`, compiles the opening expression into an ELF image, and executes it from a fresh temporary directory. The comparison happens inside the generated program: returning the cast value alone would hide a missing conversion because process exit status keeps only its low byte.
 
+<!-- tryit: expect "driver exit: 0\n(char)321 == 65: 1 (exit status)" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$probe_dir" || status=1; exit "$status"' EXIT
+compiler_status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
       cc/060-cc-types.fth cc/070-cc-sym.fth \
       cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth \
-      cc/110-cc-decl.fth
-  cat <<'FORTH'
+      cc/110-cc-decl.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 cc-src-init
 here dup cc-src-buffer ! s, (char)321==65 here swap - cc-src-len !
 [lit] 0 cc-src-pos ! [lit] 0 cc-tok-pending !
@@ -1106,12 +1111,15 @@ cc-finalize-elf
 [lit] 1 cc-out-buf cc-out-pos @ write drop
 bye
 FORTH
-} | ./seed-forth > "$probe_dir/cast"
-printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
-chmod +x "$probe_dir/cast"
-"$probe_dir/cast"
-printf '(char)321 == 65: %s (exit status)\n' "$?" # prints '(char)321 == 65: 1 (exit status)'
-rm -r "$probe_dir"
+} | ./seed-forth > "$probe_dir/cast" || compiler_status=$?
+printf 'driver exit: %s\n' "$compiler_status" # prints 'driver exit: 0'
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+chmod +x "$probe_dir/cast" || exit "$?"
+program_status=0
+"$probe_dir/cast" || program_status=$?
+printf '(char)321 == 65: %s (exit status)\n' "$program_status" # prints '(char)321 == 65: 1 (exit status)'
+test "$program_status" -eq 1
+)
 ```
 
 Observed output:
@@ -1124,6 +1132,8 @@ driver exit: 0
 This exercises type recognition, type-name parsing, the cast hook, and the core character conversion. It does not exercise local storage allocation, function bodies, returns, or native-target policies. No statement or function layer is loaded.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-35-descriptor-identity-and-observable-casts).
 
 **Trace — easy.** Follow `struct T { struct T *next; };` through tag registration and field append. Explain why the field keeps a descriptor that becomes complete, while a pointer to an unknown tag keeps zero.
 

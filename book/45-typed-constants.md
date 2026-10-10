@@ -655,7 +655,7 @@ Floating operands first pass through `cc-const-float-operand`, which rejects sym
 
 ## Parse dead arms while suppressing their effects
 
-Under the inherited skip state (Chapter 34), an unused operand still supplies a typed record. `cc-const-logical-and` and `cc-const-logical-or` save `cc-cx-skip`, enable it for an irrelevant right operand, and restore the outer state afterward. Arithmetic handlers consult that state before calculating; tokens and operand types still pass through the parser. Each logical result reuses the left record as an `int` (`forth-bootstrap/cc/125-cc-consteval.fth:510`):
+Under the inherited skip state (Chapter 34), an unused operand still supplies a typed record. `cc-const-logical-and` and `cc-const-logical-or` save `cc-cx-skip`, enable it for an irrelevant right operand, and restore the outer state afterward. Binary arithmetic handlers consult that state before calculating; tokens and operand types still pass through the parser. This is not a blanket promise that every later numeric-conversion diagnostic is suppressed. Each logical result reuses the left record as an `int` (`forth-bootstrap/cc/125-cc-consteval.fth:510`):
 
 ```forth file=cc/125-cc-consteval.fth
 : cc-const-logical-and ( -- record )
@@ -789,14 +789,16 @@ The consumer in `forth-bootstrap/cc/123-cc-object-program.fth:232` calls that st
 
 Run from the `forth-bootstrap` checkout root with the seed already built. The block loads compiler layers through this evaluator, writes a small `_start` object, then links each probe with the Forth linker. Each executable returns one initializer result; the shell prints and checks its exit status. All generated files stay in the temporary directory.
 
+<!-- tryit: expect "x = 40\npointer = 29\nwrap = 0" -->
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth || exit "$?"
   printf 'create output-path s, %s/start.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-obj-init
 [lit] 232 cc-obj-byte [lit] 0 cc-obj-4le
 [lit] 137 cc-obj-byte [lit] 199 cc-obj-byte
@@ -811,34 +813,35 @@ output-path cc-obj-write bye
 FORTH
 } | ./seed-forth || exit "$?"
 for probe in x pointer wrap; do
-  cat > "$work/probe.c" <<'C'
+  cat > "$work/probe.c" <<'C' || exit "$?"
 static long x = sizeof(long) * 3 + (1 << 4);
 static int arr[3] = {7, 11, 29};
 static int *p = &arr[2];
 static unsigned int wrapped = 0xffffffffU + 2U;
+static int before_store = (0xffffffffU + 2U) < 2U;
 C
   case "$probe" in
     x) expression=x; expected=40 ;;
     pointer) expression='*p'; expected=29 ;;
-    wrap) expression=wrapped; expected=1 ;;
+    wrap) expression='wrapped != 1U ? 101 : before_store != 1 ? 102 : 0'; expected=0 ;;
   esac
   printf 'int main(void) { return %s; }\n' "$expression" >> "$work/probe.c"
   {
     cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
         cc/121-cc-sysv.fth cc/123-cc-object-program.fth \
-        cc/124-cc-target.fth cc/125-cc-consteval.fth
+        cc/124-cc-target.fth cc/125-cc-consteval.fth || exit "$?"
     printf 'create output-path s, %s/probe.o [lit] 0 c,\n' "$work"
-    cat <<'FORTH'
+    cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 : object-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-    cat "$work/probe.c"
+    cat "$work/probe.c" || exit "$?"
   } | ./seed-forth || exit "$?"
   {
-    cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth
+    cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth || exit "$?"
     for name in start.o probe.o result; do
       printf 'create p-%s s, %s/%s [lit] 0 c,\n' "$name" "$work" "$name"
     done
@@ -846,23 +849,27 @@ FORTH
       'lnk-init p-start.o lnk-add-object p-probe.o lnk-add-object' \
       'entry-name [lit] 6 lnk-entry p-result lnk-link lnk-release bye'
   } | ./seed-forth || exit "$?"
-  "$work/result"
-  result=$?
+  result=0
+  "$work/result" || result=$?
   printf '%s = %s\n' "$probe" "$result"
   test "$result" -eq "$expected" || exit 1
 done
-) # prints "x = 40\npointer = 29\nwrap = 1"
+) # prints "x = 40\npointer = 29\nwrap = 0"
 ```
 
-Observed output:
+Expected output (the strengthened wrap check returns zero on success):
 
 ```text
 x = 40
 pointer = 29
-wrap = 1
+wrap = 0
 ```
 
+The wrap probe checks both the stored value and `before_store`. The latter stores the result of comparing the unsigned sum with `2U`: normalization only at the final four-byte store of `wrapped` would fail this check. Status 101 identifies a wrong stored value; 102 identifies a wrong before-store comparison.
+
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-45-typed-intermediate-values-and-dead-arms).
 
 **Trace — easy.** Follow `wrapped` through literal validation, common-type conversion, addition, and `cc-const-check-result`. Explain why delaying normalization until the final store would break a comparison of the sum with `2U`.
 

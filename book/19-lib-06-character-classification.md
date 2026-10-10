@@ -158,6 +158,7 @@ The temporary word `show-flag` prints `1` for an accepted byte and `0` for
 a rejected byte: `0=` followed by addition of `49` maps the predicate's
 flag to the corresponding ASCII digit for `emit`.
 
+<!-- tryit: expect "01110\n0110\n0110\n1100\n1111000" -->
 ```sh
 { head -n 96 forth/010-lib.fth
   printf '%s\n' \

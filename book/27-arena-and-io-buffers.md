@@ -24,6 +24,14 @@ floating values, bitfields and aggregate calling rules.
 The compiler uses the Forth library from Chapters 14–25. Its storage layer
 also replaces expensive Forth operations before the later layers are read.
 
+On a first reading, start with [the lexer's state block](#the-lexers-state-block),
+[the arena](#the-arena), and the input/output buffers, then try their checkpoint.
+You need the two Forth stacks and eight-byte cells from Part 2; you do not
+need to retain every optimization to explain an allocation. Return to the
+native replacements and dictionary index when tracing how the compiler
+runs faster. Their definitions remain in source order because later words
+depend on them.
+
 Variable-size records need a different home from fixed tables (`forth-bootstrap/cc/020-cc-arena.fth:1`):
 
 ```forth file=cc/020-cc-arena.fth
@@ -821,9 +829,8 @@ The rounded length is a multiple of 8; that preserves the base address's
 alignment rather than independently aligning the returned address. A
 zero-length request can return the current pointer without advancing it.
 Callers must supply valid nonnegative sizes whose rounding and pointer
-arithmetic do not overflow. The comment's stack trace names the default
-base and capacity, but the executable definition checks the selected
-`cc-arena-start` and `cc-arena-limit`.
+arithmetic do not overflow. Both the comment's stack trace and the
+executable definition use the selected `cc-arena-start` and `cc-arena-limit`.
 
 ## The input and source buffers and the reader
 
@@ -1337,11 +1344,19 @@ They also check append positions, byte order for both wide emitters, and
 byte and short-field patching. They do not exercise stdin loading, file
 writing, mapped workspace selection or the full-cell patcher.
 
+<!-- tryit: expect "arena exit: 0\nio exit: 0" -->
 ```sh
-cat forth/010-lib.fth cc/020-cc-arena.fth cc/test-020-cc-arena.fth | ./seed-forth
-printf 'arena exit: %s\n' "$?"
-cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/test-030-cc-io.fth | ./seed-forth
-printf 'io exit: %s\n' "$?"
+(
+set -o pipefail
+status=0
+cat forth/010-lib.fth cc/020-cc-arena.fth cc/test-020-cc-arena.fth | ./seed-forth || status=$?
+printf 'arena exit: %s\n' "$status"
+test "$status" -eq 0 || exit "$status"
+status=0
+cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/test-030-cc-io.fth | ./seed-forth || status=$?
+printf 'io exit: %s\n' "$status"
+test "$status" -eq 0
+)
 ```
 
 Observed output:
@@ -1355,6 +1370,8 @@ The tests themselves are silent. Their final `0= die` converts the
 accumulated assertion flag into the exit status printed by the shell.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-27-allocation-and-patching).
 
 **Trace — easy.** Follow the arena test's first allocation through
 `cc-alloc`. Identify the value returned, the pointer stored, and the value

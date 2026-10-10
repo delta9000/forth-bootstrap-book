@@ -32,8 +32,8 @@
 #   verify          For each file mentioned in the book, every tangled
 #                   line must appear in the source file in non-decreasing
 #                   order.  Used while the book is in progress.
-#   verify --strict Tangled file must equal source byte-for-byte.  This
-#                   is what we'll require once every chapter is written.
+#   verify --strict Every required source in canonical-sources.txt must be
+#                   covered by published chapters and equal source byte-for-byte.
 #   status          Print coverage: tangled-lines / source-lines per file.
 
 set -euo pipefail
@@ -45,6 +45,7 @@ BOOK_DIR="$BOOK_ROOT/book"
 # $FORTH_BOOTSTRAP).
 REPO_ROOT="$(cd "${FORTH_BOOTSTRAP:-$BOOK_ROOT/forth-bootstrap}" && pwd)"
 TANGLE_AWK="$SCRIPT_DIR/tangle.awk"
+INVENTORY="$SCRIPT_DIR/canonical-sources.txt"
 
 usage() {
     sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
@@ -52,31 +53,36 @@ usage() {
 }
 
 # chapters: the book's top-level chapter files in reading order -- the
-# order book/SUMMARY.md links them, then any numbered chapter it does not
-# link, by name.  A file's fences are concatenated in this order, so a
+# order book/SUMMARY.md links them. Unpublished chapters never count toward
+# canonical coverage. A file's fences are concatenated in this order, so a
 # chapter that moves (a new number, a new part) keeps its place by its
 # position in SUMMARY.md, not by its file name.
 chapters() {
     local f seen=" "
+    [ -f "$BOOK_DIR/SUMMARY.md" ] || {
+        echo "tangle: missing book/SUMMARY.md" >&2; return 1;
+    }
     while IFS= read -r f; do
         case $f in */*|*\ *) continue ;; esac
-        [ -f "$BOOK_DIR/$f" ] || continue
+        [ -f "$BOOK_DIR/$f" ] || {
+            echo "tangle: published chapter $f is missing" >&2; return 1;
+        }
         case $seen in *" $f "*) continue ;; esac
         seen="$seen$f "
         printf '%s\n' "$BOOK_DIR/$f"
     done < <(grep -o '](\([^)#]*\.md\)' "$BOOK_DIR/SUMMARY.md" | sed 's/^](//')
-    for f in "$BOOK_DIR"/[0-9]*.md; do
-        case $seen in *" ${f##*/} "*) continue ;; esac
-        printf '%s\n' "$f"
-    done
 }
 
 cmd_extract() {
     local outdir="${1:-}"
     [ -n "$outdir" ] || { echo "extract: missing OUTDIR" >&2; exit 2; }
     mkdir -p "$outdir"
-    local files=()
-    mapfile -t files < <(chapters)
+    local files=() chapter_list
+    chapter_list=$(chapters) || return 1
+    [ -n "$chapter_list" ] || {
+        echo "tangle: SUMMARY.md has no published chapters" >&2; return 1;
+    }
+    mapfile -t files <<< "$chapter_list"
     awk -f "$TANGLE_AWK" -v OUTDIR="$outdir" "${files[@]}"
 }
 
@@ -92,6 +98,39 @@ cmd_verify() {
 
     local fail=0
     local any=0
+    if [ -n "$strict" ]; then
+        [ -s "$INVENTORY" ] || {
+            echo "tangle: missing or empty required-source inventory $INVENTORY" >&2
+            return 1
+        }
+        local required_count=0 required src
+        while IFS= read -r required || [ -n "$required" ]; do
+            case $required in ''|'#'*) continue ;; esac
+            required_count=$((required_count + 1))
+            if [ ! -f "$REPO_ROOT/$required" ]; then
+                echo "FAIL  $required  (required source file is missing)" >&2
+                fail=1
+            fi
+            if [ ! -f "$tmpdir/$required" ]; then
+                echo "FAIL  $required  (no published file= coverage for required source)" >&2
+                fail=1
+            fi
+        done < "$INVENTORY"
+        if [ "$required_count" = 0 ]; then
+            echo "tangle: required-source inventory contains no source paths" >&2
+            fail=1
+        fi
+        # New core sources must be deliberately added to the inventory and
+        # the book; neither an omitted file nor a stale manifest can pass.
+        for src in "$REPO_ROOT"/seed/[0-9]*.hex0 "$REPO_ROOT"/forth/[0-9]*.fth "$REPO_ROOT"/cc/[0-9]*.fth; do
+            [ -f "$src" ] || continue
+            required=${src#"$REPO_ROOT"/}
+            if ! grep -Fxq "$required" "$INVENTORY"; then
+                echo "FAIL  $required  (numbered source absent from canonical-sources.txt)" >&2
+                fail=1
+            fi
+        done
+    fi
     for t in $(cd "$tmpdir" && find . -type f | sed 's|^\./||' | LC_ALL=C sort); do
         local base src
         base="$t"
@@ -109,7 +148,7 @@ cmd_verify() {
                 echo "OK    $base  (strict, byte-identical)"
             else
                 echo "FAIL  $base  (book does not tangle to byte-identical source)" >&2
-                diff -u "$src" "$t" | sed -n '1,40p' >&2
+                diff -u "$src" "$t" | sed -n '1,40p' >&2 || true
                 fail=1
             fi
         else
@@ -126,7 +165,7 @@ cmd_verify() {
 
     if [ "$any" = 0 ]; then
         echo "tangle verify: no file= blocks found in $BOOK_DIR" >&2
-        return 0
+        return 1
     fi
     return $fail
 }

@@ -31,5 +31,6 @@ interface.
 - [Chapter 13](13-primitive-reference.md) is the reference table to keep
   open while reading Part 2.
 
-Every chapter ends with a checkpoint that pipes a few words into
-`./seed-forth` and shows what comes back.
+The checkpoints inspect the built seed or pipe a few words into
+`./seed-forth`. Each states the particular bytes, output, or exit behavior
+it checks.

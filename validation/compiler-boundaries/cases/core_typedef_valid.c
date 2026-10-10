@@ -1,0 +1,1 @@
+typedef/**/int/**/(*F)(int);int/**/main(void){return/**/7;}

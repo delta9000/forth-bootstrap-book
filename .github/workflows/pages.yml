@@ -1,16 +1,15 @@
-# Build the book with mdBook and publish it to GitHub Pages on every push to
-# main.  In the repository settings, Pages > Source must be "GitHub Actions".
+# Validate every PR; publish only main after the same checks and rendered-link
+# validation pass. Pages > Source must already be "GitHub Actions" in settings.
 name: pages
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
-  group: pages
+  group: pages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -19,20 +18,44 @@ jobs:
       MDBOOK_VERSION: 0.5.4
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: Initialize pinned seed assembler
+        run: |
+          git -C forth-bootstrap submodule update --init vendor/stage0-posix
+          git -C forth-bootstrap/vendor/stage0-posix submodule update --init bootstrap-seeds
+      - name: Validate source, regressions and selected checkpoints
+        run: |
+          set -o pipefail
+          ./check.sh 2>&1 | tee check.log
       - name: Install mdBook
         run: |
           url="https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
           mkdir -p "$HOME/.local/bin"
-          curl -sSL "$url" | tar -xz -C "$HOME/.local/bin"
+          curl -fSL "$url" -o "$RUNNER_TEMP/mdbook.tar.gz"
+          tar -xzf "$RUNNER_TEMP/mdbook.tar.gz" -C "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Build
         run: mdbook build
+      - name: Validate rendered links and anchors
+        run: python3 tools/check-links.py --html docs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: book-check-log
+          path: check.log
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
           path: docs
   deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

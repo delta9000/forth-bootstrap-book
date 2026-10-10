@@ -140,7 +140,7 @@ The syscall conflicts with the cached-top pattern: `rdi` cannot simultaneously h
 
 ## Try it: read the entry jump
 
-Check the entry jump’s bytes in the built executable, then compare your hand-decoded destination with the disassembler’s result.
+Check the entry jump’s bytes in the built executable, then compare your hand-decoded destination with the disassembler’s result. This uses the host's `objdump` from GNU binutils; Chapter 5 uses its companion `readelf` to inspect ELF headers.
 
 From the book checkout, build with `forth-bootstrap/seed/build.sh:12–29`, which selects the assembler and writes `seed-forth` in the source checkout:
 

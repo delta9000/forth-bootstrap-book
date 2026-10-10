@@ -2,7 +2,7 @@
 
 A file small enough to inspect byte by byte can start a chain that builds Linux. The file is `seed-forth`: a 1,772-byte Forth executable for x86-64 Linux, represented as annotated hexadecimal in `seed/000-seed.hex0`. The checkpoint below builds it and puts its size and opening bytes in front of you.
 
-The seed can read Forth source that extends its own capabilities. That is the opening a bootstrap needs: enough machinery to build the next tool from source, then use that tool to build another. The destination is concrete. The project's Results section reports Linux 7.2.8 booted by kexec and a kernel image of 1,278,976 bytes (`forth-bootstrap/README.md:239–165`).
+The seed can read Forth source that extends its own capabilities. That is the opening a bootstrap needs: enough machinery to build the next tool from source, then use that tool to build another. The destination is concrete. The project's Results section reports Linux 7.2.8 booted by kexec and a kernel image of 1,278,976 bytes (`forth-bootstrap/README.md:239–240`).
 
 Starting small makes a particular kind of understanding possible. You can account for each byte of the seed and connect its behavior to the source it consumes. As the tools grow, the question changes from “what does this byte do?” to “which program built this artifact, and what did that program depend on?” Smallness makes the first audit manageable; it does not establish correctness by itself or remove the machine and operating system beneath this checkpoint.
 

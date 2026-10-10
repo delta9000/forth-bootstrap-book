@@ -116,6 +116,32 @@ The first rows of `execve-programs.txt` from a recorded run:
    3706 //build-out/chain/stage-c/toolchain/as
 ```
 
+### What can be checked from the retained run
+
+The pinned `results/host-2026-10-08/` directory preserves the Stage D report,
+summary counts and grouped success/failure paths. It does not contain the
+raw `execveN.txt` streams or the joined event stream (`forth-bootstrap/results/README.md:14–19`).
+You can inspect those summaries and compare their claims, but cannot repeat
+the historical join or recover every failure's errno from them. The raw
+line quoted below is a reported excerpt, not a complete independently
+replayable trace packet. A new full run creates the missing raw records.
+
+For a bounded path-resolution exercise, take an explicitly supplied cwd of
+`/build-out/plumbing/src/bash-2.05b` and an attempted exec of `../../bin/bash`.
+Resolve the path before deciding who built it:
+
+1. The first `..` removes `bash-2.05b`; the second removes `src`.
+2. The remaining path is `/build-out/plumbing/bin/bash`.
+3. The bash recipe copies its built `bash` to `../../bin/bash` from that
+   source directory (`forth-bootstrap/chain/plumbing/bash.kaem:22`,
+   `forth-bootstrap/chain/plumbing/bash.kaem:38`). That gives a producer
+   to inspect; the `execve` result still decides whether it actually ran.
+
+This is a worked path model, not a claim that this exact relative exec
+appears in the historical log. The trace records `execve`, not a complete
+history of cwd changes; preserve recipe and entry context when a path
+cannot be resolved from the raw record alone.
+
 Audit every successful path against the entry and construction history. `/hex0-seed` is the permitted starting program. A host bwrap path is the wrapper entering the root. Other successes must resolve to artifacts the chain produced there, or to scripts interpreted by its built shell. Paths such as `/bin/sh`, relative paths, `..`, and the doubled slashes above require resolving their spelling against the root and the invoking process's working directory. The mount and link setup supplies that boundary (`forth-bootstrap/chain/plumbing-root.sh:54`). A name containing `build-out` alone is not evidence of ancestry: check its producer and the raw `execveN.txt` record when its identity is unclear.
 
 Failures are evidence of attempts, not of inherited executables running. The initial search path points into the root's own tool directory, and the root receives no host `/usr/bin` tree (`forth-bootstrap/chain/plumbing-root.sh:65`). Programs searching for an unavailable command can therefore leave failed paths. For example, the recorded raw trace contains this unsuccessful lookup:
@@ -226,9 +252,9 @@ Exercise the trace join without a long build. The following synthetic sample int
 <!-- tryit: skip -->
 ```sh
 (
-audit_dir=$(mktemp -d) || exit
+audit_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit
 trap 'rm -rf "$audit_dir"' EXIT
-cat > "$audit_dir/sample.txt" <<'TRACE'
+cat > "$audit_dir/sample.txt" <<'TRACE' || exit
 101 execve("/hex0-seed", ["/hex0-seed"], 0x0) = 0
 102 execve("/build-out/plumbing/bin/bash", ["bash"], 0x0 <unfinished ...>
 103 execve("/usr/bin/arch", ["arch"], 0x0) = -1 ENOENT (No such file or directory)
@@ -263,6 +289,8 @@ sh chain/plumbing-root.sh
 Allow a sustained build: 18 minutes on a 24-thread host (`forth-bootstrap/check-all.sh:24`), longer with fewer. Inspect `build-out/plumbing-root.trace/execve-programs.txt` and `execve-failed.txt`, then resolve each unexplained success using the raw traces and its producing recipe. The report from Chapter 52 establishes the build result; the audit establishes which executable paths participated.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-53-attempts-successful-execution-and-provenance).
 
 **Trace (easy).** Change the resumed result in the synthetic sample from success to `-1 ENOENT`. Predict the output before running the modified checkpoint. Explain why counting only lines containing `execve(` would misclassify or lose the interrupted call's result.
 

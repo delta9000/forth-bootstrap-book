@@ -1,6 +1,6 @@
 # Chapter 23 — Immediacy and constants
 
-`90 constant zed` gives a value a callable name. Building that word requires
+`[lit] 90 constant zed` gives a value a callable name. Building that word requires
 choosing what runs during definition and what becomes the new word's body.
 The library makes that choice explicit with `immediate`, native-code emitters,
 and `constant`, then uses them to compile character literals.
@@ -104,12 +104,12 @@ emission from naming:
 
 `push-body,` combines the value emitter and the return emitter.
 `constant` calls `:` to obtain the new header, calls `push-body,` with
-the waiting value, and restores interpret mode with `0 state !`.
+the waiting value, and restores interpret mode with `[lit] 0 state !`.
 No `here-addr` adjustment is needed: the emitters advance HERE themselves.
 
 While the library defines
 `constant`, the inner `:` becomes a call in its body. The final `;`
-closes `constant` itself. Later, executing `90 constant zed` makes that
+closes `constant` itself. Later, executing `[lit] 90 constant zed` makes that
 stored call to `:` read `zed` from the input. Execution continues through
 `push-body,` even though STATE has changed: STATE governs the outer token
 loop, not instructions already running inside `constant`.
@@ -239,6 +239,7 @@ Run this from the `forth-bootstrap` checkout at `./forth-bootstrap`, using
 the seed built in Part 1. `head -n 264` loads the library through the
 character constants, stopping before the control-flow combinators.
 
+<!-- tryit: expect "ZZ\n;Z\nNA" -->
 ```sh
 { head -n 264 forth/010-lib.fth
   printf '%s\n' \

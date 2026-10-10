@@ -289,14 +289,16 @@ Run from the `forth-bootstrap` checkout root with the seed already built. The bl
 
 The fields share an int unit without crossing its boundary. Each probe checks both initializer paths, then changes `low` and checks its neighbours.
 
+<!-- tryit: expect "low = 2\ndelta = -3\nhigh = 9\nsizeof(struct Flags) = 4" -->
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth || exit "$?"
   printf 'create output-path s, %s/start.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-obj-init
 [lit] 232 cc-obj-byte [lit] 0 cc-obj-4le
 [lit] 137 cc-obj-byte [lit] 199 cc-obj-byte  [lit] 184 cc-obj-byte [lit] 60 cc-obj-4le
@@ -310,7 +312,7 @@ FORTH
 } | ./seed-forth || exit "$?"
 for probe in 0 1 2 3; do
 printf '#define PROBE %s\n' "$probe" > "$work/probe.c"
-cat >> "$work/probe.c" <<'C'
+cat >> "$work/probe.c" <<'C' || exit "$?"
 struct Flags { unsigned low : 3; signed delta : 5; unsigned high : 4; };
 static struct Flags initial = {5, -3, 9};
 int main(void) {
@@ -330,25 +332,25 @@ C
   cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
       cc/121-cc-sysv.fth cc/123-cc-object-program.fth \
       cc/124-cc-target.fth cc/125-cc-consteval.fth cc/126-cc-varargs.fth \
-      cc/127-cc-binary64.fth cc/128-cc-float-literal.fth cc/129-cc-bitfield.fth
+      cc/127-cc-binary64.fth cc/128-cc-float-literal.fth cc/129-cc-bitfield.fth || exit "$?"
   printf 'create output-path s, %s/probe.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 : object-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-  cat "$work/probe.c"
+  cat "$work/probe.c" || exit "$?"
 } | ./seed-forth || exit "$?"
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth || exit "$?"
   for name in start.o probe.o result; do printf 'create p-%s s, %s/%s [lit] 0 c,\n' "$name" "$work" "$name"; done
   printf '%s\n' 'create entry-name s, _start' \
     'lnk-init p-start.o lnk-add-object p-probe.o lnk-add-object entry-name [lit] 6 lnk-entry p-result lnk-link lnk-release bye'
 } | ./seed-forth || exit "$?"
-"$work/result"
-result=$?
+result=0
+"$work/result" || result=$?
 case "$probe" in
   0) label=low; expected=2 ;;
   1) label=delta; expected=-3; result=$((result >= 128 ? result - 256 : result)) ;;
@@ -372,7 +374,11 @@ sizeof(struct Flags) = 4
 
 ## Exercise
 
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-48-preserve-neighboring-fields).
+
 **Trace — easy.** Follow `cc-bf-add` for the checkpoint's members. Derive each shift, the containing byte offset, and the final aligned size. Then explain why changing `low` cannot erase `delta`'s sign bit.
 
-**Verify — moderate.** Change the checkpoint to store a different negative value into `delta`. Print all members again and check that both unsigned neighbours survive.
+**Verify — moderate.** After the existing initialization and `flags.low = 2` guards, but before the `PROBE` returns, store `-4` into `flags.delta`. This value fits the signed five-bit field. Add a check that `low` is still 2, `delta` is now −4, and `high` is still 9. Change the shell's expected delta value to −4 and rerun all four probes; the raw status 252 is decoded by the wrapper to −4. Keep the earlier guards unchanged so they still check the original initialization and low-field store.
 
+
+Repeat independently with a different representable negative value. Predict the unit bits and the returned status before running it, then check that both neighboring fields are still unchanged.

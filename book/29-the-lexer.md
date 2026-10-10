@@ -973,13 +973,30 @@ create cc-peek-mark  cc-lex-state-size allot
 
 For example, save a mark while an identifier is current, read the following punctuation, then reset: the identifier payload and the cursor after it both return. The next advance reads the same punctuation again. A nested lookahead would need a separate mark buffer. Copying lexer state does not copy the source bytes, so the source must remain unchanged during the lookahead.
 
+Here is the full boundary for source bytes `abc;`, indexed from zero.
+The cursor is the next unread byte, so it is 3 after scanning `abc`.
+Assume one source line and an unchanged source buffer; “advance” means
+`cc-next-token-keep`.
+
+| Saved pending flag | State restored by reset | First advance after reset | Second advance |
+|---|---|---|---|
+| 0 | Identifier, slice `abc` of length 3, cursor 3, original line, pending 0 | Reads `;`, cursor becomes 4 | Reads EOF |
+| true, after putback | Same identifier/payload/cursor/line, pending true | Replays `abc`, clears pending, cursor stays 3 | Reads `;`, cursor becomes 4 |
+
+Resetting only the cursor would leave a stale token payload; resetting only
+the token would lose the replay decision. The mark is a snapshot of the
+whole protocol, not merely a bookmark in the character buffer.
+
 ## Try it
 
 Run these from the `forth-bootstrap` checkout root. First, watch the opening example become tokens. The driver loads the library and the layers through the lexer, reads `int w[4];` from stdin through the preprocessor (Chapter 28), and prints one line per token: its kind, then the keyword ID, identifier length, punctuation byte or number value.
 
+<!-- tryit: expect "6 0\n1 1\n5 [\n2 4\n5 ]\n5 ;" -->
 ```sh
-{ cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/040-cc-prep.fth cc/050-cc-lex.fth
-  cat <<'FORTH'
+(
+set -o pipefail
+{ cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/040-cc-prep.fth cc/050-cc-lex.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 : digit.  [lit] 48 + emit ;
 : lex-dump
   cc-load-stdin cc-preprocess  [lit] 0 cc-src-pos !  [lit] 1 cc-src-line !
@@ -995,6 +1012,7 @@ lex-dump
 FORTH
   printf 'int w[4];\n'
 } | ./seed-forth
+)
 ```
 
 Observed output:
@@ -1012,10 +1030,16 @@ Kind 6 is `tk-kw` with `kw-int` (0); kind 1 is an identifier of length 1; kind 5
 
 Then run the lexer layer test selected by `forth-bootstrap/test.sh:118`, the coverage check for this layer:
 
+<!-- tryit: expect "exit status: 0" -->
 ```sh
+(
+set -o pipefail
+status=0
 cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
-    cc/040-cc-prep.fth cc/050-cc-lex.fth cc/test-050-cc-lex.fth | ./seed-forth
-printf 'exit status: %s\n' "$?"
+    cc/040-cc-prep.fth cc/050-cc-lex.fth cc/test-050-cc-lex.fth | ./seed-forth || status=$?
+printf 'exit status: %s\n' "$status"
+test "$status" -eq 0
+)
 ```
 
 Observed output:
@@ -1029,6 +1053,8 @@ The test itself is silent. In `forth-bootstrap/cc/test-050-cc-lex.fth:1`, each a
 The assertions check keyword IDs for `int` and `return`; identifier kinds, lengths and selected bytes; ordinary delimiters and `<=`, `&&`, `>>=`; decimal, octal and hexadecimal values; suffix consumption; a string slice; character values and newline, hex and octal escapes; comment skipping; and EOF. They do not cover every keyword or punctuation handler, numeric spelling metadata, malformed literals, overflow, the extension hook, or putback and mark/reset. A passing smoke test establishes those selected cases, not full C lexical conformance.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-29-lookahead-and-replay).
 
 **Trace — easy.** Follow `cc-punct-dot` on `..` and on `...`, beginning just after the dispatcher consumes the first dot. For each input, identify the branch taken, the punctuation code stored, and the unread suffix. Explain why consuming the next dot before checking the following byte would break the shorter case.
 

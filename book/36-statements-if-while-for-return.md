@@ -1095,7 +1095,7 @@ The core path has a narrower contract: it unwinds every open switch and assumes 
 
 ## The dispatcher
 
-An identifier can begin either a label or an expression. `cc-peek-after-is-colon?` commits a following colon but restores the lexer state on a mismatch, so the identifier can still start an expression (`forth-bootstrap/cc/112-cc-stmt.fth:819`):
+An identifier can begin either a label or an expression. `cc-peek-after-is-colon?` commits a following colon but restores the lexer state on a mismatch, so the identifier can still start an expression. The copied comment's instruction to “also consume” the colon is stale: success has already consumed it. Failure restores the prior current token and pending flag; it does not independently make IDENT pending. The caller must not advance a second time after success (`forth-bootstrap/cc/112-cc-stmt.fth:819`):
 
 ```forth file=cc/112-cc-stmt.fth
 \ ===========================================================================
@@ -1240,15 +1240,20 @@ Each matching core case calls its parser and exits the dispatcher. The final bin
 
 Run from the `forth-bootstrap` checkout root with the seed built in Part 1. The driver loads through the statement layer, supplies a frame with `cc-emit-prologue`, and calls `cc-parse-stmt` directly. It compiles the loop described above into an ELF image in a fresh temporary directory. The final `sum;` leaves the value for the exit shim; no function parser or C return is needed. The empty comments separate type keywords from names inside the token copied by `s,`.
 
+<!-- tryit: expect "driver exit: 0\nloop sum: 8 (exit status)" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$probe_dir" || status=1; exit "$status"' EXIT
+compiler_status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
       cc/060-cc-types.fth cc/070-cc-sym.fth \
       cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth \
-      cc/110-cc-decl.fth cc/112-cc-stmt.fth
-  cat <<'FORTH'
+      cc/110-cc-decl.fth cc/112-cc-stmt.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 cc-src-init
 here dup cc-src-buffer !
 s, {int/**/i;int/**/sum;sum=0;for(i=0;i<8;i=i+1){if(i==2)continue;if(i==5)break;sum=sum+i;}sum;}
@@ -1261,12 +1266,15 @@ cc-finalize-elf
 [lit] 1 cc-out-buf cc-out-pos @ write drop
 bye
 FORTH
-} | ./seed-forth > "$probe_dir/loop"
-printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
-chmod +x "$probe_dir/loop"
-"$probe_dir/loop"
-printf 'loop sum: %s (exit status)\n' "$?" # prints 'loop sum: 8 (exit status)'
-rm -r "$probe_dir"
+} | ./seed-forth > "$probe_dir/loop" || compiler_status=$?
+printf 'driver exit: %s\n' "$compiler_status" # prints 'driver exit: 0'
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+chmod +x "$probe_dir/loop" || exit "$?"
+program_status=0
+"$probe_dir/loop" || program_status=$?
+printf 'loop sum: %s (exit status)\n' "$program_status" # prints 'loop sum: 8 (exit status)'
+test "$program_status" -eq 8
+)
 ```
 
 Observed output:
@@ -1279,6 +1287,8 @@ loop sum: 8 (exit status)
 The result exercises compound and expression statements, conditional jumps, the loop’s step rewind, and distinct break and continue destinations. Switches, labels, native paths, and return delegation are source walkthroughs here; this checkpoint does not execute them.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-36-leaving-the-right-construct).
 
 **Trace — easy.** Trace the checkpoint’s continue and break placeholders to their patch sites. Explain why exchanging the destinations would terminate the loop early or fail to leave it at the break.
 

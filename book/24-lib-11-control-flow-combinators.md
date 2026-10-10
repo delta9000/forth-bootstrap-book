@@ -349,6 +349,7 @@ Run this from the `forth-bootstrap` checkout at `./forth-bootstrap`, using
 the seed built in Part 1. `head -n 373` loads the library through `exit,`
 and its trailing blank line, stopping before the defining words.
 
+<!-- tryit: expect "TF\n54321\n321\n321E" -->
 ```sh
 { head -n 373 forth/010-lib.fth
   printf '%s\n' \
@@ -392,3 +393,37 @@ either mark, even though the generated return leaves the loop at runtime.
 conditional. Draw the order of its fixups before running it, then supply
 flags that exercise every arm. Give each arm a distinct output character
 and check that every path consumes the flags it uses.
+
+<details>
+<summary>Hint: separate emitted control flow from the current marks</summary>
+
+For `leave-down`, write `B` for the destination saved by `begin,` and
+`F` for the forward slot left by `if,`. Does `exit,` execute a return in
+the word being compiled, or append one to that word's future body?
+For nested `choose`, declare a stack contract first; one useful choice
+is `( inner outer -- )` on every path.
+
+</details>
+
+<details>
+<summary>Check the marks and test all paths</summary>
+
+`leave-down`'s marks are `S B` → `S B F` → `S B F` → `S B` → `S`
+after `begin,`, `if,`, `exit,`, `then,`, and `again,`. `exit,` emits a
+return byte; it does not execute that byte or consume either mark.
+
+For `( inner outer -- )`, put an inner `if,` in the outer true arm and
+`drop` the unused inner flag in the outer false arm. Name the outer and
+inner slots `O` and `I`. The nested fixups progress `O` → `O I` →
+`O J` → `O` → `K` → empty: inner `else,` patches `I` and leaves its new
+slot `J`; inner `then,` patches `J`; outer `else,` patches `O` and leaves
+`K`; the last `then,` patches `K`.
+
+Give the inner true, inner false, and outer false arms characters `A`,
+`B`, and `C`. In `(inner,outer)` order, test `(1,1)`, `(0,1)`, `(1,0)`,
+and `(0,0)`; predict `A`, `B`, `C`, `C`. Keep a distinct older character
+beneath the two flags and emit it after each call to check stack depth,
+not just branch selection. Other declared contracts are valid if their
+paths and tests agree.
+
+</details>

@@ -86,7 +86,7 @@ The seed prints `ABC`.
 
 ## D.3. Chapter 33 — Trace `cc-parse-add` on `a - b - c`
 
-**Trace — moderate.** Identify when each subtraction is emitted and what becomes the next left operand.
+**Trace — easy.** Identify when each subtraction is emitted and what becomes the next left operand.
 
 ### What's asked
 
@@ -137,10 +137,12 @@ Each pass completes its operation before accepting another additive operator. Th
 
 Use local variables so the test exercises operand loads as well as subtraction. This driver follows the phase order of `cc-main`, but writes the finalized image to stdout instead of its fixed output path (`forth-bootstrap/cc/120-cc-main.fth:28`). The shell captures that image in a temporary directory and removes it after execution.
 
+<!-- tryit: expect "compiler exit: 0\na - b - c: 5 (exit status)" -->
 ```sh
 (
-probe_dir=$(mktemp -d)
-trap 'rm -r "$probe_dir"' EXIT
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit
+trap 'rm -rf -- "$probe_dir"' EXIT
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
@@ -157,11 +159,13 @@ trap 'rm -r "$probe_dir"' EXIT
 exercise-main
 int main(void) { int a = 10; int b = 3; int c = 2; return a - b - c; }
 FORTH
-} | ./seed-forth > "$probe_dir/subtract"
-printf 'compiler exit: %s\n' "$?"
-chmod +x "$probe_dir/subtract"
-"$probe_dir/subtract"
-printf 'a - b - c: %s (exit status)\n' "$?"
+} | ./seed-forth > "$probe_dir/subtract" || exit
+printf 'compiler exit: 0\n'
+chmod +x "$probe_dir/subtract" || exit
+status=0
+"$probe_dir/subtract" || status=$?
+printf 'a - b - c: %s (exit status)\n' "$status"
+test "$status" -eq 5
 )
 ```
 
@@ -175,3 +179,5 @@ a - b - c: 5 (exit status)
 ### Why
 
 The returned value matches the loop trace: subtract `b` from `a`, then subtract `c` from that result. This run checks the core parser and emitted executable together. It does not test the LP64 branch.
+
+For additional chapter-by-chapter hints and derived solutions, see [Appendix H](66-exercise-feedback.md).

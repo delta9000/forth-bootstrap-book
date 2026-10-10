@@ -13,6 +13,29 @@ Start with Chapter 2 for the starting artifact and Chapter 3 for its place among
 
 Read in this order on a first pass. You do not need prior Forth knowledge. Keep the [glossary](62-glossary.md) nearby for unfamiliar terms and the [word index](WORD-INDEX.md) for finding a definition again. The part headings and top-level entries in the table of contents give the reading order.
 
+## Starting skills and tools
+
+No Forth or assembly-language experience is assumed. You should be able to
+edit a text file, follow a short function definition, and use a shell's
+working directory, pipes (`|`), and redirection (`>`). Expect binary and
+hexadecimal notation: a byte is eight bits, and two hexadecimal digits
+represent one byte. For example, `0x10` is decimal 16, and `0xFF` is 255.
+Chapter 4 teaches the instruction fields; Chapter 6 gives the compact
+stack notation before Chapter 14 develops it fully.
+
+A quick self-check: from the book root, what file does
+`forth-bootstrap/seed-forth` name, and how many bytes do `48 83 ED 08`
+represent? The answers are the executable inside the source checkout and
+four bytes. If either is unfamiliar, use the working-directory section
+below and the opening of Chapter 4 before continuing. You can read and
+trace the listings while arranging the Linux environment for execution.
+
+Alongside Bash and ordinary shell utilities, the early inspection
+checkpoints use `objdump` and `readelf` from GNU binutils. These are host
+inspection tools: they display instructions and ELF fields in an already
+built file. They do not build the seed. Their checkpoints explain the
+options they use.
+
 ## Read source, then run a checkpoint
 
 A source fragment answers “how does this work?” Its introduction names the file and line so you can locate it in the checkout. Read the surrounding explanation before following the instructions or definitions. A fence tagged `file=` or `chunk=` belongs to the book's source representation; it is not a shell command to paste into a terminal.
@@ -20,6 +43,15 @@ A source fragment answers “how does this work?” Its introduction names the f
 A **checkpoint** answers “did this particular operation produce the stated result?” Paste its shell commands into a terminal and compare the output. Read the conditions next to the command: a result applies to that input and environment. Building the seed, for example, does not establish that the later compiler or Linux build works. Those checks belong with the chapters that introduce them.
 
 You can read a fragment without building what precedes it, but a checkpoint needs the setup its chapter names.
+
+Some test programs deliberately return a nonzero value. Checkpoints capture
+that status before asserting it, so an inherited Bash `-e` setting does not
+mistake the expected result for an interrupted test. Generated-path examples
+use checked, short `/tmp/book-probe.XXXXXXXXXX` directories: the Forth `s,`
+reader accepts a single token, so shell quoting cannot make a path with
+spaces (or more than 255 token bytes) safe inside generated Forth source.
+Follow any fixed-output-path warning and do not run those examples concurrently.
+
 
 ## Choose the working directory
 

@@ -994,14 +994,16 @@ Run from the `forth-bootstrap` checkout root with the seed already built. The bl
 
 `shift` receives the INTEGER pair and an SSE double, changes its local copy, and returns the pair by value. The original object stays intact. `extended` exercises stack-passed long double and x87 multiplication. Records with double members remain unsupported; scalar SSE transport does not imply an SSE aggregate classifier.
 
+<!-- tryit: expect "returned left = 23\nreturned right = 32\noriginal left = 20\nextended result = 8" -->
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth || exit "$?"
   printf 'create output-path s, %s/start.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-obj-init
 [lit] 232 cc-obj-byte [lit] 0 cc-obj-4le
 [lit] 137 cc-obj-byte [lit] 199 cc-obj-byte  [lit] 184 cc-obj-byte [lit] 60 cc-obj-4le
@@ -1013,7 +1015,7 @@ main-name [lit] 4 cc-obj-global cc-obj-func cc-obj-default cc-obj-undef [lit] 0 
 output-path cc-obj-write bye
 FORTH
 } | ./seed-forth || exit "$?"
-cat > "$work/peer.c" <<'C'
+cat > "$work/peer.c" <<'C' || exit "$?"
 struct Pair { long left; long right; };
 struct Pair shift(struct Pair p, double delta) {
     p.left += (long)delta;
@@ -1024,7 +1026,7 @@ long extended(long double x) { return (long)(x * 2.0L); }
 C
 for probe in 0 1 2 3; do
 printf '#define PROBE %s\n' "$probe" > "$work/probe.c"
-cat >> "$work/probe.c" <<'C'
+cat >> "$work/probe.c" <<'C' || exit "$?"
 struct Pair { long left; long right; };
 struct Pair shift(struct Pair, double);
 long extended(long double);
@@ -1044,26 +1046,26 @@ for unit in peer probe; do
       cc/121-cc-sysv.fth cc/123-cc-object-program.fth \
       cc/124-cc-target.fth cc/125-cc-consteval.fth cc/126-cc-varargs.fth \
       cc/127-cc-binary64.fth cc/128-cc-float-literal.fth cc/129-cc-bitfield.fth \
-      cc/131-cc-aggregate-abi.fth cc/132-cc-long-double.fth
+      cc/131-cc-aggregate-abi.fth cc/132-cc-long-double.fth || exit "$?"
   printf 'create output-path s, %s [lit] 0 c,\n' "$work/$unit.o"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 : object-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-  cat "$work/$unit.c"
+  cat "$work/$unit.c" || exit "$?"
 } | ./seed-forth || exit "$?"
 done
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth || exit "$?"
   for name in start.o peer.o probe.o result; do printf 'create p-%s s, %s/%s [lit] 0 c,\n' "$name" "$work" "$name"; done
   printf '%s\n' 'create entry-name s, _start' \
     'lnk-init p-start.o lnk-add-object p-peer.o lnk-add-object p-probe.o lnk-add-object entry-name [lit] 6 lnk-entry p-result lnk-link lnk-release bye'
 } | ./seed-forth || exit "$?"
-"$work/result"
-result=$?
+result=0
+"$work/result" || result=$?
 case "$probe" in
   0) label='returned left'; expected=23 ;;
   1) label='returned right'; expected=32 ;;
@@ -1084,6 +1086,8 @@ original left = 20
 extended result = 8
 ```
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-49-whole-record-decisions).
 
 **Trace — easy.** Follow the call plan for `shift`: locate the pair, the double and the result object. Explain which copy keeps `original` unchanged.
 

@@ -912,7 +912,7 @@ Packing normalizes and rounds the exact ratio before attaching the sign, includi
 : cc-f64-one-denominator [lit] 1 cc-f64-d cc-f64-bi-set ;
 
 ```
-Integer conversion uses an unsigned magnitude over a unit denominator, preserving the minimum signed input’s magnitude (`forth-bootstrap/cc/128-cc-float-literal.fth:432`):
+Integer conversion uses an unsigned magnitude over a unit denominator, preserving the minimum signed input’s magnitude (`forth-bootstrap/cc/128-cc-float-literal.fth:427`):
 ```forth file=cc/128-cc-float-literal.fth
 \ An integer is its own ratio; the minimum signed value negates to its
 \ unsigned magnitude.
@@ -937,6 +937,19 @@ variable cc-f80-resize-nan
 | Other exceptional division | Division by zero produces infinity; finite divided by infinity produces zero. |
 
 These branches handle extended exceptions, not general scalar nonfinite arithmetic.
+
+Two bounded observations limit the finite-example story at this source
+pin. In this chapter's object profile, `static int x = 1 ? 7 : (int)2147483648.0;`
+raises error 242 despite the unused arm; dead integer division and an
+in-range floating-cast control both return 7. Numeric cast conversion
+therefore still performs its range check in that arm.
+
+Resizing an extended NaN to binary64 also exposes a comparison difference:
+constant equality of two such NaNs returned 1, while runtime equality of
+the same initialized NaN returned 0. Finite controls agreed. These are
+profile-specific observations, not a claim of general scalar nonfinite
+support; [Appendix F](60-c-subset.md#observed-profile-boundaries) records the
+limits and outstanding source work.
 
 Format changes share the finite packing path and separate extended exceptional cases (`forth-bootstrap/cc/128-cc-float-literal.fth:435`):
 ```forth file=cc/128-cc-float-literal.fth
@@ -1119,14 +1132,16 @@ Run from the `forth-bootstrap` checkout root with the seed already built. The bl
 
 The boundary literal lies just above the midpoint between unity and the next binary64 value. Its union view checks that exact decimal conversion chooses the upper encoding. The other probes exercise `sum`'s XMM0 return, runtime addition, comparison and truncating conversion.
 
+<!-- tryit: expect "(int)((0.1 + 0.2) * 100) = 30\n0.1 + 0.2 > 0.3 = 1\nboundary bits == 0x3ff0000000000001 = 1" -->
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth || exit "$?"
   printf 'create output-path s, %s/start.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-obj-init
 [lit] 232 cc-obj-byte [lit] 0 cc-obj-4le
 [lit] 137 cc-obj-byte [lit] 199 cc-obj-byte
@@ -1142,7 +1157,7 @@ FORTH
 } | ./seed-forth || exit "$?"
 for probe in 0 1 2; do
 printf '#define PROBE %s\n' "$probe" > "$work/probe.c"
-cat >> "$work/probe.c" <<'C'
+cat >> "$work/probe.c" <<'C' || exit "$?"
 double sum(void) {
     double a = 0.1;
     double b = 0.2;
@@ -1165,19 +1180,19 @@ C
   cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
       cc/121-cc-sysv.fth cc/123-cc-object-program.fth \
       cc/124-cc-target.fth cc/125-cc-consteval.fth cc/126-cc-varargs.fth \
-      cc/127-cc-binary64.fth cc/128-cc-float-literal.fth
+      cc/127-cc-binary64.fth cc/128-cc-float-literal.fth || exit "$?"
   printf 'create output-path s, %s/probe.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 : object-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-  cat "$work/probe.c"
+  cat "$work/probe.c" || exit "$?"
 } | ./seed-forth || exit "$?"
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth || exit "$?"
   for name in start.o probe.o result; do
     printf 'create p-%s s, %s/%s [lit] 0 c,\n' "$name" "$work" "$name"
   done
@@ -1185,8 +1200,8 @@ FORTH
     'lnk-init p-start.o lnk-add-object p-probe.o lnk-add-object' \
     'entry-name [lit] 6 lnk-entry p-result lnk-link lnk-release bye'
 } | ./seed-forth || exit "$?"
-"$work/result"
-result=$?
+result=0
+"$work/result" || result=$?
 case "$probe" in
   0) printf '(int)((0.1 + 0.2) * 100) = %s\n' "$result"
      test "$result" -eq 30 || exit 1 ;;
@@ -1210,6 +1225,8 @@ boundary bits == 0x3ff0000000000001 = 1
 
 ## Exercise
 
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-47-exact-halfway-rounding).
+
 **Trace — easy.** In `cc-f64-quotient`, follow an exact halfway remainder with an odd retained quotient, then with an even quotient. Explain why only the odd case increments.
 
-**Verify — moderate.** Replace the checkpoint's boundary literal with `1.00000000000000011102230246251565404236316680908203125`, the exact midpoint. Change the bit comparison to the encoding of unity, predict the result, then run it.
+**Verify — moderate.** Replace the checkpoint's boundary literal with `1.00000000000000011102230246251565404236316680908203125`, the exact midpoint. Change the C bit comparison to the encoding of unity (`4607182418800017408UL`). Also change the shell's printed bit-pattern label and expected-output comment to `0x3ff0000000000000`. Predict the Boolean result, then run it; the shell should still expect 1 for a true comparison.

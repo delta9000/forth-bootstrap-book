@@ -1,0 +1,235 @@
+{
+  "source_commit": "b25487ad4d62adb950c3372de43564dfcfabdd87",
+  "date": "2026-10-10",
+  "observations": [
+    {
+      "case": "core_literal_2p31",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "[binary ELF output; omitted from text record]",
+          "stderr": "",
+          "binary_stdout_bytes": 583
+        },
+        "program": {
+          "status": 1,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "core_literal_high",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "[binary ELF output; omitted from text record]",
+          "stderr": "",
+          "binary_stdout_bytes": 580
+        },
+        "program": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "core_typedef_eof",
+      "stages": {
+        "compiler": {
+          "status": 124,
+          "stdout": "",
+          "stderr": "",
+          "binary_stdout_bytes": 0
+        }
+      }
+    },
+    {
+      "case": "core_typedef_valid",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "[binary ELF output; omitted from text record]",
+          "stderr": "",
+          "binary_stdout_bytes": 556
+        },
+        "program": {
+          "status": 7,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "dead_float_inrange",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "link": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "program": {
+          "status": 7,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "dead_float_outofrange",
+      "stages": {
+        "compiler": {
+          "status": 242,
+          "stdout": "",
+          "stderr": "cc: line 1: error 242\n"
+        }
+      }
+    },
+    {
+      "case": "dead_integer",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "link": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "program": {
+          "status": 7,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "finite_const_equal",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "link": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "program": {
+          "status": 1,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "finite_runtime_equal",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "link": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "program": {
+          "status": 1,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "nan_const_equal",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "link": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "program": {
+          "status": 1,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "nan_runtime_equal",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "link": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "program": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "native_comma_assign",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "program": {
+          "status": 1,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "native_group_assign",
+      "stages": {
+        "compiler": {
+          "status": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "program": {
+          "status": 1,
+          "stdout": "",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "case": "selected_float_outofrange",
+      "stages": {
+        "compiler": {
+          "status": 242,
+          "stdout": "",
+          "stderr": "cc: line 1: error 242\n"
+        }
+      }
+    }
+  ]
+}

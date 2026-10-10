@@ -234,7 +234,11 @@ The final `drop`, from Chapter 6, restores the initial stack state.
 The checkpoint checks successful exit and absence of diagnostics; it does
 not assert printed values. The result sequence above is a worked trace.
 It needs no output word or literal-loading word from a later chapter.
-End of input exits the complete seed.
+End of input exits the complete seed. Later,
+[Chapter 13's checkpoint](13-primitive-reference.md#try-it) makes arithmetic
+results visible with literals and `emit`, and
+[Chapter 17](17-lib-04-return-stack-over-subtract.md#try-it) checks operand
+order with unequal values.
 
 The seed writes its unknown-word diagnostic to standard output
 (`echo nosuchword | ./seed-forth` prints `nosuchword?`), so empty output
@@ -268,3 +272,25 @@ instruction?
 notation for the all-set cell. After each arithmetic word, record the
 cached top and whether `rbp` moved. Why does division receive a nonzero
 divisor even though the sequence begins with zero?
+
+<details>
+<summary>Hint: choose a nonzero input with a zero low byte</summary>
+
+Use `rdi=0x100` for the first exercise. After `sete dil`, which bits of
+`rdi` have actually been written? For the second exercise, keep the
+initialized zero below the temporary arithmetic values throughout.
+
+</details>
+
+<details>
+<summary>Check the full-cell result and divisor</summary>
+
+`test` sees nonzero, so `sete` writes zero to `dil`. That still leaves
+`0x100` in the rest of `rdi`; `movzx rdi,dil` clears those older high bits,
+and `neg` leaves zero. This unary word replaces the top, so `rbp` does
+not move. In the checkpoint, the division receives `4 4`: the square of
+the doubled all-set cell supplies both operands. Every `dup` moves `rbp`
+down eight bytes; each binary arithmetic word moves it up eight. `0=`
+does not move it, and the final `drop` restores the initial boundary.
+
+</details>

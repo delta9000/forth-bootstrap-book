@@ -827,12 +827,16 @@ These records retain the decisions that Chapter 35's declaration parser makes. C
 
 Run from the `forth-bootstrap` checkout root. This driver constructs the opening pointer-to-int example, then inserts enum name `x` with value 7 and looks it up. `digit-out` prints the single-digit results used here.
 
+<!-- tryit: expect "8 2 1\n4 7\ndriver exit: 0" -->
 ```sh
+(
+set -o pipefail
+status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
-      cc/060-cc-types.fth cc/070-cc-sym.fth
-  cat <<'FORTH'
+      cc/060-cc-types.fth cc/070-cc-sym.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 : digit-out [lit] 48 + emit ;
 ty-int [lit] 1 ty-make
   dup ty-size digit-out [lit] 32 emit
@@ -846,8 +850,10 @@ cc-src-buf [lit] 1 cc-sym-find
   cc-sym-val-of digit-out [lit] 10 emit
 bye
 FORTH
-} | ./seed-forth # prints '8 2 1\n4 7'
-printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
+} | ./seed-forth || status=$? # prints '8 2 1\n4 7'
+printf 'driver exit: %s\n' "$status" # prints 'driver exit: 0'
+test "$status" -eq 0
+)
 ```
 
 Observed output:
@@ -862,15 +868,23 @@ The first line is pointer size, base kind (`ty-int`) and depth. The second is th
 
 For the coverage check, run just the layer-test pipelines selected by `forth-bootstrap/test.sh:123` and `forth-bootstrap/test.sh:128`:
 
+<!-- tryit: expect "types exit: 0\nsymbols exit: 0" -->
 ```sh
+(
+set -o pipefail
+status=0
 cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
     cc/040-cc-prep.fth cc/050-cc-lex.fth cc/060-cc-types.fth \
-    cc/test-060-cc-types.fth | timeout 5 ./seed-forth
-printf 'types exit: %s\n' "$?" # prints 'types exit: 0'
+    cc/test-060-cc-types.fth | timeout 5 ./seed-forth || status=$?
+printf 'types exit: %s\n' "$status" # prints 'types exit: 0'
+test "$status" -eq 0 || exit "$status"
+status=0
 cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
     cc/040-cc-prep.fth cc/050-cc-lex.fth cc/060-cc-types.fth \
-    cc/070-cc-sym.fth cc/test-070-cc-sym.fth | timeout 5 ./seed-forth
-printf 'symbols exit: %s\n' "$?" # prints 'symbols exit: 0'
+    cc/070-cc-sym.fth cc/test-070-cc-sym.fth | timeout 5 ./seed-forth || status=$?
+printf 'symbols exit: %s\n' "$status" # prints 'symbols exit: 0'
+test "$status" -eq 0
+)
 ```
 
 Observed output:
@@ -883,5 +897,7 @@ symbols exit: 0
 The type test checks base/depth round trips and default-model sizes (`forth-bootstrap/cc/test-060-cc-types.fth:10`). The symbol test checks insertion, successful and missing lookup, local kind and payload, global payload, shadowing, count restoration and reappearance of the outer binding (`forth-bootstrap/cc/test-070-cc-sym.fth:9`). These are smoke tests: they do not check LP64 widths, unsigned predicates, integer suffixes, descriptor allocation or growth, array metadata, qualifier lists, namespace rebinding, fixup heads or capacity-error paths. Passing them does not establish those behaviors.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-30-shadowed-symbols).
 
 **Trace — easy.** Follow the symbol test's inner `x` through `cc-sym-link` and `cc-scope-pop`. Identify the bucket head before the inner insertion, after it, and after the pop. Explain why decrementing `cc-sym-count` alone would leave the bucket pointing at a discarded row.

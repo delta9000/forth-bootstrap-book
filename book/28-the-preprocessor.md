@@ -18,6 +18,14 @@ The recurring operation is *save-switch-restore*: suspend a region or sink,
 process nested text, then resume its caller. The code retains legacy and
 direct preprocessing policies.
 
+For a first pass, follow the sink, macro table, comment/literal walkers,
+and [macro expansion](#macro-expansion). The worked expansion there names
+each piece of state before the detailed implementation. Include search,
+source-location mapping, stringification and token pasting can be a second
+pass; they extend the same state discipline. The checkpoint uses legacy
+preprocessing, so direct-mode behavior must be selected explicitly before
+using it to predict a result.
+
 The header names the supported directives (`forth-bootstrap/cc/040-cc-prep.fth:1`):
 
 ```forth file=cc/040-cc-prep.fth
@@ -337,6 +345,19 @@ variable cc-macro-direct-base
 \ The selectors that switch these arrays follow the include pool below.
 ```
 
+Allocated storage and the admission limit are separate:
+
+| Preprocessing policy and selected workspace | Admitted macro records | Macro-text sink limit |
+|---|---:|---:|
+| Legacy policy, including with larger selected arrays | 1,024 | 65,536 bytes |
+| Direct policy, default arrays | 4,096 | 262,144 bytes |
+| Direct policy, direct-GCC workspace | 4,608 | 262,144 bytes |
+
+The default text pool physically has 262,144 bytes in every row. Selecting
+larger arrays does not enable direct semantics, and the historical
+`cc-macro-cap` comment below describes the direct branch, not the legacy
+1,024-record check.
+
 A definition read from an include slot cannot retain pointers into that slot: a later include may overwrite it. `cc-pp-pool-copy` uses save-switch-restore to give names and bodies lasting storage (`forth-bootstrap/cc/040-cc-prep.fth:260`):
 
 ```forth file=cc/040-cc-prep.fth
@@ -382,7 +403,7 @@ create cc-macro-hnext   cc-macro-direct-cap [lit] 8 * allot
 cc-macro-hash-reset
 ```
 
-Linking inserts the new record at its bucket's head. `cc-macro-record` checks the selected limit, fills the parallel fields and clears the new entry's busy flag (`forth-bootstrap/cc/040-cc-prep.fth:291`):
+Linking inserts the new record at its bucket's head. `cc-macro-record` checks the policy's effective limit, fills the parallel fields and clears the new entry's busy flag (`forth-bootstrap/cc/040-cc-prep.fth:291`):
 
 ```forth file=cc/040-cc-prep.fth
 
@@ -631,7 +652,7 @@ Comment delimiters may be separated by continuations in the location-enabled pro
 
 ### Comment and literal boundaries
 
-Block comments stop at their closing delimiter; line comments leave the ending newline for their caller. An unterminated block comment in directive processing is an error (`forth-bootstrap/cc/040-cc-prep.fth:477`):
+Block comments stop at their closing delimiter; line comments leave the ending newline for their caller. At end of region, an unterminated block comment raises error 49 only while `cc-pp-line-control` is set, as in guarded directive-prefix and line-control processing. The historical comment's broader promise does not cover ordinary macro-body copying: initialization clears the guard, so a legacy input ending with `#define X /*` can return from this walker without that diagnostic. This is a boundary of the shown control flow, not a claim that the malformed input is valid (`forth-bootstrap/cc/040-cc-prep.fth:477`):
 
 ```forth file=cc/040-cc-prep.fth
 
@@ -1208,6 +1229,33 @@ Direct files occupy the free tail of the packed pool; legacy files occupy their 
 ```
 
 ## Macro expansion
+
+### A worked expansion before the machinery
+
+Assume the legacy profile, `#define ROWS 4`, and
+`#define SQUARE(x) ((x) * (x))`. Predict what survives after scanning
+`SQUARE(ROWS)`: an expression containing two `4` tokens, not the computed
+number `16`. This is a source-derived trace; the later checkpoint is the
+place to observe the emitted whitespace.
+
+| Step | Region and lexical state | Argument/sink state | Why the next step is safe |
+|---|---|---|---|
+| Collect | Outer region is just past `SQUARE(`; depth starts at 1 | One raw slice names `ROWS`; collection stops just after `)` | Quoted text and comments use their own walkers, so a comma or parenthesis inside a literal does not split an argument |
+| Prescan | Save the outer region, scan the raw slice as replacement text | A temporary sink receives expanded `ROWS`; its macro is busy only while its body is scanned | Nested expansion cannot overwrite the outer source cursor or sink; busy prevents expanding a macro inside its own replacement |
+| Substitute | Restore the outer region; walk the stored SQUARE body | Each encoded `x` marker copies the expanded argument into another temporary sink | Both uses receive the same expansion; legacy substitution adds separator blanks |
+| Rescan | Mark SQUARE busy and scan the substituted text as a new region | Output now goes to the original source sink | Replacement tokens can expand again, but SQUARE cannot immediately expand itself |
+| Resume | Restore the outer region at the byte after `)` and clear busy | Restore the saved scratch top only after rescanning finishes | No live argument/replacement slice is reclaimed before its final use |
+
+Region state answers “which bytes come next?” Sink state answers “where
+do the resulting bytes go?” Busy flags answer “which macro is temporarily
+disabled?” None can replace the others. In direct mode, raw argument
+spellings also remain available for `#` and `##`; do not apply this legacy
+whitespace trace to that substitution policy.
+
+Before continuing, change the raw argument to a quoted comma, `","`.
+The literal walker must consume the complete quoted span during collection;
+the comma does not make a second argument. If your trace split it, revisit
+[comment and literal boundaries](#comment-and-literal-boundaries).
 
 Expansion is walking: `cc-pp-expand-text` parks the active region, scans a replacement as non-file text and restores the caller. Deferred words (Chapter 25) connect the mutually recursive walker and dispatcher. Separator blanks prevent an expansion from accidentally creating a different token (`forth-bootstrap/cc/040-cc-prep.fth:937`):
 
@@ -3054,9 +3102,11 @@ prints the rewritten buffer. `#ifdef` uses macro lookup alone; `#if` is
 excluded because its evaluator belongs to Chapter 34.
 
 ```sh
+(
+set -o pipefail
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/040-cc-prep.fth
-  cat <<'FORTH'
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/040-cc-prep.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
     : dump-prep
       cc-load-stdin cc-preprocess
       [lit] 0
@@ -3067,7 +3117,7 @@ excluded because its evaluator belongs to Chapter 34.
       bye ;
     dump-prep
 FORTH
-  cat <<'C'
+  cat <<'C' || exit "$?"
 #define ROWS 4
 #define SQUARE(x) ((x) * (x))
 #ifdef ROWS
@@ -3078,6 +3128,7 @@ FORTH
     if (t.stars == SQUARE(ROWS)) return t.stars;
 C
 } | ./seed-forth
+)
 ```
 
 Observed output, including its blank lines:
@@ -3098,6 +3149,8 @@ the array bound and again before substitution into `SQUARE`; separator
 blanks keep the replacement's tokens distinct from their neighbours.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-28-expansion-and-inactive-text).
 
 **Trace — easy.** Follow `SQUARE(ROWS)` through argument expansion,
 substitution and replacement rescanning. Account for each separator blank

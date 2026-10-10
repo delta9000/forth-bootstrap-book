@@ -124,6 +124,7 @@ a negative result canceled by addition, and zero minus zero. In the
 zero checks, `0= [lit] 49 + emit` prints `0` for success and `1` for
 failure. The last line checks increment and decrement from `4`.
 
+<!-- tryit: expect "252\n7\n0\n0\n53" -->
 ```sh
 { head -n 46 forth/010-lib.fth
   printf '%s\n' \

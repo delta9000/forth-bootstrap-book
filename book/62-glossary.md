@@ -1,6 +1,6 @@
 # Glossary
 
-Definitions are grouped by the Part that introduces each concept, then alphabetically. Each entry links to its teaching chapter; individual Forth words and C functions belong in the [word index](WORD-INDEX.md).
+Definitions are grouped by the Part that introduces each concept, then alphabetically. Each entry links to its teaching chapter; individual seed names and Forth words belong in the [word index](WORD-INDEX.md). For C APIs, use the teaching chapter or book search; the generated index does not enumerate C functions.
 
 ## Part 1: Machine and seed
 
@@ -12,7 +12,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Canonical flag** — Zero denotes false; a cell with every bit set denotes true. [Chapter 7](07-arithmetic-and-logic.md).
 
-**Cell** — The seed's native unit for stack values and full-width memory operations. [Chapter 4](04-x86-64-and-two-stacks.md).
+**Cell** — The seed's eight-byte (64-bit) native unit for stack values and full-width memory operations. [Chapter 4](04-x86-64-and-two-stacks.md).
 
 **Colon definition** — A named body opened by `:` and completed by `;`. [Chapter 10](10-colon-compiler.md).
 
@@ -216,7 +216,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Call transport plan** — Each argument gets an explicit register or stack location before any value moves. [Chapter 49](49-aggregate-abi.md).
 
-**Checked constant arithmetic** — Signed overflow is rejected; unsigned arithmetic wraps. [Chapter 45](45-typed-constants.md).
+**Checked constant arithmetic** — Signed arithmetic overflow is checked for addition, subtraction, multiplication and division; unsigned results wrap. Valid-count signed left shifts deliberately retain low bits, including negative or overflowing operands. [Chapter 45](45-typed-constants.md).
 
 **Checked relocation assignment** — Resolve and range-check a relocation before writing its field. [Chapter 42](42-linker-and-archives.md).
 
@@ -260,7 +260,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Failure-preserving realloc** — Failed growth leaves the original allocation intact. [Chapter 43](43-runtime-and-libc.md).
 
-**Floating payload transport** — Floating bits ride in expression cells and move into SSE registers only to compute. [Chapter 47](47-floats.md).
+**Floating payload transport** — Binary32/binary64 bits ride in expression cells and move into SSE registers for computation and argument/result ABI transport. Long double uses the later x87 path. [Chapter 47](47-floats.md).
 
 **for-step rewind** — The step is skipped on first reading; after the body the lexer rewinds to it so its code follows the body. [Chapter 36](36-statements-if-while-for-return.md).
 
@@ -420,7 +420,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Symbolic address operand** — A record plus addend stands for an address without loading it. [Chapter 41](41-system-v-calls.md).
 
-**System V AMD64 calling convention** — Integer and pointer arguments go in rdi rsi rdx rcx r8 r9; results return in rax. [Chapter 41](41-system-v-calls.md).
+**System V AMD64 calling convention** — The first six eligible INTEGER argument slots use rdi rsi rdx rcx r8 r9, with further arguments on the stack; ordinary integer/pointer scalar results use rax. Floating and aggregate arguments/results have additional transport rules. [Chapter 41](41-system-v-calls.md).
 
 **Target macro contract** — Predefined macros publish the target platform and a bounded ANSI C header dialect. [Chapter 44](44-target-headers.md).
 
@@ -454,7 +454,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Compiler driver stream** — Each compilation's input is the compiler layers, a fixed driver and one C source. [Chapter 50](50-seed-cc-fixed-point.md).
 
-**Compiler fixed point** — Successive compiler generations install identical files. [Chapter 52](52-gcc-4-fixed-point.md).
+**Compiler fixed point** — Successive generations agree under the stated installed-output comparator. This route compares bytes first, then permits archive-container differences when member names, order and bytes agree. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Direct Linux recipe** — The guest recipe extending tool construction through the compiler climb, Linux build, export and handover. [Chapter 55](55-linux-and-kexec.md).
 

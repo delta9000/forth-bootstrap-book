@@ -106,6 +106,7 @@ seed built in Part 1. This scratch definition puts its contract
 beside its body. It uses only seed words; it is not an addition to the
 library source.
 
+<!-- tryit: expect "A" -->
 ```sh
 cat <<'FORTH' | ./seed-forth
 : sum-byte ( a b -- )

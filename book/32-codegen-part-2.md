@@ -6,7 +6,7 @@ A program can print `**` by calling a `putchar` shim whose location is still unk
 
 The emitter has this shape: write an instruction with a placeholder → remember its output offset → patch it when the target is known. Call displacements use the existing patch operation (Chapter 31); absolute addresses need a full-width immediate field.
 
-`cc-emit-movabs-rdi-imm64` loads an address without a signed-immediate range check by writing the full value after `48 BF` (`forth-bootstrap/cc/090-cc-emit.fth:451`):
+`cc-emit-movabs-rdi-imm64` loads an address without a signed-immediate range check by writing the full value after `48 BF`. The opcode arithmetic is `B8 + 7 = BF`; the source comment's `B7` is a typo, while emitted decimal 191 is correct (`forth-bootstrap/cc/090-cc-emit.fth:451`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -21,7 +21,7 @@ The emitter has this shape: write an instruction with a placeholder → remember
 
 ```
 
-Integer literals benefit from the compact form when it is safe. `cc-emit-mov-rdi-int` chooses the wide form above the signed-immediate limit; its LP64 path uses unsigned division so a set high bit cannot masquerade as a small magnitude (`forth-bootstrap/cc/090-cc-emit.fth:464`):
+Integer literals benefit from the compact form when it is safe. `cc-emit-mov-rdi-int` assumes the legacy literal domain in its default branch; it does not correctly classify every possible 64-bit input pattern. Its LP64 path uses unsigned division to select the wide form at or above `2^31`, so a set high bit cannot masquerade as a small magnitude (`forth-bootstrap/cc/090-cc-emit.fth:464`):
 
 ```forth file=cc/090-cc-emit.fth
 \ cc-emit-mov-rdi-int ( v -- )  Load an integer literal into rdi using the
@@ -47,6 +47,22 @@ Integer literals benefit from the compact form when it is safe. `cc-emit-mov-rdi
   then, ;
 
 ```
+
+For the helper-level input `0x8000000100000000`, the distinction is concrete.
+The table is a manual encoding derivation. A separate bounded core probe
+of `0x8000000100000000 != 0` returned 0, corroborating the value loss;
+the control `2147483648 > 0` returned 1. These observations do not make
+arbitrary literal handling a supported core contract:
+
+| Branch | Width decision | Emitted value |
+|---|---|---|
+| Default/core | `>` inspects the sign of wrapping `0x7fffffff - v = 0x7fffffff7fffffff`, so it returns false | Seven-byte immediate form writes the low 32 bits, zero, and loads zero |
+| LP64 | Unsigned `v / 2147483648` is nonzero | Ten-byte `movabs` retains all 64 bits |
+
+Thus “shortest correct encoding” in the copied comment is too broad for
+arbitrary inputs to the default helper. The small literal checkpoint still
+passes. Keep this restricted default path distinct from the LP64 selector;
+[Appendix F](60-c-subset.md#observed-profile-boundaries) scopes the probes.
 
 Taking an undefined function’s address needs `cc-emit-movabs-rdi-imm64-placeholder`: the same instruction shape with an empty immediate. The returned offset identifies the value field to overwrite, not the instruction’s beginning (`forth-bootstrap/cc/090-cc-emit.fth:485`):
 
@@ -623,7 +639,7 @@ The fixed displacements depend on distances within the shim. Adding bytes before
 | `cc-emit-syscall-shim` | syscall number at emission → wrapper mapping negative results to minus one |
 | `cc-emit-malloc-shim` | `calloc` address at emission → allocation wrapper |
 
-Descriptor calls already have their arguments in the needed registers, so the shared body adds only the syscall number and error normalization (`forth-bootstrap/cc/090-cc-emit.fth:902`):
+Descriptor calls already have their arguments in the needed registers, so the shared body adds only the syscall number and error normalization. Its length is 20 bytes: `5 + 2 + 3 + 2 + 7 + 1` for the six displayed instructions. The copied comment's 22-byte total is stale; `jns +7` still skips exactly the seven-byte failure-value load (`forth-bootstrap/cc/090-cc-emit.fth:902`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -1093,7 +1109,7 @@ A reference adds one row to the active fixup columns. `cc-gfixup-add` checks the
 
 ```
 
-`cc-emit-global-ref` joins emission to bookkeeping: its empty absolute-address field is paired with the caller’s slot, so later placement can recover both what to patch and where (`forth-bootstrap/cc/090-cc-emit.fth:1227`):
+`cc-emit-global-ref` joins emission to bookkeeping: its empty absolute-address field is paired with the caller’s slot, so later placement can recover both what to patch and where. As in the earlier wide-immediate helper, the opcode is `B8 + 7 = BF`, despite the copied `B7` annotation (`forth-bootstrap/cc/090-cc-emit.fth:1227`):
 
 ```forth file=cc/090-cc-emit.fth
 \ cc-emit-global-ref ( slot -- )  Emit `movabs rdi, <vaddr placeholder>` and
@@ -1208,6 +1224,11 @@ defer cc-emit-type-check-fwd
 ```
 
 ## Conversion hooks and typed locals
+
+Width and signedness conversion do not cover every scalar rule. In
+particular, `_Bool` must turn any nonzero value into 1 rather than truncate
+it to one byte. Chapter 47 supplies that nonzero test through the later
+value-conversion hook.
 
 `cc-emit-convert-value` leaves room for later value representations. Its initial target, `cc-emit-convert-value-default`, discards the source type and converts `rdi` using the destination type (`forth-bootstrap/cc/090-cc-emit.fth:1309`):
 
@@ -1340,14 +1361,19 @@ Each call placeholder is prepended to `calls`. After emitting the program’s ex
 
 The shell captures the executable in a fresh temporary directory, runs it, and removes the directory:
 
+<!-- tryit: expect "driver exit: 0\n**\nprogram exit: 0" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$probe_dir" || status=1; exit "$status"' EXIT
+compiler_status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
       cc/060-cc-types.fth cc/070-cc-sym.fth \
-      cc/080-cc-elf.fth cc/090-cc-emit.fth
-  cat <<'FORTH'
+      cc/080-cc-elf.fth cc/090-cc-emit.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 variable calls
 : patch-calls
   calls @ begin, dup while,
@@ -1366,12 +1392,15 @@ cc-finalize-elf
 [lit] 1 cc-out-buf cc-out-pos @ write drop
 bye
 FORTH
-} | ./seed-forth > "$probe_dir/stars"
-printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
-chmod +x "$probe_dir/stars"
-"$probe_dir/stars" # prints '**'
-printf '\nprogram exit: %s\n' "$?" # prints '\nprogram exit: 0'
-rm -r "$probe_dir"
+} | ./seed-forth > "$probe_dir/stars" || compiler_status=$?
+printf 'driver exit: %s\n' "$compiler_status" # prints 'driver exit: 0'
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+chmod +x "$probe_dir/stars" || exit "$?"
+program_status=0
+"$probe_dir/stars" || program_status=$? # prints '**'
+printf '\nprogram exit: %s\n' "$program_status" # prints '\nprogram exit: 0'
+test "$program_status" -eq 0
+)
 ```
 
 Observed output:
@@ -1385,6 +1414,8 @@ program exit: 0
 This exercises multiple forward-call nodes, list traversal, integer emission, and the output and exit shims. It does not test every shim, string decoding, global fixups, or the typed encoders.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-32-fixup-lists-and-shim-limits).
 
 **Trace — easy.** Name the head and next node after each call is recorded in the checkpoint. Explain why walking the list in reverse emission order still patches both calls to the same shim.
 

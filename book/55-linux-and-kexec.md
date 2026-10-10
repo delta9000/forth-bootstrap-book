@@ -301,6 +301,8 @@ Taken together, the record separates matched compiler outputs, a result export, 
 
 ## Exercise
 
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-55-producing-bytes-versus-transferring-control).
+
 **Trace (moderate).** Follow bzImage from `stage12.sh` through `finish.sh`, the reboot handler and `boot_linux`. Identify which step copies file bytes, which reserves decompression space, which constructs boot parameters and which transfers control. Explain why an embedded initramfs can coexist with no external initrd.
 
 **Verify (easy).** Classify these observations: an archive passes SHA-256 checking; a gcc64 artifact matches a pin; `finish` reports an export; Linux prints its version; init prints the greeting. For each, name one failure it rules out and one failure it leaves possible. Use the cited sources and recorded excerpts without starting a build.

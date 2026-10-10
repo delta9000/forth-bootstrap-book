@@ -4,7 +4,7 @@ K0 and K1 supply the kernel services needed to build and run the bootstrap tools
 
 ## Prepare the handoffs
 
-The route has this shape: hex0-seed assembles K0 on the host; QEMU boots K0; seed Forth builds K1 under K0; K1 imports a new starting tree and runs its recipe. The wrapper keeps image preparation on the host and compilation in the guest (`forth-bootstrap/kernel/k1/run-chain.sh:2`).
+The route has this shape: hex0-seed assembles K0 on the host; the host-built seed-forth from Chapter 1 is copied into K0's memory image; QEMU boots K0; that seed and its newly built recipe runner construct K1 under K0; K1 imports a new starting tree and runs its recipe. The wrapper keeps image preparation on the host and compilation in the guest (`forth-bootstrap/kernel/k1/run-chain.sh:2`).
 
 The host prepares separate images because K0 needs a memory image to start, while K1 reads a disk archive. These lines in `run-chain.sh` assemble K0, prepare the boot image and select the input-image arguments (`forth-bootstrap/kernel/k1/run-chain.sh:31`):
 
@@ -16,7 +16,7 @@ python3 kernel/k1/mkboot.py build-out/k1/boot.img
 set -- "$D/in.img" "$mode"
 ```
 
-The following image-writing steps create the input disk and an empty output disk (`forth-bootstrap/kernel/k1/run-chain.sh:37`). `mkboot.py` supplies the Forth and C sources needed to build K1, with seed-forth reading `k1-direct-start.fth`. It appends the boot recipe to the build recipe so that construction and entry happen in order (`forth-bootstrap/kernel/k1/mkboot.py:4`). The host Python steps copy raw pinned inputs into images; unpacking, patching and compilation belong to the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
+The following image-writing steps create the input disk and an empty output disk (`forth-bootstrap/kernel/k1/run-chain.sh:37`). `mkboot.py` supplies the Forth and C sources needed to build K1, with seed-forth reading `k1-direct-start.fth`. It appends the boot recipe to the build recipe so that construction and entry happen in order (`forth-bootstrap/kernel/k1/mkboot.py:4`). The host Python steps construct the images and initial kernel state, including descriptors, page tables and argv, and copy source bytes plus the existing `seed-forth` binary (`forth-bootstrap/kernel/k0/mkfs.py:27`, `forth-bootstrap/kernel/k0/mkfs.py:64–72`). They compile no guest C or Forth program. The wrapper neither builds nor verifies that first seed: build it from the pinned hex0 source as in Chapter 1 before preparing these images. K1 later builds a separate fresh seed from hex0-seed; the serial line `seed-forth built by hex0-seed` refers to that later step. Unpacking, patching and compiler construction then belong to the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
 
 QEMU receives K0 as its kernel, K0's file image through the loader, and the input and output images as IDE drives. Keeping the serial log on the host preserves evidence across the kernel handoff (`forth-bootstrap/kernel/k1/run-chain.sh:50`):
 
@@ -187,7 +187,7 @@ The resulting program tests the runtime's operating-system calls, then the recip
 
 ## Try it
 
-Run both checkpoints from the forth-bootstrap checkout root. The build check needs GNU as for the assembly comparison and strace for the execution audit. It replaces `build-out/k1-direct`, writes the trace at `build-out/k1-direct.trace`, and compares the C objects with seed-cc output (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:26`). On the recorded host it took about nine seconds.
+Run both checkpoints from the forth-bootstrap checkout root, after Chapter 1's seed build. The guest-image preparation needs Python 3 and an existing, current `seed-forth`; it does not refresh that binary for you. The build check needs GNU as for the assembly comparison and strace for the execution audit. It replaces `build-out/k1-direct`, writes the trace at `build-out/k1-direct.trace`, and compares the C objects with seed-cc output (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:26`). On the recorded host it took about nine seconds.
 
 <!-- check-tryit: the runner selects seed-forth pipe blocks and omits kernel/ and vendor/; this host audit also needs strace and GNU as. -->
 <!-- tryit: skip -->
@@ -241,6 +241,8 @@ k1: init exited with status 0
 The host audit proves the build's executable boundary and object comparisons; the guest run proves the handoff and smoke workload. QEMU's successful exit is encoded through its debug-exit device, so the wrapper also checks the guest markers (`forth-bootstrap/kernel/k1/run-chain.sh:59`).
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-54-carrying-a-generated-runner-into-k1).
 
 **Trace (easy).** Follow `/k0/build-out/amd64-runner` from the Forth launcher's output path through K1's imports to `/k1.args`. Identify which image supplies the runner, which supplies its recipe, and why importing only hda would leave the initial executable unavailable.
 

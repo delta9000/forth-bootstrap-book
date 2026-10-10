@@ -290,7 +290,17 @@ While parsing a nonempty list, the callee id and count stay on the compiler stac
 
 ```
 
-The core path rejects more than six arguments before selecting registers. Its balanced pushes and pops restore the stack position for the outer call, but the comment does not establish alignment for a nested call while an earlier argument remains pushed (`forth-bootstrap/cc/100-cc-expr.fth:625`):
+The core path rejects more than six arguments before selecting registers.
+Balanced pushes and pops do not guarantee alignment at every nested call.
+For core `f(1, g())`, start with `rsp mod 16 = 0`: saving argument 1
+changes it to 8. The empty inner `g()` has no argument pushes to undo,
+so its `call` executes at residue 8, violating the System V requirement of
+zero immediately before the call. The return address then puts the callee
+at residue 0 instead of the required 8. This is a source-derived limitation
+of this core path, not an observed crash. Chapter 41's explicit System V
+target protects live values and aligns a fresh outgoing block; the copied
+comment below must not be read as that later guarantee
+(`forth-bootstrap/cc/100-cc-expr.fth:625`):
 
 ```forth chunk=expr-call
   \ The SYS-V register path supports up to 6 args.  Reject excess.
@@ -872,7 +882,7 @@ An alias can reuse a prior typedef. The identifier branch checks the symbol kind
 
 ```
 
-A parenthesis after the base selects the function-pointer typedef form. This branch captures the pointer’s name before skipping its parameter signature; it does not retain a checked callable signature (`forth-bootstrap/cc/116-cc-prog.fth:149`):
+A parenthesis after the base selects the function-pointer typedef form. This branch captures the pointer’s name before skipping its parameter signature; it does not retain a checked callable signature. The copied parse-through-only comment understates current behavior: a parameter declared through this alias retains the function-pointer base, and the core call path can call such a local indirectly. That is still different from checking its argument/result signature (`forth-bootstrap/cc/116-cc-prog.fth:149`):
 
 ```forth file=cc/116-cc-prog.fth
   \ Distinguish:
@@ -929,6 +939,14 @@ Balanced parentheses delimit the skipped signature. The resulting alias records 
   [char] ; cc-expect-punct-c ;
 
 ```
+
+The typedef signature loop above has no EOF branch. A bounded core probe
+of `typedef int (*F)(int` produced no output before a three-second timeout
+(status 124); the balanced control compiled and returned 7. Static tracing
+explains the repeated EOF at depth 1. Invalid input should reach a finite
+diagnostic, as the checked helper in Chapter 35 does. This parser defect
+remains in the pinned source; see the scoped observations in
+[Appendix F](60-c-subset.md#observed-profile-boundaries).
 
 ## Top-level elision
 
@@ -1833,16 +1851,21 @@ The ordering in `cc-parse-program` makes built-ins visible before user parsing, 
 
 Run from the `forth-bootstrap` checkout root with the seed built in Part 1. This driver loads through `cc/116-cc-prog.fth` and places the opening example in the source buffer: `bias` is initialized, `main` calls the declared `add`, and the later definition returns its parameter plus `bias`. Empty C comments keep type keywords separate from names inside the token copied by `s,`.
 
+<!-- tryit: expect "compiler exit: 0\nprogram exit: 7" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$probe_dir" || status=1; exit "$status"' EXIT
+compiler_status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
       cc/060-cc-types.fth cc/070-cc-sym.fth \
       cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth \
       cc/110-cc-decl.fth cc/112-cc-stmt.fth \
-      cc/114-cc-func.fth cc/116-cc-prog.fth
-  cat <<'FORTH'
+      cc/114-cc-func.fth cc/116-cc-prog.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 cc-src-init
 here dup cc-src-buffer !
 s, int/**/bias=3;int/**/add(int/**/n);int/**/main(void){return/**/add(4);}int/**/add(int/**/n){return/**/n+bias;}
@@ -1853,12 +1876,15 @@ cc-parse-program cc-finalize-globals cc-finalize-elf
 [lit] 1 cc-out-buf cc-out-pos @ write drop
 bye
 FORTH
-} | ./seed-forth > "$probe_dir/program"
-printf 'compiler exit: %s\n' "$?" # prints 'compiler exit: 0'
-chmod +x "$probe_dir/program"
-(cd "$probe_dir" && ./program)
-printf 'program exit: %s\n' "$?" # prints 'program exit: 7'
-rm -r "$probe_dir"
+} | ./seed-forth > "$probe_dir/program" || compiler_status=$?
+printf 'compiler exit: %s\n' "$compiler_status" # prints 'compiler exit: 0'
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+chmod +x "$probe_dir/program" || exit "$?"
+program_status=0
+(cd "$probe_dir" && ./program) || program_status=$?
+printf 'program exit: %s\n' "$program_status" # prints 'program exit: 7'
+test "$program_status" -eq 7
+)
 ```
 
 Observed output:
@@ -1871,6 +1897,8 @@ program exit: 7
 The executable runs from the temporary directory and returns the helper’s result through the entry stub. This checks core parameter spilling, a forward call, global placement, and whole-program finalization. Native calls, enum and typedef parsing, repeated global declarations, and late-shim emission are source walkthroughs here; this checkpoint does not execute those paths.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-37-resolving-a-function).
 
 **Trace — easy.** Follow the checkpoint’s `add` symbol from prototype registration through the call in `main` to its definition. Identify which entry holds the pending call, when its list is cleared, and why the definition survives the end of its local scope.
 

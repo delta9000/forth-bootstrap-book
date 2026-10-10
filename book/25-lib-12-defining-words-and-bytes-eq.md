@@ -330,6 +330,7 @@ Run this from the `forth-bootstrap` checkout at `./forth-bootstrap`, using
 the seed built in Part 1. `head -n 469` loads the complete library through
 `bytes-eq`, with no assembler or compiler layers.
 
+<!-- tryit: expect "1\nABC\n1B\nAABB\n1011\n5" -->
 ```sh
 { head -n 469 forth/010-lib.fth
   printf '%s\n' \
@@ -386,3 +387,29 @@ if `r> drop` were omitted.
 Predict which flags change and how far each comparison reads, then run
 the checkpoint to check the flags.
 
+<details>
+<summary>Hint: include the parked count in the return-stack picture</summary>
+
+The mismatch is at zero-based byte index 3. Two bytes remain in the
+requested range, including that mismatching byte. Separate that saved
+count from the caller's return address before following the early exit.
+
+</details>
+
+<details>
+<summary>Check cleanup and the changed strings</summary>
+
+After `if,` consumes the mismatch flag, the data stack is `S a+3 c+3`
+and the saved count is `2` above the caller's continuation. `r> drop`
+removes the count, `2drop` removes the pointers, and zero becomes the
+result. Omitting `r> drop` makes the early `ret` take address `2`.
+
+The four predicted flags are `1011` for `mapXe`, `1010` for `Xaple`,
+and `1011` for `maplX`. In the length-five a/c comparison, they inspect
+four, one, and five byte pairs respectively. The zero-length comparison
+reads none; the length-three comparison reads three pairs except for
+`Xaple`, which stops at its first pair. Equal printed flags need not
+mean equal work. Recheck both stack cleanup and read distance when
+moving a mismatch.
+
+</details>

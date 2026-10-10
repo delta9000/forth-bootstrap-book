@@ -2,6 +2,13 @@
 
 `(-3 < 0) ? 7 : 9` combines a grouped operand, unary negation, and a choice of result. Compiling it requires the parser to distinguish an operand’s value from any storage it denotes. The completed expression parser carries that distinction through postfix operations and assignment, then supplies a value to its caller.
 
+For the core route, read lvalue kinds, [choosing address or value](#choosing-address-or-value),
+locals, parentheses, and [the worked assignment trace](#a-two-stack-assignment-trace).
+You should be able to say whether `rdi` is an address or a value before
+following every hook. Native destination snapshots add type, field and
+qualification facts for the later storage/ABI layers; they preserve the
+same need to protect a destination across recursive parsing.
+
 ## Lvalue tracking
 
 The parser has a floor and a roof: primary and unary words supply operands to the binary cascade (Chapter 33); ternary and assignment wrap its result. Each parse leaves generated code for `rdi` plus metadata describing what `rdi` means. An lvalue denotes an object; an rvalue supplies a value for computation. Reading an lvalue’s stored value is a separate operation. This delayed load lets `p[i]` serve either side of an assignment.
@@ -2053,7 +2060,34 @@ The final store puts the value in `rdi` and the address in `rcx`, selecting byte
 
 ```
 
-For `*p += q`, the destination survives even if parsing `q` overwrites every expression global. Runtime storage contains the saved address below the old value; compiler return-stack state contains the kind and operator. The store leaves its result in `rdi`, so an enclosing assignment can consume it. This is snapshot, recurse, store applied to both metadata and generated execution.
+### A two-stack assignment trace
+
+Use the core profile and valid eight-byte integer storage: `p` holds
+address `A`, memory at `A` holds 10, and local `q` holds 3 in slot `s`.
+This is a manual trace of `*p += q`, not a new runnable checkpoint.
+Compiler stacks exist while Forth emits code; the program-stack column
+describes what that code does later. Stack top is on the right. Only the
+cells owned by this assignment are shown; return addresses and surrounding
+frames are omitted. Let `K` mean `lv-deref` and `OP` mean the `+=` token.
+
+| Transition | Compiler data stack | Compiler return stack | Generated program stack | Generated registers and metadata |
+|---|---|---|---|---|
+| Parse `*p`, then snapshot left side | `K -1` | empty | empty | `rdi=A`; kind K, no local slot, type core int |
+| Recognize `+=`; preserve destination and old contents | empty, after `OP K >r >r` | `K OP` | `A 10` | Push A, load eight bytes through A, push 10; compiler metadata still describes the left side |
+| Parse and materialize `q` | empty after recursion | `K OP` | `A 10` | `rdi=3`; globals now describe local q: kind `lv-local`, slot s, type core int |
+| Recover old value and apply saved operator | empty after the emitter consumes OP | `K` | `A` | Move 3 to `rcx`, pop 10 to `rdi`, emit addition: `rdi=13` |
+| Recover destination, store and finish | empty | empty | empty | Pop A to `rcx`; saved K selects an eight-byte store; memory[A]=13, `rdi=13`; mark result `lv-value` |
+
+The global slot `s` from parsing `q` is never used as the destination.
+The saved address supplies that destination, while the saved kind selects
+the store width. The old value and address are runtime values; K and OP
+are compiler decisions. Mixing these two timelines is the common error
+this trace is meant to catch.
+
+For a byte target, the saved kind instead selects a byte load/store. For
+native typed assignment, the snapshot must additionally retain destination
+type, descriptor, field record and qualification; its conversion and
+field-aware hooks cannot be replaced by the core width rule above.
 
 ## The top-level driver
 
@@ -2088,6 +2122,15 @@ For `*p += q`, the destination survives even if parsing `q` overwrites every exp
 ```
 
 Parentheses call an entry that preserves lvalues; ordinary value consumers use `cc-parse-expr`. That distinction prevents grouping from accidentally turning a destination into a read.
+
+There is a separate dialect boundary: preserving `(x)` does not justify
+preserving `(0, x)` as an assignable C expression. At the pinned revision,
+the native/private LP64 probe `int main(void) { int x=0; (0,x)=1; return x; }`
+compiled and returned 1. The comma path retains the final operand's lvalue
+state; ordinary C's comma result is not an lvalue. The core profile does
+not enable this comma production. This book documents the observed dialect
+boundary without changing the source's acceptance policy; see
+[Appendix F](60-c-subset.md#observed-profile-boundaries).
 
 ## Constant expressions
 
@@ -2374,14 +2417,19 @@ Run from the `forth-bootstrap` checkout root with the seed built in Part 1. The 
 
 The cast hook is declared without a binding at `forth-bootstrap/cc/100-cc-expr.fth:44`. `probe-no-cast` supplies a false result without consuming input, allowing parentheses to mean grouping in this driver. It does not implement casts. Locals and their declarations are outside this checkpoint.
 
+<!-- tryit: expect "driver exit: 0\n(-3 < 0) ? 7 : 9 = 7 (exit status)" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$probe_dir" || status=1; exit "$status"' EXIT
+compiler_status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
       cc/060-cc-types.fth cc/070-cc-sym.fth \
-      cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth
-  cat <<'FORTH'
+      cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 : probe-no-cast [lit] 0 ;
 ' probe-no-cast is cc-try-cast-fwd
 cc-src-init
@@ -2393,12 +2441,15 @@ cc-finalize-elf
 [lit] 1 cc-out-buf cc-out-pos @ write drop
 bye
 FORTH
-} | ./seed-forth > "$probe_dir/expression"
-printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
-chmod +x "$probe_dir/expression"
-"$probe_dir/expression"
-printf '(-3 < 0) ? 7 : 9 = %s (exit status)\n' "$?" # prints '(-3 < 0) ? 7 : 9 = 7 (exit status)'
-rm -r "$probe_dir"
+} | ./seed-forth > "$probe_dir/expression" || compiler_status=$?
+printf 'driver exit: %s\n' "$compiler_status" # prints 'driver exit: 0'
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+chmod +x "$probe_dir/expression" || exit "$?"
+program_status=0
+"$probe_dir/expression" || program_status=$?
+printf '(-3 < 0) ? 7 : 9 = %s (exit status)\n' "$program_status" # prints '(-3 < 0) ? 7 : 9 = 7 (exit status)'
+test "$program_status" -eq 7
+)
 ```
 
 Observed output:
@@ -2411,6 +2462,8 @@ driver exit: 0
 This run exercises operand dispatch, grouping, unary negation, comparison, ternary selection, and final materialization. It does not exercise storage mutation or the native target hooks.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-34-an-address-through-parentheses).
 
 **Trace — easy.** Follow `(*p)++` with `p` a character pointer. Identify where the pointer is loaded, where the target remains an address, and why parentheses preserve that address for the postfix handler.
 

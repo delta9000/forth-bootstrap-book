@@ -44,7 +44,7 @@ The older project explored several onward routes. Its history records a
 route to self-hosted M2-Planet and a handoff into stage0-posix's recipes;
 it also records direct TinyCC and pnut routes. Those routes stayed in the
 older project when forth-bootstrap split off
-(`forth-bootstrap/HISTORY.md:19–29`). Read their reproducibility account as
+(`forth-bootstrap/HISTORY.md:19–34`). Read their reproducibility account as
 history in Appendix C, rather than as the operating instructions for this
 checkout.
 

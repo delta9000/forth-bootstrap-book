@@ -500,7 +500,7 @@ Register moves connect the accumulator to the roles around it:
 | `cc-emit-mov-rdi-rax` | function result → accumulator |
 | `cc-emit-mov-rbx-rdi` | accumulator → saved selection value |
 
-The first transfers preserve a value for an operation or place it where a function result belongs (`forth-bootstrap/cc/090-cc-emit.fth:232`):
+The first transfers preserve a value for an operation or place it where a function result belongs. The historical comment groups IMUL with ADD/SUB too broadly: the ADD/SUB forms here use ModR/M `reg=source, r/m=destination`, but two-operand `0F AF` IMUL uses `reg=destination, r/m=source`. The later IMUL encoder uses that latter direction (`forth-bootstrap/cc/090-cc-emit.fth:232`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -831,14 +831,19 @@ Run from the `forth-bootstrap` checkout root. This driver loads the library and 
 
 The program sets up the exit syscall, puts 42 in `rdi`, and jumps over an assignment of 99. The final raw bytes are the `syscall` instruction. `od` skips the 120-byte header to show the emitted instructions; the shell then runs the executable and removes the temporary directory.
 
+<!-- tryit: expect "driver exit: 0\n 48 c7 c7 3c 00 00 00 48 89 f8 48 c7 c7 2a 00 00\n 00 e9 07 00 00 00 48 c7 c7 63 00 00 00 0f 05\nprogram exit: 42" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$probe_dir" || status=1; exit "$status"' EXIT
+compiler_status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
-      cc/060-cc-types.fth cc/070-cc-sym.fth cc/080-cc-elf.fth
-  head -n 445 cc/090-cc-emit.fth
-  cat <<'FORTH'
+      cc/060-cc-types.fth cc/070-cc-sym.fth cc/080-cc-elf.fth || exit "$?"
+  head -n 445 cc/090-cc-emit.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 cc-out-init  [lit] 0 cc-bss-size !  cc-emit-elf-header
 [lit] 60 cc-emit-mov-rdi-imm32  cc-emit-mov-rax-rdi
 [lit] 42 cc-emit-mov-rdi-imm32
@@ -850,13 +855,16 @@ cc-finalize-elf
 [lit] 1 cc-out-buf cc-out-pos @ write drop
 bye
 FORTH
-} | ./seed-forth > "$probe_dir/exit42"
-printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
-od -An -v -tx1 -j120 "$probe_dir/exit42"
-chmod +x "$probe_dir/exit42"
-"$probe_dir/exit42"
-printf 'program exit: %s\n' "$?" # prints 'program exit: 42'
-rm -r "$probe_dir"
+} | ./seed-forth > "$probe_dir/exit42" || compiler_status=$?
+printf 'driver exit: %s\n' "$compiler_status" # prints 'driver exit: 0'
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+od -An -v -tx1 -j120 "$probe_dir/exit42" || exit "$?"
+chmod +x "$probe_dir/exit42" || exit "$?"
+program_status=0
+"$probe_dir/exit42" || program_status=$?
+printf 'program exit: %s\n' "$program_status" # prints 'program exit: 42'
+test "$program_status" -eq 42
+)
 ```
 
 Observed output:
@@ -871,6 +879,8 @@ program exit: 42
 The `e9 07 00 00 00` jump skips the immediate load containing `63`, the hexadecimal spelling of 99. The observed status shows that the skipped assignment did not overwrite 42. This checks header finalization, immediate loads, a register move, and a patched jump; it does not exercise every encoder above.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-31-relative-displacements).
 
 **Trace — easy.** In the checkpoint, identify the displacement's file offset and the target's file offset. Apply `cc-patch-rel32-to-here` by hand and match the result to the displayed jump bytes.
 

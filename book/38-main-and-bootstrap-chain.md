@@ -106,33 +106,60 @@ Part 4 follows that route: Chapter 50 builds `seed-cc`, Chapter 51 builds the to
 
 ## Try it
 
-Run both checkpoints from the `forth-bootstrap` checkout root at `./forth-bootstrap`, with the seed already built in Part 1. The first loads the complete Forth library and the core compiler, then appends the opening C example. `cc/compiler-layers.sh` is the full loader, including the extension layers of Chapters 39–49; this demo loads only the core.
+Run both checkpoints from the `forth-bootstrap` checkout root at `./forth-bootstrap`, with the seed already built in Part 1. Do not run either checkpoint concurrently with another user of `/tmp/cc-out`. Each saves that path before starting, restores it on exit, and retains the backup directory if restoration fails. The first loads the complete Forth library and the core compiler, then appends the opening C example. `cc/compiler-layers.sh` is the full loader, including the extension layers of Chapters 39–49; this demo loads only the core.
 
+<!-- tryit: expect "compiler exit: 0\n*\nprogram exit: 0" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+saved_output=0
 if [ -e /tmp/cc-out ] || [ -L /tmp/cc-out ]; then
-  mv /tmp/cc-out "$probe_dir/saved-cc-out"
+  if mv -T -- /tmp/cc-out "$probe_dir/saved-cc-out"; then
+    saved_output=1
+  else
+    printf 'Backup failed; inspect /tmp/cc-out and %s\n' "$probe_dir" >&2
+    exit 1
+  fi
 fi
+cleanup() {
+  status=$?
+  trap - EXIT HUP INT TERM
+  if ! rm -f -- /tmp/cc-out; then
+    printf 'Cleanup failed; inspect /tmp/cc-out and %s\n' "$probe_dir" >&2
+    exit 1
+  fi
+  if [ "$saved_output" -eq 1 ] &&
+      ! mv -T -- "$probe_dir/saved-cc-out" /tmp/cc-out; then
+    printf 'Restore failed; saved output retained at %s\n' "$probe_dir/saved-cc-out" >&2
+    exit 1
+  fi
+  rm -rf -- "$probe_dir" || status=1
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+compiler_status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
       cc/060-cc-types.fth cc/070-cc-sym.fth \
       cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth \
       cc/110-cc-decl.fth cc/112-cc-stmt.fth \
-      cc/114-cc-func.fth cc/116-cc-prog.fth cc/120-cc-main.fth
+      cc/114-cc-func.fth cc/116-cc-prog.fth cc/120-cc-main.fth || exit "$?"
   printf '%s\n' 'int main(void) { putchar(42); return 0; }'
-} | ./seed-forth
-printf 'compiler exit: %s\n' "$?"
-if [ -f /tmp/cc-out ]; then
-  chmod +x /tmp/cc-out
-  /tmp/cc-out
-  printf '\nprogram exit: %s\n' "$?"
-  rm /tmp/cc-out
-fi
-if [ -e "$probe_dir/saved-cc-out" ] || [ -L "$probe_dir/saved-cc-out" ]; then
-  mv "$probe_dir/saved-cc-out" /tmp/cc-out
-fi
-rmdir "$probe_dir"
+} | ./seed-forth || compiler_status=$?
+printf 'compiler exit: %s\n' "$compiler_status"
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+mv -T -- /tmp/cc-out "$probe_dir/program" || exit "$?"
+chmod +x "$probe_dir/program" || exit "$?"
+program_status=0
+"$probe_dir/program" || program_status=$?
+printf '\nprogram exit: %s\n' "$program_status"
+test "$program_status" -eq 0
+)
 ```
 
 Observed output:
@@ -148,16 +175,48 @@ The program emits the star; the shell adds the newline before its exit-status re
 For the parity check, host GCC and the initialized vendor sources are required. The reference builder checks for M2-Planet, its M2libc, and mescc-tools sources (`forth-bootstrap/tests/cc/build-gcc-refs.sh:29`). A fresh temporary `BUILDROOT` keeps the artifacts together; the script runs in seconds. This is the repository's prescribed test, with its normal loader.
 
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+saved_output=0
+keep_work=0 # Set to 1 to keep the Stage A files for the exercise.
 if [ -e /tmp/cc-out ] || [ -L /tmp/cc-out ]; then
-  mv /tmp/cc-out "$probe_dir/saved-cc-out"
+  if mv -T -- /tmp/cc-out "$probe_dir/saved-cc-out"; then
+    saved_output=1
+  else
+    printf 'Backup failed; inspect /tmp/cc-out and %s\n' "$probe_dir" >&2
+    exit 1
+  fi
 fi
-CC=gcc BUILDROOT="$probe_dir/stage-a" tests/cc/stage-a-check.sh
-printf 'stage-a exit: %s\n' "$?"
-if [ -e "$probe_dir/saved-cc-out" ] || [ -L "$probe_dir/saved-cc-out" ]; then
-  mv "$probe_dir/saved-cc-out" /tmp/cc-out
-fi
-rm -r "$probe_dir"
+cleanup() {
+  status=$?
+  trap - EXIT HUP INT TERM
+  if ! rm -f -- /tmp/cc-out; then
+    printf 'Cleanup failed; inspect /tmp/cc-out and %s\n' "$probe_dir" >&2
+    exit 1
+  fi
+  if [ "$saved_output" -eq 1 ] &&
+      ! mv -T -- "$probe_dir/saved-cc-out" /tmp/cc-out; then
+    printf 'Restore failed; saved output retained at %s\n' "$probe_dir/saved-cc-out" >&2
+    exit 1
+  fi
+  if [ "$keep_work" -eq 1 ]; then
+    printf 'Stage A files retained at %s\n' "$probe_dir"
+  else
+    rm -rf -- "$probe_dir" || status=1
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+stage_status=0
+CC=gcc BUILDROOT="$probe_dir/stage-a" tests/cc/stage-a-check.sh || stage_status=$?
+printf 'stage-a exit: %s\n' "$stage_status"
+if [ "$stage_status" -ne 0 ]; then keep_work=1; fi
+exit "$stage_status"
+)
 ```
 
 Observed final lines from this run:
@@ -170,6 +229,8 @@ stage-a exit: 0
 
 ## Exercise
 
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-38-handoff-and-stage-a-evidence).
+
 **Trace — easy.** In the first checkpoint, identify the exact Forth token that changes the meaning of the remaining stdin from Forth definitions to C source. Explain what would happen if another Forth definition were appended after that token.
 
-**Verify — medium.** Keep the Stage A build directory by omitting its final cleanup. Repeat the script's `cmp` on the emitted M1 files. Explain why that equality does not require the compiler executables themselves to be identical.
+**Verify — medium.** Set `keep_work=1` in the Stage A checkpoint to retain its build directory while still restoring `/tmp/cc-out`. Use the printed directory path to repeat the script's `cmp` on the emitted M1 files. Explain why that equality does not require the compiler executables themselves to be identical.

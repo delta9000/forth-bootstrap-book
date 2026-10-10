@@ -29,6 +29,137 @@ The header's claims of agreement with mescc-tools and an M2-Planet
 self-compile are the source's own; this chapter checks only the standalone
 result below.
 
+## Carry one input through both passes
+
+Before reading the implementation, trace this small input on paper. It
+produces an eight-byte fragment, not a runnable ELF file; the checkpoint
+later supplies a complete executable. The trace is derived from the
+source's expansion, reference, and pass rules
+(`forth-bootstrap/forth/130-asm.fth:492–541,561–594,697–714,729–783`).
+
+```text
+DEFINE hop EB
+:base hop !target
+:message "A"
+:target &message
+```
+
+Use the default load base `0x600000`. File offsets and field widths below
+are in **output bytes**, not characters of input text; a two-digit hex
+pair emits one byte. IP is the target address being assigned, so
+`IP = 0x600000 + output offset`. Multi-byte fields are little-endian.
+In any Forth stack trace, the top is at the right; it is a separate state
+from the assembler's IP.
+
+**Expansion.** `DEFINE` records `hop` → `EB` and emits no token of its
+own. Substitution replaces the later `hop`; the double-quoted string
+becomes the byte for `A` followed by a NUL. With whitespace normalized,
+the expanded token stream is:
+
+```text
+:base EB !target :message 41 00 :target &message
+```
+
+Expansion has not resolved either label reference. Both assembly passes
+read this same expanded stream.
+
+**Pass 1: lay out bytes and record addresses.** Start at offset 0.
+Labels occupy no bytes. A sigil reference reserves its field width even
+when its target has not yet been seen. Follow rows from top to bottom:
+
+| Token(s) | Offset before → after | Label recorded or reason |
+| --- | --- | --- |
+| `:base` | 0 → 0 | `base = 0x600000` |
+| `EB` | 0 → 1 | One opcode byte |
+| `!target` | 1 → 2 | Reserve one relative-field byte |
+| `:message` | 2 → 2 | `message = 0x600002` |
+| `41 00` | 2 → 4 | Character and terminating NUL |
+| `:target` | 4 → 4 | `target = 0x600004` |
+| `&message` | 4 → 8 | Reserve four absolute-field bytes |
+
+The completed table supplies even the forward reference to `target`.
+Nothing about looking up that name is needed to count its one-byte field.
+
+**Pass 2: rewind, resolve, and emit.** Reset IP to `0x600000` and retain
+the label table. Emit `EB` at offset 0. For `!target`, the field begins
+at address `0x600001` and ends at `0x600002`; the relative value is
+`0x600004 - 0x600002 = 2`, emitted as `02`. The helper's calculation
+`over asm-ip @ + -` takes data stack `1 0x600004` to
+`1 0x600004 1 0x600001`, then `1 0x600004 0x600002`, then `1 2`.
+Here `1` is the field width in bytes, and the helper has already removed
+its other arguments to the return stack. This is subtraction from the
+field's **end**, not its first byte or the opcode.
+
+The `41 00` tokens emit unchanged. For `&message`, resolve the absolute
+address `0x600002` and emit its four low bytes as `02 00 60 00`. There is
+no IP subtraction in this absolute form. The complete predicted fragment
+is:
+
+```text
+Offset:  00 01 02 03 04 05 06 07
+Byte:    EB 02 41 00 02 00 60 00
+```
+
+The branch at offset 0 skips the two string bytes: the CPU adds `02` to
+its next-instruction offset 2 and reaches `target` at offset 4. The final
+four bytes illustrate an address field; they are not a suitable body to
+execute after that jump.
+
+### Pause and predict
+
+1. Extend `"A"` to `"AB"`. Fill in the new offsets after `41 42 00`,
+   at `:target`, and after `&message`, then predict the relative byte.
+2. A proposed fixup emits `03` for the original `!target` by subtracting
+   the field's starting address. At what offset does the CPU actually
+   arrive, and why is that not `target`?
+3. Change the format to a small data record with a four-byte offset
+   relative to a named base. Independently derive both passes and all
+   output bytes for the following input. It has no branch opcode and is
+   not an executable; `%target>base` explicitly uses two labels, not IP.
+
+```text
+:base %target>base
+:message "AB"
+:target &message
+```
+
+<details>
+<summary>Hint: count field width before resolving its value</summary>
+
+For the first task, the `!` field stays one byte wide. For the third,
+`%` reserves four bytes even before `target` is known. A quoted string
+includes its NUL. Neither `:base` nor another label advances IP.
+
+</details>
+
+<details>
+<summary>Check the three predictions</summary>
+
+1. The string ends at offset 5, so `target=0x600005`; the final field
+   ends at offset 9. `!target` emits `5-2=3`, while `&message` stays
+   `02 00 60 00` because the message's start did not move.
+2. The CPU still adds the displacement to offset 2, so `03` reaches
+   offset 5, one byte beyond the original target. Changing how the
+   assembler calculates a field cannot change the CPU's origin rule.
+3. Expansion gives `:base %target>base :message 41 42 00 :target &message`.
+   Pass 1 records `base=0x600000`, `message=0x600004`, and
+   `target=0x600007`, ending at offset 11. Pass 2 emits `target-base=7`
+   as `07 00 00 00`, then `41 42 00`, then the message address as
+   `04 00 60 00`. Subtracting the percent field's end would incorrectly
+   give 3: an explicit base changes the reference rule.
+
+</details>
+
+You can now take the source walkthrough in three sittings. Read buffers
+through [the label table](#the-label-table) to find the storage for the
+states above; resume at [numbers](#numbers) through hex bytes and dispatch
+to follow token meanings; then resume at [two passes](#two-passes) for the
+pass driver and macro expansion. At each pause, keep the small input and
+its offsets beside you. The full implementation below remains in source
+order, so use the preview to distinguish its runtime phase order.
+
+## Supported input language
+
 The header states the supported input language and its exclusions in
 `forth-bootstrap/forth/130-asm.fth:1`:
 
@@ -1373,10 +1504,15 @@ Run from the `forth-bootstrap` checkout at `./forth-bootstrap`, with the
 seed built in Part 1. The pipeline loads the complete library and assembler,
 then gives `asm-main` a hand-written program including its ELF header.
 The temporary directory holds the input and executable: one line before
-`asm-main` points `asm-out-name` at it.
+`asm-main` points `asm-out-name` at it. The explicit `/tmp` template
+keeps this embedded Forth pathname free of whitespace, even when the
+shell's `TMPDIR` contains spaces. The `||` guard captures the program's
+intentional status 42 even in a shell with `set -e`; the separate `test`
+checks that expected status.
 
+<!-- tryit: expect "hi\nexit: 42\n160" -->
 ```sh
-d=$(mktemp -d)
+d=$(mktemp -d /tmp/book-probe.XXXXXXXXXX)
 cat > "$d/hi.M1" <<'M1'
 DEFINE mov_eax, B8
 DEFINE mov_edi, BF
@@ -1414,8 +1550,10 @@ M1
   echo "create out s, $d/hi [lit] 0 c,  out asm-out-name !"
   echo asm-main; cat "$d/hi.M1"; } | ./seed-forth
 chmod +x "$d/hi"
-"$d/hi"                         # prints "hi"
-echo "exit: $?"                  # prints "exit: 42"
+status=0
+"$d/hi" || status=$?             # prints "hi"
+printf 'exit: %s\n' "$status"  # prints "exit: 42"
+test "$status" -eq 42
 wc -c < "$d/hi"             # prints: 160
 rm -rf "$d"
 ```
@@ -1444,8 +1582,43 @@ start and end, then count the string bytes between the field end and
 `:done`. Include the terminating NUL. Explain why counting the opcode as
 part of the displacement would give the wrong destination.
 
-**Modify — medium.** In the temporary M1 input, change the message and
-its write length together. Predict which absolute addresses and header
-size fields change, then assemble and run it. Explain why the numeric
-write length does not undergo the relative-label subtraction.
+**Modify — medium.** The checkpoint removes its temporary directory.
+Edit the `hi.M1` here-document in a copy of the commands above and rerun
+the whole block, including `mktemp`, to make fresh input. Change the
+message to `hey` followed by newline and its write length to `%4`.
+Predict which label addresses, relative field, and header sizes change,
+then assemble and run it, comparing against your new output and size
+prediction. Explain why the numeric write length does not undergo the
+relative-label subtraction. For another attempt, choose a different
+short message; keep the jump distance within its signed one-byte range.
+
+<details>
+<summary>Hint: track starts separately from lengths</summary>
+
+The ELF and program headers occupy 120 bytes. Four five-byte moves
+and a two-byte syscall precede `jmp8`. Mark the opcode, the one-byte
+field, and the field end separately. An extra string byte moves labels
+after the string, but not the address where the string begins.
+
+</details>
+
+<details>
+<summary>Check the checkpoint calculations</summary>
+
+The opcode is at offset 142, its field at 143, and the field ends at
+144. Original `hi`, newline, and NUL take four bytes, so `done` is at
+148: the correct encoding is `EB 04`. Counting from the opcode would
+produce 6, which the CPU adds to 144 and reaches 150.
+
+For `hey` plus newline, the string takes five bytes including NUL.
+`done` moves to 149 and `ELF_end` to 161; `!done` becomes `05` and both
+`%ELF_end>ELF_base` size fields become `A1 00 00 00` followed by their
+unchanged four zero high bytes. `msg` stays at `0x600090`, so `&msg`
+stays `90 00 60 00`; `_start`, `ELF_base`, and `ELF_phdr` also stay put.
+`%4` is numeric: it emits `04 00 00 00` directly without any address
+subtraction. Predicted output is `hey` followed by newline, status 42,
+and a 161-byte executable. Update the output and size comments in your
+copy so that they describe the modified program rather than the old one.
+
+</details>
 

@@ -307,23 +307,26 @@ It needs `build-out/seed-cc/seed-cc` from Chapter 50 and leaves its temporary di
 <!-- tryit: skip -->
 ```sh
 (
-work=$(mktemp -d) || exit
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit
+printf 'inspection directory: %s\n' "$work"
 ./build-out/seed-cc/seed-cc -static vendor/mescc-tools/Kaem/kaem.c \
   vendor/mescc-tools/Kaem/variable.c vendor/mescc-tools/Kaem/kaem_globals.c \
   vendor/stage0-posix/mescc-tools-extra/M2libc/bootstrappable.c \
   -o "$work/kaem" || exit
-printf '%s\n' 'MESSAGE=hello-from-kaem' 'echo ${MESSAGE}' > "$work/tiny.kaem"
+printf '%s\n' 'MESSAGE=hello-from-kaem' 'echo ${MESSAGE}' > "$work/tiny.kaem" || exit
 "$work/kaem" --strict --file "$work/tiny.kaem"
 )
 ```
 
-Observed output:
+After the generated `inspection directory: /tmp/book-probe.…` line, the program prints:
 
 ```text
 hello-from-kaem
 ```
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-51-bootstrap-a-generator).
 
 **Trace (easy).** Follow the scanner targets in the flex Makefile. Which target first executes a flex built by this recipe? Explain why removing Heirloom lex would leave that target unreachable, even though seed-cc can compile all the C objects.
 

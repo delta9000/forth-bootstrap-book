@@ -92,6 +92,7 @@ Check the `bye` entry, then use the table to follow a value through copying,
 addition, and output. The shell reports the silent exit’s status; the last
 literal supplies a newline.
 
+<!-- tryit: expect "exit status: 0\nAB" -->
 ```sh
 echo 'bye' | ./seed-forth
 printf 'exit status: %s\n' "$?"

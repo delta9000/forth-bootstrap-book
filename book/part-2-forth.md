@@ -32,5 +32,7 @@ hex2 linker, which turn assembly text into a running executable.
 - [Chapter 26](26-m1-and-hex2.md) uses the finished library to assemble and
   link an M1 program that prints `hi` and exits with status 42.
 
-The checkpoints load the library before the chapter's own words. Each
-one exercises only the words defined so far.
+Chapter 14 starts with seed words alone. Later checkpoints load the
+needed library prefix before the chapter's own words; Chapter 26 loads
+the complete library and assembler. Each exercises only words introduced
+so far.

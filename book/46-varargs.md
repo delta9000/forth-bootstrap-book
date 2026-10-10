@@ -392,14 +392,16 @@ The runtime formatter needs exactly this argument cursor (Chapter 43). `printf` 
 
 Run from the `forth-bootstrap` checkout root with the seed already built. This block loads compiler layers through varargs and uses the target `stdarg.h` include directory. It compiles `sum` and its caller to an object, emits a small `_start` object, and links them with the Forth linker. The entry returns `main`'s result as the process status; the shell prints and checks it. Generated files stay in the temporary directory.
 
+<!-- tryit: expect "sum = 36" -->
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth || exit "$?"
   printf 'create output-path s, %s/start.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-obj-init
 [lit] 232 cc-obj-byte [lit] 0 cc-obj-4le
 [lit] 137 cc-obj-byte [lit] 199 cc-obj-byte
@@ -414,7 +416,7 @@ output-path cc-obj-write bye
 FORTH
 } | ./seed-forth || exit "$?"
 includes=chain/runtime/gcc-seed/include
-cat > "$work/probe.c" <<'C'
+cat > "$work/probe.c" <<'C' || exit "$?"
 #include <stdarg.h>
 long sum(int n, ...) {
     va_list ap;
@@ -430,21 +432,21 @@ C
 {
   cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
       cc/121-cc-sysv.fth cc/123-cc-object-program.fth \
-      cc/124-cc-target.fth cc/125-cc-consteval.fth cc/126-cc-varargs.fth
+      cc/124-cc-target.fth cc/125-cc-consteval.fth cc/126-cc-varargs.fth || exit "$?"
   printf 'create output-path s, %s/probe.o [lit] 0 c,\n' "$work"
   printf 'create include-path s, %s [lit] 0 c,\n' "$includes"
   printf 'include-path [lit] %s cc-prep-add-include\n' "${#includes}"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 : object-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-  cat "$work/probe.c"
+  cat "$work/probe.c" || exit "$?"
 } | ./seed-forth || exit "$?"
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth || exit "$?"
   for name in start.o probe.o result; do
     printf 'create p-%s s, %s/%s [lit] 0 c,\n' "$name" "$work" "$name"
   done
@@ -452,8 +454,8 @@ FORTH
     'lnk-init p-start.o lnk-add-object p-probe.o lnk-add-object' \
     'entry-name [lit] 6 lnk-entry p-result lnk-link lnk-release bye'
 } | ./seed-forth || exit "$?"
-"$work/result"
-result=$?
+result=0
+"$work/result" || result=$?
 printf 'sum = %s\n' "$result"
 test "$result" -eq 36 || exit 1
 ) # prints "sum = 36"
@@ -469,7 +471,9 @@ The final three values come from the stack, so the result exercises both branche
 
 ## Exercise
 
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-46-a-varargs-cursor-crosses-banks).
+
 **Trace — easy.** Follow `gp_offset` and `overflow_arg_area` through every iteration of `sum`. Identify the first iteration that leaves `gp_offset` unchanged.
 
-**Modify — moderate.** Copy the list after its first stack retrieval, consume the rest through the copy, then consume them again through the original. Predict both totals before running the checkpoint, and end both lists.
+**Modify — moderate.** After retrieving the first stack argument (value 6), use `va_copy` to copy the list. Sum the remaining arguments through the copy and then independently through the original, starting each suffix total at zero. Predict both suffix totals before running. Check their equality in C, return the original full total on success so the shell still expects 36, and call `va_end` on both lists.
 

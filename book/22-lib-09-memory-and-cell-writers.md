@@ -140,6 +140,7 @@ the seed built in Part 1. `head -n 179` loads the library through `,8`,
 stopping before the immediate-flag code. Define the byte-reading helper
 before reserving test data so its compiled body cannot occupy that data.
 
+<!-- tryit: expect "CB\n4ABCD\n8ABCDEFGH" -->
 ```sh
 { head -n 179 forth/010-lib.fth
   printf '%s\n' \
