@@ -2654,7 +2654,7 @@ for which chapter depends on which, the
 - **Labels and goto** — [Ch 36, Labels and `goto`](36-statements-if-while-for-return.md#labels-and-goto)
 - `latest` — *seed primitive* — [Ch 9, `state` and `latest`: addresses of system variables](09-dictionary.md#state-and-latest-addresses-of-system-variables) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `latest_code` — *seed label* — [Ch 9, `state` and `latest`: addresses of system variables](09-dictionary.md#state-and-latest-addresses-of-system-variables)
-- **Left associativity** — [Ch 33, `cc-parse-add`: just like `mul`, looser](33-expressions-part-1.md#cc-parse-add-just-like-mul-looser) · [App. D, Where left-associativity comes from](A4-worked-exercises.md#where-left-associativity-comes-from)
+- **Left associativity** — [Ch 33, `cc-parse-add`: just like `mul`, looser](33-expressions-part-1.md#cc-parse-add-just-like-mul-looser) · [Ch 58, Where left-associativity comes from](58-worked-exercises.md#where-left-associativity-comes-from)
 - `level-add` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `level-bit-and` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `level-bit-or` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)

@@ -10,7 +10,7 @@ Prerequisites: [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md); [38
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [A4-worked-exercises.md](../A4-worked-exercises.md) — Reuse the three worked exercises and their source-reading method.
+Reuses: [A4-worked-exercises.md](../58-worked-exercises.md) — Reuse the three worked exercises and their source-reading method.
 
 TODO:
 

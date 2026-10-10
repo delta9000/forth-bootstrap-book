@@ -57,7 +57,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [A1-32-seed-primitives.md](../13-primitive-reference.md) | Appendix A — The 32 seed primitives | 1 | [The 32 seed primitives: reference](13-primitive-reference.md) | keep |
 | [A2-memory-map.md](../A2-memory-map.md) | Appendix B — The memory map | 1 | [ELF, entry, and the memory map](05-elf-and-entry.md) | keep |
 | [A3-reproducibility-chain.md](../57-historical-reproducibility.md) | Appendix C — Reproducibility: the full hex0 → seed → M2-Planet chain | back matter | [Appendix C: historical reproducibility routes](57-historical-reproducibility.md) | shorten |
-| [A4-worked-exercises.md](../A4-worked-exercises.md) | Appendix D — Three worked exercises, one each from Parts I–III | back matter | [Appendix D: worked exercises](58-worked-exercises.md) | keep |
+| [A4-worked-exercises.md](../58-worked-exercises.md) | Appendix D — Three worked exercises, one each from Parts I–III | back matter | [Appendix D: worked exercises](58-worked-exercises.md) | keep |
 | [A5-further-reading.md](../A5-further-reading.md) | Appendix E — Further reading | back matter | [Appendix E: further reading](59-further-reading.md) | keep |
 | [A6-c-subset.md](../A6-c-subset.md) | Appendix F — The C subset | back matter | [Appendix F: the C subset](60-c-subset.md) | keep |
 | [A7-error-codes.md](../A7-error-codes.md) | Appendix G — Compiler error codes | back matter | [Appendix G: compiler exit codes](61-error-codes.md) | keep |
