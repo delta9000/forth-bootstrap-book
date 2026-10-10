@@ -10,7 +10,7 @@ Prerequisites: [35 — Declarations and storage](35-declarations-types-globals.m
 
 Checkpoint: TODO — the cumulative core checkpoint is Stage A at the end of the core compiler sequence.
 
-Reuses: [30-statements-if-while-for-return.md](../30-statements-if-while-for-return.md) — Reuse the source walkthrough: Translate conditionals, loops, switch, jumps, and returns.
+Reuses: [30-statements-if-while-for-return.md](../36-statements-if-while-for-return.md) — Reuse the source walkthrough: Translate conditionals, loops, switch, jumps, and returns.
 
 TODO:
 
