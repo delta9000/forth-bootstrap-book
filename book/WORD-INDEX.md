@@ -288,7 +288,7 @@ for which chapter depends on which, the
 - `bo-level` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `bo-op` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `bo-size` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
-- **Bootstrap chain** — [Ch 38, The wider chain](38-main-and-bootstrap-chain.md#the-wider-chain) · [App. C, The chain at a glance](A3-reproducibility-chain.md#the-chain-at-a-glance)
+- **Bootstrap chain** — [Ch 38, The wider chain](38-main-and-bootstrap-chain.md#the-wider-chain) · [Ch 57, What forth-bootstrap checks today](57-historical-reproducibility.md#what-forth-bootstrap-checks-today)
 - `bracket_lit_code` — *seed label* — [Ch 10, `bracket_lit_code`: write what `lit_code` will read](10-colon-compiler.md#bracket_lit_code-write-what-lit_code-will-read)
 - `branch` — *seed primitive* — [Ch 11, `branch_code`: replace the return address](11-branches.md#branch_code-replace-the-return-address) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `branch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 24, `branch-xt` and `0branch-xt`: a load-time snapshot](24-lib-11-control-flow-combinators.md#branch-xt-and-0branch-xt-a-load-time-snapshot)
@@ -2498,7 +2498,7 @@ for which chapter depends on which, the
 - `die` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
 - `digit?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, The range-check trick: `digit?`](19-lib-06-character-classification.md#the-range-check-trick-digit)
 - **Direct TinyCC bootstrap** — [Ch 34 §6 What the bootstrap result proves](34-direct-tinycc.md#6-what-the-bootstrap-result-proves)
-- **Diverse double-compiling** — [App. C, Cross-check against stage0-posix (diverse double-compiling)](A3-reproducibility-chain.md#cross-check-against-stage0-posix-diverse-double-compiling)
+- **Diverse double-compiling** — [Ch 57, Diverse double-compiling](57-historical-reproducibility.md#diverse-double-compiling)
 - `divide_code` — *seed label* — [Ch 7, Unsigned division contract](07-arithmetic-and-logic.md#unsigned-division-contract)
 - **Division as a right shift** — [Ch 22, Why divide by 256?](22-lib-09-memory-and-cell-writers.md#why-divide-by-256)
 - `drop` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `drop`: replace the old top](06-stack-primitives.md#drop-replace-the-old-top) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
@@ -2560,7 +2560,7 @@ for which chapter depends on which, the
 
 ## G
 
-- **GCC-free build** — [App. C, The GCC-free build](A3-reproducibility-chain.md#the-gcc-free-build)
+- **GCC-free build** — [Ch 57, The GCC-free build](57-historical-reproducibility.md#the-gcc-free-build)
 - **Global-address fixups** — [Ch 32, File-scope globals and deferred vaddr fixups](32-codegen-part-2.md#file-scope-globals-and-deferred-vaddr-fixups) · [Ch 37, File-scope globals](37-functions-and-scope.md#file-scope-globals)
 
 ## H
@@ -2665,7 +2665,7 @@ for which chapter depends on which, the
 - `level-shift` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - **Lexer state block** — [Ch 27, The lexer's state block](27-arena-and-io-buffers.md#the-lexers-state-block) · [Ch 29, The parser's interface: putback, mark and reset](29-the-lexer.md#the-parsers-interface-putback-mark-and-reset)
 - **libc shims** — [Ch 32, The libc shims: write/read/open/close/mmap](32-codegen-part-2.md#the-libc-shims-writereadopenclosemmap)
-- **Linear dictionary search** — [Ch 9, `find_code`: compare, follow, return](09-dictionary.md#find_code-compare-follow-return) · [App. C, The chain at a glance](A3-reproducibility-chain.md#the-chain-at-a-glance)
+- **Linear dictionary search** — [Ch 9, `find_code`: compare, follow, return](09-dictionary.md#find_code-compare-follow-return)
 - `lit` — *seed primitive* — [Ch 10, `lit_code` and the inline-cell trick](10-colon-compiler.md#lit_code-and-the-inline-cell-trick) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `lit-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 23, `call,`: emit a call from Forth](23-lib-10-immediacy-and-constants.md#call-emit-a-call-from-forth)
 - `lit_code` — *seed label* — [Ch 10, `lit_code` and the inline-cell trick](10-colon-compiler.md#lit_code-and-the-inline-cell-trick)

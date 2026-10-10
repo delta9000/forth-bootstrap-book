@@ -10,7 +10,7 @@ Prerequisites: [55 — Linux 7.2.8 and kexec under QEMU](55-linux-and-kexec.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [A3-reproducibility-chain.md](../A3-reproducibility-chain.md) — Keep the historical reproducibility checklist; rewrite the older project’s chain.
+Reuses: [A3-reproducibility-chain.md](../57-historical-reproducibility.md) — Keep the historical reproducibility checklist; rewrite the older project’s chain.
 
 TODO:
 

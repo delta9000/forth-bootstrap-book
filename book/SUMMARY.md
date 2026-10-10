@@ -77,8 +77,7 @@
 
 # Back matter
 
-- [Appendix C: historical reproducibility routes](outline/57-historical-reproducibility.md)
-  - [Appendix C — Reproducibility: the full hex0 → seed → M2-Planet chain](A3-reproducibility-chain.md)
+- [Appendix C: historical reproducibility routes](57-historical-reproducibility.md)
 - [Appendix D: worked exercises](outline/58-worked-exercises.md)
   - [Appendix D — Three worked exercises, one each from Parts I–III](A4-worked-exercises.md)
 - [Appendix E: further reading](outline/59-further-reading.md)

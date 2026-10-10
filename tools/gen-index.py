@@ -99,7 +99,7 @@ CONCEPTS = [
     ("push rax; ret (indirect jump)", [("11-branches", "`branch_code`: replace the return address")]),
     ("Token reader and comment skipping", [("17-", "the token reader")]),
     ("Loud token errors (token?, exit 2)", [("17-", "failing out loud"), ("A7-", "The seed's own code")]),
-    ("Linear dictionary search", [("17-", "`find_code`"), ("17-", "The chain")]),
+    ("Linear dictionary search", [("09-dictionary", "`find_code`")]),
     ("Number parser", [("20-", "parse_decimal_code")]),
     ("REPL (interpret/compile loop)", [("20-", "The REPL loop")]),
     ("Memory map", [("05-", "Read the seed memory map")]),
@@ -147,9 +147,9 @@ CONCEPTS = [
     ("Top-level classification", [("37-func", "Top-level elision")]),
     ("Enums and typedefs", [("37-func", "Enums and typedefs")]),
     ("Stage-A parity proof", [("38-main", "Stage A: the parity proof")]),
-    ("Bootstrap chain", [("38-main", "The wider chain"), ("A3-", "The chain at a glance")]),
-    ("GCC-free build", [("A3-", "The GCC-free build")]),
-    ("Diverse double-compiling", [("A3-", "diverse double-compiling")]),
+    ("Bootstrap chain", [("38-main", "The wider chain"), ("57-historical", "What forth-bootstrap checks today")]),
+    ("GCC-free build", [("57-historical", "The GCC-free build")]),
+    ("Diverse double-compiling", [("57-historical", "Diverse double-compiling")]),
     ("C subset (what is supported)", [("A6-", "Types"), ("A6-", "What an ISO C programmer")]),
 ]
 
