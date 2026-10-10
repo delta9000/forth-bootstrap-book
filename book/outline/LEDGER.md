@@ -2272,6 +2272,8 @@ Sticky-half unsigned conversion | 47 Floating values and exact literals | large 
 Exact floating ratio | 47 Floating values and exact literals | a decimal literal is kept as an exact integer numerator and denominator
 Remainder-based rounding | 47 Floating values and exact literals | twice the exact remainder is compared with the divisor to round to nearest, ties to even
 Direct destination rounding | 47 Floating values and exact literals | the destination format is chosen before a literal or constant operation is rounded
+Bitfield slice | 48 Record bitfields | a field is a width and bit shift inside a containing storage unit at a byte offset
+Preserving store | 48 Record bitfields | a bitfield store masks the unit and merges new bits, leaving neighbours unchanged; signed fields sign-extend on load
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
