@@ -66,7 +66,7 @@
 - [Building seed-cc and seed-ar](50-seed-cc-fixed-point.md)
 - [Owning the tools](51-owning-the-tools.md)
 - [GCC 4.0.4: stages C and D](52-gcc-4-fixed-point.md)
-- [The sealed host run](outline/53-sealed-run.md)
+- [The sealed host run](53-sealed-run.md)
 - [K0 and K1](outline/54-k0-and-k1.md)
 - [Linux 7.2.8 and kexec under QEMU](outline/55-linux-and-kexec.md)
 - [Epilogue: onward to GCC 15.2](outline/56-gcc-15-epilogue.md)
