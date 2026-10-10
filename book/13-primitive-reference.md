@@ -1,8 +1,7 @@
 # Chapter 13 — The 32 seed primitives: reference
 
-Finding a word’s contract still means searching among the completed
-walkthroughs. A single lookup table brings its stack effect, code offset,
-and behavior together, with a link back to the decoding chapter. Keep it
+A primitive’s stack effect, code offset, and behavior belong together.
+The table pairs each contract with a link to its decoding chapter. Keep it
 beside a Forth definition to check each primitive’s inputs and results.
 
 ## The table
@@ -34,15 +33,15 @@ For the loaded address, apply the fixed-base contract from
 | `emit` | ( c -- ) | `0x254` | Write the low byte to stdout. | [Chapter 8](08-seed-io.md) |
 | `key` | ( -- c ) | `0x28F` | Read a byte from stdin; return zero at EOF. | [Chapter 8](08-seed-io.md) |
 | `syscall6` | ( a b c d e f n -- rax ) | `0x2D0` | Invoke syscall n with arguments a through f; return its raw result. | [Chapter 8](08-seed-io.md) |
-| `find` | ( c-addr u -- xt &#124; 0 ) | `0x303` | Look up the address-length name; return its xt or zero. | [Chapter 9](09-dictionary.md) |
+| `find` | ( c-addr u -- xt &#124; 0 ) | `0x303` | Look up the address-length name; return its execution token or zero. | [Chapter 9](09-dictionary.md) |
 | `here` | ( -- addr ) | `0x367` | Push the allocation cursor’s value. | [Chapter 9](09-dictionary.md) |
 | `,` | ( v -- ) | `0x383` | Append a cell at HERE and advance HERE. | [Chapter 9](09-dictionary.md) |
-| `execute` | ( xt -- ) | `0x3B4` | Enter the xt; the selected word adds its own stack effect. | [Chapter 9](09-dictionary.md) |
+| `execute` | ( xt -- ) | `0x3B4` | Enter the execution token; the selected word adds its own stack effect. | [Chapter 9](09-dictionary.md) |
 | `state` | ( -- addr ) | `0x497` | Push the address of STATE. | [Chapter 9](09-dictionary.md) |
 | `latest` | ( -- addr ) | `0x4BA` | Push the address of LATEST. | [Chapter 9](09-dictionary.md) |
 | `'` | ( -- xt &#124; 0 ) | `0x4D8` | Read the next name and look it up. | [Chapter 9](09-dictionary.md) |
-| `:` | ( -- ) | `0x4ED` | Read a name, create its header, and enter compilation mode. | [Chapter 10](10-colon-compiler.md) |
-| `;` | ( -- ) | `0x54A` | Immediate: append a return and leave compilation mode. | [Chapter 10](10-colon-compiler.md) |
+| `:` | ( -- ) | `0x4ED` | Read a name, create its header, and enter compile mode. | [Chapter 10](10-colon-compiler.md) |
+| `;` | ( -- ) | `0x54A` | Immediate: append a return and leave compile mode. | [Chapter 10](10-colon-compiler.md) |
 | `lit` | ( -- v ) | `0x5A0` | Push the cell following its compiled call and resume past it. | [Chapter 10](10-colon-compiler.md) |
 | `[lit]` | ( -- n ) interpreting; ( -- ) compiling | `0x5C1` | Immediate: read unsigned decimal input; push it or compile a literal; invalid input is fatal. | [Chapter 10](10-colon-compiler.md) |
 | `branch` | ( -- ) | `0x611` | Jump to the absolute address in the inline cell. | [Chapter 11](11-branches.md) |
@@ -67,7 +66,7 @@ find their register contracts and callers.
   [Chapter 9](09-dictionary.md).
 - `fatal_token` — report the last token and terminate with a failure status;
   [Chapter 9](09-dictionary.md).
-- `compile_call` — append a native call to the supplied xt;
+- `compile_call` — append a native call to the supplied execution token;
   [Chapter 10](10-colon-compiler.md).
 - `parse_decimal_code` — convert an unsigned decimal token and return a
   success flag; [Chapter 12](12-repl.md).

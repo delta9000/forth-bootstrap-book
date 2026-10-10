@@ -8,8 +8,8 @@ The seed's register assignments differ from those of a C function prologue. Its 
 
 | Register | Seed role | Named chunks that use it |
 | --- | --- | --- |
-| `rdi` | Cached top of the data stack | `dup`, `drop`, `plus` |
-| `rbp` | Pointer to the next data-stack value in memory | `entry-point`, `dup`, `drop` |
+| `rdi` | Cached top of stack | `dup`, `drop`, `plus` |
+| `rbp` | Points at the second item on the stack | `entry-point`, `dup`, `drop` |
 | `rsp` | Pointer to the return stack, also used by hardware calls | `to-r`, `r-from`, `r-at` |
 | `rbx` | Length of the last token read | `read-word` |
 | `rax`, `rcx`, `rdx`, `rsi` | Working registers whose meanings depend on the routine | `find`, `read-word`, `syscall6` |
@@ -26,7 +26,7 @@ rbp+8 ->  a                        addresses or explicitly saved data
 Memory grows downward on push      Hardware pushes grow downward too
 ```
 
-`rbp` points to the value *below* the cached top; it does not point to `rdi`. A data-stack push preserves the old `rdi` by moving `rbp` downward and storing there. It then installs a new top in `rdi`. Call this the **cached-top pattern**. A data-stack pop reverses that movement by loading the next value into `rdi` and moving `rbp` upward.
+`rbp` points to the second item on the stack; it does not point to `rdi`. A data-stack push preserves the old `rdi` by moving `rbp` downward and storing there. It then installs a new top in `rdi`. Call this the **cached-top pattern**. A data-stack pop reverses that movement by loading the next value into `rdi` and moving `rbp` upward.
 
 A hardware `call` instead saves the address of the following instruction on the stack addressed by `rsp`; `ret` takes an address from there and resumes execution at it. Neither instruction performs a data-stack push or pop. The return stack can also hold explicitly saved Forth data, so a routine must distinguish its own return address from that data. Chapter 6 explains how the transfer words preserve that distinction.
 
@@ -44,7 +44,7 @@ displacement / immediate   address adjustment / literal operand
 
 Follow **prefix → opcode → operands → next address**. That last step matters because the next instruction does not begin at a fixed distance from the current one.
 
-The source uses Intel operand order: `mov destination, source`; brackets mean memory at an address. A displacement adjusts a memory address, whereas an immediate supplies a value directly. Multi-byte values in these examples are little-endian: the least significant byte comes first. Chapter 5 applies that byte order to the executable's fields.
+The source uses Intel operand order: `mov destination, source`; brackets mean memory at an address. A displacement adjusts a memory address, whereas an immediate operand supplies a value directly. Multi-byte values in these examples are little-endian: the least significant byte comes first. Chapter 5 applies that byte order to the executable's fields.
 
 ## ModRM: where do the operands live?
 
@@ -122,7 +122,7 @@ The source identifies `0x699` as `repl`. File offsets suffice for this subtracti
 
 ## The Linux register boundary
 
-A Linux system call temporarily gives registers a different job. The syscall number goes in `rax` and arguments go, in order, in `rdi`, `rsi`, `rdx`, `r10`, `r8`, and `r9`. The result comes back in `rax`; `syscall` clobbers `rcx` and `r11`. The argument register after `rdx` is `r10`, not the C function-call convention's `rcx`.
+The Linux syscall register convention temporarily gives registers a different job. The syscall number goes in `rax` and arguments go, in order, in `rdi`, `rsi`, `rdx`, `r10`, `r8`, and `r9`. The result comes back in `rax`; `syscall` clobbers `rcx` and `r11`. The argument register after `rdx` is `r10`, not the C function-call convention's `rcx`.
 
 The setup and transition in `emit` show how to read a request from its registers (`forth-bootstrap/seed/000-seed.hex0:269–273`). Chapter 8 covers the scratch-buffer store immediately before it.
 

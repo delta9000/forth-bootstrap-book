@@ -11,7 +11,7 @@ parser only when `[lit]` reads it as its argument.
 
 Keep these routes separate: the REPL decides what to do with a word, and
 `[lit]` decides what to do with a value. `[lit]` reads a decimal value and either leaves it on the
-stack or compiles a literal. Its conversion helper is the missing piece.
+stack or compiles a literal. Its conversion helper reads the decimal digits.
 
 ## Decimal conversion: `parse_decimal_code`
 
@@ -126,8 +126,8 @@ E8 A3 FD FF FF                            ; call report_token  (rel32 = 0x459 - 
 EB D9                                     ; jmp repl  (rel8 = 0x699 - 0x6C0)
 ```
 
-Recall `report_token` from Chapter 9: it reports the rejected token with
-`?`. The reload after that call matters because reporting clobbers `rdi`.
+`report_token` supplies the diagnostic (Chapter 9). The reload after that
+call matters because reporting clobbers `rdi`.
 Restoring the prior top afterward preserves the stack across the miss.
 There is no call to the decimal parser along this route: bare `42` is a
 name to look up, just like any other token.

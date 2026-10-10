@@ -60,10 +60,9 @@ start of the body. Saving that address in HERE lets subsequent emissions
 follow the header without a separate allocation step.
 
 The final instructions discard the name and length, restore the earlier
-data-stack top, and set STATE to 1. That value requests compilation;
-STATE equal to 0 requests interpretation. The header is already linked,
-but the body is still unfinished. The compiler has not written a return
-instruction yet.
+data-stack top, and set STATE to 1. That value selects compile mode;
+STATE equal to 0 selects interpret mode. The header is already linked,
+and the body awaits the return instruction emitted by `;`.
 
 ## Why `;` is IMMEDIATE
 
@@ -215,7 +214,7 @@ E9 82 FD FF FF                            ; jmp comma_code  (rel32 = 0x383 - 0x6
 
 After conversion, the data stack contains the value and a success flag.
 A false flag takes the fatal-error path, recalled from Chapter 9.
-Otherwise the code drops the flag and tests STATE. In interpretation
+Otherwise the code drops the flag and tests STATE. In interpret
 mode it returns with the value on the data stack.
 
 The compile path preserves the value while placing `lit_code`'s execution
@@ -229,7 +228,7 @@ For `: letter [lit] 65 emit ;`, compilation proceeds as follows:
 - `:` creates the entry named `letter` and starts its body.
 - `[lit]` reads `65` and emits a call to `lit_code` followed by the cell.
 - `emit` contributes a call to the existing primitive.
-- `;` appends the return instruction and leaves compilation mode.
+- `;` appends the return instruction and leaves compile mode.
 
 No call to `[lit]` appears in that body. When `letter` runs, `lit_code`
 loads the cell and returns past it, `emit` consumes the value, and the

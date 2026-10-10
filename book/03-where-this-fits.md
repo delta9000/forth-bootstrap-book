@@ -1,7 +1,7 @@
 # Chapter 3 — Where this fits: routes and history
 
-A seed's size does not tell you how its project relates to the tools around it.
-To place a source bootstrap, trace what it inherits and where its route branches.
+A source bootstrap inherits tools and branches into onward routes.
+Trace those dependencies to place its seed among the surrounding projects.
 That gives you a way to distinguish this book's current route from the older
 seed-forth routes you may encounter in project history.
 
@@ -21,8 +21,8 @@ concrete:
 | live-bootstrap | Supplies patches and much of the ordering followed by the GCC climb. | `forth-bootstrap/CREDITS.md:16–17`, `forth-bootstrap/CREDITS.md:44` |
 
 These are different kinds of dependency. An inherited executable is already
-machine code when the route begins. An inherited source file still needs a
-builder. A borrowed patch or build order carries knowledge about how to make
+machine code when the route begins. Inherited source requires a builder.
+A borrowed patch or build order carries knowledge about how to make
 upstream packages work together. Keep those distinctions when reading a claim
 that a project builds “from source.”
 
@@ -45,7 +45,7 @@ route to self-hosted M2-Planet and a handoff into stage0-posix's recipes;
 it also records direct TinyCC and pnut routes. Those routes stayed in the
 older project when forth-bootstrap split off
 (`forth-bootstrap/HISTORY.md:14–29`). Read their reproducibility account as
-history in Chapter 57, rather than as the operating instructions for this
+history in Appendix C, rather than as the operating instructions for this
 checkout.
 
 The current route has a different center: the Forth C compiler leads to

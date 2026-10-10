@@ -6,8 +6,8 @@ them against its stack effect at the REPL. Chapter 7 uses these operand movement
 22 combine the primitives into Forth definitions and memory-update words.
 
 For each instruction, ask which value it preserves, which it overwrites, and
-whether it changes the stack boundary. Recall the cached-top pattern from
-Chapter 4 and the initialized memory map from Chapter 5.
+whether it changes the stack boundary. Use the initialized memory map
+(Chapter 5).
 
 ## The push and pop shapes
 
@@ -15,10 +15,10 @@ Each primitive has a header, a `*_code` label carrying its stack effect, an
 instruction sequence, and a final `ret`. Chapter 9 explains the headers.
 Start at the code label to follow the operation.
 
-Call the recurring register work **spill-and-reload**, the implementation of the
-cached-top pattern from Chapter 4. In the following traces, `p` names the incoming
-`rbp`, and letters name arbitrary cell values. Read the stack effects using
-Chapter 4's machine convention; Chapter 14 develops their use in Forth definitions.
+The cached-top pattern governs the register work (Chapter 4). In the following traces, `p` names the incoming
+`rbp`, and letters name arbitrary cell values. Read stack-effect notation
+with the top of stack at the right
+(Chapter 14).
 
 ### `dup`: preserve the old top
 
@@ -49,7 +49,7 @@ not another instruction. `C3` returns to the caller. There is no assignment to
 
 ### `drop`: replace the old top
 
-To realize `( a -- )`, reverse the spill-and-reload direction: the body at
+To realize `( a -- )`, reverse the cached-top pattern direction: the body at
 `forth-bootstrap/seed/000-seed.hex0:86`, following `dup`, promotes the next value.
 
 ```hex0 chunk=drop
@@ -107,7 +107,7 @@ operand. This is the same hazard as exchanging C variables without a temporary.
 
 ## Return-address shelter: bridging the two stacks
 
-Recall the return stack from Chapter 4. These bodies must distinguish the
+These bodies must distinguish the
 primitive's own return address from the caller's saved data. Name their recurring
 maneuver **return-address shelter**: hold the return address aside while moving
 data, then restore it before `ret`. A peek can instead address beyond it.
@@ -135,7 +135,7 @@ C3                                        ; ret
 
 The short register opcodes need no ModRM: `58` pops the primitive's return
 address into `rax`, `57` pushes `rdi`, and `50` pushes the sheltered address
-back. The remaining load and add are `drop`'s spill-and-reload sequence, followed
+back. The remaining load and add are `drop`'s cached-top pattern sequence, followed
 by `C3`. Just before `ret`, the address is above `n`; just after it, `n` is
 exposed on the caller's return stack.
 
@@ -166,7 +166,7 @@ C3                                        ; ret
 
 ```
 
-The initial subtract and store are exactly `dup`'s spill-and-reload prefix.
+The initial subtract and store are exactly `dup`'s cached-top pattern prefix.
 Then `58` shelters the return address, `5F` pops the saved value into `rdi`,
 and `50` restores the address. `C3` returns with the transfer complete.
 Notice why `r>` cannot begin with `pop rdi`: at entry that would recover the
@@ -201,14 +201,13 @@ skips the primitive's return address. The subtract and store spill the old
 top, `48 89 C7` installs the copy from `rax`, and `C3` returns.
 
 **Peeking does not balance a transfer.** After `>r` followed by `r@`, the
-original saved value still needs an `r>` before the caller returns. This is
+caller must recover the original saved value with `r>` before returning. This is
 what distinguishes `( -- n ; R: n -- n )` from `r>`'s effect.
 
 ## Cell access: replace an address or consume a pair
 
-The next bodies connect data-stack values to memory. Recall the cell and
-little-endian conventions from Chapter 4; these operations use the address
-supplied by the caller, which must designate suitable mapped memory.
+Cell access uses the address supplied by the caller, which must designate
+suitable mapped memory (Chapter 5).
 
 ### `@`: replace an address with its contents
 
@@ -262,7 +261,7 @@ memory slot. `C3` returns.
 
 For a destination outside the live stack, trace `rdi=addr, [p]=v, [p+8]=older`:
 the store writes `v` to `addr`, then leaves `rdi=older, rbp=p+16`. The cached address
-never occupied a slot at `[p]`; spill-and-reload accounts for the pointer
+never occupied a slot at `[p]`; cached-top pattern accounts for the pointer
 movement through the value cells.
 
 ## Byte access: change the memory width

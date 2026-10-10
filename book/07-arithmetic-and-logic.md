@@ -1,21 +1,12 @@
 # Chapter 7 — Arithmetic and logic in machine code
 
 The seed has one logic primitive, `nand`, beside `+`, `0=`, `/` and `*`.
-This chapter ties each one's result and stack effect to its
-machine code, then runs all five at the REPL. Chapter 16 builds logic on these contracts,
+Their machine code fixes each result and stack effect. Chapter 16 builds logic on these contracts,
 Chapter 17 builds subtraction, and Chapter 20 builds comparisons.
-
-Recall the stack and memory operations from Chapter 6 and the
-instruction-decoding conventions from Chapter 4.
-
-The path through the seed is: stack and memory → **arithmetic and logic** →
-Linux boundary → dictionary → compiler → REPL. Chapter 8 takes the next step;
-the library definitions remain in Part 2.
 
 ## The shape before the instructions
 
-Recall the cached-top pattern from Chapter 4 and the slot-release operation
-from Chapter 6. For a binary operation on `a b`, the skeleton is:
+For a binary operation on `a b`, the skeleton is:
 
 > Read `a` from `[rbp]`, combine it with `b`, release `a`'s slot, and
 > leave the result in `rdi` before returning.
@@ -32,8 +23,6 @@ teaches those headers.
 <a id="plus-contract"></a>
 
 **`+` — `( a b -- sum )`:** retain the cell-sized low part of `a+b`.
-The return stack is unchanged after the return; `rdi` holds the sum and
-`rbp` advances by a cell.
 
 In `forth-bootstrap/seed/000-seed.hex0:191`, `plus_code` adds the memory
 operand directly into the cached operand, without a temporary register.
@@ -54,8 +43,7 @@ C3                                        ; ret
 `48 03` selects the cell-width register-from-memory addition.
 The remaining addressing bytes select `rdi` and `[rbp]`, using Chapter 4's
 ModRM rules. The following `add rbp, 8`
-is stack bookkeeping, not part of the numeric result. `ret` completes the
-same return convention used in Chapter 6.
+releases the consumed slot.
 
 The body is 9 bytes. It has no branch on carry or signed overflow, so the
 result wraps modulo the cell range. Unlike signed overflow in C, wrapping
@@ -128,9 +116,8 @@ the rest of `rdi` untouched, `movzx rdi, dil` is necessary before
 negation: it removes the old operand's remaining bits. Finally, `neg rdi`
 turns one into `-1` and leaves zero unchanged. The body is 15 bytes.
 
-Recall REX from Chapter 4: the `40` prefix on `sete dil` selects the low-byte
-register naming that includes `dil`; without it, this encoding names `bh`.
-The prefix matters even though no extended register is involved.
+The REX prefix `40` on `sete dil` selects `dil` rather than `bh`
+(Chapter 4).
 
 This **canonical flag** convention lets a true result also serve as an
 all-set bit mask. It does not make arbitrary outputs of `nand` canonical:
@@ -170,13 +157,12 @@ C3                                        ; ret
 
 The order matters. `mov rax, [rbp]` loads the dividend `a`, while `rdi`
 retains the divisor `b`. `xor rdx, rdx` clears the high half of the
-processor's dividend pair, `rdx:rax`. `div rdi` places the quotient in
+processor's dividend pair, `rdx:rax`; a stale remainder there would
+change the dividend. `div rdi` places the quotient in
 `rax` and the remainder in `rdx`. Releasing the consumed slot and moving
 `rax` into `rdi` restores the primitive's exit contract. The remainder is
 not a Forth result. The body is 18 bytes.
 
-An old remainder in `rdx` would change the next dividend, so clearing the
-high half is necessary for correctness.
 With the high half clear and a nonzero cell-sized divisor, the quotient
 fits in a cell.
 
@@ -224,8 +210,6 @@ without choosing a signed interpretation. Division cannot make that same
 promise: its quotient depends on the interpretation of the operands.
 
 ## Contracts for Part 2
-
-The Part 2 library words build on these contracts.
 
 | Primitive contract | Result rule | Later reader |
 |---|---|---|

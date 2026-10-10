@@ -11,7 +11,7 @@ pointers must be initialized, and control must reach the intended code.
 
 The route through the file is:
 
-**ELF header → loadable segment → entry registers → system variables → REPL**.
+**ELF header → loadable segment → entry registers → system-variable cells → REPL**.
 
 The **fixed-base contract** relates a file offset to its loaded address:
 for a byte in this seed image, its address is `0x400000 + file offset`.
@@ -71,8 +71,8 @@ after `jmp-to-repl`.
 <<repl>>
 ```
 
-The source comments retain the earlier edition's chapter numbering:
-“Chs 14–20” corresponds to Chapters 6–12 here, and “Ch 20” means Chapter 12.
+The source comments retain the earlier edition's chapter numbering.
+Its primitive walkthrough spans Chapters 6–12 here; its REPL chapter is Chapter 12.
 
 The preamble at `forth-bootstrap/seed/000-seed.hex0:1`
 records how to read the source; preserve it with the bytes it documents.
@@ -274,7 +274,7 @@ Range ends are exclusive.
 | Below `0x411000`, growing downward | Data stack addressed by `rbp` |
 | `0x412000` | I/O scratch byte; Chapter 8 teaches its use |
 | `0x412800` | Token buffer; Chapter 9 teaches its use |
-| `0x413000` through the `LAST_FOUND` cell | Mutable system variables |
+| `0x413000` through the `LAST_FOUND` cell | System-variable cells |
 | `0x1400000` | End of the loadable segment |
 | Process stack, address supplied at entry | Return stack addressed by `rsp`, outside this fixed map |
 

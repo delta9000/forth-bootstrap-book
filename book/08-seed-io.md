@@ -56,7 +56,7 @@ C3                                        ; ret
 
 ```
 
-Recall the scratch byte at `0x412000` from Chapter 5. `mov [rax], dil` puts the character there before `mov edi, 1` replaces it with stdout’s file descriptor. Only the low byte is written; the rest of the Forth cell does not reach the output stream.
+The I/O scratch byte is at `0x412000` (Chapter 5). `mov [rax], dil` puts the character there before `mov edi, 1` replaces it with stdout’s file descriptor. Only the low byte is written; the rest of the Forth cell does not reach the output stream.
 
 The syscall requests `write(1, scratch, 1)`: stdout, the scratch address, and a single byte. After it returns, the tail uses the `drop` pattern from Chapter 6 to consume the character. The kernel’s result in `rax` is discarded, so `emit` supplies neither a byte count nor an error indication to its caller.
 
@@ -91,7 +91,7 @@ C3                                        ; ret
 
 ```
 
-The opening uses the cached-top pattern from Chapter 4. Unlike `emit`, this word produces a value without consuming a caller operand. It preserves the old top in memory before setting up `read(0, scratch, 1)`.
+Unlike `emit`, this word produces a value without consuming a caller operand. Its opening prepares `read(0, scratch, 1)`.
 
 After the call, `test rax, rax` distinguishes EOF from a nonzero return. A zero result takes `.eof`, where `xor rdi, rdi` supplies the sentinel `0`. Otherwise, the byte at the buffer address becomes the new top through `movzx`, just as in `c@` from Chapter 6. Neither path needs to change `rsp`; the final `ret` uses the waiting return address.
 
@@ -140,7 +140,7 @@ At entry, the syscall number `n` occupies `rdi`. Saving it in `rax` must precede
 
 The deepest argument is loaded last. These loads leave the memory slots untouched, and `rbp` remains available throughout the call. The syscall’s clobbers, recalled from Chapter 4, do not destroy any state this primitive needs for recovery.
 
-On return, `add rbp, 48` releases the six argument cells. Moving `rax` into `rdi` replaces the syscall number with the kernel’s result. This is prepare–call–recover again, but the result is passed through without interpretation. A call that uses fewer arguments still needs all six argument cells because the primitive loads and removes them unconditionally. Supply zero in unused positions.
+On return, `add rbp, 48` releases the six argument cells. Moving `rax` into `rdi` replaces the syscall number with the kernel’s result. This is prepare–call–recover again, but the result is passed through without interpretation. Every call supplies all six argument cells because the primitive loads and removes them unconditionally. Supply zero in unused positions.
 
 Chapter 18 builds readable Linux syscall wrappers on this bridge. Here the distinction is already useful: `emit` hides the write result, while `syscall6` lets the caller inspect it. If the selected operation terminates the process, the recovery instructions are never reached.
 

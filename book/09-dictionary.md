@@ -4,7 +4,7 @@ When the seed reads the name `dup`, it walks a linked list of word headers until
 
 ## The header layout
 
-A dictionary entry has this shape: **link → flags → name length → name bytes → code**. The arrows here mean consecutive fields in memory. The link itself points to an older entry; the last link is zero. Recall the system-variable cells from Chapter 5: `LATEST` supplies the head of this chain.
+A dictionary entry has this shape: **link → flags → name length → name bytes → code**. The arrows here mean consecutive fields in memory. The link itself points to an older entry; the last link is zero. `LATEST` supplies the head of this chain (Chapter 5).
 
 The search uses **newest-first lookup**. It starts at `LATEST`, compares a name, and follows the link on a mismatch. If names repeat, the newest matching entry wins. Chapter 10 builds new entries.
 
@@ -20,11 +20,11 @@ BE 02 40 00 00 00 00 00                   ; link  = 0x4002BE (syscall6)
 
 The link occupies a cell. The flags byte is at offset 8, the name-length byte at offset 9, and the name starts at offset 10. Here the name length is 4. The instructions start immediately after `find`'s name; there is no separate code-pointer field.
 
-That address is the **execution token**, abbreviated **xt**. For a header at address `h` with name length `n`, its xt is `h + 10 + n`. A header address identifies the metadata; an xt identifies the instructions. Confusing them would make the processor execute a link as machine code.
+That address is the **execution token**, abbreviated **xt**. For a header at address `h` with name length `n`, its execution token is `h + 10 + n`. A header address identifies the metadata; an execution token identifies the instructions. Confusing them would make the processor execute a link as machine code.
 
 ## `find_code`: compare, follow, return
 
-`find` consumes `( c-addr u )`, the address and length of a name, and returns an xt or zero. It compares lengths before touching the name bytes. `u` arrives in `rdi`, with `c-addr` underneath it.
+`find` consumes `( c-addr u )`, the address and length of a name, and returns an execution token or zero. It compares lengths before touching the name bytes. `u` arrives in `rdi`, with `c-addr` underneath it.
 
 A length mismatch rules out an entry without comparing bytes. `find_code` loads the chain head and checks each candidate length (`forth-bootstrap/seed/000-seed.hex0:325`).
 
@@ -82,7 +82,7 @@ C3                                        ; ret
 
 ```
 
-On a hit, `LAST_FOUND` retains the header address while the stack receives the xt. Those addresses serve different purposes: the header gives access to flags, and the xt can be executed. On a miss, `find` returns zero and leaves `LAST_FOUND` unchanged; a caller must not treat that old header as a new match.
+On a hit, `LAST_FOUND` retains the header address while the stack receives the execution token. Those addresses serve different purposes: the header gives access to flags, and the execution token can be executed. On a miss, `find` returns zero and leaves `LAST_FOUND` unchanged; a caller must not treat that old header as a new match.
 
 Trace a search for `find` itself. Entries with other lengths take `.skip`. At its own header, the byte loop compares `f`, `i`, `n`, and `d`; its final `r8` points past the `d`, at `find_code`. A same-length name differing at any position still takes `.skip` and continues toward older entries.
 
@@ -131,9 +131,9 @@ The destination advances by 8 bytes, one cell from Chapter 4. The final load and
 
 ## `execute`: enter the code address
 
-An xt is useful independently of its name. `execute` consumes `( xt -- )` and enters that address with the remaining data stack available to the selected word.
+An execution token is useful independently of its name. `execute` consumes `( xt -- )` and enters that address with the remaining data stack available to the selected word.
 
-The selected word needs its operands on top of the stack. `execute_code` saves the xt, then removes it from the data stack (`forth-bootstrap/seed/000-seed.hex0:387`).
+The selected word needs its operands on top of the stack. `execute_code` saves the execution token, then removes it from the data stack (`forth-bootstrap/seed/000-seed.hex0:387`).
 
 ```hex0 chunk=execute
 ;; --- execute @ 0x3A3 --- header
@@ -305,7 +305,7 @@ C3                                        ; ret
 
 ```
 
-Recall the Linux call convention from Chapter 4 and output calls from Chapter 8. This helper writes to stdout and clobbers `rdi`; it does not restore the Forth stack top. Its caller must account for that before continuing.
+Use the Linux syscall register convention (Chapter 4) and output calls (Chapter 8). This helper writes to stdout and clobbers `rdi`; it does not restore the Forth stack top. Its caller must account for that before continuing.
 
 An overlong token cannot be returned as a name. `fatal_token` reports the retained bytes and exits (`forth-bootstrap/seed/000-seed.hex0:478`).
 
@@ -322,7 +322,7 @@ The exit status is 2. Unlike an ordinary `find` miss, which just returns zero, e
 
 ## `state` and `latest`: addresses of system variables
 
-Recall `@` and `!` from Chapter 6. They need a cell's address to read or change its value.
+Use `@` and `!` with the cell's address (Chapter 6).
 
 `state_code` exposes the mode cell by pushing the address of `STATE` (`forth-bootstrap/seed/000-seed.hex0:484`).
 
@@ -362,7 +362,7 @@ C3                                        ; ret
 
 ## `tick_code`: read a name and find its xt
 
-The word `'`, pronounced *tick*, connects the reader to lookup. It consumes the next input token as a name and leaves the corresponding xt, or zero if no entry matches.
+The word `'`, pronounced *tick*, connects the reader to lookup. It consumes the next input token as a name and leaves the corresponding execution token, or zero if no entry matches.
 
 The stack contracts fit without rearrangement. `tick_code` calls the reader and tail-jumps to `find_code` (`forth-bootstrap/seed/000-seed.hex0:506`).
 
