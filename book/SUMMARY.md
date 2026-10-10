@@ -69,7 +69,7 @@
 - [The sealed host run](53-sealed-run.md)
 - [K0 and K1](54-k0-and-k1.md)
 - [Linux 7.2.8 and kexec under QEMU](55-linux-and-kexec.md)
-- [Epilogue: onward to GCC 15.2](outline/56-gcc-15-epilogue.md)
+- [Epilogue: onward to GCC 15.2](56-gcc-15-epilogue.md)
 
 # Back matter
 
