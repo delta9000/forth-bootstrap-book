@@ -14,7 +14,7 @@ re-deriving "wait, what was I supposed to do?" each time.
 ## Before you start
 
 1. **Pick a chapter whose dependencies are written.**  Open
-   [CONCEPTS.md](CONCEPTS.md), find the chapter in the dependency
+   [CONCEPTS.md](63-concepts.md), find the chapter in the dependency
    graph, and confirm every chapter it lists in "Concepts carried in"
    is at least partly written (📝 or ✅ in [README.md](01-reading-the-book.md)).
    If not, write those first.
@@ -43,7 +43,7 @@ per Part I chapter, ~80–180 for Parts II and III.
 - **Goal:** already written; touch only if you discover the chapter
   actually proves a different thing.
 - **Source coverage:** already pinned to a line range; only edit if
-  you discover the range is wrong (and update [CONCEPTS.md](CONCEPTS.md)
+  you discover the range is wrong (and update [CONCEPTS.md](63-concepts.md)
   if so).
 - **Concepts introduced / carried in / deferred:** these are the
   contract with future chapters.  Treat them like an API.  If you
@@ -206,7 +206,7 @@ sweeping in unrelated changes.
 ## Common pitfalls
 
 - **Stub drift.**  If you change the line range in "Source coverage,"
-  also update [CONCEPTS.md](CONCEPTS.md) and the corresponding row in
+  also update [CONCEPTS.md](63-concepts.md) and the corresponding row in
   [README.md](01-reading-the-book.md).
 - **Forward references.**  If you write "we'll see this in Ch X"
   and then move things around later, the reference rots.  Prefer
@@ -229,12 +229,12 @@ sweeping in unrelated changes.
 2. Fix those spots.
 3. Update the status legend.
 4. Commit.
-5. Pick the next chapter (use [CONCEPTS.md](CONCEPTS.md) to pick
+5. Pick the next chapter (use [CONCEPTS.md](63-concepts.md) to pick
    one whose deps are satisfied).
 
 ## Suggested writing order
 
-The dependency graph in [CONCEPTS.md](CONCEPTS.md) admits many
+The dependency graph in [CONCEPTS.md](63-concepts.md) admits many
 valid orders.  Two pragmatic ones:
 
 - **Source order** — Ch 2, Ch 3, ..., Ch 32.  Simplest; matches
@@ -253,7 +253,7 @@ sequence that respects the diagram works.
 
 ## Keeping CONCEPTS.md accurate
 
-Update [CONCEPTS.md](CONCEPTS.md) when:
+Update [CONCEPTS.md](63-concepts.md) when:
 
 - a chapter changes its line range in "Source coverage" (the index
   silently rots otherwise);

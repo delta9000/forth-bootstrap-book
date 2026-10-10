@@ -23,7 +23,7 @@ carry none.  2911 names and 97 ideas.
 
 For a one-line definition of a term, see the [Glossary](62-glossary.md);
 for which chapter depends on which, the
-[concept graph](CONCEPTS.md).
+[concept graph](63-concepts.md).
 
 ## Symbols and digits
 
