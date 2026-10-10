@@ -50,7 +50,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Inherited executable** — Machine code already present when a bootstrap route begins. [Chapter 3](03-where-this-fits.md).
 
-**Inherited source** — Upstream source that still needs a builder inside the route. [Chapter 3](03-where-this-fits.md).
+**Inherited source** — Upstream source requiring a builder inside the route. [Chapter 3](03-where-this-fits.md).
 
 **Inline-cell convention** — Data follows a call; the helper reads it and resumes beyond it. [Chapter 10](10-colon-compiler.md).
 
@@ -118,7 +118,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Comparison cascade** — Ordering predicates derived from a basic comparison by reversing operands and negating flags. [Chapter 20](20-lib-07-comparisons-from-division.md).
 
-**Counted name** — A name stored with its length so a defining word can construct a dictionary header. [Chapter 25](25-lib-12-defining-words-and-bytes-eq.md).
+**Counted name** — A name stored with its length in a dictionary header. [Chapter 9](09-dictionary.md).
 
 **De Morgan's law** — An OR equals the complement of the AND of the complemented operands. [Chapter 16](16-lib-03-logic-from-nand.md).
 
@@ -182,7 +182,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 ## Part 3: Compiler
 
-**ABI** — See **System V AMD64 calling convention**. [Chapter 41](41-system-v-calls.md).
+**ABI** — An application binary interface: the agreed placement of arguments, results and records between separately built code. The book meets a private all-stack ABI (Chapter 39) and the System V AMD64 ABI. [Chapter 41](41-system-v-calls.md).
 
 **Aggregate classification** — Record size and leaf types determine register classes or memory transport; the implemented subset rejects unsupported floating and mixed layouts. [Chapter 49](49-aggregate-abi.md).
 
@@ -362,7 +362,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Private all-stack ABI** — Generated functions receive arguments in caller-owned stack slots. [Chapter 39](39-lp64-storage-and-initializers.md).
 
-**Prologue and epilogue** — Function-entry and function-exit code that establish and restore the call frame. [Chapter 37](37-functions-and-scope.md).
+**Prologue and epilogue** — Function-entry and function-exit code that establish and restore the call frame. [Chapter 31](31-elf-and-codegen-part-1.md).
 
 **Prototype reuse** — A later prototype keeps the existing function entry and its pending calls. [Chapter 37](37-functions-and-scope.md).
 

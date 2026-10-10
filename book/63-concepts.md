@@ -20,10 +20,10 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Dictionary — [Chapter 9](09-dictionary.md)
 - Dictionary header — [Chapter 9](09-dictionary.md)
 - ELF header — [Chapter 5](05-elf-and-entry.md)
-- Endianness — [Chapter 4](04-x86-64-and-two-stacks.md)
+- Endianness — See Little-endian. [Chapter 4](04-x86-64-and-two-stacks.md)
 - Execution token (xt) — [Chapter 9](09-dictionary.md#the-header-layout)
 - Fixed-base contract — [Chapter 5](05-elf-and-entry.md)
-- Forth boolean — [Chapter 7](07-arithmetic-and-logic.md)
+- Forth boolean — See Canonical flag. [Chapter 7](07-arithmetic-and-logic.md)
 - hex0 — [Chapter 5](05-elf-and-entry.md)
 - I/O scratch byte — [Chapter 8](08-seed-io.md)
 - Immediate operand — [Chapter 4](04-x86-64-and-two-stacks.md)
@@ -35,7 +35,7 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Linux syscall register convention — [Chapter 4](04-x86-64-and-two-stacks.md)
 - Little-endian — [Chapter 4](04-x86-64-and-two-stacks.md)
 - Loadable segment — [Chapter 5](05-elf-and-entry.md)
-- ModR/M — [Chapter 4](04-x86-64-and-two-stacks.md)
+- ModR/M — See ModRM. [Chapter 4](04-x86-64-and-two-stacks.md)
 - ModRM — [Chapter 4](04-x86-64-and-two-stacks.md)
 - Newest-first lookup — [Chapter 9](09-dictionary.md)
 - Prepare–call–recover — [Chapter 8](08-seed-io.md)
@@ -51,21 +51,21 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - stage0-posix — [Chapter 3](03-where-this-fits.md)
 - Subroutine threading — [Chapter 10](10-colon-compiler.md)
 - System-variable cells — [Chapter 5](05-elf-and-entry.md)
-- Sysvar — [Chapter 5](05-elf-and-entry.md)
+- Sysvar — See System-variable cells. [Chapter 5](05-elf-and-entry.md)
 - Token buffer — [Chapter 9](09-dictionary.md)
 - Top of stack — [Chapter 4](04-x86-64-and-two-stacks.md)
-- TOS — [Chapter 4](04-x86-64-and-two-stacks.md)
-- Under-TOS — [Chapter 4](04-x86-64-and-two-stacks.md)
-- xt — [Chapter 9](09-dictionary.md)
+- TOS — See Top of stack. [Chapter 4](04-x86-64-and-two-stacks.md)
+- Under-TOS — See Second on stack. [Chapter 4](04-x86-64-and-two-stacks.md)
+- xt — See Execution token (xt). [Chapter 9](09-dictionary.md)
 
 ### Part 2: Forth library and assembler
 
-- Back-patching — [Chapter 24](24-lib-11-control-flow-combinators.md)
+- Back-patching — See Emit, remember, patch. [Chapter 24](24-lib-11-control-flow-combinators.md)
 - Backward loops — [Chapter 24](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat)
 - Canonicalisation — [Chapter 20](20-lib-07-comparisons-from-division.md)
 - Chained fixups — [Chapter 24](24-lib-11-control-flow-combinators.md)
 - Comparison cascade — [Chapter 20](20-lib-07-comparisons-from-division.md)
-- Counted name — [Chapter 25](25-lib-12-defining-words-and-bytes-eq.md)
+- Counted name — [Chapter 9](09-dictionary.md)
 - De Morgan's law — [Chapter 16](16-lib-03-logic-from-nand.md#or-in-six-words)
 - Deferred words — [Chapter 25](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 - Division as a right shift — [Chapter 22](22-lib-09-memory-and-cell-writers.md#why-divide-by-256)
@@ -83,8 +83,8 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Pad-and-call — [Chapter 18](18-lib-05-syscalls.md)
 - Postfix evaluation — [Chapter 14](14-lib-01-stacks-and-words.md#postfix-evaluation)
 - Range-check trick — [Chapter 19](19-lib-06-character-classification.md#the-range-check-trick-digit)
-- Reverse Polish notation — [Chapter 14](14-lib-01-stacks-and-words.md#postfix-evaluation)
-- RPN — [Chapter 14](14-lib-01-stacks-and-words.md)
+- Reverse Polish notation — See Postfix evaluation. [Chapter 14](14-lib-01-stacks-and-words.md#postfix-evaluation)
+- RPN — See Postfix evaluation. [Chapter 14](14-lib-01-stacks-and-words.md)
 - Runtime body — [Chapter 23](23-lib-10-immediacy-and-constants.md)
 - Self-NAND — [Chapter 16](16-lib-03-logic-from-nand.md)
 - Sigil — [Chapter 26](26-m1-and-hex2.md)
@@ -99,7 +99,7 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 
 ### Part 3: Compiler
 
-- ABI — [Chapter 41](41-system-v-calls.md)
+- ABI — See System V AMD64 calling convention. [Chapter 41](41-system-v-calls.md)
 - Aggregate classification — [Chapter 49](49-aggregate-abi.md)
 - Aligned outgoing argument block — [Chapter 41](41-system-v-calls.md)
 - Allocation metadata — [Chapter 43](43-runtime-and-libc.md)
@@ -114,12 +114,12 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Bounded formatting count — [Chapter 43](43-runtime-and-libc.md)
 - Break/continue fixup lists — [Chapter 36](36-statements-if-while-for-return.md#breakcontinue-fixup-lists)
 - Buffered key handoff — [Chapter 27](27-arena-and-io-buffers.md)
-- Bump allocator — [Chapter 27](27-arena-and-io-buffers.md)
+- Bump allocator — See Arena. [Chapter 27](27-arena-and-io-buffers.md)
 - Call transport plan — [Chapter 49](49-aggregate-abi.md)
 - Checked constant arithmetic — [Chapter 45](45-typed-constants.md)
 - Checked relocation assignment — [Chapter 42](42-linker-and-archives.md)
 - Code generation — [Chapter 31](31-elf-and-codegen-part-1.md)
-- Codegen — [Chapter 31](31-elf-and-codegen-part-1.md)
+- Codegen — See Code generation. [Chapter 31](31-elf-and-codegen-part-1.md)
 - Compact type encoding — [Chapter 30](30-types-and-symbols.md)
 - Compiler diagnostic — [Chapter 27](27-arena-and-io-buffers.md)
 - Computed include operand — [Chapter 28](28-the-preprocessor.md)
@@ -189,7 +189,7 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Preprocessor — [Chapter 28](28-the-preprocessor.md)
 - Preserving store — [Chapter 48](48-bitfields.md)
 - Private all-stack ABI — [Chapter 39](39-lp64-storage-and-initializers.md#private-stack-calls-and-whole-programs)
-- Prologue and epilogue — [Chapter 37](37-functions-and-scope.md)
+- Prologue and epilogue — [Chapter 31](31-elf-and-codegen-part-1.md)
 - Prototype reuse — [Chapter 37](37-functions-and-scope.md)
 - Ranked array descriptor — [Chapter 41](41-system-v-calls.md)
 - Raw syscall result — [Chapter 43](43-runtime-and-libc.md)
@@ -337,7 +337,7 @@ The prerequisite column transcribes the `Prerequisites:` line in each chapter’
 | [58 — Appendix D: worked exercises](58-worked-exercises.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [10](10-colon-compiler.md), [12](12-repl.md), [24](24-lib-11-control-flow-combinators.md), [33](33-expressions-part-1.md) |
 | [59 — Appendix E: further reading](59-further-reading.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [33](33-expressions-part-1.md) |
 | [60 — Appendix F: the C subset](60-c-subset.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [38](38-main-and-bootstrap-chain.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [43](43-runtime-and-libc.md), [44](44-target-headers.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md), [51](51-owning-the-tools.md), [52](52-gcc-4-fixed-point.md) |
-| [61 — Appendix G: compiler exit codes](61-error-codes.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [9](09-dictionary.md), [26](26-m1-and-hex2.md), [27](27-arena-and-io-buffers.md), [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md) |
+| [61 — Appendix G: compiler error codes](61-error-codes.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [9](09-dictionary.md), [26](26-m1-and-hex2.md), [27](27-arena-and-io-buffers.md), [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md) |
 
 The prose references often reach past the immediately preceding chapter: the outlines preserve reading order, while the last column locates the particular machinery being reused. The historical appendix also points to the epilogue; a cross-reference alone does not add a prerequisite.
 

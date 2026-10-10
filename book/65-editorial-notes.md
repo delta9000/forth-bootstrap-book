@@ -24,8 +24,8 @@ separately.
 ## Shape of a chapter
 
 - The opening paragraph starts from something concrete: a byte sequence,
-  a short program, a question. It says what the chapter adds. It does not
-  start with what the reader cannot yet do.
+  a short program, a question. It states the new idea and the result the
+  reader gains.
 - The first section shows the shape of the code. Later sections grow it in
   fragments of about 5–30 lines, each with one job and one citation.
 - A concept already taught is recalled in one clause, as "(Chapter N)", at

@@ -21,7 +21,7 @@ The core compiler groups codes by source layer; later layers reuse numbers and a
 
 The common reporter writes to stderr and exits with the supplied code (`forth-bootstrap/cc/020-cc-arena.fth:405`). The assembler and literal converter have separate reporting paths. Linker and archive errors share the common reporter, but its reader position is not an ELF byte offset.
 
-For compiler input, the reported position is `cc-src-line` in the preprocessed text. The source reader increments it at newlines (`forth-bootstrap/cc/030-cc-io.fth:108`); preprocessing counts emitted newlines, then rewinds that reader (`forth-bootstrap/cc/040-cc-prep.fth:61,2339`). Includes change the flattened position. It need not equal a line in the original file. Logical file/line tracking is separate; the implicit-function diagnostic can print that location before the flattened line (`forth-bootstrap/cc/121-cc-sysv.fth:937`).
+For compiler input, the reported position is `cc-src-line` in the preprocessed text. The source reader increments it at newlines (`forth-bootstrap/cc/030-cc-io.fth:108`); preprocessing counts emitted newlines, then rewinds that reader (`forth-bootstrap/cc/040-cc-prep.fth:61,2339`). Includes change the flattened position. It need not equal a line in the original file. Logical source location tracking is separate; the implicit-function diagnostic can print that location before the flattened line (`forth-bootstrap/cc/121-cc-sysv.fth:937`).
 
 ## Codes in detail
 
@@ -69,7 +69,7 @@ Each row gives the numbered call sites and the containing words. Read the meanin
 |---:|---|---|---|---|
 | 50 | `forth-bootstrap/cc/060-cc-types.fth:313` | `cc-sd-field-rec` → `cc-check-cap` | Record member table full. | [Chapter 30](30-types-and-symbols.md) |
 | 213 | `forth-bootstrap/cc/060-cc-types.fth:336` | `cc-sf-set-array-inner-default` → `cc-die` | Nested array member unsupported by the default field hook. | [Chapter 30](30-types-and-symbols.md) |
-| 240 | `forth-bootstrap/cc/060-cc-types.fth:169` | `cc-integer-literal-check` → `cc-die` | Malformed integer literal suffix. | [Chapter 45](45-typed-constants.md) |
+| 240 | `forth-bootstrap/cc/060-cc-types.fth:169` | `cc-integer-literal-check` → `cc-die` | Malformed integer literal suffix. | [Chapter 30](30-types-and-symbols.md) |
 
 ### 070-cc-sym.fth
 
@@ -132,14 +132,14 @@ Each row gives the numbered call sites and the containing words. Read the meanin
 | 122 | `forth-bootstrap/cc/100-cc-expr.fth:627` | `cc-parse-call` → `cc-die` | Core call exceeds its register argument limit. | [Chapter 37](37-functions-and-scope.md) |
 | 123 | `forth-bootstrap/cc/100-cc-expr.fth:667` | `cc-parse-call` → `cc-die` | Core call target kind invalid. | [Chapter 37](37-functions-and-scope.md) |
 | 124 | `forth-bootstrap/cc/100-cc-expr.fth:1595` | `cc-divisor` → `cc-die` | Constant division or remainder by zero. | [Chapter 33](33-expressions-part-1.md) |
-| 125 | `forth-bootstrap/cc/100-cc-expr.fth:2530` | `cc-cx-operand` → `cc-die` | Core constant name is not an enumerator. | [Chapter 33](33-expressions-part-1.md) |
-| 126 | `forth-bootstrap/cc/100-cc-expr.fth:2539` | `cc-cx-operand` → `cc-die` | Core constant operand token invalid. | [Chapter 33](33-expressions-part-1.md) |
-| 127 | `forth-bootstrap/cc/100-cc-expr.fth:2536` | `cc-cx-operand` → `cc-die` | Core constant expression lacks `)`. | [Chapter 33](33-expressions-part-1.md) |
-| 128 | `forth-bootstrap/cc/100-cc-expr.fth:2615` | `cc-parse-const-default` → `cc-die` | Core constant conditional lacks `:`. | [Chapter 33](33-expressions-part-1.md) |
-| 129 | `forth-bootstrap/cc/100-cc-expr.fth:2646` | `cc-pp-eval-text` → `cc-die` | Preprocessing constant expression has trailing tokens. | [Chapter 33](33-expressions-part-1.md) |
-| 212 | `forth-bootstrap/cc/100-cc-expr.fth:528` | `cc-native-parse-args` → `cc-die` | Record value crosses the private call ABI. | [Chapter 39](39-lp64-storage-and-initializers.md) |
-| 219 | `forth-bootstrap/cc/100-cc-expr.fth:54` | `cc-check-static-init` → `cc-die` | Static initializer requires a nonconstant operation or aggregate copy. | [Chapter 39](39-lp64-storage-and-initializers.md) |
-| 240 | `forth-bootstrap/cc/100-cc-expr.fth:2503` | `cc-const-unsupported` → `cc-die` | Unsupported constant expression form. | [Chapter 45](45-typed-constants.md) |
+| 125 | `forth-bootstrap/cc/100-cc-expr.fth:2530` | `cc-cx-operand` → `cc-die` | Core constant name is not an enumerator. | [Chapter 34](34-expressions-part-2.md) |
+| 126 | `forth-bootstrap/cc/100-cc-expr.fth:2539` | `cc-cx-operand` → `cc-die` | Core constant operand token invalid. | [Chapter 34](34-expressions-part-2.md) |
+| 127 | `forth-bootstrap/cc/100-cc-expr.fth:2536` | `cc-cx-operand` → `cc-die` | Core constant expression lacks `)`. | [Chapter 34](34-expressions-part-2.md) |
+| 128 | `forth-bootstrap/cc/100-cc-expr.fth:2615` | `cc-parse-const-default` → `cc-die` | Core constant conditional lacks `:`. | [Chapter 34](34-expressions-part-2.md) |
+| 129 | `forth-bootstrap/cc/100-cc-expr.fth:2646` | `cc-pp-eval-text` → `cc-die` | Preprocessing constant expression has trailing tokens. | [Chapter 34](34-expressions-part-2.md) |
+| 212 | `forth-bootstrap/cc/100-cc-expr.fth:528` | `cc-native-parse-args` → `cc-die` | Record value crosses the private all-stack ABI. | [Chapter 37](37-functions-and-scope.md) |
+| 219 | `forth-bootstrap/cc/100-cc-expr.fth:54` | `cc-check-static-init` → `cc-die` | Static initializer requires a nonconstant operation or aggregate copy. | [Chapter 33](33-expressions-part-1.md) |
+| 240 | `forth-bootstrap/cc/100-cc-expr.fth:2503` | `cc-const-unsupported` → `cc-die` | Unsupported constant expression form. | [Chapter 34](34-expressions-part-2.md) |
 
 ### 110-cc-decl.fth
 
@@ -167,8 +167,8 @@ Each row gives the numbered call sites and the containing words. Read the meanin
 | 161 | `forth-bootstrap/cc/110-cc-decl.fth:735` | `cc-parse-struct-local-decl` → `cc-die` | Core record-pointer local lacks `=` or `;`. | [Chapter 35](35-declarations-types-globals.md) |
 | 162 | `forth-bootstrap/cc/110-cc-decl.fth:45` | `cc-fn-add-slots` → `cc-check-cap` | Function frame slot limit exceeded. | [Chapter 35](35-declarations-types-globals.md) |
 | 184 | `forth-bootstrap/cc/110-cc-decl.fth:394` | `cc-skip-fnptr-params` → `cc-die` | Parameter list unterminated or lacks `)`. | [Chapter 35](35-declarations-types-globals.md) |
-| 214 | `forth-bootstrap/cc/110-cc-decl.fth:396` | `cc-skip-fnptr-params` → `cc-die` | Floating type unavailable in the selected target. | [Chapter 39](39-lp64-storage-and-initializers.md) |
-| 238 | `forth-bootstrap/cc/110-cc-decl.fth:648` | `cc-try-cast` → `cc-die` | Invalid object/array/function shape, member/subscript base, or qualifier loss. | [Chapter 39](39-lp64-storage-and-initializers.md) |
+| 214 | `forth-bootstrap/cc/110-cc-decl.fth:396` | `cc-skip-fnptr-params` → `cc-die` | Floating type unavailable in the selected target. | [Chapter 35](35-declarations-types-globals.md) |
+| 238 | `forth-bootstrap/cc/110-cc-decl.fth:648` | `cc-try-cast` → `cc-die` | Invalid object/array/function shape, member/subscript base, or qualifier loss. | [Chapter 35](35-declarations-types-globals.md) |
 
 ### 112-cc-stmt.fth
 
@@ -234,7 +234,7 @@ Each row gives the numbered call sites and the containing words. Read the meanin
 |---:|---|---|---|---|
 | 184 | `forth-bootstrap/cc/117-cc-native-program.fth:27` | `cc-native-params` → `cc-die` | Parameter list unterminated or lacks `)`. | [Chapter 39](39-lp64-storage-and-initializers.md) |
 | 211 | `forth-bootstrap/cc/117-cc-native-program.fth:46` | `cc-native-function` → `cc-die` | Function defined twice. | [Chapter 39](39-lp64-storage-and-initializers.md) |
-| 212 | `forth-bootstrap/cc/117-cc-native-program.fth:20,33` | `cc-native-params`, `cc-native-function` → `cc-die` | Record value crosses the private call ABI. | [Chapter 39](39-lp64-storage-and-initializers.md) |
+| 212 | `forth-bootstrap/cc/117-cc-native-program.fth:20,33` | `cc-native-params`, `cc-native-function` → `cc-die` | Record value crosses the private all-stack ABI. | [Chapter 39](39-lp64-storage-and-initializers.md) |
 
 ### 118-cc-native-init.fth
 
@@ -271,7 +271,7 @@ Each row gives the numbered call sites and the containing words. Read the meanin
 | 238 | `forth-bootstrap/cc/121-cc-sysv.fth:86,117,118,120,142,143,151,152,182,184,202,205,225,235,240,242,245,295,330,337,350,353,356,392,608,611,617,759,1253,1277` | `cc-sysv-size-product`, `cc-sysv-array-node`, `cc-sysv-array-tail`, `cc-sysv-array-extra`, `cc-sysv-grouped-array`, `cc-sysv-inherit-array`, `cc-sysv-sizeof-type`, `cc-sysv-index-base`, `cc-sysv-member-base`, `cc-sysv-local-layout`, `cc-sysv-function-typedef`, `cc-sysv-check-declarator`, `cc-sysv-fnptr`, `cc-sysv-type-name-raw`, `cc-sysv-row-qualifier-check`, `cc-sysv-block-function`, `cc-sysv-function` → `cc-die` | Invalid object/array/function shape, member/subscript base, or qualifier loss. | [Chapter 41](41-system-v-calls.md) |
 | 239 | `forth-bootstrap/cc/121-cc-sysv.fth:1036,1084,1332` | `cc-sysv-track-pop`, `cc-sysv-prepare-call`, `cc-sysv-function` → `cc-die` | Generated stack accounting invalid or unbalanced. | [Chapter 41](41-system-v-calls.md) |
 | 245 | `forth-bootstrap/cc/121-cc-sysv.fth:85,87` | `cc-sysv-size-product` → `cc-die` | Object storage/count limit exceeded or mapping failed. | [Chapter 41](41-system-v-calls.md) |
-| 249 | `forth-bootstrap/cc/121-cc-sysv.fth:270` | `cc-ld-die` → `cc-die` | Invalid extended-floating scalar use or conversion. | [Chapter 49](49-aggregate-abi.md) |
+| 249 | `forth-bootstrap/cc/121-cc-sysv.fth:270` | `cc-ld-die` → `cc-die` | Invalid extended floating value use or conversion. | [Chapter 49](49-aggregate-abi.md) |
 
 ### 123-cc-object-program.fth
 

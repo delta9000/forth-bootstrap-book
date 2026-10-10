@@ -45,7 +45,7 @@ The seed prints `..`.
 
 ### Why
 
-The dots distinguish the paths: a zero flag skips the return and reaches `emit`; a nonzero flag returns before `emit`. The early return has the same return-stack restriction as `exit,` (Chapter 24): any data saved there by the caller must be removed before taking it.
+The dots distinguish the paths: a zero flag skips the return and reaches `emit`; a nonzero flag returns before `emit`. The early return requires a balanced return stack (Chapter 24).
 
 ## D.2. Chapters 10 and 12 — Why does `ret` end a colon definition?
 
