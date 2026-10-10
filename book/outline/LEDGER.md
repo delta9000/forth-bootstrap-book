@@ -1746,6 +1746,11 @@ Short-circuit && and \|\| | 33 Expressions: precedence | idea; Short-circuit `&&
 `lv-value` | 34 Expressions: operands and assignment | compiler word (constant, `cc/100-cc-expr.fth`); Lvalue tracking: four globals, four kinds
 Assignment (snapshot, recurse, store) | 34 Expressions: operands and assignment | idea; Assignment: snapshot, recurse, store
 Constant expressions | 34 Expressions: operands and assignment | idea; Constant expressions
+Consume-and-check | 35 Declarations and storage | advance to a token, reject the wrong kind, then test its payload
+Struct tag pre-registration | 35 Declarations and storage | register an empty descriptor before parsing fields so self-references resolve
+Declarator-local pointer depth | 35 Declarations and storage | each name adds its own stars to the inherited pointer depth
+Static local storage | 35 Declarations and storage | a locally scoped name that refers to persistent global storage
+Cast policy separation | 35 Declarations and storage | type acceptance, value conversion and null provenance use separate hooks
 Lvalue tracking | 34 Expressions: operands and assignment | idea; Lvalue tracking: four globals, four kinds
 Lvalue vs rvalue | 34 Expressions: operands and assignment | concept (C compiler ideas (Part III)); introduced in old Ch 28
 Postfix operators | 34 Expressions: operands and assignment | idea; The postfix operators
