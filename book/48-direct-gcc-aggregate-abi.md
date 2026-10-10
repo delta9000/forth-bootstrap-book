@@ -180,7 +180,7 @@ NaNs, signaling ones included, keep their bytes, as the tests check bitwise.
 Long double has no default promotion and the same ABI in every prototype
 form, so it may appear in variadic signatures, as an unnamed argument, in
 unprototyped calls and in identifier-list definitions; records containing
-it keep the record rules. [Chapter 42](42-direct-gcc-varargs.md) retrieves it
+it keep the record rules. [Chapter 42](46-varargs.md) retrieves it
 from the overflow area.
 
 `va_arg (ap, struct S)` follows the psABI's retrieval algorithm, and

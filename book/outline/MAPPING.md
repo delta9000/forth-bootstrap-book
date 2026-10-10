@@ -46,7 +46,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [39-direct-gcc-libc.md](../43-runtime-and-libc.md) | 39. A bounded C runtime from source | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
 | [40-direct-gcc-target.md](../44-target-headers.md) | 40. Choosing the target header dialect | 3 | [Target headers](44-target-headers.md) | regroup |
 | [41-direct-gcc-constants.md](../45-typed-constants.md) | 41. Typed constants without executing target code | 3 | [Typed constants](45-typed-constants.md) | regroup |
-| [42-direct-gcc-varargs.md](../42-direct-gcc-varargs.md) | 42. Variadic lists across the System V boundary | 3 | [System V varargs](46-varargs.md) | regroup |
+| [42-direct-gcc-varargs.md](../46-varargs.md) | 42. Variadic lists across the System V boundary | 3 | [System V varargs](46-varargs.md) | regroup |
 | [43-direct-gcc-stdio.md](../43-runtime-and-libc.md) | 43. Generator streams and integer formatting | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
 | [44-direct-gcc-archives.md](../42-linker-and-archives.md) | Chapter 44 — Indexed archives and lazy member selection | 3 | [Linker and archives](42-linker-and-archives.md) | regroup |
 | [45-direct-gcc-binary64.md](../45-direct-gcc-binary64.md) | 45. Binary32 and binary64 scalar values | 3 | [Floating values and exact literals](47-floats.md) | regroup |

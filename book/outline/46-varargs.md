@@ -10,7 +10,7 @@ Prerequisites: [45 — Typed constants](45-typed-constants.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [42-direct-gcc-varargs.md](../42-direct-gcc-varargs.md) — Reuse the source walkthrough: Teach variadic list layout, saved argument registers, and argument cursors.
+Reuses: [42-direct-gcc-varargs.md](../46-varargs.md) — Reuse the source walkthrough: Teach variadic list layout, saved argument registers, and argument cursors.
 
 TODO:
 

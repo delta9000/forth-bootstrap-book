@@ -307,7 +307,7 @@ The variadic parser prints a `varargs: ` prefix before the usual compiler
 diagnostic. Code 246 means an invalid intrinsic invocation or a list whose
 record layout does not match the public System V declaration. Code 247 means
 an unsupported requested argument type. These are unrelated to the same
-numbers in the object writer or assembler. [Chapter 42](42-direct-gcc-varargs.md)
+numbers in the object writer or assembler. [Chapter 42](46-varargs.md)
 states the supported argument classes and the public list representation.
 
 In the System V target, 228 is a call to an undeclared function when the

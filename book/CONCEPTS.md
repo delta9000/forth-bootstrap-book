@@ -370,7 +370,7 @@ bootstrap. Their current implementation and limits are in [DIRECT-GCC.md](https:
 | [39: runtime](43-runtime-and-libc.md) | 36–38 | Forth-built allocation, memory, and string execution |
 | [40: target headers](44-target-headers.md) | 22, 34, 36 | Explicit target facts and original historical ANSI declarations |
 | [41: typed constants](45-typed-constants.md) | 28, 34–36 | LP64 constant arithmetic, symbolic address initializers, and exact floating constants (§5 uses 45–46) |
-| [42: variadic lists](42-direct-gcc-varargs.md) | 34, 36, 37 | Array-based System V lists across separately compiled units |
+| [42: variadic lists](46-varargs.md) | 34, 36, 37 | Array-based System V lists across separately compiled units |
 | [43: streams](43-runtime-and-libc.md) | 35–39, 42 | Forth-built file I/O and bounded formatted generator output |
 | [44: archives](42-linker-and-archives.md) | 35, 37 | Indexed archives and selection driven by unresolved symbols |
 | [45: binary32/binary64 values](45-direct-gcc-binary64.md) | 24, 28, 36 | Typed floating operations and the scalar return boundary |

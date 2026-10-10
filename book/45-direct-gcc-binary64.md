@@ -108,7 +108,7 @@ a live expression temporary across another call.
 
 Binary32/binary64 values, returns, named parameters and outgoing scalar arguments are
 supported. Unnamed and unspecified-prototype float arguments promote to double. [Chapter 48](48-direct-gcc-aggregate-abi.md) owns the shared call
-plan and [chapter 42](42-direct-gcc-varargs.md) supplies variadic retrieval.
+plan and [chapter 42](46-varargs.md) supplies variadic retrieval.
 K&R definitions with declared float parameters reject with232: their incoming
 ABI values are promoted doubles, so accepting them requires a separate entry
 conversion. Ordinary unspecified-prototype outgoing calls still promote float
