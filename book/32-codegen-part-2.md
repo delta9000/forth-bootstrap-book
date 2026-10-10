@@ -1,37 +1,12 @@
-# Chapter 26 — Codegen, Part 2: Calls, Shims, and Globals
+# Chapter 32 — Calls, shims, and globals
 
-```text
-Missing capability: emitted code cannot refer to unknown functions, globals, strings, or runtime services.
-New pattern: emit placeholders, thread fixup lists, and finalize shims, strings, and globals later.
-Artifact after this chapter: calls, libc shims, string storage, global storage, and wide-immediate fixups.
-Proof link: Stage-A programs can use calls, file-scope data, and forward references without relocations.
-```
+A program can print `**` by calling a `putchar` shim whose location is still unknown when the calls are emitted. A fixup list preserves those call sites until the target exists; the same separation between emitting bytes and resolving addresses supports strings and globals. The checkpoint builds and runs that program directly from emitter words.
 
-Every encoder in Ch 25 takes operands that are known when it runs.
-The first statement of `tri.c`'s `main`, `t.rows = ROWS;`, has no
-such luck.  It must load the address of `t`, and `t` will live just
-past the last byte of code, which the compiler reaches only after
-writing the rest of `main`.  A compiler that writes machine code front
-to back keeps meeting such numbers: a call to a function defined
-further down, a file-scope global, a string literal the code must jump
-over.  The compiled program also needs a C runtime (`tri.c` calls
-`putchar`), and there is no libc to link against.
+## `movabs rdi, imm64` and the forward-call fixup list
 
-This chapter finishes `090-cc-emit.fth` (lines 434–1328) and answers
-both problems.  Wide-immediate placeholders and fixup lists let
-codegen reference forward-declared functions and not-yet-placed
-globals.  Nineteen libc shims, emitted straight into the output as
-machine code, stand in for the C runtime.  A separate globals buffer,
-appended after the code at the end, holds file-scope data, and global
-arrays get zeroed memory past the end of the file.  Every
-deferred address is handled the same way: emit a placeholder, remember
-where it is, patch it when the value is known.
+The emitter has this shape: write an instruction with a placeholder → remember its output offset → patch it when the target is known. Call displacements use the existing patch operation (Chapter 31); absolute addresses need a full-width immediate field.
 
-The callers come later: string literals and global rvalues in Ch 28's
-`cc-parse-primary`, prologue/epilogue use and fixup-list walking in
-Ch 31's `cc-parse-function`.
-
-## 1. `movabs rdi, imm64` and the forward-call fixup list
+`cc-emit-movabs-rdi-imm64` loads an address without a signed-immediate range check by writing the full value after `48 BF` (`forth-bootstrap/cc/090-cc-emit.fth:451`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -44,6 +19,11 @@ Ch 31's `cc-parse-function`.
   [lit] 191 cc-emit-byte                          \ B7 + rdi (7) = BF
   cc-emit-8le ;
 
+```
+
+Integer literals benefit from the compact form when it is safe. `cc-emit-mov-rdi-int` chooses the wide form above the signed-immediate limit; its LP64 path uses unsigned division so a set high bit cannot masquerade as a small magnitude (`forth-bootstrap/cc/090-cc-emit.fth:464`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-emit-mov-rdi-int ( v -- )  Load an integer literal into rdi using the
 \ shortest correct encoding.  `mov rdi, imm32` (7 bytes) sign-extends its
 \ 32-bit field, so it only represents values in signed-32 range; a wider
@@ -66,6 +46,11 @@ Ch 31's `cc-parse-function`.
     cc-emit-mov-rdi-imm32
   then, ;
 
+```
+
+Taking an undefined function’s address needs `cc-emit-movabs-rdi-imm64-placeholder`: the same instruction shape with an empty immediate. The returned offset identifies the value field to overwrite, not the instruction’s beginning (`forth-bootstrap/cc/090-cc-emit.fth:485`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-emit-movabs-rdi-imm64-placeholder ( -- patch-offset )
 \ Emits `48 BF 00 00 00 00 00 00 00 00`; returns the imm64 file-offset.
 \ Used when a forward-declared function's name is taken as an rvalue
@@ -81,30 +66,7 @@ Ch 31's `cc-parse-function`.
 
 ```
 
-`cc-emit-movabs-rdi-imm64` is the 10-byte encoder for `movabs rdi,
-<imm64>`: `48 BF <8 bytes LE>`.  It is the only x86-64 instruction
-that loads a full 64-bit immediate into a register.  The smaller `mov
-rdi, imm32` (Ch 25 §3) sign-extends a 32-bit constant and can't reach
-vaddrs above `0x7FFFFFFF`.  Every vaddr this compiler emits sits just
-above `0x400000`, so the narrow form would reach them too; the wide
-form is a simplicity choice.  One fixed 10-byte shape takes an
-absolute vaddr as-is, needs no range check, and gives every
-placeholder the same 8-byte slot to patch: string addresses here, and
-forward function pointers and globals below.
-
-`cc-emit-mov-rdi-int` picks between the two for an *integer literal*.
-`int` is 64-bit here, but `mov rdi, imm32` sign-extends, so on its own
-it would load `0x80000000` as a negative number and truncate `2^32` to
-zero.  The helper keeps the compact 7-byte form for any value in
-signed-32 range (every constant M2-Planet uses) and falls back to the
-10-byte `movabs` only when the literal needs more than 32 bits.  C
-negatives arrive as unary minus applied to a non-negative literal, so
-a single upper-bound test suffices.
-
-`cc-emit-movabs-rdi-imm64-placeholder` is the deferred variant.  It
-writes the same 10 bytes with the imm64 zeroed and returns the offset
-of those 8 zero bytes in `cc-out-buf` so the caller can patch them
-later.
+Several references to a target need several remembered sites. `cc-add-fixup-to-list` allocates a node containing the patch offset followed by the old head, then installs the node as the new head (`forth-bootstrap/cc/090-cc-emit.fth:495`):
 
 ```forth file=cc/090-cc-emit.fth
 \ cc-add-fixup-to-list ( fixup-offset list-var -- )  Allocate a 16-byte node
@@ -120,32 +82,11 @@ later.
 
 ```
 
-`cc-add-fixup-to-list` builds the linked list of patch sites.  It
-allocates a 16-byte node with `cc-alloc` (Ch 21), stores the patch
-offset at `[0]` and the old head at `[8]`, and points the list root
-variable at the new node: an ordinary linked-list prepend.  Each node
-looks like this:
+The caller passes the address of the list head. After a prepend, following the new node’s link reaches every earlier site. Call lists and function-address lists use the same node shape, but their eventual patches differ: a displacement for a call, an absolute address for a function pointer. Chapter 37 connects both lists to function definitions; Chapter 36 reuses the list operation for pending statement jumps.
 
-```
-+0:  patch-offset (into cc-out-buf)
-+8:  next pointer (0 = end)
-```
+## String-literal bytes with C-escape decoding
 
-This is the emit-remember-patch pattern again, with "remember" grown
-from one stack cell to a list of output offsets.  A forward-declared
-function's prototype carries two such lists (Ch 24 §3):
-`cc-sym-call-fixups` collects its `call rel32` sites, and
-`cc-sym-addr-fixups` collects `movabs` sites that take its address as
-a value.  When Ch 31's `cc-parse-function`
-reaches the definition, it walks both and patches each recorded site
-with the resolved address.  Ch 30's `break` and `continue` lists use
-the same word.
-
-The word lives here rather than in `112-cc-stmt.fth` because Ch 28's
-`cc-parse-primary` needs it for the forward-function-rvalue path, and
-`100-cc-expr.fth` loads before `112-cc-stmt.fth`.
-
-## 2. String-literal bytes with C-escape decoding
+A string token carries a source slice, so emitting it must consume source characters as well as produce output bytes. `cc-emit-string-bytes` delegates escape interpretation to `cc-decode-escape` (Chapter 29), then advances by the decoder’s consumed length plus the backslash (`forth-bootstrap/cc/090-cc-emit.fth:511`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -168,6 +109,11 @@ The word lives here rather than in `112-cc-stmt.fth` because Ch 28's
         swap cc-emit-byte 1+                      ( src len k )
         \ Advance src by k (the backslash and the escape), len by -k.
         >r swap r@ + swap r> -
+```
+
+Ordinary characters and a lone trailing backslash take the literal-copy path; after the slice is exhausted, a NUL terminator makes the emitted bytes usable as a C string (`forth-bootstrap/cc/090-cc-emit.fth:522`):
+
+```forth file=cc/090-cc-emit.fth
       else,
         \ Trailing backslash with no follow-up char: emit literally.
         over c@ cc-emit-byte
@@ -183,38 +129,13 @@ The word lives here rather than in `112-cc-stmt.fth` because Ch 28's
 
 ```
 
-The lexer (Ch 23) keeps backslash escapes as literal byte pairs inside
-string-literal slices.  This is where they are decoded.
+The source cursor and remaining length move together. An escape can consume more source bytes than it emits, so advancing by a fixed pair would be wrong. This word emits data only: Chapter 34 supplies the surrounding expression code that keeps execution out of the bytes and loads their address.
 
-The walk is a `begin, while, repeat,` over `(src-addr, len)`: if the
-current byte is a backslash and at least one more byte follows,
-decode the pair with `cc-decode-escape` (Ch 23 §4), the table
-character literals use; otherwise copy the byte verbatim.  Any
-escaped character the table doesn't name passes through unchanged,
-which is more permissive than ANSI C.
+## The libc shims: write/read/open/close/mmap
 
-A trailing NUL is appended so string literals work with C's
-`printf` / `puts`-style functions.
+A shim is executable code emitted into the output buffer. These shims accept arguments in the registers named by their comments and return through `rax`; they do not use the Forth data stack. Chapter 37 owns their registration and placement, and Chapter 41 develops the later System V call machinery.
 
-## 3. The libc shims: write/read/open/close/mmap
-
-The nineteen shims in this section are the entire libc the compiled
-programs see.
-There is no `printf`, no `free` that frees, no `strcmp`, no
-`errno`: just write, read, open/close, mmap-backed allocation, three
-string functions and `exit`.  Ch 31's `cc-emit-shims` emits the first
-eleven into the code segment at startup and registers each vaddr in
-the symbol table, so a call to `putchar(c)` in user code is an
-ordinary `call rel32` into the shim.  The last eight are emitted only
-when called (end of this section).
-
-All but `free` share one shape: marshal the arguments, load the
-syscall number into `rax`, `syscall`, fix up the result, `ret`.  The
-marshalling exists because the two conventions differ: Linux syscalls
-take arguments in `rdi/rsi/rdx/r10/r8/r9`, while SYS-V function calls
-use `rdi/rsi/rdx/rcx/r8/r9`.  No shim has a frame.  There is no `push
-rbp` and no prologue; a shim uses a `push` only where it needs a
-scratch byte or a saved register, then the matching `pop` and `ret`.
+A pushed argument can double as a temporary byte buffer. The `putchar` layout uses that stack-buffer pattern to give `write` an address (`forth-bootstrap/cc/090-cc-emit.fth:535`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -241,6 +162,11 @@ scratch byte or a saved register, then the matching `pop` and `ret`.
 \   syscall              0F 05
 \   pop rdi              5F                       (restore rsp)
 \   ret                  C3
+```
+
+The emitter turns the layout into bytes, restores the stack after the syscall, and leaves the kernel’s write result in `rax` (`forth-bootstrap/cc/090-cc-emit.fth:559`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-putchar-shim
   [lit]  87 cc-emit-byte                          \ push rdi
   [lit]  72 cc-emit-byte [lit] 199 cc-emit-byte [lit] 192 cc-emit-byte
@@ -255,6 +181,11 @@ scratch byte or a saved register, then the matching `pop` and `ret`.
   [lit]  95 cc-emit-byte                          \ pop rdi
   [lit] 195 cc-emit-byte ;                        \ ret
 
+```
+
+Process termination needs only the status already in `rdi`; the trailing return instruction is unreachable after a successful exit syscall (`forth-bootstrap/cc/090-cc-emit.fth:573`):
+
+```forth file=cc/090-cc-emit.fth
 \ -- exit(int n): syscall 60 with rdi = n.  10 bytes.
 \
 \   mov rax, 60          48 C7 C0 3C 00 00 00
@@ -268,14 +199,7 @@ scratch byte or a saved register, then the matching `pop` and `ret`.
 
 ```
 
-`putchar` (29 bytes) takes its byte in `rdi`, pushes it to get a
-1-byte buffer on the stack, points `rsi` at it, sets fd 1, and calls
-syscall 1 (write).  Pushing to make a buffer recurs in the shims that
-need one byte of memory, and it saves carrying a global scratch byte.
-
-`exit` (10 bytes) is the simplest: `mov rax, 60 ; syscall`.  The `ret`
-is unreachable, since the kernel never returns from `exit`, but keeps
-the shim well-formed.
+Input uses the stack-buffer pattern too, but EOF must become a sentinel rather than a character (`forth-bootstrap/cc/090-cc-emit.fth:584`):
 
 ```forth file=cc/090-cc-emit.fth
 \ -- getchar(void): read 1 byte from fd 0; return -1 on EOF.  48 bytes.
@@ -295,6 +219,11 @@ the shim well-formed.
 \ .done:
 \   pop rdi              5F
 \   ret                  C3
+```
+
+`cc-emit-getchar-shim` tests for a zero read result and substitutes minus one; a nonzero result selects the scratch byte. A negative read error also takes that byte path, so this is not complete error handling (`forth-bootstrap/cc/090-cc-emit.fth:601`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-getchar-shim
   [lit]  87 cc-emit-byte                          \ push rdi
   [lit]  72 cc-emit-byte [lit] 199 cc-emit-byte [lit] 192 cc-emit-byte
@@ -321,11 +250,20 @@ the shim well-formed.
 
 ```
 
-`getchar` (48 bytes) uses the same push-a-buffer trick with syscall 0
-(read).  `read` returns 0 at EOF, but C's `getchar` returns -1
-(`EOF`), so the shim branches on `rax == 0`.  The two short jumps
-(`75 09` and `EB 05`) skip exactly the right number of bytes; their
-displacements are counted by hand against the shim's layout.
+## Stream shims
+
+Here `FILE *` is represented by a file descriptor, not a stream object. The interfaces expose the following behavior:
+
+| Emitter | Input → result |
+|---|---|
+| `cc-emit-fputs-shim` | string, descriptor → raw write result |
+| `cc-emit-fputc-shim` | character, descriptor → character byte |
+| `cc-emit-fopen-shim` | path, mode → descriptor, or zero on error |
+| `cc-emit-fclose-shim` | descriptor → zero |
+| `cc-emit-fwrite-shim` | buffer, size, count, descriptor → bytes written |
+| `cc-emit-fread-shim` | buffer, size, count, descriptor → elements read on a positive read |
+
+Writing a NUL-terminated string first requires its byte count; the layout scans to the terminator before arranging the write arguments (`forth-bootstrap/cc/090-cc-emit.fth:625`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -352,6 +290,11 @@ displacements are counted by hand against the shim's layout.
 \   pop rcx            59                    (discard saved str)
 \   syscall            0F 05
 \   ret                C3
+```
+
+The emitted scan leaves its length in `rdx`, then recovers the saved descriptor into `rdi` before the syscall (`forth-bootstrap/cc/090-cc-emit.fth:649`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-fputs-shim
   [lit]  87 cc-emit-byte                          \ push rdi
   [lit]  86 cc-emit-byte                          \ push rsi
@@ -373,6 +316,11 @@ displacements are counted by hand against the shim's layout.
   [lit]  15 cc-emit-byte [lit]   5 cc-emit-byte   \ syscall
   [lit] 195 cc-emit-byte ;                        \ ret
 
+```
+
+A single-character stream write avoids the scan by using the stack-buffer pattern. Its return path reloads the character even if the syscall failed (`forth-bootstrap/cc/090-cc-emit.fth:670`):
+
+```forth file=cc/090-cc-emit.fth
 \ -- fputc(int c, FILE *fp) -> c on success.  30 bytes.
 \
 \   push rdi           57                    (char onto stack = write buffer)
@@ -402,9 +350,7 @@ displacements are counted by hand against the shim's layout.
 
 ```
 
-`fputs` counts the string's length itself before calling write.
-`fputc` pushes the character as a buffer, like `putchar`, but takes
-the fd from its second argument and returns the character.
+Opening a stream interprets only the first mode character: `w` selects truncation, `a` selects append, and every other character leaves read-only flags (`forth-bootstrap/cc/090-cc-emit.fth:697`):
 
 ```forth file=cc/090-cc-emit.fth
 \ -- fopen(char *path, char *mode) -> fd on success, 0 on error.  51 bytes.
@@ -430,6 +376,11 @@ the fd from its second argument and returns the character.
 \   xor eax, eax       31 C0                 (return NULL on error)
 \ .ok:
 \   ret                C3
+```
+
+The mode-selection branches join at `open`; a negative result is replaced with zero. A successful descriptor zero is therefore indistinguishable from the error result (`forth-bootstrap/cc/090-cc-emit.fth:720`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-fopen-shim
   [lit]  87 cc-emit-byte                          \ push rdi
   [lit]  15 cc-emit-byte [lit] 182 cc-emit-byte
@@ -455,6 +406,11 @@ the fd from its second argument and returns the character.
   [lit]  49 cc-emit-byte [lit] 192 cc-emit-byte   \ xor eax, eax
   [lit] 195 cc-emit-byte ;                        \ ret
 
+```
+
+Closing discards the syscall result and returns zero unconditionally, which explains the restricted result contract in the table (`forth-bootstrap/cc/090-cc-emit.fth:745`):
+
+```forth file=cc/090-cc-emit.fth
 \ -- fclose(FILE *fp) -> 0.  12 bytes.
 \
 \   mov rax, 3    48 C7 C0 03 00 00 00  (close syscall)
@@ -470,12 +426,9 @@ the fd from its second argument and returns the character.
 
 ```
 
-`fopen` (51 bytes) is the most involved of these.  It turns the mode
-string's first byte into open flags with `cmp eax, 'w'` and `cmp eax,
-'a'`: `'w'` gives `O_WRONLY|O_CREAT|O_TRUNC`, `'a'` gives
-`O_WRONLY|O_CREAT|O_APPEND`, and anything else `O_RDONLY`.  On failure
-it returns 0 (NULL) instead of a negative errno.  `fclose` is syscall 3
-followed by a zeroed return value.
+## Block transfers
+
+Block output multiplies element size by count to obtain a byte count and moves the descriptor from `rcx` before `syscall` can clobber it (`forth-bootstrap/cc/090-cc-emit.fth:758`):
 
 ```forth file=cc/090-cc-emit.fth
 \ -- fwrite(void *ptr, size_t sz, size_t n, FILE *fp) -> bytes written.  20 bytes.
@@ -498,6 +451,11 @@ followed by a zeroed return value.
   [lit]  15 cc-emit-byte [lit]   5 cc-emit-byte   \ syscall
   [lit] 195 cc-emit-byte ;                        \ ret
 
+```
+
+Block input must preserve the element size across the syscall so it can convert a positive byte count back to an element count (`forth-bootstrap/cc/090-cc-emit.fth:778`):
+
+```forth file=cc/090-cc-emit.fth
 \ -- fread(void *ptr, size_t sz, size_t n, FILE *fp) -> elements read.  30 bytes.
 \
 \   push rsi         56               (save sz)
@@ -514,6 +472,11 @@ followed by a zeroed return value.
 \   div rcx          48 F7 F1         (rax = bytes_read / sz)
 \ .done:
 \   ret              C3
+```
+
+Saving the size on the stack protects it until division. Nonpositive read results bypass that division, including raw negative errors (`forth-bootstrap/cc/090-cc-emit.fth:794`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-fread-shim
   [lit]  86 cc-emit-byte                          \ push rsi
   [lit]  72 cc-emit-byte [lit]  15 cc-emit-byte
@@ -537,10 +500,9 @@ followed by a zeroed return value.
 
 ```
 
-`fwrite` and `fread` multiply `sz * n` into a byte count and move the
-fd from the fourth argument register.  `fwrite` returns the raw byte
-count from write; `fread` divides the bytes read by `sz` to return an
-element count, as C requires.
+## Allocation with inline state
+
+The generated `calloc` keeps its allocation state beside its machine code. The layout locates `heap_base` and `heap_pos` after the return instruction and accesses them relative to the next instruction address (`forth-bootstrap/cc/090-cc-emit.fth:815`):
 
 ```forth file=cc/090-cc-emit.fth
 \ -- calloc(size_t n, size_t sz) -> zeroed memory or NULL.  113 bytes.
@@ -569,6 +531,11 @@ element count, as C requires.
 \   syscall                     0F 05
 \   mov [rip+0x2A], rax         48 89 05 2A 00 00 00  (heap_base)
 \   mov [rip+0x2B], rax         48 89 05 2B 00 00 00  (heap_pos)
+```
+
+Once a mapping exists, allocation rounds the request, returns the current position, and stores the advanced position (`forth-bootstrap/cc/090-cc-emit.fth:841`):
+
+```forth file=cc/090-cc-emit.fth
 \ .have_heap:
 \   pop rsi                     5E
 \   pop rdi                     5F
@@ -582,6 +549,11 @@ element count, as C requires.
 \   ret                         C3
 \   heap_base: 8 zero bytes     (mmap is zero-filled by Linux)
 \   heap_pos:  8 zero bytes
+```
+
+`cc-emit-calloc-shim` skips mapping when `heap_base` is nonzero; otherwise the emitted syscall requests writable anonymous memory and saves its result in both inline slots (`forth-bootstrap/cc/090-cc-emit.fth:854`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-calloc-shim
   [lit]  87 cc-emit-byte                          \ push rdi
   [lit]  86 cc-emit-byte                          \ push rsi
@@ -606,6 +578,11 @@ element count, as C requires.
   [lit]   5 cc-emit-byte [lit]  42 cc-emit-4le    \ mov [rip+0x2A], rax (heap_base)
   [lit]  72 cc-emit-byte [lit] 137 cc-emit-byte
   [lit]   5 cc-emit-byte [lit]  43 cc-emit-4le    \ mov [rip+0x2B], rax (heap_pos)
+```
+
+Subsequent calls use the saved position. Fresh anonymous pages supply the zero bytes, while the return instruction prevents execution from falling into the state slots (`forth-bootstrap/cc/090-cc-emit.fth:878`):
+
+```forth file=cc/090-cc-emit.fth
   [lit]  94 cc-emit-byte                          \ pop rsi
   [lit]  95 cc-emit-byte                          \ pop rdi
   [lit]  72 cc-emit-byte [lit]  15 cc-emit-byte
@@ -625,45 +602,28 @@ element count, as C requires.
   [lit] 195 cc-emit-byte                          \ ret
   [lit]   0 cc-emit-8le                           \ heap_base = 0
   [lit]   0 cc-emit-8le ;                         \ heap_pos  = 0
-
 ```
 
-`calloc` (113 bytes) is the heart of the runtime.  On the first call
-it mmaps a 256 MiB anonymous private region via syscall 9 and stores
-the base in an inline data slot just past its own `ret`.  Every call
-then bumps a position pointer forward by the rounded-up size.
-Zero-fill costs nothing because Linux zero-fills anonymous mappings.
+The fixed displacements depend on distances within the shim. Adding bytes before the whole shim moves accesses and slots together; adding bytes between an access and its slot changes that displacement. Despite the header comment’s “or NULL,” this body checks neither mapping failure nor heap exhaustion, and it does not check multiplication overflow.
 
-The inline `heap_base` and `heap_pos` slots are reached through
-RIP-relative `mov` instructions whose displacements are counted by
-hand and baked into the source.  `heap_pos` alone is touched at three
-sites with three different displacements: the first-call setup stores
-to it (`+0x2B`), the bump reads it (`+0x16`) and stores the new
-position (`+0x09`).  None is derived from a label.  Each displacement
-is the distance from the end of its instruction to the slot, so bytes
-added at the top of the shim move the access and the data together
-and change nothing.  Bytes added *between* an access and the slots
-(anywhere in the body) shift every displacement ahead of the
-insertion.  That makes this the fragile shim of the set.
+`cc-emit-free-shim` leaves the bump position untouched, so allocations are never reused (`forth-bootstrap/cc/090-cc-emit.fth:899`):
 
 ```forth file=cc/090-cc-emit.fth
+
 \ -- free(void *p) -> void.  1 byte.  No-op: bump allocator never frees.
 : cc-emit-free-shim
   [lit] 195 cc-emit-byte ;                        \ ret
 
 ```
 
-`free` is 1 byte, just `ret`.  The bump allocator never reclaims
-memory, and with a 256 MiB heap and M2-Planet's small working set,
-that is fine for the duration of one compilation.
+## Descriptor calls and allocation wrappers
 
-The last eight shims are for programs written against POSIX and
-`<string.h>` rather than M2-Planet's small set: pnut calls `open`,
-`read`, `write` and `close` on file descriptors, allocates with
-`malloc`, and uses `strlen`, `memcpy` and `strrchr`.  Unlike the
-eleven above, which every program carries, these are emitted only
-into a program that calls them (Ch 31's late shims), so a program that
-uses none is not a byte longer.
+| Emitter | Input → result |
+|---|---|
+| `cc-emit-syscall-shim` | syscall number at emission → wrapper mapping negative results to minus one |
+| `cc-emit-malloc-shim` | `calloc` address at emission → allocation wrapper |
+
+Descriptor calls already have their arguments in the needed registers, so the shared body adds only the syscall number and error normalization (`forth-bootstrap/cc/090-cc-emit.fth:902`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -692,6 +652,11 @@ uses none is not a byte longer.
   [lit] 255 cc-emit-byte [lit] 255 cc-emit-byte
   [lit] 255 cc-emit-byte [lit] 255 cc-emit-byte   \ mov rax, -1
   [lit] 195 cc-emit-byte ;                        \ ret
+```
+
+The allocation wrapper sets the element size and jumps to `calloc`, preserving the original caller’s return address (`forth-bootstrap/cc/090-cc-emit.fth:928`):
+
+```forth file=cc/090-cc-emit.fth
 
 \ -- malloc(size_t n) -> calloc(n, 1).  12 bytes.
 \
@@ -703,6 +668,19 @@ uses none is not a byte longer.
   [lit] 233 cc-emit-byte
   cc-here-vaddr [lit] 4 + - cc-emit-4le ;         \ jmp calloc
 
+```
+
+## Scanning and copying strings
+
+| Emitter | Input → result |
+|---|---|
+| `cc-emit-strlen-shim` | string → length before NUL |
+| `cc-emit-memcpy-shim` | destination, source, count → original destination |
+| `cc-emit-strrchr-shim` | string, character → last matching address or NULL |
+
+A terminator scan can return its index directly: `strlen` keeps the count in `rax`, with no syscall or frame (`forth-bootstrap/cc/090-cc-emit.fth:939`):
+
+```forth file=cc/090-cc-emit.fth
 \ -- strlen(char *s) -> length.  14 bytes.
 \
 \   xor eax, eax             31 C0
@@ -723,6 +701,11 @@ uses none is not a byte longer.
   [lit] 235 cc-emit-byte [lit] 245 cc-emit-byte   \ jmp .loop  (disp = -11)
   [lit] 195 cc-emit-byte ;                        \ ret
 
+```
+
+`memcpy` saves the original destination before `rep movsb` advances the pointers; the count moves into `rcx` for that instruction (`forth-bootstrap/cc/090-cc-emit.fth:959`):
+
+```forth file=cc/090-cc-emit.fth
 \ -- memcpy(void *d, void *s, size_t n) -> d.  9 bytes.
 \
 \   mov rax, rdi     48 89 F8
@@ -737,6 +720,11 @@ uses none is not a byte longer.
   [lit] 243 cc-emit-byte [lit] 164 cc-emit-byte   \ rep movsb
   [lit] 195 cc-emit-byte ;                        \ ret
 
+```
+
+Finding the last matching character requires retaining a candidate while continuing the scan. The comparison precedes the terminator test so searching for NUL can succeed (`forth-bootstrap/cc/090-cc-emit.fth:973`):
+
+```forth file=cc/090-cc-emit.fth
 \ -- strrchr(char *s, int c) -> pointer to the last c in s (the NUL
 \ counts, so c = 0 finds the end), or NULL.  23 bytes.
 \
@@ -753,6 +741,11 @@ uses none is not a byte longer.
 \   jmp .loop                  EB EC
 \ .done:
 \   ret                        C3
+```
+
+On a match, the current address replaces the candidate in `rax`; otherwise it survives the next iteration (`forth-bootstrap/cc/090-cc-emit.fth:989`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-strrchr-shim
   [lit]  49 cc-emit-byte [lit] 192 cc-emit-byte   \ xor eax, eax
   [lit]  15 cc-emit-byte [lit] 182 cc-emit-byte
@@ -771,20 +764,21 @@ uses none is not a byte longer.
 
 ```
 
-The four system calls share one body, `cc-emit-syscall-shim`: the C
-arguments are already in `rdi`, `rsi` and `rdx`, where Linux wants
-them, so the shim loads the call number and adds C's convention on
-top: Linux answers `-errno`, C answers -1.  `malloc(n)` is
-`calloc(n, 1)`: it sets the second argument and jumps into the calloc
-shim, whose bump allocator already hands out zeroed memory.  The three
-string functions are the obvious loops, each a few bytes.  `memcpy`
-is the x86 string instruction `rep movsb`, which copies `rcx` bytes
-from `[rsi]` to `[rdi]`.  `strrchr` keeps the last match in `rax` and
-counts the terminating NUL as part of the string, as C does, so
-`strrchr(s, 0)` finds the end.  Their short jumps are counted by hand,
-like `getchar`'s; `tests/cc/P8-libc-shims.c` calls each of them.
+## Bitwise, shifts, inc/dec, and unary `!`
 
-## 4. Bitwise, shifts, inc/dec, and unary `!`
+The register operations retain the accumulator interface. Their differences fit in a table:
+
+| Emitter | Input → result |
+|---|---|
+| `cc-emit-shl-rdi-cl` | `rdi`, count in `cl` → left shift |
+| `cc-emit-sar-rdi-cl` | `rdi`, count in `cl` → sign-propagating right shift |
+| `cc-emit-and-rdi-rcx` | `rdi`, `rcx` → bitwise AND |
+| `cc-emit-or-rdi-rcx` | `rdi`, `rcx` → bitwise OR |
+| `cc-emit-xor-rdi-rcx` | `rdi`, `rcx` → bitwise XOR |
+| `cc-emit-not-rdi` | `rdi` → bitwise complement |
+| `cc-emit-neg-rdi` | `rdi` → arithmetic negation |
+
+Variable shifts take their count from `cl`, which is already part of the right-operand register; the arithmetic right shift propagates the sign bit (`forth-bootstrap/cc/090-cc-emit.fth:1005`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -805,6 +799,11 @@ like `getchar`'s; `tests/cc/P8-libc-shims.c` calls each of them.
   [lit] 211 cc-emit-byte
   [lit] 255 cc-emit-byte ;
 
+```
+
+The bitwise binary operations share operand selection, leaving only the operation byte to vary (`forth-bootstrap/cc/090-cc-emit.fth:1023`):
+
+```forth file=cc/090-cc-emit.fth
 \ and rdi, rcx: 48 21 CF  (21 /r, mod=11 reg=rcx=1 rm=rdi=7 -> 11_001_111=0xCF)
 : cc-emit-and-rdi-rcx
   [lit]  72 cc-emit-byte
@@ -823,6 +822,11 @@ like `getchar`'s; `tests/cc/P8-libc-shims.c` calls each of them.
   [lit]  49 cc-emit-byte
   [lit] 207 cc-emit-byte ;
 
+```
+
+Complement and negation select different operations within the same instruction family; neither implements C’s logical `!` (`forth-bootstrap/cc/090-cc-emit.fth:1041`):
+
+```forth file=cc/090-cc-emit.fth
 \ not rdi: 48 F7 D7  (F7 /2 = NOT, mod=11 rm=rdi=7 -> 11_010_111=0xD7)
 : cc-emit-not-rdi
   [lit]  72 cc-emit-byte
@@ -835,6 +839,13 @@ like `getchar`'s; `tests/cc/P8-libc-shims.c` calls each of them.
   [lit] 247 cc-emit-byte
   [lit] 223 cc-emit-byte ;
 
+```
+
+## Updating memory without losing the expression value
+
+Post-increment must retain the old value while changing storage. `cc-emit-inc-mem-local` and `cc-emit-dec-mem-local` update the addressed slot without changing `rdi` (`forth-bootstrap/cc/090-cc-emit.fth:1053`):
+
+```forth file=cc/090-cc-emit.fth
 \ inc qword [rbp + disp]: 48 FF 45 <disp8>  (or 48 FF 85 <disp32>)
 \ ModR/M(mod=01, reg=/0=INC, rm=rbp=5) = 01_000_101 = 0x45.  Increments the
 \ local slot in place without disturbing rdi/rcx (used by post-increment).
@@ -850,6 +861,11 @@ like `getchar`'s; `tests/cc/P8-libc-shims.c` calls each of them.
   [lit] 255 cc-emit-byte
   [lit]  77 cc-emit-local-ea ;
 
+```
+
+For an indirect operand, `rcx` retains the address while `cc-emit-load-via-rcx` retrieves the old value. `cc-emit-inc-via-rcx` and `cc-emit-dec-via-rcx` select byte or qword storage from `byte?` (`forth-bootstrap/cc/090-cc-emit.fth:1068`):
+
+```forth file=cc/090-cc-emit.fth
 \ The same through the address in rcx, for a ++ / -- whose operand is a
 \ pointer target, an element or a field (rcx holds its address).
 \ byte? picks the one-byte form (a char).
@@ -868,6 +884,11 @@ like `getchar`'s; `tests/cc/P8-libc-shims.c` calls each of them.
   if, [lit] 15 cc-emit-byte [lit] 182 else, [lit] 139 then,
   cc-emit-byte  [lit] 57 cc-emit-byte ;
 
+```
+
+`cc-emit-not-zero-flag` replaces the accumulator with the C truth value for logical negation. Clearing `rax` before testing lets `sete al` supply the whole result without stale high bits (`forth-bootstrap/cc/090-cc-emit.fth:1088`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-emit-not-zero-flag.  Canonicalize rdi to 0/1 = (rdi == 0).
 \ Pattern: xor rax,rax; test rdi,rdi; sete al; mov rdi,rax.  Used by unary '!'.
 : cc-emit-not-zero-flag
@@ -882,36 +903,11 @@ like `getchar`'s; `tests/cc/P8-libc-shims.c` calls each of them.
 
 ```
 
-The variable-count shifts `shl rdi, cl` and `sar rdi, cl` use `cl`
-(the low byte of `rcx`) because x86 hard-codes `cl` as the shift-count
-register.  The binary-op pattern already leaves the right operand in
-`rcx`, so no extra move is needed.
+Chapter 34 chooses when to load, update, and preserve an expression’s value. These helpers provide the operations without making that parser decision.
 
-`sar` is *arithmetic* right shift, which copies the sign bit.  That
-matches C's right shift for signed `int` (implementation-defined, but
-arithmetic on every x86 compiler).  An unsigned shift would need
-`shr`, but this compiler only supports signed `int`.
+## File-scope globals and deferred vaddr fixups
 
-`inc qword [rbp + disp]` and `dec qword [rbp + disp]` bump a local
-slot in place (disp8 or disp32 per slot, via Ch 25's
-`cc-emit-local-ea`).  They bypass `rdi` entirely, which is what
-post-increment (`i++`) needs: `rdi` keeps the *old* value of `i`
-while the slot is incremented.  `cc-emit-inc-via-rcx` and
-`cc-emit-dec-via-rcx` do the same to memory whose address is in `rcx`,
-a byte or a qword, and `cc-emit-load-via-rcx` reads it first: that is
-`g++`, `a[i]--` and `++p->n` (Ch 28).
-
-`cc-emit-not-zero-flag` is C's unary `!`: 12 bytes that compute `rdi
-:= (rdi == 0) ? 1 : 0`, the comparison pattern from Ch 25 §6 with
-`test rdi, rdi` in place of `cmp rdi, rcx`.
-
-## 5. File-scope globals and deferred vaddr fixups
-
-File-scope variables live immediately after the code, in the same
-PT_LOAD segment: scalars in a *data* area that is part of the file,
-arrays in a *bss* past the end of the file, which the kernel
-zero-fills (Ch 25 §1).  The code's length isn't known until parsing
-ends, so neither are the globals' addresses.
+A global reference needs both a storage slot and a future address. The source’s layout contract distinguishes file-backed data from zero-filled storage and records each use until placement is known (`forth-bootstrap/cc/090-cc-emit.fth:1098`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -940,6 +936,11 @@ ends, so neither are the globals' addresses.
 \   3. For each fixup, compute the slot's vaddr and patch the placeholder
 \      imm64 in cc-out-buf at the recorded patch-offset.
 
+```
+
+`cc-globals-buf` stores initialized bytes under `cc-globals-cap`, with `cc-globals-pos` as its cursor. BSS needs only `cc-bss-pos` and `cc-bss-cap`; adding `cc-bss-flag` to its offsets makes those slots distinguishable from data offsets (`forth-bootstrap/cc/090-cc-emit.fth:1124`):
+
+```forth file=cc/090-cc-emit.fth
 [lit] 65536 constant cc-globals-cap                \ data area: 64 KiB
 create cc-globals-buf  cc-globals-cap allot
 variable cc-globals-pos
@@ -948,6 +949,23 @@ variable cc-globals-pos
 variable cc-bss-pos
 [lit] 1099511627776 constant cc-bss-flag           \ 2^40: "this slot is in the bss"
 
+```
+
+Global-address fixups use two parallel columns, an output patch position and a storage slot. They live either in default dictionary arrays or in a larger mapped workspace; callers always go through the active pointers, so the choice is made once:
+
+| Name | Role |
+|---|---|
+| `cc-gfixup-default-cap` | capacity of the default columns |
+| `cc-gfixup-default-out-pos`, `cc-gfixup-default-slot` | default column buffers |
+| `cc-gfixup-limit`, `cc-gfixup-out-pos-buffer`, `cc-gfixup-slot-buffer` | active capacity and column pointers |
+| `cc-gfixup-cap`, `cc-gfixup-out-pos`, `cc-gfixup-slot` | accessors through the active pointers |
+| `cc-gfixup-direct-cap`, `cc-gfixup-direct-base` | capacity and cached mapping of the larger workspace |
+| `cc-gfixup-direct-workspace`, `cc-gfixup-default-workspace` | workspace selectors |
+| `cc-gfixup-count` | occupied rows |
+
+The default columns and accessors come first (`forth-bootstrap/cc/090-cc-emit.fth:1132`):
+
+```forth file=cc/090-cc-emit.fth
 \ Capacity for deferred global-vaddr fixups (each use of a global's name
 \ is one).  M2-Planet's source has about 1,600, and so has pnut's.
 [lit] 16384 constant cc-gfixup-default-cap
@@ -962,6 +980,11 @@ create cc-gfixup-default-slot cc-gfixup-default-cap [lit] 8 * allot
 variable cc-gfixup-slot-buffer
 cc-gfixup-default-slot cc-gfixup-slot-buffer !
 : cc-gfixup-slot ( -- address ) cc-gfixup-slot-buffer @ ;
+```
+
+The direct workspace, the selectors, the count and the base-vaddr variables that await placement follow (`forth-bootstrap/cc/090-cc-emit.fth:1146`):
+
+```forth file=cc/090-cc-emit.fth
 \ Complete original insn-attrtab.c needs 17,502 deferred global references.
 \ Round the direct bound up to a 512-entry quantum; keep the default intact.
 \ Both columns select one fixed, disjoint pair of mapped arrays.
@@ -986,18 +1009,11 @@ variable cc-bss-base-vaddr                       \ set by cc-finalize-globals
 
 ```
 
-`cc-globals-buf` is a 64 KiB area that accumulates the data area,
-initialisers included, during parsing; M2-Planet needs 488 bytes of
-it and pnut 848, because their arrays go to the bss.  The bss is only
-a size, `cc-bss-pos`, capped at 256 MiB (code 82): pnut's global
-arrays add up to 4.6 MB, which would not fit in any buffer of the
-compiler, and need not, since the bss has no bytes in the file.  A
-slot in the bss is marked by adding `cc-bss-flag`, 2^40, far above
-any data offset, so one cell tells the two areas apart.  The
-16,384-entry fixup cap is ten times what M2-Planet (about 1,600
-references to globals) or pnut (about the same) needs.  Capacities
-throughout the compiler follow the same rule: what the programs it
-builds need, plus a comfort factor.
+The capacity comments mention historical consumers. They explain sizing decisions, not a current handoff route. Chapter 37 owns global placement and fixup traversal; the emitter’s contract is to preserve the slot and patch position until then.
+
+## Reserving slots and recording uses
+
+A new compilation must not inherit initialized bytes or pending uses. `cc-globals-init` resets the cursors and fixup count, clears the data base, and zeroes the data buffer (`forth-bootstrap/cc/090-cc-emit.fth:1169`):
 
 ```forth file=cc/090-cc-emit.fth
 \ cc-globals-init ( -- )  Reset globals + fixup state at the start of compile.
@@ -1014,6 +1030,16 @@ builds need, plus a comfort factor.
     1+
   repeat, drop ;
 
+```
+
+| Allocator | Requested bytes → returned slot |
+|---|---|
+| `cc-globals-alloc` | data reservation → old data cursor |
+| `cc-bss-alloc` | zero-filled reservation → old BSS cursor plus `cc-bss-flag` |
+
+Both reservations check capacity before advancing their cursor; only the returned slot’s tag distinguishes the storage areas (`forth-bootstrap/cc/090-cc-emit.fth:1182`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-globals-alloc ( bytes -- slot )  Reserve `bytes` bytes of the data
 \ area; return the offset of the first reserved byte.  Dies with 80 if
 \ cc-globals-buf would overflow.
@@ -1030,6 +1056,11 @@ builds need, plus a comfort factor.
   cc-bss-pos @ cc-bss-flag +                       ( bytes slot )
   swap cc-bss-pos +! ;
 
+```
+
+An initializer writes into the data buffer at its allocated offset. `cc-globals-store-8le` serializes a full cell there; it does not accept a tagged BSS slot (`forth-bootstrap/cc/090-cc-emit.fth:1200`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-globals-store-8le ( v slot -- )  Write `v` as 8-byte LE into globals-buf
 \ at the given slot offset.
 : cc-globals-store-8le                             ( v slot -- )
@@ -1044,6 +1075,11 @@ builds need, plus a comfort factor.
   [lit] 256 / dup r@ [lit] 6 + c!
   [lit] 256 /     r> [lit] 7 + c! ;
 
+```
+
+A reference adds one row to the active fixup columns. `cc-gfixup-add` checks the next count before writing either column, then advances the count (`forth-bootstrap/cc/090-cc-emit.fth:1214`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-gfixup-add ( patch-offset slot -- )  Record a deferred global-vaddr fixup.
 \ Indexes its two parallel arrays with cell[] (030-cc-io.fth).
 : cc-gfixup-add                                    ( patch-off slot -- )
@@ -1055,6 +1091,11 @@ builds need, plus a comfort factor.
   r> drop
   [lit] 1 cc-gfixup-count +! ;
 
+```
+
+`cc-emit-global-ref` joins emission to bookkeeping: its empty absolute-address field is paired with the caller’s slot, so later placement can recover both what to patch and where (`forth-bootstrap/cc/090-cc-emit.fth:1227`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-emit-global-ref ( slot -- )  Emit `movabs rdi, <vaddr placeholder>` and
 \ record a deferred fixup so the imm64 will be patched to the slot's
 \ address once globals are placed.  Used by the sk-global IDENT path in
@@ -1067,20 +1108,11 @@ builds need, plus a comfort factor.
   swap cc-gfixup-add ;
 ```
 
+For a data slot, the eventual address is `cc-globals-base-vaddr + slot`. For a BSS slot it is `cc-bss-base-vaddr + slot - cc-bss-flag`. Emission records these inputs without predicting how much code will precede the storage.
+
 ## LP64 integer encoders
 
-The direct target opts in with `cc-target-lp64`.  Its integer loads,
-stores, and register conversions distinguish signed and unsigned
-1-, 2-, 4-, and 8-byte values.  The wrappers leave the pinned target's
-original encodings intact.  Conversion is separate from storing so
-an assignment can both write the proper width and retain the converted
-value.  Unsigned division, comparison, and right shift use the CPU's
-unsigned forms after the parser converts both operands.
-
-`tests/cc/lp64-encoders-check.py` asks the seed to emit each routine,
-then runs it from private memory.  It checks narrowing boundaries,
-neighboring-byte preservation, both local-displacement encodings,
-full-width literals, and legacy opcode bytes without a host C compiler.
+Typed emission separates storage width from register value. The initial `cc-emit-type-check-fwd` target, `cc-emit-type-check-noop`, leaves the type untouched so integer encoders can proceed; the deferred hook allows a later layer to enforce more restrictions (`forth-bootstrap/cc/090-cc-emit.fth:1244`):
 
 ```forth file=cc/090-cc-emit.fth
 
@@ -1098,6 +1130,11 @@ full-width literals, and legacy opcode bytes without a host C compiler.
 defer cc-emit-type-check-fwd
 ' cc-emit-type-check-noop is cc-emit-type-check-fwd
 
+```
+
+`cc-emit-load-typed-via-rdi` selects both width and extension: signed narrow loads propagate the sign, unsigned loads clear the high bits, and a full-width load needs no extension (`forth-bootstrap/cc/090-cc-emit.fth:1248`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-load-typed-via-rdi
   cc-emit-type-check-fwd
   dup ty-size [lit] 1 = if,
@@ -1121,6 +1158,11 @@ defer cc-emit-type-check-fwd
   then,
   drop cc-emit-load-via-rdi ;
 
+```
+
+`cc-emit-store-typed-via-rcx` writes only the destination width and preserves `rdi`. It therefore cannot by itself make the retained assignment value match a narrowed destination (`forth-bootstrap/cc/090-cc-emit.fth:1272`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-emit-store-typed-via-rcx ( ty -- )  *(T *)rcx := rdi.
 : cc-emit-store-typed-via-rcx
   cc-emit-type-check-fwd
@@ -1134,6 +1176,11 @@ defer cc-emit-type-check-fwd
     [lit] 137 cc-emit-byte [lit] 57 cc-emit-byte    \ mov dword [rcx], edi
   else, cc-emit-store-via-rcx then, ;
 
+```
+
+`cc-emit-convert-rdi` supplies that missing conversion by narrowing the register value and extending it according to destination signedness. A full-width destination requires no emitted instruction (`forth-bootstrap/cc/090-cc-emit.fth:1285`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-emit-convert-rdi ( ty -- )  Truncate/sign-extend the integer in rdi.
 : cc-emit-convert-rdi
   cc-emit-type-check-fwd
@@ -1158,11 +1205,23 @@ defer cc-emit-type-check-fwd
   then,
   drop ;
 
+```
+
+## Conversion hooks and typed locals
+
+`cc-emit-convert-value` leaves room for later value representations. Its initial target, `cc-emit-convert-value-default`, discards the source type and converts `rdi` using the destination type (`forth-bootstrap/cc/090-cc-emit.fth:1309`):
+
+```forth file=cc/090-cc-emit.fth
 \ Conversions with source type preserve the integer emitter by default.
 : cc-emit-convert-value-default ( source destination -- ) nip cc-emit-convert-rdi ;
 defer cc-emit-convert-value
 ' cc-emit-convert-value-default is cc-emit-convert-value
 
+```
+
+The right operand needs the same normalization independently. `cc-emit-convert-rcx` applies the destination width and signedness to `rcx` without replacing the left operand (`forth-bootstrap/cc/090-cc-emit.fth:1314`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-emit-convert-rcx ( ty -- )  Same conversion for the right operand.
 : cc-emit-convert-rcx
   cc-emit-type-check-fwd
@@ -1186,6 +1245,11 @@ defer cc-emit-convert-value
   then,
   drop ;
 
+```
+
+`cc-emit-convert-right` initially targets `cc-emit-convert-right-default`, which discards the source type before converting `rcx`. `cc-emit-load-local-typed` selects typed memory access under `cc-target-lp64` and keeps the legacy local load otherwise (`forth-bootstrap/cc/090-cc-emit.fth:1336`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-convert-right-default ( source destination -- ) nip cc-emit-convert-rcx ;
 defer cc-emit-convert-right
 ' cc-emit-convert-right-default is cc-emit-convert-right
@@ -1196,6 +1260,11 @@ defer cc-emit-convert-right
     swap cc-emit-lea-rdi-local cc-emit-load-typed-via-rdi
   else, drop cc-emit-load-local then, ;
 
+```
+
+`cc-emit-store-local-typed` similarly selects a narrow memory instruction only in LP64 mode, preserving the register value and delegating displacement selection to the existing local-address helper (`forth-bootstrap/cc/090-cc-emit.fth:1347`):
+
+```forth file=cc/090-cc-emit.fth
 \ cc-emit-store-local-typed ( slot ty -- )  rdi is preserved.
 : cc-emit-store-local-typed
   cc-emit-type-check-fwd
@@ -1213,6 +1282,27 @@ defer cc-emit-convert-right
     [lit] 137 cc-emit-byte [lit] 125 cc-emit-local-ea
   else, cc-emit-store-local then, ;
 
+```
+
+These are integer encoders even when a type record can describe a floating value. Chapter 39 develops LP64 storage and initializers; Chapter 47 supplies floating-value operations.
+
+## Unsigned arithmetic results
+
+Operands must already have their common integer type before these operations run:
+
+| Emitter | Converted operands → result in `rdi` |
+|---|---|
+| `cc-emit-udiv-quotient` | dividend, divisor → unsigned quotient |
+| `cc-emit-udiv-remainder` | dividend, divisor → unsigned remainder |
+| `cc-emit-cmp-ult` | left, right → unsigned less-than truth value |
+| `cc-emit-cmp-uge` | left, right → unsigned greater-or-equal truth value |
+| `cc-emit-cmp-ule` | left, right → unsigned less-or-equal truth value |
+| `cc-emit-cmp-ugt` | left, right → unsigned greater-than truth value |
+| `cc-emit-shr-rdi-cl` | value, count → zero-filling right shift |
+
+Unsigned division clears the high dividend instead of sign-extending it, then selects either quotient or remainder for the accumulator (`forth-bootstrap/cc/090-cc-emit.fth:1363`):
+
+```forth file=cc/090-cc-emit.fth
 \ Unsigned division clears rdx, then DIV rcx uses the full rdx:rax dividend.
 \ Both operands must already have been converted to the common C type.
 : cc-emit-udiv-quotient
@@ -1227,6 +1317,11 @@ defer cc-emit-convert-right
   [lit] 72 cc-emit-byte [lit] 247 cc-emit-byte [lit] 241 cc-emit-byte
   [lit] 72 cc-emit-byte [lit] 137 cc-emit-byte [lit] 215 cc-emit-byte ;
 
+```
+
+Unsigned comparisons reuse the comparison emitter with unsigned condition codes; logical right shift fills with zeros where the earlier arithmetic shift copied the sign (`forth-bootstrap/cc/090-cc-emit.fth:1377`):
+
+```forth file=cc/090-cc-emit.fth
 : cc-emit-cmp-ult [lit] 146 cc-emit-cmp-set ;       \ setB
 : cc-emit-cmp-uge [lit] 147 cc-emit-cmp-set ;       \ setAE
 : cc-emit-cmp-ule [lit] 150 cc-emit-cmp-set ;       \ setBE
@@ -1237,203 +1332,61 @@ defer cc-emit-convert-right
   [lit] 72 cc-emit-byte [lit] 211 cc-emit-byte [lit] 239 cc-emit-byte ;
 ```
 
-Each scalar's declaration calls `cc-globals-alloc <bytes>` to reserve
-a slot, and possibly `cc-globals-store-8le` to write its initialiser;
-an array's calls `cc-bss-alloc`.
-A *reference* to a global from compiled code is a 10-byte `movabs rdi,
-imm64` whose imm64 starts as 0.  `cc-emit-global-ref` emits the
-placeholder and records `(patch-offset, slot)` in the parallel arrays
-`cc-gfixup-out-pos[]` and `cc-gfixup-slot[]`, indexed with Ch 21's
-`cell[]` like every other table.
-
-At the end of compilation, Ch 32's driver calls `cc-finalize-globals`
-(defined in Ch 31's `116-cc-prog.fth`):
-
-1. Set `cc-globals-base-vaddr` to `cc-here-vaddr` (`cc-base-vaddr +
-   cc-out-pos`).
-2. Append the `cc-globals-buf` bytes to `cc-out-buf`, advancing
-   `cc-out-pos` past the global data.
-3. If there is a bss, pad the file to an 8-byte boundary; the bss
-   starts there (`cc-bss-base-vaddr`), and its size goes to Ch 25's
-   `cc-bss-size`.
-4. For every recorded fixup, compute the vaddr (`cc-globals-base-vaddr
-   + slot` for a data slot, `cc-bss-base-vaddr + slot - cc-bss-flag`
-   for a bss one) and patch the placeholder imm64 in `cc-out-buf` at
-   the recorded `patch-offset`.
-
-After that, `cc-finalize-elf` (Ch 25 §1) patches the program header's
-`p_filesz` and `p_memsz`, and `cc-write-output` (Ch 21 §2) writes the
-buffer.
-
-Machine code and string bytes go straight into `cc-out-buf`: a string
-literal sits inline behind a `jmp`, so its address is known the moment
-it's emitted.  Global bytes wait in `cc-globals-buf` until the end of
-the code fixes their address.  This is Ch 21's one-buffer-per-
-responsibility pattern at codegen scale, with `cc-globals-buf` and the
-`cc-gfixup` arrays each owning one kind of deferred data.
-
-## 6. The path back together
-
-`090-cc-emit.fth` is 1384 lines of compiler-side machine-code
-emission, used three ways:
-
-- **Per-instruction encoders** (Ch 25 §3–§7 and §4 here) write the
-  bytes of one x86-64 instruction at a time.  Expression codegen
-  (Chs 27–28) composes them into operators and assignments, and
-  statement codegen (Ch 30) into the bodies of `if` / `while` / `for` /
-  `return`.
-- **Prologue/epilogue, locals and param-spills** (Ch 25 §4–§5) are the
-  ingredients of function definitions.  Ch 31's `cc-parse-function`
-  calls each in sequence.
-- **Shims, globals and forward-call fixups** (this chapter) are the
-  scaffolding the compiled program needs to run.  Ch 31 emits the
-  shims at startup, Ch 28's `cc-parse-primary` walks the call and
-  global paths, and Ch 32 wires the whole thing together.
-
 ## Try it
 
-**Small check:** the one-line program below calls `putchar`, forcing
-the shim path to exist in the output.
+Run from the `forth-bootstrap` checkout root. This driver loads the library and compiler layers through all of `090-cc-emit.fth`, emits into the output buffer, and finalizes the ELF header. It uses no C parser.
 
-**Layer check:** there is no standalone root-level codegen unit
-test; the focused C fixtures under `tests/cc/G*.c` are the layer
-tests for these paths.
+Each call placeholder is prepended to `calls`. After emitting the program’s exit path, `patch-calls` walks the list and targets the current output position, where `cc-emit-putchar-shim` is about to emit its body. The program calls that body to print `**`, then exits before it can fall through into the shim.
 
-**Bootstrap relevance:** calls, shims, strings, globals, and
-wide-immediate fixups all participate in the Stage-A gate.  The
-width choice in `cc-emit-mov-rdi-int` is the exception:
-`tests/cc/F-wide-const.c` gates it with a literal above the
-signed-32 range, which an `imm32` load would sign-extend to a
-negative value.  Stage-A never compiles such a literal, so the gate
-is the only check on the `movabs` fallback.
+The shell captures the executable in a fresh temporary directory, runs it, and removes the directory:
 
 ```sh
-./seed/build.sh
-tests/cc/stage-a-check.sh        # full bootstrap-gate
-```
-
-To run the small check, compile the one-line program directly.
-Seed-forth has no `-e` flag or `include` word, so we feed the fifteen
-numbered `.fth` files, comments and all, followed by the C source on
-a single stdin.  The last file
-(`120-cc-main.fth`) ends by invoking `cc-main`, which reads the
-remaining stdin as the C input, compiles, writes `/tmp/cc-out`,
-and exits:
-
-```sh
-./seed/build.sh
+probe_dir=$(mktemp -d)
 {
-  cat forth/010-lib.fth $(cc/compiler-layers.sh)
-  cat <<'C'
-int main(void) { putchar(42); return 0; }
-C
-} | ./seed-forth
-chmod +x /tmp/cc-out && /tmp/cc-out         # prints '*'
-```
-
-`tests/cc/build-m2planet-monolith.sh` runs the same pattern at full
-scale, building M2-Planet itself with this pipe.
-
-**tri.c at this stage:** stop the compiler between parsing and
-`cc-finalize-globals` and look at the placeholder for `t`.  The probe
-loads every file except `120-cc-main.fth`, runs `cc-main`'s first
-steps, and prints in hex the fixup count and the imm64 at the first
-fixup, before and after the patch:
-
-```sh
-./seed/build.sh
-{
-  cat forth/010-lib.fth cc/0[2-9]0-cc-*.fth cc/1[01][0-9]-cc-*.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
+      cc/040-cc-prep.fth cc/050-cc-lex.fth \
+      cc/060-cc-types.fth cc/070-cc-sym.fth \
+      cc/080-cc-elf.fth cc/090-cc-emit.fth
   cat <<'FORTH'
-    : .h  dup [lit] 15 > if, dup [lit] 16 / .h then,
-          [lit] 15 and dup [lit] 9 > if, [lit] 39 + then, [lit] 48 + emit ;
-    : site  cc-gfixup-out-pos @ cc-out-buf + @ .h ;
-    : probe
-      cc-load-stdin cc-preprocess cc-out-init cc-globals-init
-      cc-emit-elf-header cc-parse-program
-      cc-gfixup-count @ .h [lit] 32 emit  site [lit] 32 emit
-      cc-finalize-globals  site  bye ;
-    probe
+variable calls
+: patch-calls
+  calls @ begin, dup while,
+    dup @ cc-patch-rel32-to-here
+    [lit] 8 + @
+  repeat, drop ;
+cc-out-init [lit] 0 cc-bss-size ! cc-emit-elf-header
+[lit] 0 calls !
+[lit] 42 cc-emit-mov-rdi-int
+cc-emit-call-rel32-placeholder calls cc-add-fixup-to-list
+[lit] 42 cc-emit-mov-rdi-int
+cc-emit-call-rel32-placeholder calls cc-add-fixup-to-list
+[lit] 0 cc-emit-mov-rdi-int cc-emit-exit-shim
+patch-calls cc-emit-putchar-shim
+cc-finalize-elf
+[lit] 1 cc-out-buf cc-out-pos @ write drop
+bye
 FORTH
-  cat <<'C'
-#define ROWS 4
-struct tri { int rows; int stars; };
-struct tri t;
-
-void line(int pad, int n) {
-    while (pad > 0) { putchar(' '); pad = pad - 1; }
-    while (n > 0) { putchar('*'); n = n - 1; }
-    putchar('\n');
-}
-
-int main() {
-    int w[ROWS];
-    int r;
-    t.rows = ROWS;
-    for (r = 0; r < t.rows; r = r + 1) {
-        w[r] = 1 + r * 2;
-        line(t.rows - 1 - r, w[r]);
-        t.stars = t.stars + w[r];
-    }
-    if (t.stars == ROWS * ROWS) return t.stars;
-    return 1;
-}
-C
-} | ./seed-forth                   # prints "7 0 4004c9"
+} | ./seed-forth > "$probe_dir/stars"
+printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
+chmod +x "$probe_dir/stars"
+"$probe_dir/stars" # prints '**'
+printf '\nprogram exit: %s\n' "$?" # prints '\nprogram exit: 0'
+rm -r "$probe_dir"
 ```
 
-Seven `movabs rdi` sites refer to `t`, one for each `t.rows` or
-`t.stars` in the source.  The first, for `t.rows = ROWS;`, holds 0
-until `cc-finalize-globals` writes `0x4004c9`: `cc-base-vaddr` plus
-the 1,225 bytes of header and code that Ch 21's probe counted, so `t`
-starts on the byte after `main`'s last `ret`.  In `line`, all three
-`putchar` calls are `call 0x400092`, the 29-byte shim of §3; the ten
-shims `tri.c` never calls are emitted anyway.
+Observed output:
 
-## Exercises
+```text
+driver exit: 0
+**
+program exit: 0
+```
 
-1. **★★★ Modify.** The `calloc` shim is 113 bytes and uses hand-counted RIP-
-   relative offsets.  Insert four `nop`s (`90`) first at the very
-   top of the shim, then just before `.have_heap`.  For each
-   placement, which displacements (and which `jnz`) need to
-   change, and why does the first placement change none of the
-   RIP-relative ones?
+This exercises multiple forward-call nodes, list traversal, integer emission, and the output and exit shims. It does not test every shim, string decoding, global fixups, or the typed encoders.
 
-2. **★★★ Extend.** `free` is a 1-byte `ret`.  Construct a test program that
-   relies on `free` reclaiming memory; observe how the bump
-   allocator handles it.  Could a free-list be retrofitted?
+## Exercise
 
-3. **★★ Trace.** `fopen` recognises only `r`, `w`, `a` as the first byte of the
-   mode string.  What does it do with `rb` or `r+`?  Trace one
-   case.
+**Trace — easy.** Name the head and next node after each call is recorded in the checkpoint. Explain why walking the list in reverse emission order still patches both calls to the same shim.
 
-4. **★★ Extend.** The fixup-list mechanism in `cc-add-fixup-to-list` is the
-   same shape as a Lisp cons-cell.  Could the compiler reuse a
-   single generic list type for both forward-call fixups and
-   global fixups?  What would the consolidation save?
+**Trace — moderate.** Follow `fopen` for mode strings `rb` and `r+`. Identify the byte it examines and explain which requested behavior the shim ignores.
 
-5. **★★★ Extend.** `cc-decode-escape` names four escapes and passes the
-   rest through.  Add `\xNN` (two-hex-digit escape).  Why can't it go
-   in `cc-decode-escape` alone, and what must `cc-emit-string-bytes`
-   and `cc-lex-char` each change?
-
-## After this chapter
-
-The compiler can emit code that talks to the rest of itself: function
-calls with fixup lists for targets not yet defined, libc shims,
-inline string literals, and global-address placeholders patched once
-layout is known.  Calls and global accesses are where Stage-A parity
-first depends on exact layout, since both encode addresses and offsets
-that shift if any earlier byte changes.  What the encoders cannot do
-is choose their own order.  In `1 + r * 2` on line 16 of `tri.c`,
-the `+` arrives first, one token at a time, yet the `imul` must be
-emitted before the `add`.  Ch 27 gets that order right without an
-expression tree.
-
-## Takeaways
-
-- Deferred resolution runs the codegen: placeholders go in, fixup metadata is stashed, and a final sweep patches forward function references (`cc-sym-call-fixups`/`cc-sym-addr-fixups`), global vaddrs (`cc-gfixup-*`) and ELF sizes (`cc-out-patch-4le`) independently.
-- Libc is not a dependency but emitted code: eleven shims give compiled programs `putchar`, `exit`, file I/O and a 256 MiB bump-allocated heap.
-- Globals share the single R-W-X PT_LOAD segment with the code, appended after the last function, so there is no `.data` phdr, relocation table or dynamic linker.
-
-Next: Chapter 27 — Expressions, Part 1: The Precedence Cascade.

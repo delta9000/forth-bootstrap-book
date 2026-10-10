@@ -10,7 +10,7 @@ Prerequisites: [31 — ELF emission and instruction encoding](31-elf-and-codegen
 
 Checkpoint: TODO — the cumulative core checkpoint is Stage A at the end of the core compiler sequence.
 
-Reuses: [26-codegen-part-2.md](../26-codegen-part-2.md) — Reuse the source walkthrough: Extend code emission to calls, runtime shims, and global-address fixups.
+Reuses: [26-codegen-part-2.md](../32-codegen-part-2.md) — Reuse the source walkthrough: Extend code emission to calls, runtime shims, and global-address fixups.
 
 TODO:
 
