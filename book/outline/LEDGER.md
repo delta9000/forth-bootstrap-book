@@ -2258,6 +2258,11 @@ Stream state | 43 Runtime, libc, streams, and formatting | ownership, buffered b
 Bounded formatting count | 43 Runtime, libc, streams, and formatting | the logical output length keeps counting even when the destination truncates
 Target macro contract | 44 Target headers | in System V mode the preprocessor predefines __STDC__ 1, __STDC_HOSTED__ 0, __SEED_FORTH__, __linux__, __x86_64__ and __LP64__
 Withheld identities | 44 Target headers | no __GNUC__ or __STDC_VERSION__: headers must not select GCC extensions or a later C version
+Typed constant record | 45 Typed constants | value, C type, descriptor and relocation symbol carried together
+Per-operator normalization | 45 Typed constants | each operator's result is cut to its C width before the next operator
+Checked constant arithmetic | 45 Typed constants | signed overflow is rejected; unsigned arithmetic wraps
+Typed conditional selection | 45 Typed constants | both arm types decide the result type before the chosen value is converted
+Constant pool watermark | 45 Typed constants | temporary allocations are released after each public parse
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
