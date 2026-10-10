@@ -3,8 +3,7 @@
 
     python3 tools/make-bundle.py NN        (from the repository root)
 
-Writes book/bundles/NN/ (gitignored), everything a chapter writer reads
-(see AGENTS.md):
+Writes book/bundles/NN/ (gitignored), everything a chapter writer reads:
 
   stub.md      the chapter's outline stub, book/outline/NN-*.md, headed by
                a `Target:` line naming the chapter file, book/NN-<slug>.md

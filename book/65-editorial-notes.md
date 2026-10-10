@@ -65,8 +65,7 @@ list, then regenerate the index with `python3 tools/gen-index.py`.
 prerequisites and checkpoint. `book/outline/LEDGER.md` lists each concept
 with the chapter that teaches it. `tools/make-bundle.py NN` gathers a
 chapter's stub, neighbours, ledger rows and sources into `book/bundles/NN/`
-(not committed). `AGENTS.md` at the repository root sets out the chapter
-rules in full.
+(not committed).
 
 The previous edition's writing protocol and learning-story plan are kept
 under Retired for reference. Where they disagree with this page, this page
