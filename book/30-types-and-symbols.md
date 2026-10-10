@@ -828,7 +828,6 @@ These records retain the decisions that Chapter 35's declaration parser makes. C
 Run from the `forth-bootstrap` checkout root. This driver constructs the opening pointer-to-int example, then inserts enum name `x` with value 7 and looks it up. `digit-out` prints the single-digit results used here.
 
 ```sh
-./seed/build.sh >/dev/null
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \

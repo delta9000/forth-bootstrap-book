@@ -832,7 +832,6 @@ Run from the `forth-bootstrap` checkout root. This driver loads the library and 
 The program sets up the exit syscall, puts 42 in `rdi`, and jumps over an assignment of 99. The final raw bytes are the `syscall` instruction. `od` skips the 120-byte header to show the emitted instructions; the shell then runs the executable and removes the temporary directory.
 
 ```sh
-./seed/build.sh >/dev/null
 probe_dir=$(mktemp -d)
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \

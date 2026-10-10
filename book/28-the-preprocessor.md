@@ -3056,7 +3056,6 @@ prints the rewritten buffer. `#ifdef` uses macro lookup alone; `#if` is
 excluded because its evaluator belongs to Chapter 34.
 
 ```sh
-./seed/build.sh > /dev/null
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/040-cc-prep.fth
   cat <<'FORTH'
