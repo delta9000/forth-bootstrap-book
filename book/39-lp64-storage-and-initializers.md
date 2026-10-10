@@ -1486,7 +1486,7 @@ A kernel error must match the failure value expected by this boundary’s C call
 \ cc-native-syscall ( syscall-number argument-count -- )
 \ Linux returns -errno in rax. Portable libc tests fd == -1, so turn
 \ [-4095,-1] into -1. This bootstrap boundary does not maintain errno.
-\ Unlike the old pnut boundary, an absent file therefore makes fopen fail
+\ Unlike seed-forth's earlier pnut boundary, an absent file therefore makes fopen fail
 \ cleanly rather than allocating a FILE containing a negative errno.
 : cc-native-syscall
   dup [lit] 0 > if, [lit] 8 [lit] 124 cc-native-sysarg then,

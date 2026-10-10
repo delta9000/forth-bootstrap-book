@@ -100,7 +100,7 @@ The inner link preserves nested dimensions. Qualifiers sit beside the type word,
 Storage depends on the selected target. `cc-target-lp64` defaults off; `cc-bootstrap-floatbits` independently enables a restricted floating-storage approximation when LP64 is selected, without supplying floating arithmetic (`forth-bootstrap/cc/060-cc-types.fth:54`):
 
 ```forth file=cc/060-cc-types.fth
-\ The pinned M2/pnut route keeps the original data model unless opted in.
+\ The M2-Planet route (Stage A) keeps the original data model unless opted in.
 variable cc-target-lp64
 [lit] 0 cc-target-lp64 !
 
