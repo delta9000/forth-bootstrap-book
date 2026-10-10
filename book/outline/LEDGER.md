@@ -2263,6 +2263,10 @@ Per-operator normalization | 45 Typed constants | each operator's result is cut 
 Checked constant arithmetic | 45 Typed constants | signed overflow is rejected; unsigned arithmetic wraps
 Typed conditional selection | 45 Typed constants | both arm types decide the result type before the chosen value is converted
 Constant pool watermark | 45 Typed constants | temporary allocations are released after each public parse
+Array-based va_list | 46 System V varargs | va_list is an array of one record, so passing it shares one cursor while its storage stays local
+Variadic register-save area | 46 System V varargs | each variadic call saves its incoming argument registers in its own frame
+Independent argument cursors | 46 System V varargs | GP and XMM offsets advance separately; overflow arguments share one stack cursor
+Variadic cursor copying | 46 System V varargs | va_copy copies the cursor fields, so two traversals share the saved arguments
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
