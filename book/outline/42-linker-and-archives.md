@@ -10,7 +10,7 @@ Prerequisites: [41 — System V calls and separate compilation](41-system-v-call
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [37-direct-gcc-linker.md](../37-direct-gcc-linker.md) — Reuse symbol resolution, relocation application, BSS layout, and executable publication; [44-direct-gcc-archives.md](../44-direct-gcc-archives.md) — Reuse archive indexing, deterministic construction, and lazy member selection.
+Reuses: [37-direct-gcc-linker.md](../42-linker-and-archives.md) — Reuse symbol resolution, relocation application, BSS layout, and executable publication; [44-direct-gcc-archives.md](../42-linker-and-archives.md) — Reuse archive indexing, deterministic construction, and lazy member selection.
 
 TODO:
 

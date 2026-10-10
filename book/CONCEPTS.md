@@ -365,14 +365,14 @@ bootstrap. Their current implementation and limits are in [DIRECT-GCC.md](https:
 | --- | --- | --- |
 | [35: objects](40-objects-and-relocations.md) | 21, 25, 34 | Separate objects with symbol and relocation tables |
 | [36: calls](41-system-v-calls.md) | 24, 31, 34, 35 | Scalar System V interoperability and original GCC ffs |
-| [37: linking](37-direct-gcc-linker.md) | 13, 21, 35 | Separate C objects linked by Forth into a running program |
+| [37: linking](42-linker-and-archives.md) | 13, 21, 35 | Separate C objects linked by Forth into a running program |
 | [38: syscall boundary](38-direct-gcc-runtime.md) | 5, 35–37 | Forth-built process entry, errno storage, and Linux calls |
 | [39: runtime](39-direct-gcc-libc.md) | 36–38 | Forth-built allocation, memory, and string execution |
 | [40: target headers](40-direct-gcc-target.md) | 22, 34, 36 | Explicit target facts and original historical ANSI declarations |
 | [41: typed constants](41-direct-gcc-constants.md) | 28, 34–36 | LP64 constant arithmetic, symbolic address initializers, and exact floating constants (§5 uses 45–46) |
 | [42: variadic lists](42-direct-gcc-varargs.md) | 34, 36, 37 | Array-based System V lists across separately compiled units |
 | [43: streams](43-direct-gcc-stdio.md) | 35–39, 42 | Forth-built file I/O and bounded formatted generator output |
-| [44: archives](44-direct-gcc-archives.md) | 35, 37 | Indexed archives and selection driven by unresolved symbols |
+| [44: archives](42-linker-and-archives.md) | 35, 37 | Indexed archives and selection driven by unresolved symbols |
 | [45: binary32/binary64 values](45-direct-gcc-binary64.md) | 24, 28, 36 | Typed floating operations and the scalar return boundary |
 | [46: floating literals](46-direct-gcc-float-literals.md) | 1–12, 45 | Exact integer ratios rounded to binary64 or binary32, for literals and constant arithmetic, without a host parser |
 | [47: bitfields](47-direct-gcc-bitfields.md) | 24, 28, 36, 45 | Record layout, integer promotions, and preserving bitfield stores |
