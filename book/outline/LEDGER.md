@@ -2031,6 +2031,10 @@ Top-level classification | 37 Functions and translation units | idea; Top-level 
 `cc-main` | 38 Compiler entry and Stage A | compiler word (`cc/120-cc-main.fth`); `cc-main`: nine words and a `bye`
 `cc-out-path` | 38 Compiler entry and Stage A | compiler word (create, `cc/120-cc-main.fth`); `cc-main`: nine words and a `bye`
 Bootstrap chain | 38 Compiler entry and Stage A | idea; The wider chain
+LP64 native object storage | 39 LP64 storage and initializers | object widths and alignment decide native storage placement and record layout
+Private all-stack ABI | 39 LP64 storage and initializers | generated functions receive arguments in caller-owned stack slots
+Static initializer lowering | 39 LP64 storage and initializers | queued initialization routines reuse expression fixups and run before main
+Fail-closed bootstrap runtime | 39 LP64 storage and initializers | explicitly unavailable operations report and terminate when executed
 Stage-A parity (byte-identical M1 output) | 38 Compiler entry and Stage A | concept (C compiler ideas (Part III)); introduced in old Ch 32
 Stage-A parity proof | 38 Compiler entry and Stage A | idea; Stage A: the parity proof
 `cc-nadd-field` | 39 LP64 storage and initializers | compiler word (`cc/115-cc-native.fth`); Native declarations and aligned storage
