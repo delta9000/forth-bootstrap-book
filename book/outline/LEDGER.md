@@ -1751,6 +1751,10 @@ Struct tag pre-registration | 35 Declarations and storage | register an empty de
 Declarator-local pointer depth | 35 Declarations and storage | each name adds its own stars to the inherited pointer depth
 Static local storage | 35 Declarations and storage | a locally scoped name that refers to persistent global storage
 Cast policy separation | 35 Declarations and storage | type acceptance, value conversion and null provenance use separate hooks
+Break/continue fixup lists | 36 Statements and control flow | pending jumps grouped by enclosing construct and destination, patched when the target is known
+for-step rewind | 36 Statements and control flow | the step is skipped on first reading; after the body the lexer rewinds to it so its code follows the body
+Labels and goto | 36 Statements and control flow | named destinations via function-local label entries plus pending jumps
+Native goto adjustment paths | 36 Statements and control flow | forward jumps resolved through code that balances lexical switch depth
 Lvalue tracking | 34 Expressions: operands and assignment | idea; Lvalue tracking: four globals, four kinds
 Lvalue vs rvalue | 34 Expressions: operands and assignment | concept (C compiler ideas (Part III)); introduced in old Ch 28
 Postfix operators | 34 Expressions: operands and assignment | idea; The postfix operators
