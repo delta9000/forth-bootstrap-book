@@ -43,7 +43,7 @@ ${CC} -static ${X}/mkdir.c ${X}/M2libc/bootstrappable.c -o build-out/plumbing-mk
 ${CC} -static ${X}/mkdir.c ${X}/M2libc/bootstrappable.c -o ${BIN}/mkdir
 ```
 
-The rest of that recipe compiles `sha256sum`, `unbz2`, `ungz`, `untar`, `cp`, `chmod`, and `rm`, each with `bootstrappable.c` (`forth-bootstrap/chain/plumbing/stage1.kaem:26`). These small utilities supply the operations needed to unpack and prepare larger packages. Each utility participates in preparing the next build.
+The rest of that recipe compiles `sha256sum`, `unbz2`, `ungz`, `untar`, `cp`, `chmod`, and `rm`, each with `bootstrappable.c` (`forth-bootstrap/chain/plumbing/stage1.kaem:26`). These small utilities supply the operations needed to unpack and prepare larger packages.
 
 ## Build make before using Makefiles
 
@@ -127,7 +127,7 @@ sed/sed: $(SED_OBJ) lib/libsed.a
 	$(CC) -static -o $@ $(SED_OBJ) lib/libsed.a
 ```
 
-The object-before-archive link order is the established linker contract (Chapter 42). A direct recipe also avoids pipelines and compound commands: separate dependency rules express the work instead.
+The link follows lazy member selection (Chapter 42). A direct recipe also avoids pipelines and compound commands: separate dependency rules express the work instead.
 
 Quoted path definitions would complicate command execution. Fixed configuration puts such strings in C headers, where quoting has C semantics. Diffutils records the program paths it will use there (`forth-bootstrap/chain/plumbing/diffutils-2.7/config.h:1`):
 
@@ -207,7 +207,7 @@ $(BIN)/flex: $(FINAL) $(LIBL)
 	$(CC) -static -o $@ $(FINAL) $(LIBL)
 ```
 
-The temporary scanner breaks the dependency cycle. It need only let the intermediate flex process its own scanner input; the final executable uses `scan.o` instead of `scan-tmp.o`.
+The temporary scanner bootstrap breaks the dependency cycle. It need only let the intermediate flex process its own scanner input; the final executable uses `scan.o` instead of `scan-tmp.o`.
 
 This regeneration requirement is local to the generator construction. It does not mean every earlier package regenerates every parser: gawk's recipe explicitly uses the shipped `awktab.c` (`forth-bootstrap/chain/plumbing/gawk-3.0.4/Makefile:1`).
 

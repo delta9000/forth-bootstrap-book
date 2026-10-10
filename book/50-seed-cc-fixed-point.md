@@ -19,7 +19,7 @@ Each translation unit gets a fresh input file so compiler state cannot leak from
  unit-object pathbuf rename if, [lit] 115 die then, ;
 ```
 
-`compiler-layers` appends the library followed by the sorted compiler layers. The fixed driver comes next, followed by one C source. `run-seed` writes `unit.o`; the controller renames it to the source's object name before compiling another unit. Runtime C uses `runtime-unit.fth`, while the tool sources use `tools-unit.fth`.
+`compiler-layers` appends the library followed by the sorted compiler layers. The fixed driver comes next, followed by one C source, completing the compiler driver stream. `run-seed` writes `unit.o`; the controller renames it to the source's object name before compiling another unit. Runtime C uses `runtime-unit.fth`, while the tool sources use `tools-unit.fth`.
 
 The tool driver selects object compilation (Chapter 41) and provides the runtime include directory; its final call consumes the C text that follows it (`forth-bootstrap/cc/driver/seed-cc-boot/tools-unit.fth:5`):
 ```forth

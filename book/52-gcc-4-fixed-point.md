@@ -98,7 +98,7 @@ note "$count cc1 objects; make log: $log"
 
 `C_OBJS` selects the C front end; `OBJS` supplies the shared compiler machinery. Sorting the expansion removes duplicate object names. The count comes from this configuration, not a constant in the script.
 
-Generated compiler source belongs to the same dependency graph. The original Makefiles build and execute source generators with seed-cc, then compile their products with the real per-object flags (`forth-bootstrap/chain/gcc-direct/census.sh:12`). A generator is a build-time program whose output becomes another compilation input. Merely supplying a header would bypass that program and its builder.
+Generated compiler source belongs to the same dependency graph. The original Makefiles build and execute source generators with seed-cc, then compile their products with the real per-object flags (`forth-bootstrap/chain/gcc-direct/census.sh:12`). A source generator is a build-time program whose output becomes another compilation input. Merely supplying a header would bypass that program and its builder.
 
 The census requests every selected object with `make -k`, so independent units can still compile after a failure. Its override string names oyacc and flex and makes undeclared calls compilation errors (`forth-bootstrap/chain/gcc-direct/census.sh:53`):
 
@@ -232,7 +232,7 @@ fixed=$(compare "$stage3" "$stage4" stage3-vs-stage4) || passed=
 second=$(compare "$prefix" "$stage3" stage2-vs-stage3) || passed=
 ```
 
-Here a **fixed point** means agreement of the installed results across both comparisons. It does not prove every accepted C program correct. A reproducible compiler can reproduce its own mistakes.
+Here a **compiler fixed point** means agreement of the installed results across both comparisons. It does not prove every accepted C program correct. A reproducible compiler can reproduce its own mistakes.
 
 ## Compare installations, not build debris
 
@@ -256,7 +256,7 @@ files_walk() {
 
 Thus the comparison covers all installed regular files selected by this traversal, including installed tools, libraries, headers, and support files. It does not compare the entire build tree, directory metadata, or symlink text.
 
-Stage D sorts those relative paths and compares each common file. Ordinary files must match byte for byte. An archive that differs as a whole receives a member comparison instead (`forth-bootstrap/chain/gcc-direct/stage-d.sh:147`):
+Stage D sorts those relative paths and compares each common file. Ordinary files must match byte for byte. An archive that differs as a whole receives an archive member comparison instead (`forth-bootstrap/chain/gcc-direct/stage-d.sh:147`):
 
 ```sh
 compare() {

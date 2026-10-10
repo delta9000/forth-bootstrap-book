@@ -4,7 +4,7 @@ Which programs actually executed on the way to the fixed point? A compiler repor
 
 ## Establish the executable boundary
 
-The launcher has a simple shape: prepare a root, enter it under tracing, then reduce the traces to successful and failed paths. Its `ROOT` argument defaults to `build-out/plumbing-root`; the companion trace directory is `ROOT.trace/` (`forth-bootstrap/chain/plumbing-root.sh:31`). Here “sealed” describes the executable boundary, not a replacement for the host kernel.
+The launcher has a simple shape: prepare a root, enter it under tracing, then reduce the traces to successful and failed paths. Its `ROOT` argument defaults to `build-out/plumbing-root`; the companion trace directory is `ROOT.trace/` (`forth-bootstrap/chain/plumbing-root.sh:31`). The sealed executable boundary leaves the host kernel in place.
 
 The host copies tracked files, including submodules, rather than carrying an existing build tree into the root. It then supplies the pinned input archives by hard link, falling back to a copy (`forth-bootstrap/chain/plumbing-root.sh:39`):
 
@@ -204,7 +204,7 @@ Downloads and derived files stay in a temporary directory until their final dige
     print(f"check-pins: {len(pins)} stage pins agree with the {len(manifest)} entries of MANIFEST.sha256")
 ```
 
-Thus this check works before fetching archives. Checking pin agreement and checking archive contents are separate operations.
+Thus this check works before fetching archives. Checking archive pin agreement and checking archive contents are separate operations.
 
 ## Try it
 

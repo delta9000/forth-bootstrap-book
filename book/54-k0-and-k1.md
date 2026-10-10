@@ -47,11 +47,11 @@ The initial program comes from the boot image's argument block. After installing
         jmp ret_user
 ```
 
-For this image the program is seed-forth and its input is the launcher (`forth-bootstrap/kernel/k1/mkboot.py:18`). The seed's syscall interface remains the one already used by the library (Chapter 18); K0 supplies the handlers behind it.
+For this image the program is seed-forth and its input is the launcher (`forth-bootstrap/kernel/k1/mkboot.py:18`). K0 supplies the handlers behind the library's syscall wrappers (Chapter 18).
 
-K0's fork runs the child to completion before restoring the saved parent. The runner's fork, redirect, exec and immediate wait fit this serial model (`forth-bootstrap/kernel/k0/k0.asm:12`). K0 can therefore run successive compiler invocations without a general scheduler.
+K0's serialized fork runs the child to completion before restoring the saved parent. The runner's fork, redirect, exec and immediate wait fit this serial model (`forth-bootstrap/kernel/k0/k0.asm:12`). K0 can therefore run successive compiler invocations without a general scheduler.
 
-The object writer and linker also need calls that K0 lacks. The build loads `k0-syscalls.fth` after the library: it retries `stat` through `lstat`, synthesizes distinct `fstat` identities, treats `munmap` as success without reclaiming memory, and supplies a fixed `getpid` result. These fallbacks activate only after ENOSYS (`forth-bootstrap/kernel/k1/boot/k0-syscalls.fth:1`). They satisfy this build's checks; they do not give K0 general file metadata or memory reclamation.
+The object writer and linker also need calls that K0 lacks. The build loads `k0-syscalls.fth` after the library: it retries `stat` through `lstat`, synthesizes distinct `fstat` identities, treats `munmap` as success without reclaiming memory, and supplies a fixed `getpid` result. These K0 syscall fallbacks activate only after ENOSYS (`forth-bootstrap/kernel/k1/boot/k0-syscalls.fth:1`). They satisfy this build's checks; they do not give K0 general file metadata or memory reclamation.
 
 ## Build the replacement with seed Forth
 

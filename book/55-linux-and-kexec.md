@@ -17,7 +17,7 @@ run 0 - /dev/console /dev/console /usr/bin/env JOBS=2 /usr/bin/bash /chain/ladde
 run 0 - /dev/console /dev/console /usr/bin/bash /chain/ladder/finish.sh
 ```
 
-The runner waits for success before advancing to the next command (`forth-bootstrap/kernel/tools/amd64-runner.c:555`). The compiler and late-tool construction is the work already explained in Chapter 52; here the new boundary is making its outputs available to the longer guest route (`forth-bootstrap/kernel/k1/direct-full.sh:28`).
+The runner waits for success before advancing to the next command (`forth-bootstrap/kernel/tools/amd64-runner.c:555`). The compiler and late tools (Chapter 52) become available to the longer guest route (`forth-bootstrap/kernel/k1/direct-full.sh:28`).
 
 Shell scripts need conventional paths even though their tools came from the bootstrap. `direct-full.sh` supplies those paths inside K1's root, rather than borrowing a host installation (`forth-bootstrap/kernel/k1/direct-full.sh:12`):
 
@@ -165,7 +165,7 @@ The resulting image and configuration live under `/build-out/linux`; the build l
 
 ## Preserve results before handing over
 
-K1's RAM tree will cease to be the operating filesystem after the jump. `finish.sh` selects the Linux output, Linux build logs and gcc64 logs, plus the earlier reports when present (`forth-bootstrap/chain/ladder/finish.sh:8`). The tar export happens before the replacement kernel starts, in `finish.sh` (`forth-bootstrap/chain/ladder/finish.sh:14`):
+K1's RAM tree will cease to be the operating filesystem after the jump. `finish.sh` selects the Linux output, Linux build logs and gcc64 logs, plus the earlier reports when present (`forth-bootstrap/chain/ladder/finish.sh:8`). The result export happens before the replacement kernel starts, in `finish.sh` (`forth-bootstrap/chain/ladder/finish.sh:14`):
 
 ```text
 tar -cf /dev/hdb "$@"
@@ -204,7 +204,7 @@ A bzImage is not an ELF program for K1's process loader. `boot_linux` reads the 
 
 The loader reserves enough contiguous physical memory for decompression, respecting the header's alignment and preferred-address requirements before copying the payload (`forth-bootstrap/kernel/k1/linux.c:55`). The reserve is based on `init_size`, not just the compressed file's length.
 
-Linux also needs a description of the machine it inherits. K1 allocates and clears `boot_params` and command-line storage, copies the image's setup header, records physical pointers for the command line and any external initrd, and copies the firmware e820 memory map (`forth-bootstrap/kernel/k1/linux.c:71`). The embedded initramfs is already part of the loaded image; absence of an external initrd is consistent with this build.
+Linux boot parameters describe the machine it inherits. K1 allocates and clears `boot_params` and command-line storage, copies the image's setup header, records physical pointers for the command line and any external initrd, and copies the firmware e820 memory map (`forth-bootstrap/kernel/k1/linux.c:71`). The embedded initramfs is already part of the loaded image; absence of an external initrd is consistent with this build.
 
 The last preparation keeps the current K1 stack addressable while adding the identity mapping required by the entry code. The call passes physical addresses for the page tables and boot parameters, in `linux.c` (`forth-bootstrap/kernel/k1/linux.c:97`):
 
