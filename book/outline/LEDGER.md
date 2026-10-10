@@ -2241,6 +2241,12 @@ Scoped external identity | 41 System V calls and separate compilation | an exter
 Ranked array descriptor | 41 System V calls and separate compilation | recursive element nodes keep array shape and row qualifiers
 Stable object record | 41 System V calls and separate compilation | storage identity survives parser scope reuse until object export
 Symbolic address operand | 41 System V calls and separate compilation | a record plus addend stands for an address without loading it
+Global definition selection | 42 Linker and archives | strong definitions override weak ones; two strong definitions fail
+Per-object placement | 42 Linker and archives | each input section gets an aligned position in the executable
+Checked relocation assignment | 42 Linker and archives | resolve and range-check a relocation before writing its field
+GNU archive index | 42 Linker and archives | symbol names map to candidate member-header offsets
+Lazy member selection | 42 Linker and archives | extract only members that satisfy unresolved strong demand, until nothing new is needed
+Input identity protection | 42 Linker and archives | device/inode checks stop the output from replacing one of its inputs
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
