@@ -112,8 +112,7 @@ with `n` initially 5 and `*p = 8`: predict reads of `n`, `*view` and `p`
 before checking them against your box and arrows. For shape or identity,
 underline `[3]`, `point` and `extent`
 in the declarations and explain which fact each adds. Keep this card
-open in Chapter 30 if useful. These predictions check this small example,
-not general C proficiency.
+open in Chapter 30 if useful.
 
 </details>
 
@@ -123,7 +122,7 @@ qualifiers, while later paths retain qualifier information. The
 [declaration chapter](35-declarations-types-globals.md#expectation-helpers-and-ignored-specifiers)
 and [target contract](60-c-subset.md) establish those implementation limits.
 The ordinary C meanings above follow [the C committee draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf),
-sections 6.5.3.2, 6.7.2.3, 6.7.3 and 6.7.6; the gateway does not require
-reading the standard or imply that this compiler implements all of it.
+sections 6.5.3.2, 6.7.2.3, 6.7.3 and 6.7.6. You don't need to read them,
+and this compiler does not implement all of them.
 
 </details>

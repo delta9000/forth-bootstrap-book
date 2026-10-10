@@ -940,13 +940,12 @@ Balanced parentheses delimit the skipped signature. The resulting alias records 
 
 ```
 
-The typedef signature loop above has no EOF branch. A bounded core probe
-of `typedef int (*F)(int` produced no output before a three-second timeout
-(status 124); the balanced control compiled and returned 7. Static tracing
-explains the repeated EOF at depth 1. Invalid input should reach a finite
-diagnostic, as the checked helper in Chapter 35 does. This parser defect
-remains in the pinned source; see the scoped observations in
-[Appendix F](60-c-subset.md#observed-profile-boundaries).
+The typedef signature loop above has no EOF branch. Given the truncated
+input `typedef int (*F)(int`, it sees end of input at depth 1 on every
+pass and never finishes, while the balanced declaration compiles normally.
+The checked helper in Chapter 35 shows the better shape: invalid input
+reaches a diagnostic. [Appendix F](60-c-subset.md#observed-profile-boundaries)
+lists this with the compiler's other known limits.
 
 ## Top-level elision
 

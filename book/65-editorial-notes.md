@@ -52,16 +52,14 @@ before asking for a prediction; keep feedback separate from the attempt
 and link a specific repair. An optional expandable bridge can keep a part
 map short for experienced readers. The
 [capability checks](63-concepts.md#capability-checks-at-the-transitions)
-are examples, not a template required in every chapter. The outline's
-reading-order chain is not evidence that a learner has acquired each skill,
-and a successful build is not a substitute for explaining its mechanism.
+are examples, not a template required in every chapter. A successful build
+is not a substitute for explaining its mechanism.
 
 ## Checks
 
 `./check.sh`, run from the repository root, must pass before publication.
-The PR workflow runs the same checks, builds with mdBook 0.5.4 and checks the
-rendered result. Only pushes to `main` or a manual run on `main` can proceed
-to the deployment job; a PR validation never deploys.
+CI runs the same checks on every pull request, builds with mdBook 0.5.4 and
+checks the rendered links. Only `main` deploys.
 
 | Check | What it verifies |
 |---|---|
@@ -77,8 +75,7 @@ to the deployment job; a PR validation never deploys.
 index and Markdown-link checks without executing the seed. It explicitly
 omits runtime checks and numeric forms that require the built seed size.
 The full check requires the pinned source/vendor checkout and runs the
-vendored hex0 assembler and generated seed. Keep its full output when
-reviewing a change; a final success line alone loses skip and assertion counts.
+vendored hex0 assembler and generated seed.
 
 A passing run does not prove every prose number, the semantic correctness
 of every citation, every printed transcript, or compiler conformance. The
@@ -115,8 +112,7 @@ published edition.
 
 The committed historical reports are selected observations. In particular,
 the host record contains counts and summaries, not the raw `execveN.txt`
-streams needed to repeat the original join and path classification. Do not
-relabel a synthetic trace exercise or a summary read as a repeated audit.
+streams needed to repeat the original join and path classification.
 
 For a new long run, preserve a small manifest alongside its logs:
 

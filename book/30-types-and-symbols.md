@@ -4,7 +4,7 @@ A pointer-to-int type and an enum name such as `x` need records that survive bey
 
 In `int *p`, the star declares a pointer; reading `*p` later follows it.
 If that distinction, arrays, struct tags or `const` are unfamiliar, try the
-[Part 3 C-reading gateway](part-3-compiler.md#reading-the-c-input) before
+[Part 3 C-reading bridge](part-3-compiler.md#reading-the-c-input) before
 packing them into compiler records.
 
 ## The one-word type encoding
@@ -98,7 +98,7 @@ An array node records its element and dimension information separately from the 
 
 ```
 
-The inner link preserves nested dimensions. Qualifiers sit beside the type word, so the same base and pointer depth can describe differently qualified elements. For the gateway's array, the element count is separate from `int`; adding `const` would add qualification, not another pointer level. Chapter 35 builds declarations from these records.
+The inner link preserves nested dimensions. Qualifiers sit beside the type word, so the same base and pointer depth can describe differently qualified elements. For the bridge's array, the element count is separate from `int`; adding `const` would add qualification, not another pointer level. Chapter 35 builds declarations from these records.
 
 ## Packing types and choosing scalar storage
 

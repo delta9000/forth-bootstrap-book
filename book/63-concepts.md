@@ -290,9 +290,8 @@ in the [word index](WORD-INDEX.md).
 The useful prerequisite is an action you can carry out, not a chapter you
 have visited. These short checks sample the skills needed at the main
 transitions. Try one before opening its feedback; if its notation is new,
-read the linked explanation first. You can use a familiar skill and move
-on without repeating the entire source walkthrough. A successful attempt
-is useful evidence for this next step, not certification of lasting mastery.
+read the linked explanation first. If a check comes easily, move on
+without rereading the walkthrough behind it.
 
 | Next task | Try before continuing | Explanation or repair route |
 |---|---|---|
@@ -328,17 +327,13 @@ Some later transitions need a new representation even if the earlier
 part went well. Before following exact rounding, use
 [Chapter 47's floating representation bridge](47-floats.md). Before
 following K1's page tables and Linux handover, use
-[Chapter 54's address-translation bridge](54-k0-and-k1.md). These are
-local prerequisites for those mechanisms, not reasons to postpone the
-earlier compiler or provenance chapters.
+[Chapter 54's address-translation bridge](54-k0-and-k1.md).
 
 Come back after intervening work: for example, after Chapter 36, explain
 which state belongs to the running Forth compiler and which stack changes
 will occur only when its emitted C program executes. Reuse the
 [Chapter 34 trace](34-expressions-part-2.md) if those two timelines have
-merged in your account. Checkpoint execution, source explanation, and an
-independent changed-input prediction provide different evidence; none
-automatically substitutes for the others.
+merged in your account.
 
 ## Dependency graph
 

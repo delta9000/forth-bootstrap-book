@@ -38,9 +38,7 @@ Each level asks the next-tighter level for an operand, then consumes its own ope
 
 This is the assembly recipe for the file, not its literal header. The operand and assignment chunks belong to Chapter 34; `expr-call` belongs to Chapter 37. Their names here establish placement, not ownership.
 
-The grammar makes each binary operand a call to a tighter production (`forth-bootstrap/cc/100-cc-expr.fth:1`):
-
-Read this as a description of token sequences, not as C or Forth code.
+The grammar in the next listing describes token sequences, not C or Forth code.
 `:=` means "is defined as"; an unquoted `|` separates alternatives;
 parentheses group a description. A trailing `?` permits zero or one
 occurrence, and a trailing `*` permits zero or more. Quoted punctuation is
@@ -50,6 +48,8 @@ does not. For example,
 `add := mul (('+'|'-') mul)*` means one `mul`, followed by any number of
 pairs consisting of a `+` or `-` token and another `mul`. The parser loop
 below implements precisely that repetition.
+
+The grammar makes each binary operand a call to a tighter production (`forth-bootstrap/cc/100-cc-expr.fth:1`):
 
 ```forth chunk=expr-header
 \ 100-cc-expr.fth — recursive-descent expression parser for the C subset.

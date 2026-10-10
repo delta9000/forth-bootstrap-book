@@ -68,4 +68,4 @@ This book shows no output for it: the command belongs to seed-forth, and forth-b
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-56-plan-a-port-without-inheriting-its-measurements).
 
-**Plan and justify (moderate).** Read seed-forth's final compiler recipe and stage verification. List the inputs an extension would inherit from forth-bootstrap's completed climb, then separate the files it would need to add from the measurements it would need to make. For each proposed success criterion, name the log or pinned artifact you would export from K1. Explain why importing seed-forth's output digests would not by itself verify the guest extension.
+**Modify (moderate).** Read seed-forth's final compiler recipe and stage verification. List the inputs an extension would inherit from forth-bootstrap's completed climb, then separate the files it would need to add from the measurements it would need to make. For each proposed success criterion, name the log or pinned artifact you would export from K1. Explain why importing seed-forth's output digests would not by itself verify the guest extension.

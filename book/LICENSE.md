@@ -1,6 +1,21 @@
 # License
 
-MIT License
+Copyright (c) 2026 Ben Sandbrook.
+
+The text of this book is licensed under the
+[Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/)
+(CC BY 4.0). You may share and adapt it for any purpose, provided you give
+credit, link to the license, and say whether you made changes.
+
+The code is licensed under the MIT License. That covers every code listing
+in the book, including the listings quoted from
+[forth-bootstrap](https://github.com/delta9000/forth-bootstrap) (which is
+under the same license), and the book's checking tools.
+
+The repository's `LICENSE` and `LICENSE-CC-BY-4.0` files hold the full
+license texts.
+
+## MIT License
 
 Copyright (c) 2026 Ben Sandbrook
 

@@ -122,9 +122,8 @@ The pinned `results/host-2026-10-08/` directory preserves the Stage D report,
 summary counts and grouped success/failure paths. It does not contain the
 raw `execveN.txt` streams or the joined event stream (`forth-bootstrap/results/README.md:14–19`).
 You can inspect those summaries and compare their claims, but cannot repeat
-the historical join or recover every failure's errno from them. The raw
-line quoted below is a reported excerpt, not a complete independently
-replayable trace packet. A new full run creates the missing raw records.
+the join or recover every failure's errno from them; the raw line quoted
+below is an excerpt. A new full run creates the raw records.
 
 For a bounded path-resolution exercise, take an explicitly supplied cwd of
 `/build-out/plumbing/src/bash-2.05b` and an attempted exec of `../../bin/bash`.

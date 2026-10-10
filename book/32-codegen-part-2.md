@@ -49,10 +49,9 @@ Integer literals benefit from the compact form when it is safe. `cc-emit-mov-rdi
 ```
 
 For the helper-level input `0x8000000100000000`, the distinction is concrete.
-The table is a manual encoding derivation. A separate bounded core probe
-of `0x8000000100000000 != 0` returned 0, corroborating the value loss;
-the control `2147483648 > 0` returned 1. These observations do not make
-arbitrary literal handling a supported core contract:
+The table derives the encoding by hand. Compiled, `0x8000000100000000 != 0`
+returns 0, confirming the value loss, while `2147483648 > 0` returns 1.
+Arbitrary 64-bit literals are therefore not part of the core contract:
 
 | Branch | Width decision | Emitted value |
 |---|---|---|

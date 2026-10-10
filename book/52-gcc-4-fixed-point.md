@@ -291,33 +291,6 @@ same_archive() {
 
 This is narrower than raw archive equality and stronger than comparing an unordered set of objects. A changed member order fails too. The report prints its fixed-point verdict only when both installation comparisons pass (`forth-bootstrap/chain/gcc-direct/stage-d.sh:181`).
 
-### A comparison you can do before the long build
-
-Assume each generation installs just `bin/gcc` and `lib/libgcc.a`. The
-archive initially contains two members in order: `a.o` with bytes `01 02`,
-then `b.o` with bytes `03 04`. Each row below changes only the second
-installation. Predict the verdict using the actual comparator above.
-
-| Change in the second installation | First comparison to inspect |
-|---|---|
-| `bin/gcc` is missing; the archive is unchanged | The installed relative-path lists |
-| Both files exist; archive timestamps differ, members do not | Whole-file bytes, then the archive fallback |
-| Both files exist; member order becomes `b.o`, `a.o` | The ordered `ar t` output |
-| Both files exist; `b.o` becomes `03 05` | The extracted member bytes |
-
-<details>
-<summary>Check the four outcomes</summary>
-
-Only the timestamp-only case passes. A missing path fails even if all
-common files agree. Different archive-container bytes trigger the fallback,
-which accepts equal ordered member names and member bytes. Reordering fails
-the list comparison before payload comparison; changing `b.o` fails its
-payload comparison. These are derived outcomes for the supplied fixture,
-not results of a new GCC build. Apply the same reasoning to both stage
-2-versus-3 and stage 3-versus-4 before claiming this route's fixed point.
-
-</details>
-
 ## Build the late tools with the stable compiler
 
 The demonstrated late-tools run belongs to K1. Its full-route script checks the Stage D verdict before invoking `late-tools.sh` (`forth-bootstrap/kernel/k1/direct-full.sh:28`). The recipe used by `kernel/k1/run-chain.sh --direct-linux` executes that script under K1 (`forth-bootstrap/kernel/k1/direct-linux.recipe:1`). Chapters 54 and 55 build that environment.
