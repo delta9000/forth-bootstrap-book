@@ -10,7 +10,7 @@ Prerequisites: [36 — Statements and control flow](36-statements-if-while-for-r
 
 Checkpoint: TODO — the cumulative core checkpoint is Stage A at the end of the core compiler sequence.
 
-Reuses: [31-functions-and-scope.md](../31-functions-and-scope.md) — Reuse the source walkthrough: Connect parameters, scopes, globals, and function bodies into a program.
+Reuses: [31-functions-and-scope.md](../37-functions-and-scope.md) — Reuse the source walkthrough: Connect parameters, scopes, globals, and function bodies into a program.
 
 TODO:
 

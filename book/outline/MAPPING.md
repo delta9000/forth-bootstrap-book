@@ -35,7 +35,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [28-expressions-part-2.md](../34-expressions-part-2.md) | Chapter 28 — Expressions, Part 2: Primary, Unary, Assignment | 3 | [Expressions: operands and assignment](34-expressions-part-2.md) | keep |
 | [29-declarations-types-globals.md](../35-declarations-types-globals.md) | Chapter 29 — Declarations: Types, Structs, Locals | 3 | [Declarations and storage](35-declarations-types-globals.md) | keep |
 | [30-statements-if-while-for-return.md](../36-statements-if-while-for-return.md) | Chapter 30 — Statements: `if`, `while`, `for`, `switch`, `break`, `continue`, `goto` | 3 | [Statements and control flow](36-statements-if-while-for-return.md) | keep |
-| [31-functions-and-scope.md](../31-functions-and-scope.md) | Chapter 31 — Functions: Parameters, Calls, Globals, Entry Stub | 3 | [Functions and translation units](37-functions-and-scope.md) | keep |
+| [31-functions-and-scope.md](../37-functions-and-scope.md) | Chapter 31 — Functions: Parameters, Calls, Globals, Entry Stub | 3 | [Functions and translation units](37-functions-and-scope.md) | keep |
 | [32-main-and-bootstrap-chain.md](../32-main-and-bootstrap-chain.md) | Chapter 32 — End to End: Main and the Bootstrap Chain | 3 | [Compiler entry and Stage A](38-main-and-bootstrap-chain.md) | keep |
 | [33-the-assembler.md](../26-m1-and-hex2.md) | Chapter 33 — The Assembler: M1 and hex2 in Forth | 2 | [The M1 assembler and hex2 linker](26-m1-and-hex2.md) | keep |
 | [34-direct-tinycc.md](../34-direct-tinycc.md) | Chapter 34 — Compiling TinyCC Directly | 3 | [LP64 storage and initializers](39-lp64-storage-and-initializers.md) | retire |
