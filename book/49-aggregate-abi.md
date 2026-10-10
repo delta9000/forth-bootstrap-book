@@ -8,7 +8,7 @@ The path is expression address → classification → private argument copy → 
 
 The implementation is a bounded classifier, not the full mixed-class System V algorithm. Nested records, unions, fixed arrays, pointers and supported integer members are admitted. Records containing `float` or `double` members, vector classes, empty records and over-aligned records are rejected. A pointer is classified without inspecting its pointee. Packed attributes are outside the parser's dialect.
 
-The target gate keeps this value contract in explicit System V mode; `cc-ag-type?` recognizes a non-pointer record, and `cc-ag-die` reports the aggregate boundary through `cc-ag-error-prefix` and error 232 (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:1`):
+The target gate keeps this value contract in explicit System V mode, so the private all-stack target is unaffected; every refused shape exits with error 232 (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:1`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ 131-cc-aggregate-abi.fth -- shared INTEGER/binary32/binary64/X87/MEMORY SysV ABI.
 \ Record expressions carry addresses. The ABI transports object bytes, never
@@ -22,7 +22,7 @@ create cc-ag-error-prefix s, aggregate-abi: bl c,
   dup ty-ptr 0= swap ty-base ty-struct = and cc-target-sysv @ and ;
 
 ```
-`cc-ag-walk` records long-double and other leaves in `cc-ag-x87` and `cc-ag-other`; `cc-ag-walk-fwd` supplies its recursive call. Ranked arrays recurse on their real element, and scalar floating leaves inside records fail instead of silently becoming INTEGER (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:19`):
+`cc-ag-walk` visits every leaf, noting long-double and other leaves separately, because an X87 object may contain nothing else. Ranked arrays recurse on their real element, and scalar floating leaves inside records fail instead of silently becoming INTEGER (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:19`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ Validate each nested member, including members of unions and arrays.
 \ A descriptor with an unaligned member is MEMORY; the current parser emits
@@ -107,17 +107,9 @@ Member access must preserve a record address, while assignment must preserve des
 
 A **call plan** separates source argument order from register order. The caller and callee use the same plan, including a hidden result pointer before visible arguments for MEMORY returns.
 
-| Input | Result or destination |
-|---|---|
-| Current plan → `ag-signature`, `ag-count` | Signature cell and parsed argument count cell. |
-| Current plan → `ag-gp`, `ag-fp`, `ag-stack` | Independent register counts and outgoing stack size cells. |
-| Current plan → `ag-result`, `ag-return-class`, `ag-return-size` | Result slot, class and object size cells. |
-| Current plan → `ag-indirect`, `ag-target`, `ag-live` | Indirect-call flag, saved target and preserved live-state cells. |
-| Index → `ag-arg` | Argument record in the current plan. |
-| Argument → `ag-type`, `ag-desc`, `ag-size`, `ag-class` | Stored type, descriptor, object size and class. |
-| Argument → `ag-register`, `ag-offset`, `ag-slot` | First register or negative stack marker, stack byte offset and frame slot. |
+A plan holds the signature, a separate count for each register class (GP and SSE), the outgoing stack size and the result slot; it also remembers an indirect target and the live state that must survive the call. Each argument records its type, its class and its location: a first register, or a stack offset and frame slot.
 
-`cc-ag-plan` selects the current call plan. The plan accessors return cells for mutable plan state and values for argument fields; `cc-ag-frame` reserves rounded storage without growing an unevaluated expression frame (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:104`):
+`cc-ag-plan` selects the current call plan; `cc-ag-frame` reserves rounded storage without growing an unevaluated expression frame (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:104`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ A plan owns explicit argument locations. Nothing relies on the argument
 \ index also being a register index. Each record is type, descriptor, byte
@@ -372,7 +364,7 @@ The hidden result address is installed before visible GP arguments, while scalar
     else, cc-sym-val-of cc-emit-call-vaddr then,
   then, cc-ag-result ;
 ```
-`cc-ag-call-begin` allocates result storage and `cc-ag-save-target` freezes an indirect target. `cc-ag-call` saves the enclosing call plan so nested calls cannot overwrite it (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:289`):
+`cc-ag-call-begin` allocates the result storage, and `cc-ag-call` saves the enclosing call plan, because an argument expression may itself contain a call that would otherwise overwrite it (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:289`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-call-begin ( signature -- )
   dup cc-ag-check-entry cc-ag-new-plan
@@ -409,7 +401,7 @@ An expression-valued function pointer needs callable and signature checks before
 ```
 ## Reconstruct callee objects and return bytes
 
-`cc-ag-parameters` keeps `cc-ag-function-plan` and `cc-ag-sret-slot`, then installs each named parameter as an independent local object (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:320`):
+`cc-ag-parameters` installs each named parameter as an independent local object, so the callee can modify its copy without touching the caller's (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:320`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 variable cc-ag-function-plan
 variable cc-ag-sret-slot
@@ -668,7 +660,7 @@ The overflow path aligns the cursor for the object, advances by rounded size, an
 ' cc-ag-va-record is cc-va-record-fwd
 
 ```
-Long double shares record storage but has its own descriptor identity. `cc-ld-value-shape` checks that identity; `cc-ld-ni-scalar` copies runtime initializers, while `cc-ld-compound` rejects computation until the next layer replaces these transport defaults (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:527`):
+Long double shares record storage but has its own descriptor identity, so the value-shape check tests that identity before any copy; computation stays rejected until the next layer replaces these transport defaults (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:527`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ Transport-only defaults, replaced by 132 for scalar computations and
 \ exact static initialization. Other records retain their copy contract.
@@ -922,7 +914,7 @@ Boolean conversion treats signed zeros as false and unordered values as true; un
 ```
 ## Check shapes before casts and initialization
 
-`cc-x87-shape` admits only arithmetic partners for long double. `cc-x87-cast` uses that check, `cc-x87-ternary` leaves numeric selection to the scalar path, and `cc-x87-scalar-check` admits the opaque numeric type code only after the surrounding shape policy (`forth-bootstrap/cc/132-cc-long-double.fth:175`):
+`cc-x87-shape` admits only arithmetic partners for long double, so casts and conditionals reuse one rule instead of each deciding which operands may meet (`forth-bootstrap/cc/132-cc-long-double.fth:175`):
 ```forth file=cc/132-cc-long-double.fth
 : cc-x87-shape ( source descriptor destination descriptor -- )
   [lit] 3 cc-npick [lit] 3 cc-npick cc-ld? [lit] 2 cc-npick [lit] 2 cc-npick cc-ld? or if,
