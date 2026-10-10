@@ -2280,6 +2280,11 @@ Extended floating value | 49 Aggregates and extended floating values | long doub
 Seed-only driver construction | 50 Building seed-cc and seed-ar | the seed alone builds seed-cc and seed-ar by fork/exec of ./seed-forth on assembled Forth input streams
 Compiler driver stream | 50 Building seed-cc and seed-ar | each compilation's input is the compiler layers, a fixed driver and one C source
 Runtime link order | 50 Building seed-cc and seed-ar | start.o, then the program objects, then libseed.a, so the archive supplies only what is still unresolved
+Kaem recipe runner | 51 Owning the tools | kaem, built by seed-cc, runs the build recipes before any shell exists
+Fixed configuration | 51 Owning the tools | hand-written config.h answers replace running configure for the first tools
+Direct recipes | 51 Owning the tools | the first Makefiles run commands without a shell interpreting them
+Temporary scanner bootstrap | 51 Owning the tools | Heirloom lex builds an intermediate flex that then generates flex's own scanner
+Guarded configure probes | 51 Owning the tools | explicit tool settings and failing guard scripts keep configure from finding host tools
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
