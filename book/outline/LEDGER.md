@@ -2285,6 +2285,13 @@ Fixed configuration | 51 Owning the tools | hand-written config.h answers replac
 Direct recipes | 51 Owning the tools | the first Makefiles run commands without a shell interpreting them
 Temporary scanner bootstrap | 51 Owning the tools | Heirloom lex builds an intermediate flex that then generates flex's own scanner
 Guarded configure probes | 51 Owning the tools | explicit tool settings and failing guard scripts keep configure from finding host tools
+Compiler census | 52 GCC 4.0.4: stages C and D | the configured Makefile names the cc1 objects; seed-cc compiles and links each one
+Source generator | 52 GCC 4.0.4: stages C and D | a build-time program whose output is compiled later; built by seed-cc rather than shipped
+Sysroot | 52 GCC 4.0.4: stages C and D | the directory tree holding the target headers and libraries the compiler's output uses
+Libgcc | 52 GCC 4.0.4: stages C and D | target support routines that generated code calls, built by the new GCC rather than seed-cc
+Compiler fixed point | 52 GCC 4.0.4: stages C and D | stage 2 = 3 = 4: successive GCC generations install the same files
+Archive member comparison | 52 GCC 4.0.4: stages C and D | archives that differ as wholes still match when member names, order and bytes agree
+Late tools | 52 GCC 4.0.4: stages C and D | make 4.4.1, bash 5.2, coreutils 9.5 and the rest, built by the fixed-point GCC with their own configure
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
