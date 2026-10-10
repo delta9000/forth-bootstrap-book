@@ -2303,6 +2303,14 @@ AMD64 recipe runner | 54 K0 and K1 | amd64-runner runs recipe lines (cat, run, s
 K0-to-K1 handoff | 54 K0 and K1 | K0 loads the seed-built K1 with its ordinary program loader; K1 takes the machine
 K1 operating boundary | 54 K0 and K1 | protected processes and the Linux syscall subset the bootstrap tools use; static ELF only
 RAM-tree import | 54 K0 and K1 | K1 imports hda as its RAM root and keeps K0's files under /k0/
+Direct Linux recipe | 55 Linux 7.2.8 and kexec under QEMU | direct-linux.recipe extends the guest recipe through the compiler climb, Linux, export and handover
+gcc64 compiler climb | 55 Linux 7.2.8 and kexec under QEMU | chain-built compilers in turn, from GCC 4.0.4 through 4.7.4 to GCC 10.5.0 with binutils 2.41
+Output pin scope | 55 Linux 7.2.8 and kexec under QEMU | chain/gcc64/HASHES pins are any (path-free) or root (only at /build-out/g64)
+Embedded initramfs | 55 Linux 7.2.8 and kexec under QEMU | the static init from chain/ladder/init.c travels inside bzImage
+hdb result export | 55 Linux 7.2.8 and kexec under QEMU | finish.sh writes the Linux output and logs as a tar to hdb before the handover
+Linux boot parameters | 55 Linux 7.2.8 and kexec under QEMU | K1 builds boot_params, the command line and the e820 map before jumping to Linux
+kexec-style handover | 55 Linux 7.2.8 and kexec under QEMU | the running K1 loads its successor kernel and jumps to it without firmware
+Init greeting evidence | 55 Linux 7.2.8 and kexec under QEMU | init's greeting and /proc/version show the built kernel ran a chain-built program
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
