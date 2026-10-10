@@ -1,14 +1,14 @@
 # Chapter 39 — LP64 storage and initializers
 
-An initialized record combines a storage layout with a tree of values. The native layer extends the core declaration machinery with LP64 sizes, aligned fields, and recursive initialization, so that both a character array and a record containing `char` and `long` receive their intended contents. The checkpoint makes those objects observable through printed bytes and a sum of sizes and fields.
+An initialized record combines a storage layout with a tree of values. The native layer extends the core declaration machinery with LP64 sizes, aligned fields, and recursive initialization, so that both a character array and a record containing `char` and `long` receive their intended contents.
 
 ## Native declarations and aligned storage
 
-The source has a declaration-to-storage path: a context collects the base and declarator, a descriptor supplies size and alignment, an object receives storage, and an initializer fills it. The program layer provides a place to run static initialization before `main`; its private runtime provides the final Linux boundary. These are separate responsibilities, so LP64 layout does not imply a particular calling convention.
+A declaration context collects the base and declarator; a descriptor supplies size and alignment for allocation and initialization. The program layer provides a place to run static initialization before `main`; its private runtime provides the final Linux boundary. These are separate responsibilities, so LP64 layout does not imply a particular calling convention.
 
-LP64 gives `char`, `short`, and `int` storage widths of one, two, and four bytes, while `long` and pointers occupy eight. An expression register can hold a wider value than the object from which it came. The layout routines below ask for object size and alignment rather than treating every scalar as a stack cell.
+LP64 gives `char`, `short`, and `int` storage widths of one, two, and four bytes, while `long` and pointers occupy eight. An expression register can hold a wider value than the object from which it came. Layout therefore uses object size and alignment, not stack-cell width.
 
-Source comments naming TinyCC describe the historical profile. The TinyCC route stayed in the older seed-forth project, as recorded in `forth-bootstrap/HISTORY.md:14`; building it is not a step here. Chapter 41 supplies the System V call boundary, and Chapter 43 supplies the later runtime.
+Source comments naming TinyCC describe the historical profile. The TinyCC route stayed in the older seed-forth project, as recorded in `forth-bootstrap/HISTORY.md:14`; building it is not a step here. Chapter 41 supplies the System V AMD64 calling convention, and Chapter 43 supplies the later runtime.
 
 The declaration walker needs deep stack access, maximum selection, and record copying without tying those operations to a particular C type (`forth-bootstrap/cc/115-cc-native.fth:1`):
 
@@ -31,18 +31,7 @@ The declaration walker needs deep stack access, maximum selection, and record co
 
 ## Keep each declaration in its own context
 
-A nested declaration must not overwrite the enclosing name or dimensions. `cc-nctx` selects the current context; `cc-nctx-bytes` sizes its allocation. The accessors return addresses, so callers choose whether to read or replace each field.
-
-| Context input | Address returned by |
-|---|---|
-| Current type and descriptor | `nc-ty`, `nc-desc` |
-| Identifier slice | `nc-name`, `nc-nlen` |
-| Array bounds and explicit-bound flags | `nc-array`, `nc-inner`, `nc-bound-mask` |
-| Function classification and saved parameter tokens | `nc-func`, `nc-params` |
-| Declaration flags | `nc-td`, `nc-static`, `nc-top`, `nc-extern`, `nc-storage` |
-| Shared base and inherited array shape | `nc-base`, `nc-sdesc`, `nc-base-array`, `nc-base-inner` |
-| Installed symbol and storage location | `nc-id`, `nc-slot` |
-| Current, base, and prefix qualifiers | `nc-qualified`, `nc-base-qualified`, `nc-prefix-qualified` |
+A nested declaration must not overwrite the enclosing name or dimensions. `cc-nctx` selects the current declaration context, whose accessors return field addresses.
 
 The address map keeps declarator state together while allowing recursive callers to switch contexts (`forth-bootstrap/cc/115-cc-native.fth:15`):
 
@@ -115,7 +104,7 @@ Object layout distinguishes an array or record descriptor from a scalar type bef
 
 ```
 
-`cc-nalign` rounds upward to an alignment boundary. `cc-nsize` uses aggregate extent; `cc-nalignment` uses aggregate alignment. Keeping those answers separate matters for a record whose total extent exceeds any member’s alignment. The descriptors themselves retain their existing representation (Chapter 30).
+`cc-nsize` and `cc-nalignment` keep extent separate from alignment: a record’s extent can exceed every member’s alignment (Chapter 30).
 
 ## Recognize a native base
 
@@ -150,7 +139,7 @@ variable cc-ntag-u
 ' cc-native-type-start is cc-native-type-start-fwd
 ```
 
-`cc-ntag-a` and `cc-ntag-u` hold the requested spelling during the reverse search. `cc-native-type-start` answers only whether declaration syntax may begin here; it does not promise that every recognized type is enabled in the selected profile.
+`cc-native-type-start` answers only whether declaration syntax may begin here; it does not promise that every recognized type is enabled in the selected profile.
 
 Base parsing needs recursive aggregate dispatch and target decisions about typedef validity, omitted bases, and enum provenance (`forth-bootstrap/cc/115-cc-native.fth:97`):
 
@@ -176,7 +165,7 @@ defer cc-nenum-desc-fwd
 
 ```
 
-`cc-ntypedef-check-noop` imposes no extra check. `cc-native-implicit-base-noop` reports that it supplied no base. `cc-nenum-desc-default` supplies no descriptor. Their deferred partners let a later target change those decisions without replacing the declaration walker.
+The defaults add no typedef check, implicit base, or enum descriptor. Deferred words let a later target change these decisions without replacing the walker.
 
 The native enum reader returns the scalar type together with the descriptor hook’s answer after optionally installing enumerators (`forth-bootstrap/cc/115-cc-native.fth:116`):
 
@@ -231,7 +220,7 @@ defer cc-nbase-specifiers-fwd
 
 ```
 
-`cc-nbase-next-specifier` performs this scan. `cc-nbase-specifiers-default` consumes nothing; its hook reserves the same position for target-specific declaration specifiers. Thus the base parser can accept qualifier placement independently of the eventual target policy.
+`cc-nbase-specifiers-default` consumes nothing, reserving this position for target-specific specifiers without coupling qualifier placement to target policy.
 
 Keyword counts preserve the whole spelling until the parser can decide what type it denotes (`forth-bootstrap/cc/115-cc-native.fth:157`):
 
@@ -262,7 +251,7 @@ defer cc-nspec-check-fwd
 
 ```
 
-`cc-nspec-counts` is the multiset; `cc-nspec-count` reads it, `cc-nspec-keyword?` recognizes its inputs, and `cc-nspec-note` increments the appropriate slot. The named float, double, and boolean slots extend the basic keyword numbering. `cc-nspec-check-default` accepts the collected set without further validation.
+`cc-nspec-counts` retains the keyword multiset, including floating and boolean specifiers. `cc-nspec-check-default` accepts it without further validation.
 
 Choosing from the completed counts makes `unsigned long` and `long unsigned` independent of spelling order (`forth-bootstrap/cc/115-cc-native.fth:181`):
 
@@ -295,7 +284,7 @@ defer cc-nbase-scalar-fwd
 
 ```
 
-`cc-nspec-base` selects the base; repeated `long` selects `long long` under LP64. This permissive default is not full declaration validation. `cc-nbase-scalar-default` leaves the resulting type and descriptor untouched; the representation hook is used by the later target. Floating values are taught in Chapter 47 and extended floating values in Chapter 49.
+`cc-nspec-base` selects `long long` when the counts contain repeated `long` under LP64. This permissive default is not full declaration validation. `cc-nbase-scalar-default` leaves the resulting type and descriptor untouched; the representation hook is used by the later target. Floating values are taught in Chapter 47 and extended floating values in Chapter 49.
 
 ## Finish the base without losing qualifiers
 
@@ -358,16 +347,9 @@ defer cc-nbase-trailing-fwd
 
 ```
 
-`cc-nbase-raw` supplies the type and descriptor; `cc-nbase` wraps it with qualifier handling. `cc-nbase-trailing-default` leaves trailing specifiers alone. Its deferred partner permits target handling after typedef or tag names as well as after keyword bases. `cc-nbase-fwd` is bound only after this wrapper exists, so recursive member declarations get the same qualifier handling.
+`cc-nbase-trailing-default` leaves trailing specifiers alone; its hook permits target handling after typedef, tag, or keyword bases. Binding `cc-nbase-fwd` after the qualifier wrapper ensures recursive members receive the same handling.
 
 ## Separate a declarator’s shape from its base
-
-| Native input | Default result |
-|---|---|
-| Function-pointer suffix, `cc-nfnptr-fwd` | `cc-nfnptr-default` skips parameters and records a function pointer |
-| Required name, `cc-nfnptr-name-fwd` | `cc-nfnptr-name-default` records an identifier slice |
-| Completed declarator, `cc-ndeclarator-check-fwd` | `cc-ndeclarator-check-noop` adds no check |
-| Extra array suffix, `cc-narray-extra-fwd` | `cc-narray-extra-default` consumes nothing |
 
 Callback parsing, name requirements, declarator validation, and extra array syntax have separate extension points (`forth-bootstrap/cc/115-cc-native.fth:256`):
 
@@ -426,7 +408,7 @@ Array bounds belong to the object shape, whereas a function suffix saves paramet
 
 ```
 
-`cc-narray-suffix` marks an omitted outer bound for later inference and records an optional inner bound. `cc-nfunction-suffix` rejects an array of functions, sets `nc-func`, and saves the parameter position in `nc-params`. An array of pointers to functions follows the grouped path instead.
+`cc-narray-suffix` records bounds for later inference. `cc-nfunction-suffix` rejects arrays of functions and saves parameter tokens for a possible body. An array of pointers to functions follows the grouped path instead.
 
 Parentheses around a name must preserve its array suffixes without accepting unsupported nested pointer groups (`forth-bootstrap/cc/115-cc-native.fth:303`):
 
@@ -513,7 +495,7 @@ A suffix outside the group instead selects a function pointer or delegates the p
 
 ```
 
-The distinction is where the star belongs: in the return type or in the declared object. `cc-ngrouped-declarator` retains array metadata and rejects combinations its representation cannot preserve. The function-pointer hook may retain a richer signature in Chapter 41.
+The distinction is where the star belongs: in the return type or in the declared object. `cc-ngrouped-declarator` retains array metadata and rejects combinations its representation cannot preserve. Chapter 41 retains the shared call signature through the function-pointer hook.
 
 Each declarator resets its name and dimensions before combining its own shape with the saved base (`forth-bootstrap/cc/115-cc-native.fth:369`):
 
@@ -569,7 +551,7 @@ variable cc-nmove-bytes
 
 ```
 
-`cc-nmove-old`, `cc-nmove-new`, and `cc-nmove-bytes` bound the moved region. `cc-nqualified-move` changes only keys inside that region and is installed as the table-movement hook.
+`cc-nqualified-move` changes only qualifier keys inside the moved region.
 
 A field’s offset comes from its alignment before its extent contributes to the containing record (`forth-bootstrap/cc/115-cc-native.fth:409`):
 
@@ -670,7 +652,7 @@ Aggregate parsing uses a fresh declaration context for members and rounds the co
 
 ```
 
-`cc-naggregate` uses the established tag pre-registration rule (Chapter 35). Its native additions are the union flag, aligned member placement, and final tail padding. Saving and restoring `cc-nctx` keeps recursive members from replacing the containing declarator; `cc-naggregate-fwd` closes the recursive dependency with base parsing.
+`cc-naggregate` adds union layout, aligned members, and tail padding to struct tag pre-registration (Chapter 35). Saving and restoring `cc-nctx` keeps recursive members from replacing the containing declarator; `cc-naggregate-fwd` closes the recursive dependency with base parsing.
 
 A type query inside a declaration must leave the enclosing array shape and qualifiers intact (`forth-bootstrap/cc/115-cc-native.fth:487`):
 
@@ -693,7 +675,7 @@ defer cc-native-type-shape-fwd
 
 ```
 
-`cc-native-type-name` saves that state around base and pointer parsing. `cc-native-type-shape-default` simply adds pointer depth to the encoded type; `cc-native-type-shape-fwd` allows richer type-name shapes. The result descriptor goes to `cc-cast-desc`, while the restored context remains usable by the declaration.
+`cc-native-type-name` restores declaration state after parsing. Its default shape hook adds pointer depth; a later target can supply richer shapes. `cc-cast-desc` receives the result descriptor.
 
 ## Allocate an object and keep its references valid
 
@@ -722,7 +704,7 @@ defer cc-native-function-fwd
   repeat, drop 2drop ;
 ```
 
-`cc-nobject-size` multiplies the element size by known dimensions. `cc-ninstall-symbol` carries type, descriptor, bounds, and qualifiers into the symbol. `cc-ngstore` is the direct byte-store helper used by the initial scalar-only initializer; `cc-native-function-fwd` separates function definitions from object allocation.
+`cc-ninstall-symbol` preserves the allocated object’s type, dimensions, and qualifiers. The scalar initializer uses `cc-ngstore` for direct byte stores.
 
 A tentative object that gains an initializer must redirect existing address fixups to initialized storage (`forth-bootstrap/cc/115-cc-native.fth:523`):
 
@@ -766,7 +748,7 @@ defer cc-native-init-finish-fwd
 
 ```
 
-`cc-nmove-tentative` allocates an aligned destination, changes matching fixup slots, and updates both symbol and context. `cc-native-scalar-init` then writes a static constant into the global buffer or emits a typed local store. The prepare, entry, and finish hooks initially do nothing through `cc-native-init-noop`; `cc-native-init-fwd` initially selects this scalar path. The initializer file replaces those defaults below.
+`cc-nmove-tentative` allocates an aligned destination, changes matching fixup slots, and updates both symbol and context. `cc-native-scalar-init` then writes a static constant into the global buffer or emits a typed local store. Empty prepare, entry, and finish hooks let the initializer layer replace this scalar path.
 
 The object allocator distinguishes persistent storage from a function-local reservation before installing the symbol (`forth-bootstrap/cc/115-cc-native.fth:555`):
 
@@ -799,7 +781,7 @@ defer cc-native-local-layout-fwd
     else,
 ```
 
-`cc-native-local-layout-default` rounds object extent into stack slots and returns the slot at the object’s base. `cc-native-local-layout-fwd` reserves that layout choice for another ABI. In `cc-nobject`, inference runs before allocation; initialized objects use the global buffer and tentative objects use BSS.
+`cc-native-local-layout-default` rounds object extent into stack slots and returns the slot at the object’s base. `cc-native-local-layout-fwd` reserves that choice for another calling convention. In `cc-nobject`, inference runs before allocation; initialized objects use the global buffer and tentative objects use BSS.
 
 A larger later declaration must update pending references as well as the symbol’s new dimensions (`forth-bootstrap/cc/115-cc-native.fth:581`):
 
@@ -833,7 +815,7 @@ defer cc-nobject-fwd
 
 ```
 
-The growth branch reserves a replacement BSS region and retargets matching fixups. The local branch uses the selected frame layout and advances the function’s slot count. Both paths reach the initializer hook only after `nc-slot` identifies a destination; `cc-nobject-fwd` exposes this complete operation to declaration parsing.
+The growth branch reserves a replacement BSS region and retargets matching fixups. The local branch uses the selected frame layout and advances the function’s slot count. Both paths reach initialization only after `nc-slot` identifies a destination.
 
 ## Dispatch the completed declaration
 
@@ -889,11 +871,11 @@ The declarator’s classification decides whether to install a typedef, parse a 
 ' cc-native-local-declaration is cc-native-decl-fwd
 ```
 
-Comma-separated names reuse the base but pass through `cc-ndeclarator` independently. `cc-native-local-declaration` supplies the non-top-level flag and binds the statement parser’s declaration hook. The surrounding context is restored after the declaration or a completed function body.
+Comma-separated names reuse the base but have independent declarators. `cc-native-local-declaration` binds the statement parser’s declaration hook. The surrounding context is restored after the declaration or a completed function body.
 
 ## Private stack calls and whole programs
 
-The native program layer makes these objects usable in a complete image. Its private all-stack ABI gives each argument a caller-owned eight-byte stack slot. This storage convention is distinct from LP64 object widths: a `char` object remains narrow even when its evaluated argument travels in a full slot. System V interoperability belongs to Chapter 41.
+The native program layer’s private all-stack ABI gives each argument a caller-owned eight-byte stack slot. This storage convention is distinct from LP64 object widths: a `char` object remains narrow even when its evaluated argument travels in a full slot. System V interoperability belongs to Chapter 41.
 
 Parameter names must address incoming caller slots rather than consume new local storage (`forth-bootstrap/cc/117-cc-native-program.fth:1`):
 
@@ -930,7 +912,7 @@ variable cc-native-frame-patch
   again, ;
 ```
 
-`cc-native-param-count` assigns successive parameter positions. `cc-native-params` converts array parameters to pointers, rejects aggregate values, and installs named parameters with negative local-slot indices. Those indices address the incoming area above the frame pointer. `cc-native-frame-patch` will hold the output offset of the frame-size immediate.
+`cc-native-params` converts array parameters to pointers, rejects aggregate values, and installs named parameters with negative local-slot indices. Those indices address the incoming area above the frame pointer.
 
 A function body supplies addresses for both earlier calls and earlier function-pointer references (`forth-bootstrap/cc/117-cc-native-program.fth:31`):
 
@@ -989,7 +971,7 @@ The required frame extent is known only after the body has declared its locals (
 
 ```
 
-The saved parameter tokens are replayed in a fresh context and scope. A placeholder prologue precedes the statements; the completed local count determines the frame size, rounded to sixteen-byte alignment. This makes frame allocation follow actual declarations.
+The saved parameter tokens are replayed in a fresh context and scope. A placeholder prologue precedes the statements; the completed local count determines the frame size, rounded to sixteen-byte alignment.
 
 Static initialization must precede the call to `main`, so entry emission reserves its call before parsing declarations (`forth-bootstrap/cc/117-cc-native-program.fth:76`):
 
@@ -1021,20 +1003,13 @@ defer cc-native-runtime-fwd
   cc-check-fns-defined cc-patch-call-main ;
 ```
 
-`cc-native-entry` delegates that reservation, obtains `argc` and `argv` from the kernel stack, pushes arguments in reverse order, and exits with the returned result. `cc-native-program` emits the selected runtime, parses top-level declarations, finishes initialization, and closes function references. `cc-native-runtime-noop` is the initial empty body of `cc-native-runtime-fwd`; the runtime file supplies its implementation.
+`cc-native-entry` delegates that reservation, obtains `argc` and `argv` from the kernel stack, pushes arguments in reverse order, and exits with the returned result. `cc-native-program` emits the selected runtime, parses top-level declarations, finishes initialization, and closes function references. The empty runtime hook lets the runtime file supply its implementation.
 
 ## Initializers reuse expression fixups
 
-A static initializer can contain an address whose final value is unresolved. The native layer emits a small routine containing ordinary expression code and stores, then arranges to call it before `main`. The existing expression fixups therefore serve initialization too. This is static initializer lowering: runtime stores implement the accepted constant initialization language, without admitting arbitrary file-scope execution.
+A static initializer can contain an address whose final value is unresolved. The native layer emits a small routine containing ordinary expression code and stores, then arranges to call it before `main`. This is static initializer lowering: runtime stores implement the accepted constant initialization language, without admitting arbitrary file-scope execution.
 
-`cc-ni-frame` selects the current traversal frame; `cc-ni-static` chooses persistent or local addressing. `cc-ni-head` and `cc-ni-tail` link pending routines, and `cc-ni-entry-patch` remembers their entry call. The frame accessors have this map:
-
-| Traversal input | Address returned by |
-|---|---|
-| Element type and descriptor | `ni-type`, `ni-desc` |
-| Outer and inner dimensions | `ni-array`, `ni-inner` |
-| Destination displacement and child cursor | `ni-offset`, `ni-index` |
-| Explicit braces and nested traversal | `ni-brace`, `ni-nested` |
+`cc-ni-frame` selects traversal state; `cc-ni-static` chooses persistent or local addressing.
 
 Recursive initialization needs destination state independent of the declaration context (`forth-bootstrap/cc/118-cc-native-init.fth:1`):
 
@@ -1091,7 +1066,7 @@ Every leaf needs an address, while aggregate setup also needs byte-copy and zero
 
 ```
 
-`cc-ni-aggregate?` excludes an opaque scalar even if its representation uses a record descriptor. `cc-ni-address` chooses global-reference or local-address emission and adds the destination offset. `cc-ni-count-rcx`, `cc-ni-mov-rsi-rdi`, and `cc-ni-copy-bytes` prepare the byte-copy instruction; `cc-ni-zero-object` emits a full-object clear for omitted local elements.
+`cc-ni-aggregate?` excludes an opaque scalar even if its representation uses a record descriptor. `cc-ni-address` chooses global-reference or local-address emission and adds the destination offset. `cc-ni-zero-object` clears omitted local elements.
 
 An inferred character array must count decoded characters, not the source spelling of escape sequences (`forth-bootstrap/cc/118-cc-native-init.fth:46`):
 
@@ -1117,7 +1092,7 @@ variable cc-ni-scan-have
 variable cc-ni-scan-brace
 ```
 
-`cc-ni-string-size` advances by each escape’s source length while counting its decoded byte. The `cc-ni-scan-*` variables hold the saved lexer state, outer count, nesting depth, presence of a current element, and optional string braces for inference.
+`cc-ni-string-size` advances by each escape’s source length while counting its decoded byte.
 
 ## Infer extent before reserving storage
 
@@ -1205,7 +1180,7 @@ defer cc-ni-value-fwd
 
 ```
 
-`cc-ni-infer` restores the saved token state after computing `nc-array`; allocation sees the bound, and initialization sees the original input. Binding it to `cc-native-init-prepare-fwd` establishes that order. `cc-ni-value-fwd` will provide the recursive value traversal after its helpers exist.
+`cc-ni-infer` restores the saved token state after computing `nc-array`; allocation sees the bound, and initialization sees the original input. Binding it to `cc-native-init-prepare-fwd` establishes that order.
 
 ## Initialize a string or scalar leaf
 
@@ -1267,7 +1242,7 @@ defer cc-ni-string-fwd
 ' cc-ni-string is cc-ni-string-fwd
 ```
 
-`cc-ni-scalar` performs shape and conversion checks before a typed store. A local aggregate copy instead requires matching descriptors and copies the aggregate extent. Static aggregate expression copies are rejected here. The scalar and string deferred words select these implementations by default.
+`cc-ni-scalar` performs shape and conversion checks before a typed store. A local aggregate copy instead requires matching descriptors and copies the aggregate extent. Static aggregate expression copies are rejected here.
 
 ## Walk children without losing the destination
 
@@ -1473,15 +1448,6 @@ The entry call can be resolved only after every static initializer routine has b
 
 The private runtime is a set of emitted leaf functions, not a full C library. Each leaf obtains arguments from caller-owned stack slots and supplies the kernel operation named by its symbol. The source’s portable-libc comments describe the historical consumer; the later C runtime is taught in Chapter 43.
 
-| C name input | Stored spelling | Registered result |
-|---|---|---|
-| `exit` | `cc-native-name-exit` | `void` |
-| `read`, `write`, `lseek` | `cc-native-name-read`, `cc-native-name-write`, `cc-native-name-lseek` | `long` |
-| `open`, `close` | `cc-native-name-open`, `cc-native-name-close` | `int` |
-| `unlink`, `mkdir`, `chmod`, `access` | `cc-native-name-unlink`, `cc-native-name-mkdir`, `cc-native-name-chmod`, `cc-native-name-access` | `int` |
-| `mprotect`, `gettimeofday` | `cc-native-name-mprotect`, `cc-native-name-gettimeofday` | `int` |
-| `time` | `cc-native-name-time` | `long` |
-
 Runtime symbol registration uses stored C spellings so source calls can resolve to the emitted boundary (`forth-bootstrap/cc/119-cc-native-runtime.fth:1`):
 
 ```forth file=cc/119-cc-native-runtime.fth
@@ -1569,7 +1535,7 @@ variable cc-native-trap-message
 variable cc-native-trap-length
 ```
 
-`cc-native-primitive` pairs symbol registration with syscall emission. The separate unavailable-name data belongs only to the restricted historical profile: `cc-native-name-localtime`, `cc-native-name-ldexp`, and `cc-native-name-longjmp`. `cc-native-trap-prefix` and its measured length provide the diagnostic prefix; `cc-native-trap-message` and `cc-native-trap-length` retain the emitted message’s location and extent.
+`cc-native-primitive` pairs registration with syscall emission. The unavailable names and diagnostic storage serve only the restricted historical profile.
 
 ## Reject execution of unavailable operations
 
@@ -1602,7 +1568,7 @@ An unavailable operation must fail visibly if control reaches it instead of retu
 
 ```
 
-`cc-native-emit-raw` copies diagnostic bytes into the output. `cc-native-unavailable` emits the message followed by a function body that writes it to stderr and exits with status 125. The trailing invalid instruction prevents accidental fallthrough. This is the fail-closed bootstrap runtime: an accepted historical symbol does not imply an implemented operation.
+`cc-native-unavailable` emits the message followed by a function body that writes it to stderr and exits with status 125. The trailing invalid instruction prevents accidental fallthrough. This is the fail-closed bootstrap runtime: an accepted historical symbol does not imply an implemented operation.
 
 The runtime installer keeps the supported syscall list separate from the conditional unavailable-operation list (`forth-bootstrap/cc/119-cc-native-runtime.fth:90`):
 

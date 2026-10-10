@@ -4,9 +4,9 @@ A relocatable object can name a function whose address is still unknown. The wri
 
 ## The interface between compiler and linker
 
-The writer grows an object in this order: select a workspace, initialize section metadata, append payload bytes, register symbols and relocations, serialize, then publish. A symbol's value is an offset within its section; a relocation identifies a field that the linker must fill. This replaces the fixed-address executable wrapper (Chapter 31).
+The writer grows an object in this order: select a workspace, initialize section metadata, append payload bytes, register symbols and relocations, serialize, then publish. A section-relative value locates a symbol; a relocation identifies a field for the linker to fill. This replaces the ELF wrapper (Chapter 31).
 
-Chapter 42 consumes this object format: the linker's input contract explicitly names this writer in `forth-bootstrap/cc/140-cc-link.fth:3`. In Part 4, Chapter 50 follows the driver bootstrap that compiles runtime and tool sources, archives objects, and links the tools; those steps are visible in `forth-bootstrap/cc/driver/seed-cc-start.fth:309` and `forth-bootstrap/cc/driver/seed-cc-start.fth:335`. The object writer itself runs no tool subprocesses.
+Chapter 42 consumes this format: the linker names this writer in `forth-bootstrap/cc/140-cc-link.fth:3`. Chapter 50 in Part 4 compiles runtime and tool sources, archives the runtime, and links the tools (`forth-bootstrap/cc/driver/seed-cc-start.fth:309` and `forth-bootstrap/cc/driver/seed-cc-start.fth:335`). The writer runs no subprocesses.
 
 The source header establishes the writer's dependencies and stable-handle contract (`forth-bootstrap/cc/081-cc-object.fth:1`):
 
@@ -43,7 +43,7 @@ Section identity stays separate from symbol metadata. `cc-obj-undef` means that 
 
 `cc-obj-text` holds instructions, `cc-obj-rodata` read-only bytes, `cc-obj-data` writable initialized bytes, and `cc-obj-bss` zero-filled storage without a file payload. The existing native layout supplies object sizes and alignment; this interface supplies a section and an offset instead of a final address.
 
-A local name belongs to its object; global and weak names participate in linking. A weak definition can yield to a strong one. `cc-obj-notype`, `cc-obj-object`, `cc-obj-func`, and `cc-obj-section` classify what a symbol denotes. Visibility is another independent field: default permits ordinary external visibility, internal and hidden restrict it, and protected preserves a definition's binding within its defining component. This writer records those choices; it does not resolve them.
+A local name belongs to its object; global and weak names participate in linking. A weak definition can yield to a strong one. Visibility is another independent field: default permits ordinary external visibility, internal and hidden restrict it, and protected preserves a definition's binding within its defining component. This writer records those choices; it does not resolve them.
 A relocation kind tells the eventual linker how to interpret the reserved field (`forth-bootstrap/cc/081-cc-object.fth:25`):
 
 ```forth file=cc/081-cc-object.fth
@@ -55,7 +55,7 @@ A relocation kind tells the eventual linker how to interpret the reserved field 
 
 ```
 
-`cc-obj-r64` requests a full-width absolute address. `cc-obj-r32` and `cc-obj-r32s` request narrower absolute values with unsigned or signed range requirements. `cc-obj-pc32` requests a displacement from the relocation place; `cc-obj-plt32` identifies the corresponding call-target form. The writer validates the field width, while Chapter 42 performs resolution and range checking.
+Absolute relocations request full-width addresses or narrower signed or unsigned values. `cc-obj-pc32` requests a displacement from the relocation place; `cc-obj-plt32` identifies the call-target form. The writer validates the field width, while Chapter 42 performs resolution and range checking.
 
 ## Choose a bounded workspace
 
@@ -85,14 +85,8 @@ cc-obj-string-default-cap cc-obj-string-limit !
 : cc-obj-string-cap ( -- bytes ) cc-obj-string-limit @ ;
 ```
 
-The backing arrays use the same indirection as the limits. This table names the parallel interfaces before their definitions.
+The backing arrays use the same indirection as the limits.
 
-| Stored material | Default allocation → selected address |
-|---|---|
-| Section bytes | `cc-obj-default-payload` → `cc-obj-payload` |
-| Symbol rows | `cc-obj-default-symbols` → `cc-obj-symbols` |
-| Relocation rows | `cc-obj-default-relocs` → `cc-obj-relocs` |
-| Copied names | `cc-obj-default-strings` → `cc-obj-strings` |
 The `-buffer` cells let a workspace selection change the addresses without changing callers (`forth-bootstrap/cc/081-cc-object.fth:52`):
 
 ```forth file=cc/081-cc-object.fth
@@ -137,7 +131,7 @@ variable cc-obj-direct-base
   cc-obj-symbol-direct-cap 1+ [lit] 64 * ;
 ```
 
-`cc-obj-direct-base` retains the mapping for reuse. `cc-obj-direct-payload-bytes` totals the backed sections; `cc-obj-direct-symbol-bytes` includes the reserved symbol row. The measurements in these source comments are historical evidence, not measurements repeated by this chapter's checkpoint.
+`cc-obj-direct-base` retains the mapping for reuse. The measurements in these source comments are historical evidence, not measurements repeated by this chapter's checkpoint.
 
 ## Switch storage as a unit
 
@@ -196,7 +190,7 @@ variable cc-obj-local-end
 variable cc-obj-initialized
 ```
 
-`cc-obj-current` selects the emission section. `cc-obj-nsym`, `cc-obj-nrel`, and `cc-obj-nstr` track occupied rows or bytes. `cc-obj-shoff` records the eventual section-table position, and `cc-obj-local-end` records the boundary between local and nonlocal symbols. `cc-obj-initialized` guards the public operations.
+`cc-obj-current` selects the emission section; `cc-obj-initialized` guards public operations.
 A failed file operation needs enough state to distinguish an owned temporary from someone else's file (`forth-bootstrap/cc/081-cc-object.fth:122`):
 
 ```forth file=cc/081-cc-object.fth
@@ -219,7 +213,7 @@ variable cc-obj-ti
 
 ```
 
-`cc-obj-path` is the destination; `cc-obj-temp-path` is its sibling temporary. The suffix and digit table build that name, and the stat buffer receives destination metadata. The descriptor, byte count, ownership flag, pathname length, process ID, and digit cursor belong only to publication. `cc-obj-reset-write` marks the descriptor invalid and clears this state without discarding object records.
+`cc-obj-temp-path` names the sibling temporary. `cc-obj-reset-write` invalidates the descriptor and clears publication state without discarding object records.
 
 ## Check before growing
 
@@ -239,7 +233,7 @@ Address helpers translate section and relocation indexes into rows and select ea
 
 ```
 
-`cc-obj-base` selects the backed section's slice. `cc-obj-length` reads the section's logical size. `cc-obj-zero` clears a requested byte range; reservation uses it so a reused workspace cannot expose an earlier object's bytes.
+Reservation uses `cc-obj-zero` so a reused workspace cannot expose an earlier object’s bytes.
 An invalid index must fail before multiplication can turn it into an address (`forth-bootstrap/cc/081-cc-object.fth:150`):
 
 ```forth file=cc/081-cc-object.fth
@@ -279,7 +273,7 @@ Section selection and growth share initialization, alignment, and remaining-capa
 
 ```
 
-`cc-obj-check-align` accepts nonzero powers of two up to the source limit. `cc-obj-use` records the selected section; `cc-obj-here` returns its current offset. `cc-obj-room` subtracts the used length before comparing the request, avoiding a potentially wrapping used-plus-request calculation.
+`cc-obj-check-align` accepts nonzero powers of two up to the source limit. `cc-obj-room` subtracts the used length before comparing the request, avoiding a potentially wrapping used-plus-request calculation.
 
 ## Append or patch section bytes
 
@@ -305,14 +299,6 @@ Reservation advances the logical length in every section, but clears memory only
 
 `cc-obj-reserve` returns the old offset, so a caller can retain the object's start. `cc-obj-align` raises the section's declared alignment when necessary and reserves padding up to the next aligned offset. Alignment therefore survives serialization as metadata as well as padding.
 
-The small emitters share reservation and differ only in how they supply bytes.
-
-| Input | Result |
-|---|---|
-| Byte → `cc-obj-byte` | Append a byte to the selected backed section |
-| Value → `cc-obj-4le` | Append its low four bytes |
-| Value → `cc-obj-8le` | Append its full eight-byte representation |
-| Address and count → `cc-obj-bytes` | Copy a caller-owned byte range |
 All emitters reach the same section bound through `cc-obj-byte`; direct byte emission into `.bss` is rejected (`forth-bootstrap/cc/081-cc-object.fth:193`):
 
 ```forth file=cc/081-cc-object.fth
@@ -353,7 +339,7 @@ variable cc-obj-patch-n
 
 ```
 
-`cc-obj-patch-n` retains the remaining width and `cc-obj-patch-a` the destination cursor. The range checks validate the starting offset and then the complete field. `cc-obj-patch-4le` and `cc-obj-patch-8le` supply the width; neither records work for a linker.
+The range checks validate the starting offset and then the complete field. `cc-obj-patch-4le` and `cc-obj-patch-8le` supply the width; neither records work for a linker.
 
 ## Give symbols stable handles
 
@@ -383,7 +369,7 @@ variable cc-obj-s-row
   then, ;
 ```
 
-The `cc-obj-s-*` cells unpack the public arguments: name address and length, binding, type, visibility, section, value, size, and destination row. `cc-obj-check-definition` permits an absolute symbol without a section extent. An undefined symbol must have zero value and size; a section-defined symbol must fit entirely within bytes or memory already reserved.
+`cc-obj-check-definition` permits an absolute symbol without a section extent. An undefined symbol must have zero value and size; a section-defined symbol must fit entirely within bytes or memory already reserved.
 Finishing a forward declaration updates its existing row, preserving every reference to its handle (`forth-bootstrap/cc/081-cc-object.fth:245`):
 
 ```forth file=cc/081-cc-object.fth
@@ -404,7 +390,7 @@ Finishing a forward declaration updates its existing row, preserving every refer
   cc-obj-check-definition cc-obj-put-definition ;
 ```
 
-`cc-obj-check-id` requires an allocated non-null handle. `cc-obj-put-definition` writes the section, value, and size fields. `cc-obj-define` applies the same definition check as initial insertion, with the additional restrictions for a section symbol.
+`cc-obj-check-id` requires an allocated non-null handle. `cc-obj-define` applies the same definition check as initial insertion, with the additional restrictions for a section symbol.
 
 ## Copy names into object storage
 
@@ -456,11 +442,11 @@ Only validated names and metadata enter the persistent tables (`forth-bootstrap/
 
 ```
 
-The insertion count becomes the handle. The row stores a string-table offset, so the caller's name buffer can be reused immediately. Nothing here assigns an ELF symbol index: that ordering belongs to serialization.
+The handle is the insertion count. A string-table offset lets the caller reuse its name buffer immediately. Serialization assigns the ELF index.
 
 ## Record unfinished addresses
 
-A relocation keeps its addend explicitly, separate from the bytes that will be repaired (`forth-bootstrap/cc/081-cc-object.fth:297`):
+An explicit relocation addend keeps the adjustment separate from the bytes that will be repaired (`forth-bootstrap/cc/081-cc-object.fth:297`):
 
 ```forth file=cc/081-cc-object.fth
 \ RELA stores an explicit signed addend, including negative values, as 8 LE
@@ -477,7 +463,7 @@ variable cc-obj-r-add
   0= if, [lit] 247 cc-die then, [lit] 4 ;
 ```
 
-The forward-call and global fixups (Chapter 32) become records that can survive into a file. `cc-obj-r-sec`, `cc-obj-r-off`, `cc-obj-r-kind`, `cc-obj-r-sym`, and `cc-obj-r-add` hold the target section, field offset, relocation kind, stable symbol handle, and addend. `cc-obj-reloc-width` rejects unsupported kinds before any row is installed.
+The forward-call fixup list and global-address fixups become persistent records (Chapter 32). `cc-obj-reloc-width` rejects unsupported kinds before insertion.
 The whole relocation field must exist before the writer accepts a repair instruction (`forth-bootstrap/cc/081-cc-object.fth:309`):
 
 ```forth file=cc/081-cc-object.fth
@@ -520,7 +506,7 @@ here cc-obj-shnames - constant cc-obj-shnames-size
   r@ [lit] 8 + ! r> ! ;
 ```
 
-`cc-obj-shnames-size` is computed from the emitted names rather than maintained separately. `cc-obj-sh-init` fills a metadata row's name, type, flags, and alignment; the row is not yet an on-disk section header.
+`cc-obj-sh-init` fills a metadata row's name, type, flags, and alignment; the row is not yet an on-disk section header.
 Starting an object clears previous lengths and counts before installing the fixed section layout (`forth-bootstrap/cc/081-cc-object.fth:335`):
 
 ```forth file=cc/081-cc-object.fth
@@ -540,7 +526,7 @@ Starting an object clears previous lengths and counts before installing the fixe
   [lit] 64 [lit] 3 [lit] 0 [lit] 1 [lit] 9 cc-obj-sh-init
 ```
 
-`cc-obj-init` leaves `.text` selected and reserves the empty symbol name. The layout is null, `.text`, `.rodata`, `.data`, `.bss`, `.rela.text`, `.rela.data`, `.symtab`, `.strtab`, `.shstrtab`. Text is executable and allocated; rodata is allocated; data and bss are writable and allocated. `.bss` uses `SHT_NOBITS`, so its size describes memory without a file payload.
+`cc-obj-init` leaves `.text` selected and reserves the empty symbol name. Text is executable and allocated; rodata is allocated; data and bss are writable and allocated. `.bss` uses `SHT_NOBITS`, so its size describes memory without a file payload.
 The remaining metadata connects tables to the sections they describe (`forth-bootstrap/cc/081-cc-object.fth:349`):
 
 ```forth file=cc/081-cc-object.fth
@@ -560,15 +546,8 @@ Each relocation section's link selects `.symtab`, while its info field selects `
 
 ## Serialize with local symbols first
 
-Section-relative emission has finished. The next helpers write into the shared final output buffer.
+Serialization writes into the shared final output buffer.
 
-| Input | Serialized result |
-|---|---|
-| Count → `cc-obj-out-zero` | Zero padding |
-| Address and count → `cc-obj-out-bytes` | Copied payload |
-| Alignment → `cc-obj-out-align` | Padding at the file cursor |
-| Section index → `cc-obj-start-section` | Aligned file offset in its metadata |
-| Section index → `cc-obj-end-section` | Size measured from that offset |
 File offsets are captured only after output alignment, so metadata describes the actual serialized position (`forth-bootstrap/cc/081-cc-object.fth:359`):
 
 ```forth file=cc/081-cc-object.fth
@@ -609,7 +588,7 @@ variable cc-obj-pass
   repeat, ;
 ```
 
-`cc-obj-emit-symbol` packs binding and type into the shared info byte and writes the other fields at their wire widths. `cc-obj-symbol-pass` walks stable rows using `cc-obj-i`, selects a binding class through `cc-obj-pass`, and stores `cc-obj-next-index` in each emitted row. A local inserted after a global therefore moves ahead in the file without changing either handle.
+`cc-obj-emit-symbol` packs binding and type into the shared info byte and writes the other fields at their wire widths. `cc-obj-symbol-pass` selects rows by binding and records each emitted row’s ELF index. A local inserted after a global therefore moves ahead in the file without changing either handle.
 An unresolved local name cannot be delegated to another object (`forth-bootstrap/cc/081-cc-object.fth:390`):
 
 ```forth file=cc/081-cc-object.fth
@@ -657,7 +636,7 @@ Section headers translate the internal metadata into wire fields and leave virtu
   r@ [lit] 56 + @ cc-emit-8le r> [lit] 64 + @ cc-emit-8le ;
 ```
 
-`cc-obj-emit-sh` inserts a zero address because placement belongs to the linker. The file offset and size remain meaningful even though no load address exists.
+`cc-obj-emit-sh` inserts a zero address because placement belongs to the linker.
 The ELF header identifies a relocatable AMD64 object and reserves space for the later section-table offset (`forth-bootstrap/cc/081-cc-object.fth:417`):
 
 ```forth file=cc/081-cc-object.fth
@@ -760,7 +739,7 @@ Hexadecimal process-ID digits distinguish the temporary name without requiring a
   [lit] 0 cc-obj-temp-path cc-obj-temp-length @ + [lit] 16 + c! ;
 ```
 
-The suffix is terminated with NUL. Exclusive creation, rather than the naming scheme alone, decides whether this write owns the temporary.
+Exclusive creation decides ownership of the NUL-terminated temporary pathname; the naming scheme alone cannot establish it.
 
 ## Write, close, then rename
 
@@ -776,7 +755,7 @@ Failure cleanup must never unlink a temporary that this invocation did not creat
   [lit] 248 cc-die ;
 ```
 
-`cc-obj-abandon-output` closes a live descriptor, attempts to remove an owned temporary, and exits through the file-I/O diagnostic. It offers no partial-success result.
+`cc-obj-abandon-output` closes the descriptor, attempts to remove an owned temporary, and terminates through the file-I/O diagnostic.
 The write loop advances by the actual byte count and retries interrupted writes (`forth-bootstrap/cc/081-cc-object.fth:488`):
 
 ```forth file=cc/081-cc-object.fth
@@ -814,9 +793,9 @@ The API uses shared scratch cells throughout, so calls are sequential, not reent
 
 ## Preview: the C producer in Chapter 41
 
-The object writer accepts bytes and records; selecting C object mode belongs to the next layer. `cc-sysv-object-enable` selects that mode in `forth-bootstrap/cc/123-cc-object-program.fth:462`, and `cc-sysv-object-program` transfers compiled text, exports symbols, and records fixups immediately below it. Chapter 41 teaches that adapter. This optional preview uses it as a supplied producer so that the same file format can be inspected on C input; the checkpoint under **Try it** uses only this chapter and its prerequisites.
+`cc-sysv-object-enable` selects C object mode in `forth-bootstrap/cc/123-cc-object-program.fth:462`, and `cc-sysv-object-program` transfers compiled text, exports symbols, and records fixups immediately below it. Chapter 41 teaches that adapter. This optional preview uses the adapter as a supplied C producer.
 
-From the `forth-bootstrap` checkout root, compile the following C source in a fresh temporary directory. The load-order helper puts the executing main last (`forth-bootstrap/cc/compiler-layers.sh:6`); the loop excludes it and supplies an object-writing entry instead. This sends output directly to `example.o` inside the temporary directory. It never invokes the fixed-path main or writes `/tmp/cc-out`, so no shared output needs saving or restoring.
+From the `forth-bootstrap` checkout root, compile the following C source in a fresh temporary directory. The load-order helper puts the executing main last (`forth-bootstrap/cc/compiler-layers.sh:6`); the loop excludes it and supplies an object-writing entry instead. Output goes to `example.o` there, avoiding the fixed-path main and shared `/tmp/cc-out`.
 
 ```sh
 (

@@ -1,10 +1,10 @@
 # Chapter 44 — Target headers
 
-A target header contract tells C source which declarations it can select before compilation. A header chooses its dialect from the macros the compiler predefines. Here the compiler publishes its target identity and a bounded ANSI declaration policy, then a C probe checks those promises.
+A target macro contract lets headers select declarations from predefined macros. The compiler publishes its target identity and a bounded ANSI declaration policy; a C probe checks those promises.
 
 ## Names describe the selected target
 
-The layer has a simple shape: store the macro spellings, install their replacements when System V mode is selected, and attach that installer to the preprocessor hook. Macro lookup and conditional inclusion already provide the consumer side (Chapter 28).
+The layer stores macro spellings and installs replacements through the preprocessor hook in System V mode. Headers consume them through macro lookup and conditional compilation (Chapter 28).
 
 The stored names map to this advertised interface. Values come from the installer in `forth-bootstrap/cc/124-cc-target.fth:14`; the replacement strings are defined in `forth-bootstrap/cc/040-cc-prep.fth:2254`.
 
@@ -36,7 +36,7 @@ The LP64 promise rests on the storage model already implemented (Chapter 39). Th
 
 ## Install facts before scanning source
 
-The names need values in each fresh macro table. `cc-preprocess` clears that table before calling the target hook, then scans the source (`forth-bootstrap/cc/040-cc-prep.fth:2308`). Installing entries there avoids injecting synthetic source lines.
+`cc-preprocess` clears the macro table before calling the target hook, then scans the source (`forth-bootstrap/cc/040-cc-prep.fth:2308`). Installing entries there avoids injecting synthetic source lines.
 
 `cc-target-predefines` gates the policy on `cc-target-sysv`; its final binding makes the preprocessor call this installer (`forth-bootstrap/cc/124-cc-target.fth:11`):
 
@@ -54,9 +54,9 @@ The names need values in each fresh macro table. `cc-preprocess` clears that tab
 ' cc-target-predefines is cc-prep-target-fwd
 ```
 
-Each `cc-macro-add` receives the stored name and its length, followed by the replacement text and its length. `cc-pp-t1` supplies the text `1`; `cc-pp-t0` supplies `0`. The hosted entry is deliberately different from the identity entries. With System V mode disabled, this word adds nothing.
+`cc-macro-add` pairs each stored name with replacement text: `cc-pp-t1` supplies `1`, and `cc-pp-t0` supplies `0`. The hosted entry is deliberately different from the identity entries. With System V mode disabled, this word adds nothing.
 
-The call to `cc-prep-location-builtins` also enables `__FILE__` and `__LINE__`. They are dynamic macro-table entries rather than fixed target constants (`forth-bootstrap/cc/040-cc-prep.fth:2298`). Their expansion machinery is unchanged.
+The call to `cc-prep-location-builtins` also enables `__FILE__` and `__LINE__`. They are dynamic macro-table entries rather than fixed target constants (`forth-bootstrap/cc/040-cc-prep.fth:2298`).
 
 ## A declaration policy has limits
 
@@ -64,7 +64,7 @@ The call to `cc-prep-location-builtins` also enables `__FILE__` and `__LINE__`. 
 
 A header must not infer complete language or library conformance from this branch selection. Advertising GCC would invite headers to select GCC-specific facilities; advertising a later C version would make another unsupported promise. Even an accepted declaration cannot supply a missing implementation. The runtime's public headers intentionally expose only implemented interfaces (`forth-bootstrap/chain/runtime/gcc-seed/README.md:3`). Its `features.h` likewise withholds `__GLIBC__` and feature-test machinery (`forth-bootstrap/chain/runtime/gcc-seed/include/features.h:3`).
 
-The contract therefore joins header selection to implemented semantics. A build that needs a particular function or extension must still test that facility with the compiler and runtime it will use.
+A build that needs a particular function or extension must still test that facility with the compiler and runtime it will use.
 
 ## Try it
 
