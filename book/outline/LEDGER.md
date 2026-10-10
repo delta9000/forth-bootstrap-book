@@ -2297,6 +2297,12 @@ Executable publication | 53 The sealed host run | the host grants seed-forth's e
 Execve trace audit | 53 The sealed host run | every successful execve path must resolve to hex0-seed, the host's bwrap, or a program the chain built
 Interrupted execve join | 53 The sealed host run | strace's unfinished and resumed lines are joined by pid before counting
 Archive pin agreement | 53 The sealed host run | each stage's pin file agrees with MANIFEST.sha256 (tools/check-pins.py)
+K0 serialized fork | 54 K0 and K1 | K0 runs a forked child to completion before resuming the parent, so no scheduler is needed
+K0 syscall fallbacks | 54 K0 and K1 | k0-syscalls.fth retries or fakes the few calls K0 lacks, only after ENOSYS
+AMD64 recipe runner | 54 K0 and K1 | amd64-runner runs recipe lines (cat, run, same, rename) with explicit paths and checked exit status
+K0-to-K1 handoff | 54 K0 and K1 | K0 loads the seed-built K1 with its ordinary program loader; K1 takes the machine
+K1 operating boundary | 54 K0 and K1 | protected processes and the Linux syscall subset the bootstrap tools use; static ELF only
+RAM-tree import | 54 K0 and K1 | K1 imports hda as its RAM root and keeps K0's files under /k0/
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
