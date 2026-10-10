@@ -59,7 +59,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [A3-reproducibility-chain.md](../57-historical-reproducibility.md) | Appendix C — Reproducibility: the full hex0 → seed → M2-Planet chain | back matter | [Appendix C: historical reproducibility routes](57-historical-reproducibility.md) | shorten |
 | [A4-worked-exercises.md](../58-worked-exercises.md) | Appendix D — Three worked exercises, one each from Parts I–III | back matter | [Appendix D: worked exercises](58-worked-exercises.md) | keep |
 | [A5-further-reading.md](../A5-further-reading.md) | Appendix E — Further reading | back matter | [Appendix E: further reading](59-further-reading.md) | keep |
-| [A6-c-subset.md](../A6-c-subset.md) | Appendix F — The C subset | back matter | [Appendix F: the C subset](60-c-subset.md) | keep |
+| [A6-c-subset.md](../60-c-subset.md) | Appendix F — The C subset | back matter | [Appendix F: the C subset](60-c-subset.md) | keep |
 | [A7-error-codes.md](../A7-error-codes.md) | Appendix G — Compiler error codes | back matter | [Appendix G: compiler exit codes](61-error-codes.md) | keep |
 | [CONCEPTS.md](../CONCEPTS.md) | Concept index, rung map, and dependency graph | back matter | [Concept index and dependencies](63-concepts.md) | regroup |
 | [GLOSSARY.md](../GLOSSARY.md) | Glossary | back matter | [Glossary](62-glossary.md) | keep |

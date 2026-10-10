@@ -150,7 +150,7 @@ CONCEPTS = [
     ("Bootstrap chain", [("38-main", "The wider chain"), ("57-historical", "What forth-bootstrap checks today")]),
     ("GCC-free build", [("57-historical", "The GCC-free build")]),
     ("Diverse double-compiling", [("57-historical", "Diverse double-compiling")]),
-    ("C subset (what is supported)", [("A6-", "Types"), ("A6-", "What an ISO C programmer")]),
+    ("C subset (what is supported)", [("60-c-subset", "Types"), ("60-c-subset", "What an ISO C programmer")]),
 ]
 
 

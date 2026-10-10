@@ -10,7 +10,7 @@ Prerequisites: [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md); [38
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [A6-c-subset.md](../A6-c-subset.md) — Reuse the supported-feature and limitation tables.
+Reuses: [A6-c-subset.md](../60-c-subset.md) — Reuse the supported-feature and limitation tables.
 
 TODO:
 

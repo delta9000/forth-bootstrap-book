@@ -301,7 +301,7 @@ for which chapter depends on which, the
 
 ## C
 
-- **C subset (what is supported)** — [App. F, Types](A6-c-subset.md#types) · [App. F, What an ISO C programmer should expect *not* to find](A6-c-subset.md#what-an-iso-c-programmer-should-expect-not-to-find)
+- **C subset (what is supported)** — [Ch 60, Types](60-c-subset.md#types) · [Ch 60, What an ISO C programmer should expect not to find](60-c-subset.md#what-an-iso-c-programmer-should-expect-not-to-find)
 - `c!` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `c!`: narrow the store, preserve the cleanup](06-stack-primitives.md#c-narrow-the-store-preserve-the-cleanup) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `c,` — *Forth word (`forth/010-lib.fth`)* — [Ch 15, `c,` and the workhorse pattern](15-lib-02-code-emission-and-here.md#c-and-the-workhorse-pattern)
 - `c@` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `c@`: widen a byte into a cell](06-stack-primitives.md#c-widen-a-byte-into-a-cell) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
