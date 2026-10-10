@@ -10,7 +10,7 @@ Prerequisites: [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md); [38
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [GLOSSARY.md](../GLOSSARY.md) — Reuse definitions and links to their detailed explanations.
+Reuses: [GLOSSARY.md](../62-glossary.md) — Reuse definitions and links to their detailed explanations.
 
 TODO:
 

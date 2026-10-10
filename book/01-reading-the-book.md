@@ -11,7 +11,7 @@ Start with Chapter 2 for the starting artifact and Chapter 3 for its place among
 - **Part 3 — compiler, Chapters 27–49.** Follow the C compiler from input handling through executable output, then through the object files, calling conventions, and language support needed by the bootstrap route. Chapter 38 joins the compiler's initial layers; Chapters 39–49 extend them.
 - **Part 4 — bootstrap, Chapters 50–56.** Follow the compiler and tools into the larger build chain. Chapter 50 builds seed-cc and seed-ar, Chapter 51 the tools, and Chapter 52 the GCC rebuilds. Chapter 53 audits the sealed host run. Chapters 54–55 take the route through K0 and K1 to Linux under QEMU; Chapter 56 looks beyond that route.
 
-Read in this order on a first pass. You do not need prior Forth knowledge. Keep the [glossary](GLOSSARY.md) nearby for unfamiliar terms and the [word index](WORD-INDEX.md) for finding a definition again. The part headings and top-level entries in the table of contents give the reading order.
+Read in this order on a first pass. You do not need prior Forth knowledge. Keep the [glossary](62-glossary.md) nearby for unfamiliar terms and the [word index](WORD-INDEX.md) for finding a definition again. The part headings and top-level entries in the table of contents give the reading order.
 
 ## Read source, then run a checkpoint
 

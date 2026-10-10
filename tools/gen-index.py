@@ -501,7 +501,7 @@ def render(chapters):
         "(`variable`, `constant`, `create`, `defer`); plain colon definitions",
         "carry none.  %d names and %d ideas." % (nwords, len(CONCEPTS)),
         "",
-        "For a one-line definition of a term, see the [Glossary](GLOSSARY.md);",
+        "For a one-line definition of a term, see the [Glossary](62-glossary.md);",
         "for which chapter depends on which, the",
         "[concept graph](CONCEPTS.md).",
     ]
