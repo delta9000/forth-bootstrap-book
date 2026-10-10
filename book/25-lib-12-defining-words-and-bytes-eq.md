@@ -196,7 +196,7 @@ contract their callers expect.
 
 A name used as data needs an address and a length, independently of whether
 it names a dictionary entry. `token` obtains that pair by reading into the
-token input buffer and recovering the length. Its implementation is in
+token buffer and recovering the length. Its implementation is in
 `forth-bootstrap/forth/010-lib.fth:431`:
 
 ```forth file=forth/010-lib.fth

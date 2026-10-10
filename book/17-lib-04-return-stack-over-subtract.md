@@ -44,10 +44,9 @@ need `r@`, because it needs to recover `b`, not leave it saved.
 
 ## `-` from `+` and `nand`
 
-Subtraction has the skeleton `a + (-b)`. Recall Chapter 7's `+`
-contract: it keeps the low cell of the sum, as recorded in
-[Chapter 13](13-primitive-reference.md#the-table). That wraparound
-lets us construct the additive inverse of `b`.
+Subtraction has the skeleton `a + (-b)`. The wrapping `+` (Chapter 7;
+[Chapter 13](13-primitive-reference.md#the-table)) lets us construct
+the additive inverse of `b`.
 
 For a cell of width `w`, `b + ~b` has every bit set: its unsigned
 value is `2^w - 1`. Adding one gives zero modulo `2^w`. Therefore
@@ -56,8 +55,7 @@ value is `2^w - 1`. Adding one gives zero modulo `2^w`. Therefore
 has negative weight; interpreted as unsigned, the same bits represent
 the wrapped result. Here `~` has its C bitwise meaning.
 
-Recall self-NAND from Chapter 16: `dup nand` complements a cell.
-Apply it to `b`, add one, and add the result to `a`, as in
+Apply self-NAND (Chapter 16) to `b`, add one, and add the result to `a`, as in
 `forth-bootstrap/forth/010-lib.fth:38`:
 
 ```forth file=forth/010-lib.fth
@@ -107,9 +105,8 @@ new `-`, so it inherits the same wraparound behavior. Starting from
 
 ## Why subtraction isn't a primitive
 
-Recall Chapter 16's primitive-versus-derived byte trade: a derived
-word moves its implementation out of the seed. The definition of `-`
-shows that addition and self-NAND already suffice. `1-` then uses
+The primitive-versus-derived byte trade (Chapter 16) applies to `-`:
+addition and self-NAND already suffice. `1-` then uses
 that definition without needing another arithmetic mechanism.
 Chapter 19 applies subtraction to character predicates; Chapter 27
 covers the compiler's own vocabulary.

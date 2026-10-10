@@ -1,7 +1,6 @@
 # Chapter 15 — Code emission and HERE
 
-Appending a single instruction byte still needs a library word that advances
-the allocation cursor by the amount it writes. The key is to separate
+`c,` appends an instruction byte and advances the allocation cursor. The key is to separate
 the destination of an emitted byte from the address of the cell that records
 the destination. `here-addr` and `c,` give the library a byte emitter built
 from the seed's memory operations.

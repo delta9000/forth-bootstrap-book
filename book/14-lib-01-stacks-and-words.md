@@ -19,7 +19,7 @@ Part 2 builds a Forth vocabulary on the completed seed:
 ## Postfix evaluation
 
 In C, `(2 + 3) * 4` uses parentheses to make addition happen first.
-Forth uses **postfix**, or **reverse Polish notation**: operands precede
+Forth uses **postfix evaluation**: operands precede
 operators, and the data stack is where operands wait for a word to use them.
 The seed needs `[lit]` for numbers (Chapter 12).
 
@@ -90,8 +90,7 @@ values and reaches the seed’s interfaces. Preserve this opening from
 \     state and latest primitives, and primitive xts with ' (tick).
 ```
 
-The literal convention uses `[lit]` from Chapter 10 throughout the
-library. The decimal parser the header names is covered in
+The library uses `[lit]` (Chapter 10) throughout. The decimal parser the header names is covered in
 [Chapter 12](12-repl.md). The character
 words named in the comment belong to Chapter 23; they are not needed here.
 

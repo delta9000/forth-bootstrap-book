@@ -7,8 +7,8 @@ without adding machine code to the seed.
 
 ## `and` in three words
 
-Recall `nand` from Chapter 7: it computes `~(a & b)` across the cell;
-its contract is in [Chapter 13](13-primitive-reference.md#the-table).
+Use `nand` (Chapter 7), with its contract in
+[Chapter 13](13-primitive-reference.md#the-table).
 Here `~`, `&`, and `|` use their C bitwise meanings. The skeleton for
 `and` is to compute NAND, then complement its result.
 
@@ -74,10 +74,9 @@ masks, `1100` OR `1010` gives `1110`, or decimal 14.
 
 ## Flags and masks
 
-Recall the canonical flag from Chapter 7: false is 0 and true is -1
-(all bits set), as recorded in [Chapter 13](13-primitive-reference.md#the-table).
-With these inputs, the bitwise operations also implement Boolean
-conjunction and disjunction:
+With canonical flags (Chapter 7), as recorded in
+[Chapter 13](13-primitive-reference.md#the-table),
+the bitwise operations also implement Boolean conjunction and disjunction:
 
 | `a` | `b` | `a and b` | `a or b` |
 |---|---|---|---|
@@ -117,10 +116,9 @@ every construction is equally short or equally fast.
 
 ## What this buys
 
-A **primitive** needs an implementation in the seed. A **derived word**
-expresses its behavior through words the seed already knows. Recall
-Chapter 10's subroutine threading: a compiled body calls its component
-words. Here `and` uses three calls and `or` uses six, rather than a
+A **derived word** expresses its behavior through words the seed already
+knows, where a primitive needs machine code in the seed. With subroutine threading (Chapter 10), `and` uses three calls and
+`or` uses six, rather than a
 dedicated machine instruction for each operation.
 
 The byte trade concerns where those implementations live. Deriving

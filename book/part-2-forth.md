@@ -1,7 +1,6 @@
 # Part 2 — Forth
 
-Part 1 left a seed that can define words but has almost no vocabulary.
-Part 2 grows that vocabulary in Forth source, one short group of
+Part 2 grows the seed's vocabulary in Forth source, one short group of
 definitions at a time, in `forth/010-lib.fth`. The seed reads the library
 as written: no assembler or compiler outside the seed runs in this Part.
 By the end, the library is large enough to carry an M1 assembler and a

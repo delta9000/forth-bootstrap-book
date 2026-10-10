@@ -9,8 +9,8 @@ parsers built later.
 ## The range-check trick: `digit?`
 
 The skeleton is **subtract the base → divide by the range size → test for
-zero**. Recall unsigned `/`, `*`, `0=`, and the canonical flag (`-1`/`0`)
-from Chapter 7; their contracts are collected in
+zero**. Use unsigned `/`, `*`, `0=`, and canonical flags (Chapter 7),
+with contracts collected in
 [Chapter 13](13-primitive-reference.md#the-table).
 The range-check trick uses `/` and `0=` with Chapter 17's subtraction.
 
@@ -87,8 +87,8 @@ These are ASCII predicates, with no locale-dependent letter classes.
 
 The gap between the uppercase and lowercase blocks contains punctuation.
 A single interval from `A` through `z` would accept that gap, so the
-combined predicate tests the blocks separately. Recall `or` from
-Chapter 16 at the end of `forth-bootstrap/forth/010-lib.fth:90`:
+combined predicate tests the blocks separately, using `or` (Chapter 16)
+at the end of `forth-bootstrap/forth/010-lib.fth:90`:
 
 ```forth file=forth/010-lib.fth
 \ alpha? ( c -- flag )  true if c is alphabetic
@@ -126,8 +126,8 @@ character through the chain in `forth-bootstrap/forth/010-lib.fth:93`:
 
 ```
 
-Recall `over` from Chapter 17 where the middle tests need another copy of
-`c`. The running stack state is `c accumulated-flag`:
+Use `over` (Chapter 17) for the middle tests. The running stack state is
+`c accumulated-flag`:
 
 | After | Stack |
 |---|---|

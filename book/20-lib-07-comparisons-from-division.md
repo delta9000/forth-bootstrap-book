@@ -1,7 +1,7 @@
 # Chapter 20 — Comparisons from unsigned division
 
 How can unsigned division decide whether a signed value is negative?
-The missing sign test comes from dividing by the value of the sign bit;
+The sign test comes from dividing by the value of the sign bit;
 turning that quotient into a flag gives `0<` and the comparison words
 built on it. The resulting library supports equality and signed ordering,
 with an explicit limit on the subtraction used for ordering.
@@ -54,7 +54,7 @@ change the sign of a difference, but it cannot make unequal cells equal.
 
 Ordering needs the sign of a difference, rather than just whether it
 vanishes. A quotient can identify which interval contains a value, the
-same quotient-as-interval idea as Chapter 19's range check. Here the dividing point separates cell
+same quotient-as-interval idea as Chapter 19's range-check trick. Here the dividing point separates cell
 patterns with the sign bit clear from those with it set.
 
 The divisor gets a name in `forth-bootstrap/forth/010-lib.fth:111`:
@@ -90,7 +90,7 @@ breaks the interval argument.
 
 The quotient has the right truth value but the wrong representation for
 true. The final operations in `forth-bootstrap/forth/010-lib.fth:117`
-convert it to the same Forth boolean that `true` supplies:
+convert it to the same canonical flag that `true` supplies:
 
 ```forth file=forth/010-lib.fth
 \ 0< ( n -- f )  -1 if n is signed-negative (bit 63 set), else 0.
@@ -159,7 +159,7 @@ words in `forth-bootstrap/forth/010-lib.fth:130`:
 ```
 
 `>` swaps `a b` to `b a` and delegates to `<`. `<=` negates `>`;
-`>=` negates `<`. This is the **cascade**: reversal and negation reuse the
+`>=` negates `<`. This is the **comparison cascade**: reversal and negation reuse the
 same ordering decision. They also inherit its limitation. In particular,
 `>` and `<=` test the sign of `b - a`, whereas `<` and `>=` use `a - b`.
 None is a general unsigned comparison.
