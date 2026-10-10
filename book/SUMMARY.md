@@ -59,8 +59,7 @@
 - [System V varargs](46-varargs.md)
 - [Floating values and exact literals](47-floats.md)
 - [Record bitfields](48-bitfields.md)
-- [Aggregates and extended floating values](outline/49-aggregate-abi.md)
-  - [48. Record values at the System V boundary](48-direct-gcc-aggregate-abi.md)
+- [Aggregates and extended floating values](49-aggregate-abi.md)
 
 # Part 4 — bootstrap
 

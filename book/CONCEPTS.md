@@ -376,5 +376,5 @@ bootstrap. Their current implementation and limits are in [DIRECT-GCC.md](https:
 | [45: binary32/binary64 values](47-floats.md) | 24, 28, 36 | Typed floating operations and the scalar return boundary |
 | [46: floating literals](47-floats.md) | 1–12, 45 | Exact integer ratios rounded to binary64 or binary32, for literals and constant arithmetic, without a host parser |
 | [47: bitfields](48-bitfields.md) | 24, 28, 36, 45 | Record layout, integer promotions, and preserving bitfield stores |
-| [48: aggregate ABI](48-direct-gcc-aggregate-abi.md) | 28, 36, 45, 47 | Record byte transport, argument locations, register rollback, and result lifetimes |
+| [48: aggregate ABI](49-aggregate-abi.md) | 28, 36, 45, 47 | Record byte transport, argument locations, register rollback, and result lifetimes |
 | [49: compiler proper](49-direct-gcc-cc1.md) | 35–48 | Makefile-selected cc1 census, Forth-built generators and link, relocation-masked function identification, implicit-declaration lint, and execution torture with host output tools as oracles; downstream closure and bootstrap deferred |

@@ -298,7 +298,7 @@ Forth compiler gates in [`tests/tcc/README.md`](https://github.com/delta9000/see
 
 ## Floating types in the direct-GCC System V target
 
-The direct-GCC target ([chapters 36](41-system-v-calls.md)–[48](48-direct-gcc-aggregate-abi.md))
+The direct-GCC target ([chapters 36](41-system-v-calls.md)–[48](49-aggregate-abi.md))
 keeps the three floating types apart. It also has C99's `_Bool`, one
 unsigned byte that any nonzero scalar, pointer or floating value (NaN
 included) converts to 1, with `<stdbool.h>`, `_Bool` bitfields of one bit
@@ -307,4 +307,4 @@ and static initializers ([Ch 45](47-floats.md)).
 | Type | Supported | Size / alignment | Boundary |
 |---|---|---|---|
 | `float`, `double` | values, arithmetic, comparisons, integer conversions, named and variadic arguments, results in XMM0, `va_arg(list, double)`, `f`/`F`-suffixed literals, bit-exact static initializers in objects ([Ch 41](45-typed-constants.md) §5) | 4/4, 8/8 | `++`/`--`, records with binary32/binary64 members by value, static initializers in the mapped route ([Ch 45](47-floats.md)); constant results that would be infinite or NaN |
-| `long double` | scalar arithmetic `+ - * /`, unary signs, comparisons, conditions and logical operators, compound assignments, prefix/postfix updates, conversions to/from every integer type and float/double, exact decimal/hexadecimal `l/L` literals and constant/static initialization; objects, arrays and record/union members; named/variadic and identifier-list stack parameters, results in `st(0)`, `va_arg`, X87/MEMORY records | 16/16, x87 80-bit extended in the low ten bytes | Integer-only operators and incompatible pointer/record conversions reject with 249; mixed floating-member aggregate ABI remains unsupported ([Ch 48](48-direct-gcc-aggregate-abi.md) §4) |
+| `long double` | scalar arithmetic `+ - * /`, unary signs, comparisons, conditions and logical operators, compound assignments, prefix/postfix updates, conversions to/from every integer type and float/double, exact decimal/hexadecimal `l/L` literals and constant/static initialization; objects, arrays and record/union members; named/variadic and identifier-list stack parameters, results in `st(0)`, `va_arg`, X87/MEMORY records | 16/16, x87 80-bit extended in the low ten bytes | Integer-only operators and incompatible pointer/record conversions reject with 249; mixed floating-member aggregate ABI remains unsupported ([Ch 48](49-aggregate-abi.md) §4) |

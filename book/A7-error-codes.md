@@ -318,7 +318,7 @@ C90's implicit `extern int name ();`.
 
 The System V target prints an `aggregate-abi: ` prefix before code 232 when
 a record crosses a call, return or `va_arg` boundary with a class
-[chapter 48](48-direct-gcc-aggregate-abi.md) does not implement, chiefly a
+[chapter 48](49-aggregate-abi.md) does not implement, chiefly a
 record with a `float` or `double` member, or when a record is used as a
 scalar. Records with INTEGER, MEMORY or X87 classes cross prototyped,
 unprototyped and variadic calls alike. An empty-parenthesis definition,
@@ -331,7 +331,7 @@ subscripts and switch conditions, and for incompatible scalar conversions
 such as a pointer or actual record. Arithmetic, comparisons, conditions,
 compound assignments, updates, numeric conversions and exact static
 initializers are supported;
-[chapter 48](48-direct-gcc-aggregate-abi.md) §4 describes the x87 implementation.
+[chapter 48](49-aggregate-abi.md) §4 describes the x87 implementation.
 
 ### The assembler's codes
 

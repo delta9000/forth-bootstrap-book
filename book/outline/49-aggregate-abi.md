@@ -10,7 +10,7 @@ Prerequisites: [48 — Record bitfields](48-bitfields.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [48-direct-gcc-aggregate-abi.md](../48-direct-gcc-aggregate-abi.md) — Reuse the source walkthrough: Teach record arguments and return values at the System V boundary.
+Reuses: [48-direct-gcc-aggregate-abi.md](../49-aggregate-abi.md) — Reuse the source walkthrough: Teach record arguments and return values at the System V boundary.
 
 TODO:
 

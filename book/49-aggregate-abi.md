@@ -1,329 +1,14 @@
-# 48. Record values at the System V boundary
+# Chapter 49 — Aggregates and extended floating values
 
-A C record expression is an object address inside this compiler. Calling a
-function by value requires transporting the object bytes. Confusing these
-representations can pass the first word or the address while appearing to
-work when both sides make the same mistake.
+A function that accepts `struct Pair` by value must receive the pair's bytes, and its caller must recover the bytes of the returned pair. The compiler represents a record expression by an address, so a call needs a classification and a transport plan between that address and the System V boundary. The completed layer passes records and scalar floating arguments, returns records, and computes with extended floating values.
 
-## 1. Start with the source and the ABI
+## Classify the object before moving it
 
-GCC 4.0.4 `gcc/real.h` provides concrete demand: `real_value_truncate`,
-`real_arithmetic2`, `real_value_from_int_cst`, `const_double_from_real_value`
-and `build_real` transport REAL_VALUE_TYPE by value. Its fields are integer
-bitfields and a significand array. The libiberty demanglers also copy whole
-records, which requires retaining addresses during expression materialization.
-Original source revision: `944765863eec87a9f37e297994fd2af960397138`.
+The path is expression address → classification → private argument copy → registers or outgoing stack → callee local object. Return transport follows the same classification in reverse. This extends the scalar boundary of Chapter 41 and closes Chapter 47's floating-argument deferral, where this transport was rejected with error 232. Bitfield members contribute their containing integer types without changing their layout (Chapter 48).
 
-The [AMD64 psABI](https://gitlab.com/x86-psABIs/x86-64-ABI/-/blob/master/x86-64-ABI/low-level-sys-info.tex)
-specifies recursive classification, complete register-assignment rollback,
-and hidden result pointers. We implement a bounded subset of that contract.
-Integer and pointer fields, nested records, unions, arrays, and supported
-integer bitfields are admitted. A record of at most sixteen bytes uses one
-or two INTEGER eightbytes. A larger record, or one with an unaligned member,
-is MEMORY. The recursive walk validates every union alternative and array
-element type. The parser currently produces natural layouts; a synthetic
-unaligned descriptor tests the classifier separately from the C ABI tests.
+The implementation is a bounded classifier, not the full mixed-class System V algorithm. Nested records, unions, fixed arrays, pointers and supported integer members are admitted. Records containing `float` or `double` members, vector classes, empty records and over-aligned records are rejected. A pointer is classified without inspecting its pointee. Packed attributes are outside the parser's dialect.
 
-Binary32/binary64 members, vector classes, over-aligned and empty records
-are deliberately rejected. Long double members are admitted as X87 leaves (§4). Packed attributes remain outside the
-parser's supported dialect. Classifying a pointer does not inspect its pointee.
-Declaration and `sizeof` metadata remain usable for unsupported value classes.
-Argument descriptor identity is still checked inside `sizeof`; suppressing
-execution does not suppress this C type constraint.
-
-C90 identifier-list definitions refine parameter types by name before entry
-planning. Their known record parameters and results use the same transport as
-prototype-style definitions, and so do empty-list definitions such as
-`struct A f() { ... }`. This does not turn a definition into a prototype. A prior
-prototype remains visible, while definition parameter order follows the identifier
-list, not the order of the refining declarations. Declared K&R float parameters
-remain rejected because their promoted double entry needs a separate conversion.
-
-Default argument promotions change only integer types narrower than `int`
-and `float`; a record passes unchanged. So a record argument to a call
-without a visible prototype (`long f(); f(v)`, a K&R definition, or a
-`long (*p)()` pointer), or in the `...` of a variadic call, has exactly the
-class it has as a prototyped parameter, and a record result or a named record
-parameter of a variadic function is the same as anywhere else. GNU code
-relies on this: coreutils and bash pass small records to old-style functions.
-`cc-ag-parse-arguments` therefore gives an unnamed record argument its own
-type and descriptor as the parameter type and plans it like a named one.
-Records whose members would need SSE classes remain error 232 in every form.
-
-The address used internally for a record is never an implicit scalar
-initializer. Scalar, pointer, array-element, field and bitfield initializers
-check the source type before storing bytes. Unary plus checks its operand
-even inside `sizeof`, where no value instructions are retained. A record
-expression cannot be returned from a void function. Explicit `(void)`
-discards remain valid and preserve evaluated side effects; unevaluated
-`sizeof` calls retain their metadata without requiring unsupported ABI code.
-The maintained constraint fixture covers both rejected and valid neighbors.
-
-Same-record `?:` expressions copy the selected object into independent fixed-frame
-storage at the branch join. Only the selected arm runs; its bytes, including
-inline arrays, are frozen before later expressions can modify the original.
-Nested conditionals use distinct slots. The result and its scalar or record
-members are non-lvalues, so assignment and address-of reject them. Array members
-can decay into the temporary's storage, which remains alive through the full
-expression. `sizeof` checks arm identity without allocating or copying a value.
-This is demanded by libcpp's `wide ? pfile->wide_cset_desc :
-pfile->narrow_cset_desc` initializer, not by a change to the INTEGER ABI.
-
-An omitted `for` condition also needs complete expression metadata. Emitting the
-integer one must mark an integer value, or a previous record assignment or
-record-returning function can leak its type into the truth test. An explicit
-record condition still fails the scalar constraint.
-
-## 2. Give every argument a location
-
-A shared call plan carries the signature, independent GP/XMM register counts,
-outgoing stack byte count, and result storage. Each argument records its type
-and descriptor, size, INTEGER count, scalar SSE or MEMORY class, first
-register in its bank or a stack marker,
-outgoing byte offset, and frame slot. The argument index is never treated as
-a register index. Hidden MEMORY results consume RDI before visible arguments.
-
-A two-eightbyte record needs two remaining GP registers. If they are not both
-available, the entire record goes on the stack and register allocation is
-rolled back. A later scalar can still use the remaining register. MEMORY
-arguments never consume a GP register. Scalar binary64 values use XMM0 through
-XMM7 independently of the GP allocation. Exhausting either bank does not
-consume or roll back slots in the other. Stack arguments share one sequence
-in source order and advance in eight-byte units, with the outgoing block
-aligned to sixteen before CALL. Scalar float and double share the SSE bank;
-float payloads use the low four bytes. The eight-byte private frame slots
-permit a shared register-move encoder without increasing C object sizes.
-A stack argument starts at a multiple of its own alignment, at least eight, so
-long double and records containing it take sixteen-byte stack slots (§4).
-Binary32/binary64-member records remain a checked boundary.
-
-The measured new source requirement is GCC 4.0.4 `gcc/genautomata.c`:
-`estimate_one_automaton_bound` calls `exp(log(...)/automata_num)`. The ABI
-implementation is shared by all supported direct, indirect and unspecified
-prototype calls. Fixed arguments undergo ordinary type conversion; unnamed
-arguments use the default integer promotions, promote float to double, or retain binary64.
-Every call writes the actual used XMM-register count, from zero to eight,
-into EAX for the variadic/unspecified-prototype AL contract. The 64-argument
-bound counts all banks and stack arguments together. A fixed-prototype plan
-reserves records only for its declared count; variadic/unspecified plans
-reserve the full bounded capacity. This keeps ordinary scalar calls from
-wasting arena space after unifying the lowering.
-
-Argument expressions are evaluated in source order. As each finishes, a scalar
-is converted to its declared type and saved, or a record is copied by its exact
-size into a separate fixed-frame temporary. A later argument cannot change
-that snapshot. Nested calls have separate plans and frame temporaries. Every
-result object has its own frame storage that survives later calls in the same
-expression. This costs frame space but gives an explicit lifetime invariant.
-
-## 3. Move bytes across the boundary
-
-Outgoing stack copies happen before GP and XMM registers are loaded, because REP MOVSB
-uses argument registers. Register parameters in a callee are all spilled before
-incoming stack records are copied. Thus a copy cannot destroy an as-yet-unsaved
-argument. Each parameter has independent local storage, preserving C by-value
-mutation and address-taking behavior.
-
-Small returns are copied into a rounded frame temporary before loading RAX
-and RDX. This avoids reading beyond a three- or nine-byte source object at the
-end of an accessible page. The caller stores those registers in its own result
-buffer. MEMORY returns copy to the hidden caller buffer and return that address
-in RAX. The buffer is separate from every visible argument, even for `x=f(x)`.
-Scalar double returns from record-argument functions still use XMM0.
-
-Record materialization preserves an address. Assignment checks descriptor
-identity before its existing byte copy; return and argument sites also check
-identity. Arithmetic, conditions and scalar consumers reject record operands
-rather than operating on that internal address. Explicit casts cannot relabel
-a record as a different type. The C discard cast `(void)record` remains valid,
-including side effects and result storage for record-returning calls. Runtime
-and constant cast parsers use the same pure policy hook; the constant grammar
-also rejects non-scalar constants before conversion. Scalar-only calls and functions
-now use this same SysV plan. Named variadic parameters, records included, feed its exact
-GP, XMM and stack consumption to `va_start`. The native and TinyCC targets are unchanged when System V mode is
-disabled.
-
-## 4. Carry long double as X87 data
-
-On x86-64 Linux, `long double` is the x87 80-bit extended format: ten
-significant bytes stored in sixteen, aligned to sixteen. The psABI gives it
-its own classes. An X87 argument, named or unnamed, always goes to the stack
-in a sixteen-aligned, sixteen-byte slot and never consumes a GP or XMM
-register. An X87 result returns in `st(0)`, the top of the x87 register stack.
-A record of exactly sixteen bytes whose only leaves are long double, such as
-`struct { long double x; }`, has the same classes. Any other leaf sharing an
-eightbyte with X87, as in `union { int i; long double x; }`, makes the whole
-object MEMORY.
-
-The source demand is binutils 2.30 `bfd/bfd.c`. Its positional `printf` keeps
-`union _bfd_doprnt_args { ... double d; long double ld; ... }` and fetches
-`args[i].ld = va_arg (ap, long double)` unconditionally. The code that would
-format the value is under `HAVE_LONG_DOUBLE`, which bfd's configuration leaves
-undefined. The unit needs the type's layout and its bytes, not its arithmetic.
-
-Long double computations retain the same transport representation. Layer 121
-replaces the keyword-spelled base with an opaque record: type `ty-struct`
-with one shared, memberless sixteen-byte descriptor, so every spelling and
-typedef has one identity. A long double expression is then its object's
-address, exactly as a record's is, and the paths above already declare, lay
-out, copy, assign, initialize from another long double, select with `?:`,
-take addresses, and reach members of enclosing records. The walk treats that
-descriptor as a leaf: it notes the X87 leaf and any other leaf, and
-`cc-ag-class` returns class four for a pure sixteen-byte X87 object or
-MEMORY otherwise. Class four travels like MEMORY when it is an argument; a
-result is loaded by `fld tbyte [rdi]` in the callee and stored by `fstp
-tbyte` into the caller's result slot, so the x87 stack is empty again at
-once. These are the instructions GCC itself uses for this class; for the
-80-bit format they perform no conversion, so finite values, infinities and
-NaNs, signaling ones included, keep their bytes, as the tests check bitwise.
-
-Long double has no default promotion and the same ABI in every prototype
-form, so it may appear in variadic signatures, as an unnamed argument, in
-unprototyped calls and in identifier-list definitions; records containing
-it keep the record rules. [Chapter 42](46-varargs.md) retrieves it
-from the overflow area.
-
-`va_arg (ap, struct S)` follows the psABI's retrieval algorithm, and
-`cc-ag-va-record` supplies it to chapter 42 through `cc-va-record-fwd`. An
-INTEGER record of one or two eightbytes is read in place from the register
-save area when `gp_offset` leaves room for all of its eightbytes: the saved
-GP registers are consecutive eight-byte slots, so the two halves of a
-sixteen-byte record are adjacent there as they are in memory, and the
-offset advances by eight per eightbyte. Otherwise the record was passed on
-the stack, like every MEMORY and X87 record: `overflow_arg_area` is rounded
-up to sixteen when the record's alignment exceeds eight, the record is taken
-there and the pointer advances by its size rounded up to eight. A record
-that did not fit the remaining registers leaves `gp_offset` unchanged, so a
-later one-eightbyte record still comes from a register, as the caller placed
-it. The result is the record's address, which an assignment or initializer
-copies whole.
-
-Layer 132 supplies the scalar computation hooks. `fld` loads the two
-address operands; `faddp`, `fsubrp`, `fmulp` and `fdivrp` compute the result,
-and `fstp tbyte` saves it into a private sixteen-byte frame slot. Unary minus
-uses `fchs`. Comparisons use `fucomip` and the same parity-aware flag handling
-as binary64: NaNs are unequal and unordered. Conditions convert this comparison
-with zero to a Boolean. Both signed zeros are false. Each expression leaves
-the x87 stack empty, including comparisons, conversions and ignored results.
-
-The shared lvalue path evaluates an update address once. Materialization
-freezes an extended operand before later side effects; postfix increments
-therefore keep an independent old object. `fld1` and `faddp` or `fsubp` implement
-increment and decrement. Compound assignments use the usual arithmetic
-conversions, then store ten significant bytes at the destination address.
-Padding bytes have no numeric meaning.
-
-Integer inputs are normalized at their declared width and loaded with `fild`.
-An unsigned input above the signed range is loaded as signed, then has exact
-2^64 added. Conversion back saves the x87 control word, selects truncation,
-uses `fistp`, and restores the caller's word. Unsigned 64-bit destinations split
-at 2^63, subtract that power in the upper half, and restore the high integer
-bit after signed truncation. Float and double use their corresponding `fld`
-and `fstp` memory widths, rounding directly at the destination precision.
-As in C, nonfinite and out-of-range integer conversions have no defined result.
-
-Static constants use [chapter 46](47-floats.md)'s exact
-integer ratios. Extended constants carry a 64-bit explicit significand and a
-sign/exponent field. Decimal and hexadecimal `l/L` literals, arithmetic, casts,
-comparisons and selected conditional arms round to nearest, ties to even.
-Extended overflow and division by zero fold to infinity or a quiet NaN,
-and comparisons of NaN constants remain unordered.
-Initializers write the ten significant bytes and zero padding into sixteen-byte
-storage. Invalid integer-only uses, such as complement, a subscript or a switch
-condition, retain `long-double: cc: line N: error 249`. Casts to pointers or
-actual records are also rejected. Floating members of by-value records still
-lack the mixed SSE aggregate classifier.
-
-## 5. Check both sides independently
-
-`python3 tests/gcc/aggregate-check.py --oracle` builds the production objects,
-entry and runtime with Forth and links them with the Forth linker. A mapped ELF
-path also executes the fixtures. Host O0 and O2 builds are independent oracles:
-they call Forth-produced record functions and are called by them. Coverage
-includes partial tails, padding, nesting, unions, bitfields, register exhaustion
-and rollback, hidden-result shifting, callbacks, recursive returns, evaluation
-snapshots, assignment aliases, expression lifetimes and unevaluated `sizeof`.
-Protected-page tests put short source records immediately before an inaccessible
-page. Negative tests verify that unsupported or mismatched forms do not create
-an output or replace an existing one.
-
-`python3 tests/gcc/record-varargs-check.py` compiles a caller and a callee
-unit with Forth and with host GCC at O0 and O2 and runs every pairing: Forth
-only, a Forth caller with a host callee, and a host caller with a Forth
-callee. The callee has K&R and empty-list definitions, a variadic function
-that retrieves every record class next to integers, pointers and doubles,
-another that rescans a `va_copy`, a variadic MEMORY result, and a named
-record before `...`. The caller passes records through unprototyped
-declarations and pointers, exhausts the GP registers so that a two-eightbyte
-record goes to the stack while a later one-eightbyte record still uses a
-register, and passes X87 and union records. Records with floating members
-stay error 232 as calls, definitions and `va_arg` requests.
-
-`python3 tests/gcc/knr-record-check.py` separately checks C90 record definitions:
-byte sizes 1--33, register exhaustion and rollback, stack copies, hidden results,
-interleaved integer/double parameters, reordered declarations and prototypes,
-separately compiled host callers and callbacks. Rejection cases retain record
-identity, unsupported promotion and publication boundaries; the unprototyped
-and variadic record forms it once rejected now compile. This extension is
-motivated by the unchanged original libiberty `regex.c` definition of
-`group_in_compile_stack`; compilation of that unit is reported separately from
-any regex behavior or complete GCC build claim.
-
-`python3 tests/gcc/knr-regex-check.py --source-root SOURCE --config-dir CONFIG`
-hashes the pinned original regex source and headers, then compiles the complete
-raw translation unit unchanged. The raw object still references undeclared
-`alloca`; this test does not resolve that library integration. A separate build
-uses upstream's documented `REGEX_MALLOC` switch equally in the Forth and host
-builds. Its thirty pattern, capture, match, no-match and error cases run with the
-actual Forth runtime and match host O0/O2 outputs. No original source or configure
-answer is edited, and no replacement alloca implementation is supplied. This
-bounded behavior proof remains separate from raw-library source closure.
-
-The test also hashes the original `real.c` and `real.h`, extracts the exact
-REAL_VALUE_TYPE descriptor and the unchanged `real_value_truncate` and
-`real_arithmetic2` bodies, then executes those wrappers with explicitly named
-test shims for their dependencies. This is a narrow source-function proof,
-not compilation of the whole `real.c` translation unit. Host tools never supply
-production compiler, runtime, object or executable artifacts. A full GCC build
-and self-rebuild remain unfinished.
-
-`python3 tests/gcc/binary64-arguments-check.py` executes separate Forth objects
-and a Forth mapped ELF, then checks both ABI directions with independent host
-O0/O2 compilation. Its fixtures interleave ten doubles with eight integer
-arguments, exhaust each register bank, use named and unnamed overflow slots,
-copy variadic cursors, call indirectly and through callbacks, preserve exact
-signed-zero/NaN/subnormal payloads, and combine doubles with aggregate rollback
-and hidden MEMORY returns. A host-only assembly observer checks actual AL and
-entry alignment. The production run uses a clearly named C test replacement
-for that observer; it is not presented as an AL proof.
-
-With `--source-root`, the gate hashes the pinned `genautomata.c` and executes
-the exact `estimate_one_automaton_bound` body with reduced descriptor metadata
-and explicit ABI-only `exp`/`log` shims. It does not supply production math or
-claim to build the complete translation unit. With `--baseline-root`, it also
-compares six native/TinyCC-profile ELF fixtures byte-for-byte against the
-accepted compiler. The existing INTEGER/MEMORY and binary64 `va_arg` gates
-continue to test their separate boundaries.
-
-`python3 tests/gcc/long-double-check.py` makes values by host arithmetic
-(`1.0L/3`, `LDBL_MAX`, `-0.0L`, a subnormal, `-Inf`) and by explicit bytes
-(quiet and signaling NaN payloads), then compares their ten significant bytes
-with `memcmp` after every crossing. Host O0/O2 code calls Forth-built named,
-variadic, X87-record, MEMORY-record and union functions, and the Forth code
-calls host and Forth peers back, including through a function pointer, an
-unprototyped declaration and an identifier-list definition. Its reduction of
-bfd's union and `va_arg` loop passes the `va_list` to a helper as bfd does.
-Sizes and offsets are compared with host GCC's. A Forth-only build repeats the
-movement without a host object, and host-only builds prove the fixtures. Each
-rejected operation keeps its exact code and leaves outputs untouched. The separate
-`python3 tests/gcc/long-double-arithmetic-check.py` builds and runs a static
-program with this compiler and GCC, requiring identical output for random
-operands over the extended exponent range, subnormals, signed zeros, NaNs,
-all arithmetic and updates, comparisons and conditions, integer edge conversions,
-float/double conversions, ABI calls, exact literal ties and static arithmetic.
-
-## Canonical source
-
+The target gate keeps this value contract in explicit System V mode; `cc-ag-type?` recognizes a non-pointer record, and `cc-ag-die` reports the aggregate boundary through `cc-ag-error-prefix` and error 232 (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:1`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ 131-cc-aggregate-abi.fth -- shared INTEGER/binary32/binary64/X87/MEMORY SysV ABI.
 \ Record expressions carry addresses. The ABI transports object bytes, never
@@ -336,6 +21,9 @@ create cc-ag-error-prefix s, aggregate-abi: bl c,
 : cc-ag-type? ( type -- flag )
   dup ty-ptr 0= swap ty-base ty-struct = and cc-target-sysv @ and ;
 
+```
+`cc-ag-walk` records long-double and other leaves in `cc-ag-x87` and `cc-ag-other`; `cc-ag-walk-fwd` supplies its recursive call. Ranked arrays recurse on their real element, and scalar floating leaves inside records fail instead of silently becoming INTEGER (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:19`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ Validate each nested member, including members of unions and arrays.
 \ A descriptor with an unaligned member is MEMORY; the current parser emits
 \ natural layouts, but the classifier does not rely on this coincidence.
@@ -360,6 +48,9 @@ defer cc-ag-walk-fwd
     then,
     dup cc-sysv-check-scalar-default ty-align r> swap cc-mod 0= 0= exit,
   then,
+```
+Every field of a record or union must validate, even when the final object will travel in memory. The walk combines member alignment failures and rejects missing descriptors, empty objects, excessive alignment and negative array bounds (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:36`):
+```forth file=cc/131-cc-aggregate-abi.fth
   nip dup 0= if, cc-ag-die then,
   dup cc-sd-total-size 0= if, cc-ag-die then,
   dup cc-sd-align dup [lit] 16 > if, cc-ag-die then,
@@ -372,6 +63,9 @@ defer cc-ag-walk-fwd
     >r drop rot r> or rot rot 1+
   repeat, 2drop r> drop ;
 ' cc-ag-walk is cc-ag-walk-fwd
+```
+`cc-ag-class` returns zero for MEMORY, one or two for INTEGER eightbytes, three for scalar SSE, and four for X87. A non-X87 record larger than sixteen bytes or with an unaligned member is MEMORY; otherwise its size rounds up to eightbytes. An X87 object must be exactly sixteen bytes, aligned, and contain no other leaf anywhere in the object. `cc-ag-abi-type` and `cc-ag-return-check` validate without retaining the class (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:48`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ Class is zero for MEMORY, one/two INTEGER eightbytes, three for scalar SSE
 \ and four for X87: sixteen bytes holding only long double leaves, which an
 \ argument passes like MEMORY and a result returns in st(0). Any other leaf
@@ -393,6 +87,9 @@ defer cc-ag-walk-fwd
   over cc-ag-type? if, cc-ag-abi-type else, cc-sysv-return-check-default then, ;
 ' cc-ag-return-check is cc-sysv-return-check-fwd
 
+```
+Member access must preserve a record address, while assignment must preserve descriptor identity; `cc-ag-field-load` and `cc-ag-assignment` enforce those separate obligations (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:69`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ Materializing a record does not fetch its first word. Assignment and
 \ initialization consume the address and perform the existing byte copy.
 : cc-ag-field-load ( type field -- )
@@ -405,6 +102,23 @@ defer cc-ag-walk-fwd
   then, ;
 ' cc-ag-assignment is cc-aggregate-assignment-fwd
 
+```
+## Give arguments explicit locations
+
+A **call plan** separates source argument order from register order. The caller and callee use the same plan, including a hidden result pointer before visible arguments for MEMORY returns.
+
+| Input | Result or destination |
+|---|---|
+| Current plan → `ag-signature`, `ag-count` | Signature cell and parsed argument count cell. |
+| Current plan → `ag-gp`, `ag-fp`, `ag-stack` | Independent register counts and outgoing stack size cells. |
+| Current plan → `ag-result`, `ag-return-class`, `ag-return-size` | Result slot, class and object size cells. |
+| Current plan → `ag-indirect`, `ag-target`, `ag-live` | Indirect-call flag, saved target and preserved live-state cells. |
+| Index → `ag-arg` | Argument record in the current plan. |
+| Argument → `ag-type`, `ag-desc`, `ag-size`, `ag-class` | Stored type, descriptor, object size and class. |
+| Argument → `ag-register`, `ag-offset`, `ag-slot` | First register or negative stack marker, stack byte offset and frame slot. |
+
+`cc-ag-plan` selects the current call plan. The plan accessors return cells for mutable plan state and values for argument fields; `cc-ag-frame` reserves rounded storage without growing an unevaluated expression frame (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:104`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ A plan owns explicit argument locations. Nothing relies on the argument
 \ index also being a register index. Each record is type, descriptor, byte
 \ size, class, first GP register (-1 for stack), stack offset and frame slot.
@@ -431,6 +145,9 @@ variable cc-ag-plan
 : cc-ag-frame ( bytes -- slot )
   [lit] 7 + [lit] 8 / dup cc-fn-local-count @ + 1-
   swap cc-expr-unevaluated @ if, drop else, cc-fn-add-slots then, ;
+```
+A fixed prototype reserves only its declared argument capacity; unspecified and variadic signatures reserve the bounded capacity. `cc-ag-new-plan` starts GP allocation after the hidden MEMORY result pointer. `cc-ag-check-entry` rejects K&R float parameters because their promoted entry type needs a conversion this path does not implement (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:107`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-new-plan ( signature -- )
   dup cc-sysv-sig-varargs [lit] 3 and if,
     cc-sysv-arg-cap
@@ -454,6 +171,9 @@ variable cc-ag-plan
     repeat, drop
   then,
   drop ;
+```
+`cc-ag-locate` allocates a whole INTEGER record only if all of its registers fit. Otherwise it leaves the GP count untouched, so a later scalar may use the remaining register. SSE exhaustion is independent; MEMORY and X87 always use stack storage aligned to the object alignment or eight bytes, whichever is greater. INTEGER uses at most six GP registers; SSE uses at most eight XMM registers. Stack sizes round up to eight bytes (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:130`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-locate ( type descriptor index -- )
   ag-arg >r
   2dup cc-ag-class r@ [lit] 24 + !
@@ -476,6 +196,21 @@ variable cc-ag-plan
   then,
   r@ ag-size cc-ag-frame r> [lit] 48 + ! ;
 
+```
+## Freeze each argument before the next expression
+
+A **fixed-frame snapshot** owns the bytes of a completed argument. Later argument expressions, nested calls and changes to the original object cannot change those bytes. A result object receives its own storage too.
+
+| Input | Result or destination |
+|---|---|
+| Slot, GP register → `cc-ag-store-gp` | Spill the incoming register. |
+| Slot, GP register → `cc-ag-load-gp` | Load the outgoing register. |
+| Slot, XMM register, opcode → `cc-ag-xmm-local` | Shared memory operand encoder. |
+| Slot, XMM register → `cc-ag-store-xmm`, `cc-ag-load-xmm` | Spill or reload the scalar floating payload. |
+| Size, slot → `cc-ag-copy-to-slot` | Copy the addressed object's exact byte size. |
+
+GP moves follow the System V register sequence, with distinct encodings for the extended registers (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:152`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ Register numbers are the psABI sequence RDI, RSI, RDX, RCX, R8, R9.
 : cc-ag-store-gp ( slot register -- )
   dup [lit] 0 = if, drop cc-emit-store-local exit, then,
@@ -493,6 +228,9 @@ variable cc-ag-plan
   dup [lit] 3 = if, drop [lit] 77 else,
   [lit] 4 = if, [lit] 69 else, [lit] 77
   then, then, then, then, then, cc-emit-local-ea ;
+```
+SSE payloads and object copies use private frame storage, so scalar C object widths need not match the register move width (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:169`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ Scalar SSE arguments use only the low eight bytes of XMM0..XMM7.
 : cc-ag-xmm-local ( slot register opcode -- )
   [lit] 242 cc-emit-byte [lit] 15 cc-emit-byte cc-emit-byte
@@ -502,6 +240,9 @@ variable cc-ag-plan
 : cc-ag-copy-to-slot ( size slot -- )
   cc-ni-mov-rsi-rdi cc-emit-lea-rdi-local cc-ni-copy-bytes ;
 
+```
+`cc-ag-parse-arguments` chooses a declared parameter type when a prototype supplies one. Otherwise default promotions preserve records and long double, promote scalar float, and normalize narrow integers before location planning (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:180`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ Each argument is frozen in the fixed frame when its expression finishes.
 \ Nested calls and alloca may move RSP without moving these object copies.
 : cc-ag-parse-arguments
@@ -524,6 +265,9 @@ variable cc-ag-plan
     then,
     2dup >r >r cc-last-expr-type @ cc-last-struct-desc @ r> r> cc-value-shape-fwd
     ag-count @ cc-ag-locate
+```
+A record is descriptor-checked and copied into its fixed-frame snapshot; a scalar is converted and saved. The parser then checks separators and the prototype argument count (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:200`):
+```forth file=cc/131-cc-aggregate-abi.fth
     ag-count @ ag-arg >r
     r@ ag-type cc-ag-type? if,
       cc-last-expr-type @ r@ ag-type cc-emit-convert-value
@@ -545,6 +289,11 @@ variable cc-ag-plan
   ag-signature @ cc-sysv-prototype? if,
     ag-count @ ag-signature @ cc-sysv-sig-count < if, [lit] 235 cc-die then,
   then, ;
+```
+## Prepare the boundary in a safe order
+
+`cc-ag-prepare-call` saves live state and aligns the outgoing area to sixteen bytes. Stack copies precede register loads because the copy instruction uses GP argument registers (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:221`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-prepare-call
   [lit] 24 cc-alloc dup ag-live ! [lit] 24 cc-nzero
   cc-sysv-stack-depth @ cc-switch-depth @ + dup ag-live @ [lit] 8 + !
@@ -565,6 +314,9 @@ variable cc-ag-plan
       [lit] 72 cc-emit-byte [lit] 141 cc-emit-byte
       [lit] 188 cc-emit-byte [lit] 36 cc-emit-byte dup ag-offset cc-emit-4le
       dup ag-size cc-ni-copy-bytes
+```
+The hidden result address is installed before visible GP arguments, while scalar SSE loads use their independent bank (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:241`):
+```forth file=cc/131-cc-aggregate-abi.fth
     then, drop 1+
   repeat, drop
   ag-return-class @ 0= if, ag-result @ cc-emit-lea-rdi-local then,
@@ -580,6 +332,9 @@ variable cc-ag-plan
       then,
     then, drop 1+
   repeat, drop ;
+```
+`cc-ag-result` captures INTEGER return registers or pops an X87 result into the caller's private object before restoring live state. MEMORY already occupies the caller buffer; scalar results follow their existing value hook (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:256`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-result
   ag-return-class @ [lit] 4 = if,
     [lit] 219 cc-emit-byte ag-result @ [lit] 125 cc-emit-local-ea \ fstp tbyte
@@ -599,6 +354,9 @@ variable cc-ag-plan
     ag-live @ cc-sysv-restore-live cc-emit-mov-rdi-rax
     ag-signature @ cc-sysv-sig-return cc-sysv-result-value-fwd
   then, ;
+```
+`cc-ag-emit-call` writes the actual used SSE-register count into EAX for the unnamed-argument contract, then chooses a saved indirect target or a direct symbol fixup (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:275`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-emit-call
   cc-ag-parse-arguments cc-ag-prepare-call
   [lit] 184 cc-emit-byte ag-fp @ cc-emit-4le
@@ -613,6 +371,9 @@ variable cc-ag-plan
       else, swap cc-sym-call-fixups cc-add-fixup-to-list then,
     else, cc-sym-val-of cc-emit-call-vaddr then,
   then, cc-ag-result ;
+```
+`cc-ag-call-begin` allocates result storage and `cc-ag-save-target` freezes an indirect target. `cc-ag-call` saves the enclosing call plan so nested calls cannot overwrite it (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:289`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-call-begin ( signature -- )
   dup cc-ag-check-entry cc-ag-new-plan
   ag-return-class @ [lit] 0 >= if,
@@ -631,6 +392,9 @@ variable cc-ag-plan
   then,
   cc-ag-emit-call r> cc-ag-plan ! ;
 ' cc-ag-call is cc-native-call-fwd
+```
+An expression-valued function pointer needs callable and signature checks before materialization; `cc-ag-indirect-call` restores result metadata and the enclosing plan after the call (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:307`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-indirect-call
   cc-target-sysv @ 0= cc-expr-unevaluated @ or if, cc-sysv-indirect-call exit, then,
   cc-last-expr-type @ cc-sysv-check-callable
@@ -642,6 +406,11 @@ variable cc-ag-plan
   r> cc-ag-plan ! ;
 ' cc-ag-indirect-call is cc-native-indirect-fwd
 
+```
+## Reconstruct callee objects and return bytes
+
+`cc-ag-parameters` keeps `cc-ag-function-plan` and `cc-ag-sret-slot`, then installs each named parameter as an independent local object (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:320`):
+```forth file=cc/131-cc-aggregate-abi.fth
 variable cc-ag-function-plan
 variable cc-ag-sret-slot
 : cc-ag-parameters ( signature -- )
@@ -661,6 +430,9 @@ variable cc-ag-sret-slot
     ag-slot sk-local swap cc-ninstall-symbol drop 1+
   repeat, drop r> cc-ag-plan ! ;
 ' cc-ag-parameters is cc-sysv-params-fwd
+```
+`cc-ag-store-parameters` spills every register parameter before copying any incoming stack object, because a copy could destroy a register that has not yet been saved (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:337`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-store-parameters
   cc-ag-function-plan @ 0= if, cc-sysv-store-params-default exit, then,
   cc-ag-plan @ >r cc-ag-function-plan @ cc-ag-plan !
@@ -687,6 +459,9 @@ variable cc-ag-sret-slot
   repeat, drop r> cc-ag-plan ! ;
 ' cc-ag-store-parameters is cc-sysv-store-params-fwd
 
+```
+`cc-ag-convert` permits a record discard to void but does not reinterpret record addresses as scalars. Scalar initializer paths use `cc-ag-initialize` to reject that mistake before storing (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:363`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ Return expressions keep their descriptor until the full object is copied.
 \ MEMORY returns use the caller's separate result object and return its
 \ address in RAX. Small returns are staged to avoid reading beyond the source.
@@ -701,6 +476,9 @@ variable cc-ag-sret-slot
   over cc-ag-type? over cc-ag-type? or if, cc-ag-die then,
   cc-fp-initialize ;
 ' cc-ag-initialize is cc-value-init-fwd
+```
+`cc-ag-return` checks value shape and descriptor identity. MEMORY copies into the saved caller buffer and returns its address in RAX; INTEGER returns stage the exact source bytes before wider register loads, avoiding a read beyond a short source object. X87 returns load the significant bytes into `st(0)` (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:377`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-return
   cc-last-expr-type @ cc-last-struct-desc @
   cc-native-return-type @ cc-native-return-desc @ cc-value-shape-fwd
@@ -727,6 +505,22 @@ variable cc-ag-sret-slot
   then, ;
 ' cc-ag-return is cc-value-return-fwd
 
+```
+## Keep record addresses out of scalar operations
+
+These handlers protect the address representation. They are transport defaults; the extended arithmetic layer replaces the long-double cases while ordinary records keep their constraints.
+
+| Input | Result or destination |
+|---|---|
+| Type → `cc-ag-scalar-use` | Reject an actual record in a scalar operation. |
+| Type, descriptor → `cc-ld-scalar-use` | Also reject transport-only long double. |
+| Current expression → `cc-ag-last-use`, `cc-ag-plus` | Apply those operand checks. |
+| Operand types → `cc-ag-common-type` | Check both descriptors before scalar common-type selection. |
+| Current expression → `cc-ag-test`, `cc-ag-not`, `cc-ag-negate`, `cc-ag-complement` | Check before the corresponding scalar operation. |
+| Type → `cc-ag-integer-use` | Check before an integer-only use. |
+
+The scalar guards run even when expression evaluation is suppressed, so an address cannot acquire arithmetic meaning through `sizeof` (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:403`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ An address representation is not permission to use a record as a scalar.
 \ Explicit record casts remain outside this value contract. Long double
 \ shares the representation; 132 replaces the scalar computation hooks.
@@ -752,6 +546,9 @@ variable cc-ag-sret-slot
 ' cc-ag-complement is cc-value-complement-fwd
 ' cc-ag-integer-use is cc-value-integer-use-fwd
 
+```
+`cc-ag-ternary` descriptor-checks the selected record and takes a fixed-frame snapshot at the branch join. Its temporary status prevents assignment or address-taking; unevaluated selection checks identity without copying (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:432`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ The join sees the selected arm's address. Freeze its complete object into
 \ a fresh fixed-frame slot before any later expression can change an arm.
 \ Every syntactic conditional owns storage, including nested conditionals;
@@ -774,6 +571,9 @@ variable cc-ag-sret-slot
 ' cc-ag-ternary is cc-aggregate-ternary-fwd
 
 
+```
+`cc-ag-argument-check` enforces prototype record identity independently of emitted call code, preserving type constraints in unevaluated calls (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:453`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ C type constraints apply inside sizeof even when no ABI code is emitted.
 \ Leave the old scalar grammar and the metadata-only fallback intact; check
 \ only the aggregate identities introduced by this layer's value contract.
@@ -790,6 +590,9 @@ variable cc-ag-sret-slot
   else, 2drop then, ;
 ' cc-ag-argument-check is cc-sysv-argument-check-fwd
 
+```
+`cc-ag-cast-types` shares the runtime and constant cast policy so a cast cannot relabel a small object address as a larger record. A void discard remains valid (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:469`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ A cast must never relabel a smaller object's address as a larger record.
 \ Runtime and constant cast parsers share this pure policy hook. Valid
 \ descriptor-checked assignments and returns bypass explicit cast parsing.
@@ -803,6 +606,13 @@ variable cc-ag-sret-slot
   cc-sysv-cast-types ;
 ' cc-ag-cast-types is cc-cast-types-fwd
 
+```
+## Retrieve the same classes through varargs
+
+The variadic cursor machinery (Chapter 46) receives the named arguments' actual consumption from the call plan. Records keep their classification in unnamed and unprototyped calls.
+
+`cc-ag-va-layout` derives GP, SSE and overflow offsets from the function plan; `cc-ag-va-last-slot` locates the last named parameter without confusing argument order with register order (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:479`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ va_start uses the same named-argument plan as callee entry. GP and SSE
 \ exhaustion are independent; overflow begins after all named stack bytes.
 : cc-ag-va-layout ( -- gp-offset fp-offset overflow-offset )
@@ -818,6 +628,9 @@ variable cc-ag-sret-slot
 \ remaining GP save slots is read there, where they are consecutive; any
 \ other record comes from the overflow area, aligned as the caller stored
 \ it. The value is the record's address, like every record value.
+```
+`cc-ag-va-record` first checks whether every INTEGER eightbyte fits in the remaining GP save slots. A successful retrieval advances the GP cursor over the entire record (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:494`):
+```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-va-record ( type descriptor -- )
   2dup cc-ag-class >r
   r@ [lit] 1 = r@ [lit] 2 = or if,
@@ -835,6 +648,9 @@ variable cc-ag-sret-slot
     cc-emit-jmp-rel32-placeholder r> cc-patch-rel32-to-here >r
   else, [lit] 0 >r then,
   [lit] 72 cc-emit-byte [lit] 139 cc-emit-byte
+```
+The overflow path aligns the cursor for the object, advances by rounded size, and returns an address. A failed register fit leaves the GP cursor untouched, matching caller allocation (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:511`):
+```forth file=cc/131-cc-aggregate-abi.fth
   [lit] 71 cc-emit-byte [lit] 8 cc-emit-byte            \ mov rax, [rdi+8]
   2dup cc-nalignment [lit] 8 > if,
     [lit] 72 cc-emit-byte [lit] 131 cc-emit-byte
@@ -851,6 +667,9 @@ variable cc-ag-sret-slot
   cc-mark-typed-value ;
 ' cc-ag-va-record is cc-va-record-fwd
 
+```
+Long double shares record storage but has its own descriptor identity. `cc-ld-value-shape` checks that identity; `cc-ld-ni-scalar` copies runtime initializers, while `cc-ld-compound` rejects computation until the next layer replaces these transport defaults (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:527`):
+```forth file=cc/131-cc-aggregate-abi.fth
 \ Transport-only defaults, replaced by 132 for scalar computations and
 \ exact static initialization. Other records retain their copy contract.
 : cc-ld-value-shape ( source descriptor destination descriptor -- )
@@ -870,9 +689,22 @@ variable cc-ag-sret-slot
 : cc-ld-compound ( type descriptor -- ) cc-ld? if, cc-ld-die then, ;
 ' cc-ld-compound is cc-aggregate-compound-fwd
 ```
+## Compute with extended values without retaining x87 state
 
-## Scalar computation source
+Long double stores ten significant bytes in a sixteen-byte object with sixteen-byte alignment. The classifier treats its shared opaque descriptor as an X87 leaf: arguments travel on the stack, while results travel through `st(0)`. A pure long-double wrapper may use that return class; a union with an integer alternative is MEMORY because the walk sees another leaf.
 
+A fixed-frame snapshot also bounds numeric lifetimes. Each x87 computation ends with a memory result and an empty x87 stack. The type-code test alone cannot distinguish an actual record from long double; descriptor shape checks must precede conversions.
+
+| Input | Result or destination |
+|---|---|
+| Type → `cc-x87-type?` | System V opaque-record type-code test. |
+| Current expression → `cc-x87-last?` | Descriptor-aware long-double test. |
+| Opcode, ModRM → `cc-x87-op` | Instruction bytes. |
+| Current object → `cc-x87-load`, `cc-x87-save` | Load extended data or pop it into a new frame object. |
+| Opcode, ModRM → `cc-x87-stage` | Stage a scalar payload for a memory instruction. |
+| Exponent → `cc-x87-power` | Exact extended power used by unsigned conversion. |
+
+The load/save helpers keep numeric results in private storage; powers are constructed exactly rather than rounded through double (`forth-bootstrap/cc/132-cc-long-double.fth:1`):
 ```forth file=cc/132-cc-long-double.fth
 \ 132-cc-long-double.fth -- x87 scalar computations on address values.
 \ Every result is popped into a private sixteen-byte frame object. No x87
@@ -896,6 +728,9 @@ variable cc-ag-sret-slot
   [lit] 16 cc-ag-frame dup >r cc-emit-store-local
   r@ 1- r> r> cc-emit-mov-rdi-int
   >r cc-emit-store-local r> cc-emit-lea-rdi-local cc-x87-load ;
+```
+`cc-x87-truncate` saves and restores the caller's control word around integer conversion. `cc-x87-to-u64` splits the unsigned range at its high bit so signed truncation can handle either half (`forth-bootstrap/cc/132-cc-long-double.fth:23`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-truncate
   \ Save caller's control word, select truncation, fistp, then restore it.
   [lit] 16 cc-ag-frame dup >r cc-emit-lea-rdi-local
@@ -916,6 +751,9 @@ variable cc-ag-sret-slot
   cc-x87-truncate ty-ulong [lit] 0 ty-make cc-fp-flip-sign
   cc-emit-jmp-rel32-placeholder r> cc-patch-rel32-to-here >r
   cc-x87-truncate r> cc-patch-rel32-to-here ;
+```
+`cc-x87-convert` loads float or double at its own width. Integer inputs normalize first; a high unsigned input is loaded as signed and corrected with an exact power (`forth-bootstrap/cc/132-cc-long-double.fth:43`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-convert ( source destination -- )
   2dup cc-x87-type? swap cc-x87-type? or 0= if, cc-fp-convert exit, then,
   2dup = if, 2drop exit, then,
@@ -936,6 +774,9 @@ variable cc-ag-sret-slot
     then,
     2drop cc-x87-save
   else,
+```
+Conversion out stores directly at the destination floating precision, compares with zero for Boolean conversion, or truncates for integers. Nonfinite and out-of-range integer conversions have no defined C result (`forth-bootstrap/cc/132-cc-long-double.fth:63`):
+```forth file=cc/132-cc-long-double.fth
     dup ty-void [lit] 0 ty-make = if, 2drop exit, then,
     cc-x87-load
     dup cc-fp-type? if,
@@ -959,6 +800,11 @@ variable cc-ag-sret-slot
     then, nip cc-emit-convert-rdi
   then, ;
 ' cc-x87-convert is cc-emit-convert-value
+```
+## Select arithmetic only for numeric descriptors
+
+`cc-x87-initialize` keeps actual records out of scalar stores, while `cc-x87-right` preserves the left operand during conversion of the right (`forth-bootstrap/cc/132-cc-long-double.fth:86`):
+```forth file=cc/132-cc-long-double.fth
 \ Initializers store integers at their destination width without a separate
 \ conversion. Preserve that byte sequence unless an x87 value participates.
 \ The shared record type code is insufficient: bitfield leaves do not run
@@ -977,6 +823,9 @@ variable cc-ag-sret-slot
   [lit] 72 [lit] 137 cc-x87-op [lit] 207 cc-emit-byte
   cc-x87-convert cc-emit-mov-rcx-rdi cc-emit-pop-rdi ;
 ' cc-x87-right is cc-emit-convert-right
+```
+`cc-x87-arithmetic?` accepts integers, scalar floating types and descriptor-identified long double. `cc-x87-common` chooses extended computation only after both operands pass that check (`forth-bootstrap/cc/132-cc-long-double.fth:104`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-arithmetic? ( type descriptor -- flag )
   2dup cc-ld? >r drop dup cc-const-integer? swap cc-fp-type? or r> or ;
 : cc-x87-common ( left right -- type )
@@ -988,6 +837,9 @@ variable cc-ag-sret-slot
     then,
   then, cc-ag-common-type ;
 ' cc-x87-common is cc-expr-common-type
+```
+`cc-x87-binop-check` limits extended operands to arithmetic and comparisons; integer-only operators remain rejected (`forth-bootstrap/cc/132-cc-long-double.fth:115`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-binop-check
   cc-expr-left-type @ cc-expr-left-desc @ cc-ld?
   cc-expr-right-type @ cc-expr-right-desc @ cc-ld? or if,
@@ -997,6 +849,9 @@ variable cc-ag-sret-slot
     over pt-eq-eq = or swap pt-bang-eq = or 0= if, cc-ld-die then,
   then, cc-sysv-array-binop ;
 ' cc-x87-binop-check is cc-array-binop-fwd
+```
+`cc-x87-binop` loads right then left so subtraction and division preserve operand order. Arithmetic pops into private storage; comparisons pop both operands and reuse unordered flag handling (`forth-bootstrap/cc/132-cc-long-double.fth:124`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-binop
   cc-expr-common @ cc-x87-type? 0= if, cc-fp-binop exit, then,
   [lit] 219 [lit] 41 cc-x87-op cc-x87-load \ right then left
@@ -1013,6 +868,19 @@ variable cc-ag-sret-slot
   then, then, then, then,
   [lit] 222 swap cc-x87-op cc-x87-save ;
 ' cc-x87-binop is cc-native-binop-emit
+```
+## Freeze loads and updates
+
+| Input | Result or destination |
+|---|---|
+| Current expression → `cc-x87-test`, `cc-x87-not` | Boolean test or its negation. |
+| Current expression → `cc-x87-negate`, `cc-x87-plus` | Extended sign change or accepted unary plus. |
+| Current expression → `cc-x87-change-check` | Admit extended updates, delegate other checks. |
+| Update metadata → `cc-x87-change` | Increment or decrement with an exact unit. |
+| Type, field → `cc-x87-field-load`, `cc-x87-field-store` | Snapshot extended data or store its significant bytes. |
+
+Boolean conversion treats signed zeros as false and unordered values as true; unary minus loads, changes sign and saves a fresh object. `cc-x87-plus` accepts a long-double operand without changing it (`forth-bootstrap/cc/132-cc-long-double.fth:151`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-test
   cc-x87-last? if,
     cc-last-expr-type @ ty-bool [lit] 0 ty-make cc-x87-convert cc-emit-test-rdi
@@ -1029,6 +897,9 @@ variable cc-ag-sret-slot
 ' cc-x87-not is cc-value-not-fwd
 ' cc-x87-negate is cc-value-negate-fwd
 ' cc-x87-plus is cc-value-plus-fwd
+```
+`cc-x87-change-check` delegates non-extended checks; `cc-x87-change` increments or decrements with an exact unit. Field loads take a fixed-frame snapshot before later side effects, and field stores write the ten significant bytes (`forth-bootstrap/cc/132-cc-long-double.fth:156`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-change-check cc-x87-last? 0= if, cc-fp-change-check then, ;
 : cc-x87-change
   cc-change-type @ cc-change-desc @ cc-ld? if,
@@ -1048,6 +919,11 @@ variable cc-ag-sret-slot
   else, cc-bf-store then, ;
 ' cc-x87-field-load is cc-field-load-fwd
 ' cc-x87-field-store is cc-field-store-fwd
+```
+## Check shapes before casts and initialization
+
+`cc-x87-shape` admits only arithmetic partners for long double. `cc-x87-cast` uses that check, `cc-x87-ternary` leaves numeric selection to the scalar path, and `cc-x87-scalar-check` admits the opaque numeric type code only after the surrounding shape policy (`forth-bootstrap/cc/132-cc-long-double.fth:175`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-shape ( source descriptor destination descriptor -- )
   [lit] 3 cc-npick [lit] 3 cc-npick cc-ld? [lit] 2 cc-npick [lit] 2 cc-npick cc-ld? or if,
     2dup cc-x87-arithmetic? [lit] 4 cc-npick [lit] 4 cc-npick cc-x87-arithmetic? and 0= if,
@@ -1073,6 +949,9 @@ variable cc-ag-sret-slot
 : cc-x87-scalar-check ( type -- )
   dup cc-x87-type? if, drop else, cc-fp-scalar-check then, ;
 ' cc-x87-scalar-check is cc-sysv-check-scalar
+```
+`cc-x87-ni-scalar` converts runtime initializers before copying the object. `cc-x87-literal` materializes the already-parsed extended significand and exponent into a frame object; it does not repeat literal rounding (`forth-bootstrap/cc/132-cc-long-double.fth:200`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-ni-scalar
   ni-type @ ni-desc @ cc-ld? 0= if, cc-om-scalar-initializer exit, then,
   cc-ni-static @ if, cc-ld-die then,
@@ -1095,6 +974,9 @@ variable cc-ag-sret-slot
   else, swap cc-emit-movabs-rdi-imm64 [lit] 0 cc-mark-typed-value then,
   true ;
 ' cc-x87-literal is cc-value-literal-fwd
+```
+`cc-x87-initializer` uses the constant evaluator's representation to patch object data or emit typed stores; its runtime branch delegates to the converted-copy initializer (`forth-bootstrap/cc/132-cc-long-double.fth:222`):
+```forth file=cc/132-cc-long-double.fth
 : cc-x87-initializer
   ni-type @ ni-desc @ cc-ld? 0= if, cc-om-scalar-initializer exit, then,
   cc-ni-static @ if,
@@ -1114,3 +996,103 @@ variable cc-ag-sret-slot
   then, cc-x87-ni-scalar ;
 ' cc-x87-initializer is cc-ni-scalar-fwd
 ```
+## Try it
+
+Run from the `forth-bootstrap` checkout root with the seed already built. The block loads the compiler through these aggregate and extended computation layers, compiles caller and callee separately, and links them with the Forth linker and a small `_start`. The shell displays each returned integer through the process status.
+
+`shift` receives the INTEGER pair and an SSE double, changes its local copy, and returns the pair by value. The original object stays intact. `extended` exercises stack-passed long double and x87 multiplication. Records with double members remain unsupported; scalar SSE transport does not imply an SSE aggregate classifier.
+
+```sh
+(
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+{
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  printf 'create output-path s, %s/start.o [lit] 0 c,\n' "$work"
+  cat <<'FORTH'
+cc-obj-init
+[lit] 232 cc-obj-byte [lit] 0 cc-obj-4le
+[lit] 137 cc-obj-byte [lit] 199 cc-obj-byte  [lit] 184 cc-obj-byte [lit] 60 cc-obj-4le
+[lit] 15 cc-obj-byte [lit] 5 cc-obj-byte
+create entry-name s, _start  create main-name s, main
+entry-name [lit] 6 cc-obj-global cc-obj-func cc-obj-default cc-obj-text [lit] 0 [lit] 14 cc-obj-symbol drop
+main-name [lit] 4 cc-obj-global cc-obj-func cc-obj-default cc-obj-undef [lit] 0 [lit] 0 cc-obj-symbol
+>r cc-obj-text [lit] 1 cc-obj-plt32 r> [lit] 0 [lit] 4 - cc-obj-reloc
+output-path cc-obj-write bye
+FORTH
+} | ./seed-forth || exit "$?"
+cat > "$work/peer.c" <<'C'
+struct Pair { long left; long right; };
+struct Pair shift(struct Pair p, double delta) {
+    p.left += (long)delta;
+    p.right += 2;
+    return p;
+}
+long extended(long double x) { return (long)(x * 2.0L); }
+C
+for probe in 0 1 2 3; do
+printf '#define PROBE %s\n' "$probe" > "$work/probe.c"
+cat >> "$work/probe.c" <<'C'
+struct Pair { long left; long right; };
+struct Pair shift(struct Pair, double);
+long extended(long double);
+int main(void) {
+    struct Pair original = {20, 30};
+    struct Pair answer = shift(original, 3.0);
+    if (original.left != 20 || original.right != 30) return 100;
+    if (PROBE == 0) return answer.left;
+    if (PROBE == 1) return answer.right;
+    if (PROBE == 2) return original.left;
+    return extended(4.0L);
+}
+C
+for unit in peer probe; do
+{
+  cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
+      cc/121-cc-sysv.fth cc/123-cc-object-program.fth \
+      cc/124-cc-target.fth cc/125-cc-consteval.fth cc/126-cc-varargs.fth \
+      cc/127-cc-binary64.fth cc/128-cc-float-literal.fth cc/129-cc-bitfield.fth \
+      cc/131-cc-aggregate-abi.fth cc/132-cc-long-double.fth
+  printf 'create output-path s, %s [lit] 0 c,\n' "$work/$unit.o"
+  cat <<'FORTH'
+cc-sysv-object-enable
+: object-main
+  cc-load-stdin cc-preprocess cc-out-init cc-globals-init
+  cc-sysv-object-program output-path cc-obj-write bye ;
+object-main
+FORTH
+  cat "$work/$unit.c"
+} | ./seed-forth || exit "$?"
+done
+{
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth
+  for name in start.o peer.o probe.o result; do printf 'create p-%s s, %s/%s [lit] 0 c,\n' "$name" "$work" "$name"; done
+  printf '%s\n' 'create entry-name s, _start' \
+    'lnk-init p-start.o lnk-add-object p-peer.o lnk-add-object p-probe.o lnk-add-object entry-name [lit] 6 lnk-entry p-result lnk-link lnk-release bye'
+} | ./seed-forth || exit "$?"
+"$work/result"
+result=$?
+case "$probe" in
+  0) label='returned left'; expected=23 ;;
+  1) label='returned right'; expected=32 ;;
+  2) label='original left'; expected=20 ;;
+  3) label='extended result'; expected=8 ;;
+esac
+printf '%s = %s\n' "$label" "$result"
+test "$result" -eq "$expected" || exit 1
+done
+)
+# prints "returned left = 23\nreturned right = 32\noriginal left = 20\nextended result = 8"
+```
+Observed output:
+```text
+returned left = 23
+returned right = 32
+original left = 20
+extended result = 8
+```
+## Exercise
+
+**Trace — easy.** Follow the call plan for `shift`: locate the pair, the double and the result object. Explain which copy keeps `original` unchanged.
+
+**Verify — moderate.** Add integer parameters before the pair until it no longer fits in GP registers. Add an integer after it and explain why that later argument can still use a register. Compile the two units again and check the returned members.
