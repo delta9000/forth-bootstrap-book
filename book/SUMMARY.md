@@ -86,9 +86,3 @@
 - [Concept index and dependencies](63-concepts.md)
 - [Word index](WORD-INDEX.md)
 - [Editorial notes](65-editorial-notes.md)
-
-# Retired
-
-- [How to write a chapter (previous edition)](WRITING.md)
-- [Learning Story Plan (previous edition)](LEARNING_STORY_PLAN.md)
-- [Chapter 34 — Compiling TinyCC Directly](34-direct-tinycc.md)

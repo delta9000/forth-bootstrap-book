@@ -2498,7 +2498,7 @@ for which chapter depends on which, the
 - **Dictionary header layout** — [Ch 9, The header layout](09-dictionary.md#the-header-layout)
 - `die` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
 - `digit?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, The range-check trick: `digit?`](19-lib-06-character-classification.md#the-range-check-trick-digit)
-- **Direct TinyCC bootstrap** — [Ch 34 §6 What the bootstrap result proves](34-direct-tinycc.md#6-what-the-bootstrap-result-proves)
+- **Direct TinyCC bootstrap** — [Ch 57, Routes retained in seed-forth](57-historical-reproducibility.md#routes-retained-in-seed-forth)
 - **Diverse double-compiling** — [Ch 57, Diverse double-compiling](57-historical-reproducibility.md#diverse-double-compiling)
 - `divide_code` — *seed label* — [Ch 7, Unsigned division contract](07-arithmetic-and-logic.md#unsigned-division-contract)
 - **Division as a right shift** — [Ch 22, Why divide by 256?](22-lib-09-memory-and-cell-writers.md#why-divide-by-256)

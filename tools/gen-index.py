@@ -58,7 +58,7 @@ CONCEPTS = [
     ("Private all-stack ABI", [("39-lp64", "Private stack calls and whole programs")]),
     ("Static initializer lowering", [("39-lp64", "Initializers reuse expression fixups")]),
     ("Fail-closed bootstrap runtime", [("39-lp64", "A finite Linux boundary")]),
-    ("Direct TinyCC bootstrap", [("34-direct", "What the bootstrap result proves")]),
+    ("Direct TinyCC bootstrap", [("57-historical", "Routes retained in seed-forth")]),
     ("Stack-effect notation", [("14-lib-01", "Stack-effect comments")]),
     ("Reverse Polish notation", [("14-lib-01", "Postfix evaluation")]),
     ("Data stack", [("14-lib-01", "Postfix evaluation"), ("06-stack", "The push and pop shapes")]),
