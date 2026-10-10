@@ -39,8 +39,7 @@
 
 - [Arena and I/O buffers](27-arena-and-io-buffers.md)
 - [The preprocessor](28-the-preprocessor.md)
-- [The lexer](outline/29-the-lexer.md)
-  - [Chapter 23 — The Lexer](23-the-lexer.md)
+- [The lexer](29-the-lexer.md)
 - [Types and symbols](outline/30-types-and-symbols.md)
   - [Chapter 24 — Types and Symbols](24-types-and-symbols.md)
 - [ELF emission and instruction encoding](outline/31-elf-and-codegen-part-1.md)
