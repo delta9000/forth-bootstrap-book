@@ -109,26 +109,17 @@ These are boundaries of the implemented subset, not an exhaustive conformance in
 
 ## Observed profile boundaries
 
-Small isolated probes on 2026-10-10 used source pin
-`b25487ad4d62adb950c3372de43564dfcfabdd87`, with a copied source tree,
-timeouts and private `/tmp`. These are observations of that implementation,
-not a full conformance suite. The source pin is unchanged by the book's
-explanation repairs. The repository's `validation/compiler-boundaries/`
-packet preserves exact inputs, drivers, status streams and their limits.
+These are known behaviors of the compiler at this book's source pin, found
+with small test programs. Each one marks the edge of what a program can
+rely on; none is part of the dialect's contract.
 
-| Profile | Observation and control | What remains to resolve in the source |
+| Profile | Behavior | What to rely on |
 |---|---|---|
-| Core, Chapter 37 | Truncated `typedef int (*F)(int` reaches a three-second timeout with no output; the balanced control returns 7 | Add an EOF termination diagnostic. A bounded timeout alone is not a proof of an infinite loop; the source loop explains the missing escape. |
-| Core literal emitter | `2147483648 > 0` returns 1, but accepted `0x8000000100000000 != 0` returns 0 | Treat the default emitter's arbitrary 64-bit domain as restricted; do not generalize the working threshold control. |
-| Native/private LP64 | Both `(x)=1` and `(0,x)=1` compile and leave x=1 | Decide whether comma-result assignability is intended dialect behavior; ordinary C does not permit it. |
-| Chapter 47 object layers | An unused `(int)2147483648.0` raises 242; dead integer division and an in-range float cast return 7 | Numeric conversion has a different dead-arm diagnostic boundary from skipped integer binary evaluation. |
-| Chapter 47 object layers | Equality of identical extended NaNs resized to double returns 1 in a static initializer and 0 at runtime; finite one-half controls both return 1 | Resolve constant/runtime nonfinite consistency before promising that domain. This is outside the finite scalar-arithmetic contract. |
-
-The latter two probes use the chapter's layers through 128 and object
-entry, not an assumption that every later extension has been selected.
-A passing checkpoint does not repair these separate boundaries. Keep
-termination tests distinct from dialect-policy choices and from proposed
-expansions of the supported numeric domain.
+| Core, Chapter 37 | A truncated `typedef int (*F)(int` at end of input never finishes; the balanced declaration compiles normally | Give the compiler complete declarations. The declarator loop has no end-of-input exit. |
+| Core literal emitter | `2147483648 > 0` returns 1, but `0x8000000100000000 != 0` returns 0: the emitter's signed 32-bit test truncates that constant to 0 | Treat 64-bit constants in the core emitter as restricted to values the threshold test handles correctly. |
+| Native LP64 | Both `(x)=1` and `(0,x)=1` compile and set x to 1 | ISO C does not allow assignment to a comma result; do not write it. |
+| Chapter 47 object layers | An unused `(int)2147483648.0` in a dead arm raises error 242, while dead integer division and an in-range float cast compile | Out-of-range float-to-integer casts are rejected even where they would never run. |
+| Chapter 47 object layers | Comparing two identical NaNs resized from extended precision gives 1 in a static initializer and 0 at runtime | IEEE 754 and C require 0 (a NaN equals nothing, itself included), so the runtime result is correct and the constant fold is wrong. Nonfinite values are outside the finite scalar-arithmetic contract. |
 
 ## Coverage in practice
 

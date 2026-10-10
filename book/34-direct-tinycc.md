@@ -1,4 +1,4 @@
-> Retired edition material (labelled 2026-10-10). This file is not in the published book. Use [39-lp64-storage-and-initializers.md](39-lp64-storage-and-initializers.md) for the current route. Historical chapter numbers, commands and model-reader reports below do not describe or validate the current edition.
+> Retired edition material (labelled 2026-10-10). This file is not in the published book. Use [39-lp64-storage-and-initializers.md](39-lp64-storage-and-initializers.md) for the current route. Its chapter numbers and commands do not describe or validate the current edition.
 
 # Chapter 34 — Compiling TinyCC Directly
 

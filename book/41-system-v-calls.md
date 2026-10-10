@@ -31,10 +31,7 @@ If the final argument itself is a call, earlier outer arguments remain
 live. The call record saves that surviving span in fixed-frame storage
 before preparing the inner outgoing block, then restores it afterward.
 The detailed [live-value machinery](#keep-expression-temporaries-alive)
-implements this lifetime boundary. Two objects produced by this compiler
-can check agreement between its caller and callee; independent interoperability
-also needs a host-produced peer in each direction. Such optional checks
-would be tests outside the trusted bootstrap route, not extra bootstrap inputs.
+implements this lifetime boundary.
 
 ## One signature, two places to use it
 

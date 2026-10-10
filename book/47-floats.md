@@ -8,12 +8,12 @@ The decoder must choose between representable values. First recover what
 their encodings mean; if you can already derive the neighbours of `1.0`,
 try the prediction below and continue to the payload path.
 
+In the formulas below, `2^k` means two raised to the power `k`. This is
+mathematical notation, not C's bitwise exclusive-or operator.
+
 A binary floating payload has three fields, from most to least significant:
 sign `s`, unsigned exponent field `E`, and unsigned fraction field `F`.
 Here `p` counts **stored fraction bits**, and `B` is the exponent bias:
-
-In the formulas below, `2^k` means two raised to the power `k`. This is
-mathematical notation, not C's bitwise exclusive-or operator.
 
 | Format in this compiler | Sign bits | Exponent bits | Fraction bits `p` | Bias `B` |
 |---|---:|---:|---:|---:|
@@ -173,7 +173,7 @@ The runtime literal hook asks the typed spelling interface (Chapter 45) for bits
 
 ```
 
-## Move into SSE only to compute
+## Move into SSE to compute
 
 XMM0 and XMM1 belong to a separate bank of
 [128-bit registers](https://www.intel.com/content/dam/support/us/en/documents/processors/pentium4/sb/25366521.pdf),
@@ -1032,18 +1032,17 @@ variable cc-f80-resize-nan
 
 These branches handle extended exceptions, not general scalar nonfinite arithmetic.
 
-Two bounded observations limit the finite-example story at this source
-pin. In this chapter's object profile, `static int x = 1 ? 7 : (int)2147483648.0;`
-raises error 242 despite the unused arm; dead integer division and an
-in-range floating-cast control both return 7. Numeric cast conversion
-therefore still performs its range check in that arm.
+Two limits follow. First, in this chapter's object profile,
+`static int x = 1 ? 7 : (int)2147483648.0;` raises error 242 even though
+the arm is never used, while dead integer division and an in-range cast
+compile. Numeric cast conversion performs its range check in every arm.
 
-Resizing an extended NaN to binary64 also exposes a comparison difference:
-constant equality of two such NaNs returned 1, while runtime equality of
-the same initialized NaN returned 0. Finite controls agreed. These are
-profile-specific observations, not a claim of general scalar nonfinite
-support; [Appendix F](60-c-subset.md#observed-profile-boundaries) records the
-limits and outstanding source work.
+Second, resizing an extended NaN to binary64 and comparing two such NaNs
+gives 1 when folded as a constant but 0 at runtime. C and IEEE 754 require
+0, since a NaN compares unequal to everything, itself included, so the
+constant fold is the wrong one. Scalar nonfinite arithmetic is outside
+this compiler's contract; [Appendix F](60-c-subset.md#observed-profile-boundaries)
+collects these limits.
 
 Format changes share the finite packing path and separate extended exceptional cases (`forth-bootstrap/cc/128-cc-float-literal.fth:435`):
 ```forth file=cc/128-cc-float-literal.fth

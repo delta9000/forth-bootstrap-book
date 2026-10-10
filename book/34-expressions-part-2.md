@@ -2123,13 +2123,11 @@ field-aware hooks cannot be replaced by the core width rule above.
 
 Parentheses call an entry that preserves lvalues; ordinary value consumers use `cc-parse-expr`. That distinction prevents grouping from accidentally turning a destination into a read.
 
-There is a separate dialect boundary: preserving `(x)` does not justify
-preserving `(0, x)` as an assignable C expression. At the pinned revision,
-the native/private LP64 probe `int main(void) { int x=0; (0,x)=1; return x; }`
-compiled and returned 1. The comma path retains the final operand's lvalue
-state; ordinary C's comma result is not an lvalue. The core profile does
-not enable this comma production. This book documents the observed dialect
-boundary without changing the source's acceptance policy; see
+Preserving `(x)` does not make `(0, x)` assignable in C, but the LP64
+comma path also keeps the final operand's lvalue state, so
+`int main(void) { int x=0; (0,x)=1; return x; }` compiles and returns 1.
+In ISO C a comma result is not an lvalue; treat this as a dialect quirk,
+not a feature. The core profile has no comma operator at all. See
 [Appendix F](60-c-subset.md#observed-profile-boundaries).
 
 ## Constant expressions

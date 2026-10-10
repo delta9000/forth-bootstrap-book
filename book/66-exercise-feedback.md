@@ -1,14 +1,10 @@
 # Appendix H — Compiler and bootstrap exercise feedback
 
 Try the chapter's exercise before opening its answer. Start with the hint;
-then compare intermediate states, not only the final number. These answers
-are source-derived predictions and rubrics for the pinned implementation,
-not reports of new executions. A **Verify** exercise still requires your
-own run and its evidence. Keep the chapter's profile, prerequisites and
-safe checkpoint wrapper when adapting a probe, and update labels and
-expected results when you change the program. If using the automated
-checkpoint runner, update the `tryit: expect` metadata too; it describes
-the original experiment until you change it.
+then compare intermediate states, not only the final number. The answers
+are worked out from the source; a **Verify** exercise still asks for your
+own run. When you adapt a checkpoint, keep its layers and setup, and
+update its labels and expected results to match the changed program.
 
 For a changed exercise, a useful self-check has three parts: what state
 must survive, which transition changes it, and what observation would
@@ -397,8 +393,7 @@ The inner call returns 42. With base=14 the outer result is
 `14+1+2+3+4+5+6+42=77`. Its seven earlier argument cells must survive the
 inner call's staging and outgoing block. The live-save protocol protects
 that span in frame storage and restores it afterward. Update output labels
-and expected status to 77, including the `tryit: expect` output marker if
-you run the changed checkpoint through the harness. A result alone is
+and expected status to 77. A result alone is
 weaker evidence than a trace
 that explains why those seven cells cannot be overwritten.
 

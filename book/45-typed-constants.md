@@ -857,7 +857,7 @@ done
 ) # prints "x = 40\npointer = 29\nwrap = 0"
 ```
 
-Expected output (the strengthened wrap check returns zero on success):
+Expected output (the wrap check returns zero on success):
 
 ```text
 x = 40
