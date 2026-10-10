@@ -36,4 +36,5 @@ for the exact verification boundaries.
 `tools/` holds the checkers: `tangle.sh` and `tangle.awk` (extract and
 verify the `file=` blocks), `check-numbers.py`, `check-tryit.py`,
 `gen-index.py` (writes `book/WORD-INDEX.md`) and `check-links.py`.  The
-book is under the [MIT License](LICENSE), as forth-bootstrap is.
+book's text is under [CC BY 4.0](LICENSE-CC-BY-4.0); its code, including
+the listings quoted from forth-bootstrap, is under the [MIT License](LICENSE).

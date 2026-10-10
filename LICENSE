@@ -1,3 +1,15 @@
+This repository is licensed in two parts.
+
+- The book's text (the prose in book/, its figures and tables, and the
+  README) is licensed under the Creative Commons Attribution 4.0
+  International License (CC BY 4.0). The full text is in
+  LICENSE-CC-BY-4.0, and a summary is at
+  https://creativecommons.org/licenses/by/4.0/.
+- Code is licensed under the MIT License below: the tools/ scripts,
+  check.sh, the workflow files, and every code listing in the book.
+  Listings tagged file= or chunk= are quoted from forth-bootstrap, which is
+  under the same MIT License.
+
 MIT License
 
 Copyright (c) 2026 Ben Sandbrook
