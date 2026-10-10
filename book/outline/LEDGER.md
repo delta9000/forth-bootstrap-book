@@ -1755,6 +1755,11 @@ Break/continue fixup lists | 36 Statements and control flow | pending jumps grou
 for-step rewind | 36 Statements and control flow | the step is skipped on first reading; after the body the lexer rewinds to it so its code follows the body
 Labels and goto | 36 Statements and control flow | named destinations via function-local label entries plus pending jumps
 Native goto adjustment paths | 36 Statements and control flow | forward jumps resolved through code that balances lexical switch depth
+Function pre-registration | 37 Functions and translation units | the function's name is published before its local scope, so recursion works and the name survives the body
+Prototype reuse | 37 Functions and translation units | a later prototype keeps the existing function entry and its pending calls
+Global redeclaration reuse | 37 Functions and translation units | repeated scalar declarations share one storage slot and initializer
+Late shim selection | 37 Functions and translation units | runtime shim bodies are emitted only for names that still have pending references
+Entry stub | 37 Functions and translation units | emitted start code that calls main and passes its result to exit
 Lvalue tracking | 34 Expressions: operands and assignment | idea; Lvalue tracking: four globals, four kinds
 Lvalue vs rvalue | 34 Expressions: operands and assignment | concept (C compiler ideas (Part III)); introduced in old Ch 28
 Postfix operators | 34 Expressions: operands and assignment | idea; The postfix operators
