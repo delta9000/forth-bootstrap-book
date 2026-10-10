@@ -796,8 +796,8 @@ committing it (`forth-bootstrap/cc/020-cc-arena.fth:440`):
 \   align up to 8:  (n+7)/8*8
 \   ( n' )
 \   cc-arena-ptr @ swap over +     ( old-top new-top )
-\   dup cc-arena-base -            ( old-top new-top used )
-\   cc-arena-cap 10 cc-check-cap   ( old-top new-top )
+\   dup cc-arena-start @ -         ( old-top new-top used )
+\   cc-arena-limit @ 10 cc-check-cap  ( old-top new-top )
 \   cc-arena-ptr !                 ( old-top )
 : cc-alloc                                       ( n -- addr )
   [lit] 7 + [lit] 8 / [lit] 8 *                  \ align up to 8 bytes

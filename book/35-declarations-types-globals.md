@@ -66,10 +66,10 @@ variable cc-fn-local-count                        \ # locals in current function
   [lit] 162 cc-check-cap
   cc-fn-local-count +! ;
 
-\ cc-pending-struct-desc is set by cc-parse-base-type when it parses a
-\ `struct TAG` base, and consumed by cc-parse-decl / cc-parse-param-list when
-\ they record the symbol-table entry (so the struct descriptor pointer ends
-\ up in the symbol's struct-desc cell).  For non-struct types it stays at 0.
+\ cc-pending-struct-desc is set by cc-parse-param-list-loop (114) when a
+\ parameter's base is `struct TAG`, and read when that loop records the
+\ parameter's symbol-table entry (so the struct descriptor pointer ends up
+\ in the symbol's struct-desc cell).  For non-struct types it stays at 0.
 variable cc-pending-struct-desc
 
 ```

@@ -6,7 +6,7 @@ K0 and K1 supply the kernel services needed to build and run the bootstrap tools
 
 The route has this shape: hex0-seed assembles K0 on the host; QEMU boots K0; seed Forth builds K1 under K0; K1 imports a new starting tree and runs its recipe. The wrapper keeps image preparation on the host and compilation in the guest (`forth-bootstrap/kernel/k1/run-chain.sh:2`).
 
-The host prepares separate images because K0 needs a memory image to start, while K1 reads a disk archive. These lines in `run-chain.sh` assemble K0, prepare the boot image and select the input-image arguments (`forth-bootstrap/kernel/k1/run-chain.sh:29`):
+The host prepares separate images because K0 needs a memory image to start, while K1 reads a disk archive. These lines in `run-chain.sh` assemble K0, prepare the boot image and select the input-image arguments (`forth-bootstrap/kernel/k1/run-chain.sh:30`):
 
 ```text
 HEX0=vendor/stage0-posix/bootstrap-seeds/POSIX/AMD64/hex0-seed
@@ -16,9 +16,9 @@ python3 kernel/k1/mkboot.py build-out/k1/boot.img
 set -- "$D/in.img" "$mode"
 ```
 
-The following image-writing steps create the input disk and an empty output disk (`forth-bootstrap/kernel/k1/run-chain.sh:35`). `mkboot.py` supplies the Forth and C sources needed to build K1, with seed-forth reading `k1-direct-start.fth`. It appends the boot recipe to the build recipe so that construction and entry happen in order (`forth-bootstrap/kernel/k1/mkboot.py:4`). The host Python steps copy raw pinned inputs into images; unpacking, patching and compilation belong to the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
+The following image-writing steps create the input disk and an empty output disk (`forth-bootstrap/kernel/k1/run-chain.sh:36`). `mkboot.py` supplies the Forth and C sources needed to build K1, with seed-forth reading `k1-direct-start.fth`. It appends the boot recipe to the build recipe so that construction and entry happen in order (`forth-bootstrap/kernel/k1/mkboot.py:4`). The host Python steps copy raw pinned inputs into images; unpacking, patching and compilation belong to the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
 
-QEMU receives K0 as its kernel, K0's file image through the loader, and the input and output images as IDE drives. Keeping the serial log on the host preserves evidence across the kernel handoff (`forth-bootstrap/kernel/k1/run-chain.sh:48`):
+QEMU receives K0 as its kernel, K0's file image through the loader, and the input and output images as IDE drives. Keeping the serial log on the host preserves evidence across the kernel handoff (`forth-bootstrap/kernel/k1/run-chain.sh:49`):
 
 ```text
 "${QEMU:-qemu-system-x86_64}" "$@" $accel -m "$memory" -display none -monitor none \
@@ -205,7 +205,7 @@ asm-check: k1-asm.fth's bytes equal as on its comments: 801 text bytes, 384 data
 direct-build-check: K1 is 221672 bytes, image 0x200000-0x283d48, entry 0x201000
 ```
 
-The guest checkpoint needs QEMU and uses KVM when `/dev/kvm` is writable. It recreates the disk images under `build-out/k1-direct-smoke` and records the console in `serial.log`; preserve earlier outputs before running it (`forth-bootstrap/kernel/k1/run-chain.sh:24`). On the recorded host it took about seventeen seconds with KVM.
+The guest checkpoint needs QEMU and uses KVM when `/dev/kvm` is writable. It recreates the disk images under `build-out/k1-direct-smoke` and records the console in `serial.log`; preserve earlier outputs before running it (`forth-bootstrap/kernel/k1/run-chain.sh:25`). On the recorded host it took about seventeen seconds with KVM.
 
 <!-- check-tryit: the scratch runner omits kernel/ and vendor/ and cannot launch this QEMU guest; QEMU and preferably KVM are host prerequisites. -->
 <!-- tryit: skip -->
@@ -238,7 +238,7 @@ k1: PASS (seed-cc, seed-ar and kaem work under the K1 that seed Forth built)
 k1: init exited with status 0
 ```
 
-The host audit proves the build's executable boundary and object comparisons; the guest run proves the handoff and smoke workload. QEMU's successful exit is encoded through its debug-exit device, so the wrapper also checks the guest markers (`forth-bootstrap/kernel/k1/run-chain.sh:57`).
+The host audit proves the build's executable boundary and object comparisons; the guest run proves the handoff and smoke workload. QEMU's successful exit is encoded through its debug-exit device, so the wrapper also checks the guest markers (`forth-bootstrap/kernel/k1/run-chain.sh:58`).
 
 ## Exercise
 

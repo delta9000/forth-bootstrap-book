@@ -36,9 +36,9 @@ its product. They occupy different places in the dependency chain.
 ## How the route changed
 
 forth-bootstrap began as route D of the older **seed-forth project**, then
-moved into its own repository (`forth-bootstrap/README.md:243`). Distinguish
+moved into its own repository (`forth-bootstrap/README.md:254`). Distinguish
 that project name from the executable named `seed-forth`, which remains in
-this checkout (`forth-bootstrap/README.md:15`).
+this checkout (`forth-bootstrap/README.md:16`).
 
 The older project explored several onward routes. Its history records a
 route to self-hosted M2-Planet and a handoff into stage0-posix's recipes;

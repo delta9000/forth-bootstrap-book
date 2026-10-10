@@ -295,7 +295,7 @@ if [ -f "$work/host-tool-attempts.log" ]; then attempts=$(wc -l < "$work/host-to
 
 From the forth-bootstrap checkout root, the full route is `sh chain/plumbing-root.sh`, after caching pinned inputs with `python3 tools/fetch-archives.py`. The fetcher's manifest and hash checks are described in `forth-bootstrap/tools/fetch-archives.py:2`. This is not an automatic Try it: it requires pinned archives, bwrap and strace, and continues through the long GCC build. The launcher checks those tools and stages the archives (`forth-bootstrap/chain/plumbing-root.sh:34`). It executes the plumbing controller inside the sealed root (`forth-bootstrap/chain/plumbing-root.sh:77`), which continues beyond bash through the GCC stages.
 
-It is a long run; the project's recorded runs are in `forth-bootstrap/README.md:229`. Its plumbing outputs lie under `build-out/plumbing-root/build-out/plumbing/bin/`, following the launcher's default root and the recipes' output paths (`forth-bootstrap/chain/plumbing-root.sh:31`). Chapter 53 audits the sealed host run.
+It is a long run; the project's recorded runs are in `forth-bootstrap/README.md:240`. Its plumbing outputs lie under `build-out/plumbing-root/build-out/plumbing/bin/`, following the launcher's default root and the recipes' output paths (`forth-bootstrap/chain/plumbing-root.sh:31`). Chapter 53 audits the sealed host run.
 
 ## Try it
 

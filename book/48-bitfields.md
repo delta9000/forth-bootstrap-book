@@ -36,7 +36,7 @@ Accessors separate layout metadata from the scalar type:
 Ordinary members retain zero width, and array metadata survives the enlarged field record (`forth-bootstrap/cc/129-cc-bitfield.fth:14`):
 ```forth file=cc/129-cc-bitfield.fth
 \ The final SysV field cell retains the second fixed array dimension.
-\ Bitfield slots stay at48/56; anonymous promotion copies the entire record.
+\ Bitfield slots stay at 48/56; anonymous promotion copies the entire record.
 : cc-bf-array-inner ( rec -- n )
   cc-target-sysv @ if, [lit] 64 + @ else, cc-sf-array-inner-default then, ;
 : cc-bf-set-array-inner ( n rec -- )

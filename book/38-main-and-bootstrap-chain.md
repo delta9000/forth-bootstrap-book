@@ -100,7 +100,7 @@ The equality is between the emitted assembly files, not between `cc-out-v1` and 
 
 ## The wider chain
 
-A bootstrap chain is a sequence in which tools built from source provide the means to build the next tools. Stage A is a comparison alongside that construction, not the downstream route itself. The current route in `forth-bootstrap/README.md:13` proceeds through `seed-cc`, the build tools, GCC, and Linux; the README distinguishes the host and kernel runs in `forth-bootstrap/README.md:73`.
+A bootstrap chain is a sequence in which tools built from source provide the means to build the next tools. Stage A is a comparison alongside that construction, not the downstream route itself. The current route in `forth-bootstrap/README.md:14` proceeds through `seed-cc`, the build tools, GCC, and Linux; the README distinguishes the host and kernel runs in `forth-bootstrap/README.md:84`.
 
 Part 4 follows that route: Chapter 50 builds `seed-cc`, Chapter 51 builds the tools, and Chapter 52 follows GCC. Chapter 53 audits the sealed host run; Chapter 54 introduces K0 and K1; Chapter 55 carries the chain to Linux. Chapter 39 begins the compiler extensions needed before that route. Stage A closes the core compiler sequence without claiming those later results.
 

@@ -22,22 +22,22 @@ The default run includes the rows above. Missing GCC skips Stage A; missing `str
 
 The sealed chain and guest executions are separate choices. `CHECK_CHAIN=1` adds the host chain to the GCC fixed point; `CHECK_K1=smoke` adds the guest smoke run; `CHECK_K1=linux` adds the guest Linux route (`forth-bootstrap/check-all.sh:21`). The fixed-point comparison is taught in [Chapter 52](52-gcc-4-fixed-point.md), the sealed host run in [Chapter 53](53-sealed-run.md), and the Linux handoff in [Chapter 55](55-linux-and-kexec.md). Passing the quick checks alone does not execute these opt-in branches (`forth-bootstrap/check-all.sh:81`).
 
-Host reference tools have a different role from tools in the bootstrap lineage. The README assigns host GCC, GNU as and NASM to comparisons, and says their output is not used by the route. It separately lists the host kernel and isolation tools for the sealed run, and QEMU, KVM and the CPU for the guest run (`forth-bootstrap/README.md:81`). “No outside compiler” describes the construction route; it does not mean every verification task avoids a reference compiler.
+Host reference tools have a different role from tools in the bootstrap lineage. The README assigns host GCC, GNU as and NASM to comparisons, and says their output is not used by the route. It separately lists the host kernel and isolation tools for the sealed run, and QEMU, KVM and the CPU for the guest run (`forth-bootstrap/README.md:92`). “No outside compiler” describes the construction route; it does not mean every verification task avoids a reference compiler.
 
 ### Recorded results
 
-The following are repository records, not fresh executions of the sealed chain or guest route. The README dates each row of its Results table and keeps the reports in `results/` (`forth-bootstrap/README.md:223`).
+The following are repository records, not fresh executions of the sealed chain or guest route. The README dates each row of its Results table and keeps the reports in `results/` (`forth-bootstrap/README.md:245`).
 
 | Recorded item | Result in the README | Source |
 |---|---|---|
-| Seed | `seed-forth`: 1,772 bytes | `forth-bootstrap/README.md:228` |
-| Quick checks (2026-10-10) | 7 OK; Stage A compared 2,367,260 bytes of identical M1 | `forth-bootstrap/README.md:228` |
-| Sealed host chain | 18 minutes wall clock; stage D reported stage 2 = 3 = 4, with 54 files each and 0 differing | `forth-bootstrap/README.md:229` |
-| K1 | 221,672 bytes, built by seed Forth with no other program running | `forth-bootstrap/README.md:230` |
-| Guest Linux route | 1 h 38 min; stage D fixed point, late tools, all 31 gcc64 pins matched, Linux 7.2.8 booted by kexec | `forth-bootstrap/README.md:231` |
-| Linux image | bzImage: 1,278,976 bytes | `forth-bootstrap/README.md:232` |
+| Seed | `seed-forth`: 1,772 bytes | `forth-bootstrap/README.md:239` |
+| Quick checks (2026-10-10) | 7 OK; Stage A compared 2,367,260 bytes of identical M1 | `forth-bootstrap/README.md:239` |
+| Sealed host chain | 18 minutes wall clock; stage D reported stage 2 = 3 = 4, with 54 files each and 0 differing | `forth-bootstrap/README.md:240` |
+| K1 | 221,672 bytes, built by seed Forth with no other program running | `forth-bootstrap/README.md:241` |
+| Guest Linux route | 1 h 38 min; stage D fixed point, late tools, all 31 gcc64 pins matched, Linux 7.2.8 booted by kexec | `forth-bootstrap/README.md:242` |
+| Linux image | bzImage: 1,278,976 bytes | `forth-bootstrap/README.md:243` |
 
-The README also records agreement with seed-forth's corresponding direct-route outputs: the Linux image, gcc64 pins, stage D report and late-tool program hashes. It records differences in K1, seed-cc and seed-ar, with their causes (`forth-bootstrap/README.md:234`). Agreement is artifact-specific. It does not imply that every executable copied between projects must have the same digest.
+The README also records agreement with seed-forth's corresponding direct-route outputs: the Linux image, gcc64 pins, stage D report and late-tool program hashes. It records differences in K1, seed-cc and seed-ar, with their causes (`forth-bootstrap/README.md:245`). Agreement is artifact-specific. It does not imply that every executable copied between projects must have the same digest.
 
 ## Routes retained in seed-forth
 
@@ -58,7 +58,7 @@ The gcc64 continuation belongs to [Chapter 56](56-gcc-15-epilogue.md). HISTORY r
 
 A GCC-free build reaches its target without an inherited GCC compiler building its tools. It can still be compared against a reference built with GCC. The distinction is visible in the Stage A header: this check uses host GCC for the reference, while assigning the earlier GCC-free self-host and other comparisons to seed-forth (`forth-bootstrap/tests/cc/stage-a-check.sh:4`).
 
-For the historical M2-Planet route, HISTORY records `bootstrap.sh` reaching v2 = v3, followed by a handoff reproducing all 19 amd64 and all 19 x86 stage0-posix answer binaries (`forth-bootstrap/HISTORY.md:26`). Keep that result under its historical script names. Forth-bootstrap's current replacement is the direct chain and its sealed or guest execution, whose trust boundaries are documented separately (`forth-bootstrap/README.md:77`).
+For the historical M2-Planet route, HISTORY records `bootstrap.sh` reaching v2 = v3, followed by a handoff reproducing all 19 amd64 and all 19 x86 stage0-posix answer binaries (`forth-bootstrap/HISTORY.md:26`). Keep that result under its historical script names. Forth-bootstrap's current replacement is the direct chain and its sealed or guest execution, whose trust boundaries are documented separately (`forth-bootstrap/README.md:88`).
 
 ### Diverse double-compiling
 
@@ -72,11 +72,11 @@ Stage A also uses different compiler origins, but its actual comparison is emitt
 
 Byte-identical means that the compared files contain exactly the same bytes. The comparison point matters: Stage A compares emitted M1, rather than the differently built compiler executables (Chapter 38). Its `cmp` rejects a difference in those output files (`forth-bootstrap/tests/cc/stage-a-check.sh:75`). No claim about every possible C input follows from that particular comparison.
 
-The driver rebuild compares the executable files for seed-cc and seed-ar directly (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:23`). Stage D's comparison has a documented archive exception: archive member names, order and bytes can agree even when the archive containers differ (Chapter 52). The implementation falls back to that member comparison after a whole-file comparison fails (`forth-bootstrap/chain/gcc-direct/stage-d.sh:132`; `forth-bootstrap/chain/gcc-direct/stage-d.sh:153`). “Fixed point” must be interpreted using that comparator, not as an unstated promise about every container byte.
+The driver rebuild compares the executable files for seed-cc and seed-ar directly (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:23`). Stage D's comparison has a documented archive exception: archive member names, order and bytes can agree even when the archive containers differ (Chapter 52). The implementation falls back to that member comparison after a whole-file comparison fails (`forth-bootstrap/chain/gcc-direct/stage-d.sh:133`; `forth-bootstrap/chain/gcc-direct/stage-d.sh:154`). “Fixed point” must be interpreted using that comparator, not as an unstated promise about every container byte.
 
-The combined evidence supports construction, agreement and execution claims within named boundaries. The README records a sealed host root starting from hex0-seed, a compiler fixed point and a guest-built Linux kernel that boots (`forth-bootstrap/README.md:229`; `forth-bootstrap/README.md:231`). The source and archive assumptions remain explicit: repository sources, pinned upstream archives and vendor sources are inputs the route trusts (`forth-bootstrap/README.md:77`).
+The combined evidence supports construction, agreement and execution claims within named boundaries. The README records a sealed host root starting from hex0-seed, a compiler fixed point and a guest-built Linux kernel that boots (`forth-bootstrap/README.md:240`; `forth-bootstrap/README.md:242`). The source and archive assumptions remain explicit: repository sources, pinned upstream archives and vendor sources are inputs the route trusts (`forth-bootstrap/README.md:88`).
 
-These results do not establish that the sources are correct for all inputs, or that the execution environment is uncompromised. The trust list retains the host kernel for the host route and QEMU, KVM and the CPU for the guest route (`forth-bootstrap/README.md:81`). Reproducing an artifact narrows uncertainty about its provenance; it does not remove the assumptions under which its builder ran.
+These results do not establish that the sources are correct for all inputs, or that the execution environment is uncompromised. The trust list retains the host kernel for the host route and QEMU, KVM and the CPU for the guest route (`forth-bootstrap/README.md:92`). Reproducing an artifact narrows uncertainty about its provenance; it does not remove the assumptions under which its builder ran.
 
 ## Exercise
 
