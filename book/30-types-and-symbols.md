@@ -1,43 +1,19 @@
-# Chapter 24 — Types and Symbols
+# Chapter 30 — Types and symbols
+
+A pointer-to-int type and an enum name such as `x` need records that survive beyond their source tokens. The type helpers encode the pointer's base and depth; the symbol table remembers the name's kind and value. By the checkpoint, you can construct that type, query its size, and add and find the symbol without a C parser.
+
+## The one-word type encoding
+
+The files divide the work this way:
 
 ```text
-Missing capability: names and C types have no compact runtime representation.
-New pattern: pack types into one word and store symbols in parallel newest-visible columns.
-Artifact after this chapter: type helpers, struct descriptors, scoped symbol rows, and lookup.
-Proof link: later Stage-A codegen can resolve names, scopes, sizes, and layouts consistently.
+060-cc-types: base + pointer depth → type word → scalar size/alignment
+             array node or record descriptor → aggregate details
+070-cc-sym:   name → symbol id → kind, type, value, auxiliary facts
+             scope boundary → discard younger symbols
 ```
 
-Ch 23 left the parser with a stream of `tok-*` tokens.  Tokens name
-things, though, and nothing yet remembers what a name means.  When the
-parser meets `struct tri t;` on line 3 of `tri.c`, it has to record
-two facts it will need later: what type `t` has, and where `t` lives.
-Eleven lines later it meets `t.rows` and has to find `t` again, with
-the innermost declaration winning, and work out where `rows` sits
-inside the struct.  Both kinds of fact grow during parsing, but both
-have bounded sizes by the time M2-Planet's source has been read, so
-the simplest data structures suffice.
-
-The file `060-cc-types.fth` packs every C type into one 64-bit word.
-The original base kinds, `void`, `char`, `int`, `struct`, and `func`,
-keep their numbers.  Extra signed and unsigned integer kinds and
-floating storage kinds support the opt-in LP64 target.  Among them,
-`ty-llong` and `ty-ullong` give `long long` its own identity: the
-same eight-byte size and signedness as `long`, but a distinct kind, so
-type comparisons still tell `long *` from `long long *`.  `ty-bool` is
-C99's `_Bool`: one unsigned byte, of lowest rank, whose conversions test
-for nonzero (Ch 45).  Pointer depth
-generalises to any level (`T**`, `T***`, …).  Struct and union layouts
-live in descriptors allocated from Ch 21's arena.
-
-The 204-line file `070-cc-sym.fth` is the symbol table: ten columns
-of 8192 8-byte slots each, 640 KiB in all.  Every global, local,
-function, struct tag, enum constant and typedef gets one row, and
-`cc-scope-push` / `cc-scope-pop` give lexical scopes by remembering
-and restoring the row count.  Types are *consumed* later: Ch 28 reads
-them to choose byte or qword loads and strides, and Chs 29–31 use them
-to size locals, globals and struct fields.
-
-## 1. The one-word type encoding
+A type word records the kind and pointer depth; a separate descriptor identifies the aggregate layout (`forth-bootstrap/cc/060-cc-types.fth:1`):
 
 ```forth file=cc/060-cc-types.fth
 \ 060-cc-types.fth — C type encoding for the C-subset compiler.
@@ -58,6 +34,11 @@ to size locals, globals and struct fields.
 \   begin,/while,/repeat,, +, -, *, /, =, dup, swap, drop, and, or, >, 1+,
 \   @, !, c!, over; 020-cc-arena.fth: cc-check-cap, cc-alloc.
 
+```
+
+The base-kind constants distinguish C types even when their storage matches. In particular, `ty-llong` and `ty-ullong` retain an identity distinct from `ty-long` and `ty-ulong`; `ty-struct`, `ty-func` and `ty-array` identify shapes whose details need other records (`forth-bootstrap/cc/060-cc-types.fth:19`):
+
+```forth file=cc/060-cc-types.fth
 [lit] 0 constant ty-void
 [lit] 1 constant ty-char
 [lit] 2 constant ty-int                       \ legacy 64-bit; LP64 32-bit
@@ -81,6 +62,23 @@ to size locals, globals and struct fields.
 \ Conversion to it tests for nonzero; storage and loads are a byte's.
 [lit] 17 constant ty-bool
 
+```
+
+## Array metadata beside the type
+
+An array node records its element and dimension information separately from the encoded type. These readers all take the node address; the table names the result of each (`forth-bootstrap/cc/060-cc-types.fth:42`).
+
+| Input → result | Reader |
+|---|---|
+| node → element type | `cc-ad-type` |
+| node → element aggregate descriptor | `cc-ad-desc` |
+| node → element count | `cc-ad-count` |
+| node → inner array node | `cc-ad-inner` |
+| node → total storage size | `cc-ad-size` |
+| node → required alignment | `cc-ad-align` |
+| node → element qualifier set | `cc-ad-qualified` |
+
+```forth file=cc/060-cc-types.fth
 \ Array nodes carry element type/descriptor, dimensions, size and alignment.
 \ The last cell is the elements' qualifier set (110's cc-qualifier-bit:
 \ const 1, volatile 2, restrict 4), 0 when unqualified: a pointer to the
@@ -93,6 +91,15 @@ to size locals, globals and struct fields.
 : cc-ad-align [lit] 40 + @ ;
 : cc-ad-qualified [lit] 48 + @ ;
 
+```
+
+The inner link preserves nested dimensions. Qualifiers sit beside the type word, so the same base and pointer depth can describe differently qualified elements. Chapter 35 builds declarations from these records.
+
+## Packing types and choosing scalar storage
+
+Storage depends on the selected target. `cc-target-lp64` defaults off; `cc-bootstrap-floatbits` independently enables a restricted floating-storage approximation when LP64 is selected, without supplying floating arithmetic (`forth-bootstrap/cc/060-cc-types.fth:54`):
+
+```forth file=cc/060-cc-types.fth
 \ The pinned M2/pnut route keeps the original data model unless opted in.
 variable cc-target-lp64
 [lit] 0 cc-target-lp64 !
@@ -103,6 +110,11 @@ variable cc-target-lp64
 variable cc-bootstrap-floatbits
 [lit] 0 cc-bootstrap-floatbits !
 
+```
+
+Packing preserves the base while pointer depth changes. `ty-make` multiplies the base by 65536 and adds the depth; `ty-base` and `ty-ptr` recover the fields. Callers must keep the depth within its byte because the constructor does not mask it (`forth-bootstrap/cc/060-cc-types.fth:64`):
+
+```forth file=cc/060-cc-types.fth
 \ ty-make ( base ptrdepth -- ty )  Pack base and ptr-depth into one word.
 : ty-make
   swap [lit] 65536 *  swap +  ;               \ (base << 16) | ptr-depth
@@ -115,6 +127,11 @@ variable cc-bootstrap-floatbits
 : ty-ptr
   [lit] 255 and ;
 
+```
+
+A pointer's storage is independent of its pointee. `ty-size` tests depth first, then selects scalar widths; the final fallback cannot supply a struct's actual size because the type word has no layout (`forth-bootstrap/cc/060-cc-types.fth:82`):
+
+```forth file=cc/060-cc-types.fth
 \ ty-size ( ty -- bytes )  Scalar/pointer storage size, not aggregate size.
 \ The caller resolves struct descriptors before asking their size/alignment.
 \ LP64 is the AMD64 System V model: int=4, long/pointer=8, long double=16.
@@ -141,6 +158,13 @@ variable cc-bootstrap-floatbits
   then,
   drop [lit] 8 ;
 
+```
+
+In the default model, `char` and `_Bool` occupy a byte and `int` takes the fallback size. LP64 selects the narrower integer widths shown in the branches. Chapter 39 uses those widths for storage, and Chapter 47 supplies floating operations.
+
+Size alone cannot decide unsigned comparison or distinguish scalar `long long` from a pointer to it. The predicates preserve those distinctions; scalar alignment follows size, with a nonzero alignment for `void` (`forth-bootstrap/cc/060-cc-types.fth:102`):
+
+```forth file=cc/060-cc-types.fth
 \ ty-unsigned? ( ty -- flag )  Pointers compare as unsigned addresses.
 \ Plain char is signed in LP64; legacy byte expressions are zero-extended.
 : ty-unsigned?
@@ -160,6 +184,15 @@ variable cc-bootstrap-floatbits
 \ Struct/union alignment is cc-sd-align, not the type word's fallback.
 : ty-align  ty-size dup 0= if, drop [lit] 1 then, ;
 
+```
+
+`ty-unsigned?` includes pointers and the explicit unsigned kinds. Plain `char` takes unsigned semantics only in the default model. Struct and union callers use descriptor alignment instead of `ty-align`.
+
+## Validating an integer suffix
+
+The numeric token spelling (Chapter 29) supplies the suffix bytes. `cc-literal-unsigned` records whether a `U` was consumed; `cc-literal-long` records absent, single or doubled `L`. The unsigned reader consumes at most one marker across the whole parse (`forth-bootstrap/cc/060-cc-types.fth:121`):
+
+```forth file=cc/060-cc-types.fth
 \ cc-integer-suffix ( addr len -- flag )  The one integer-suffix parser,
 \ shared by literal typing below and the constant evaluator (125).  The
 \ text addr len starts at the suffix's first letter; flag is true only if
@@ -175,6 +208,11 @@ variable cc-literal-long
   over c@ dup [char] u = swap [char] U = or if,
     true cc-literal-unsigned ! swap 1+ swap 1-
   then, ;
+```
+
+A doubled long suffix must repeat the same letter case. The parser tries unsigned, long, then unsigned again, so either order is accepted, but leftover text makes the whole suffix invalid (`forth-bootstrap/cc/060-cc-types.fth:136`):
+
+```forth file=cc/060-cc-types.fth
 : cc-integer-suffix-l ( addr len -- addr' len' )
   dup 0= if, exit, then,
   over c@ dup [char] l = swap [char] L = or 0= if, exit, then,
@@ -189,6 +227,11 @@ variable cc-literal-long
   cc-integer-suffix-u cc-integer-suffix-l cc-integer-suffix-u
   nip 0= ;
 
+```
+
+The suffix boundary needs only the set of suffix letters, since none is a hexadecimal digit. `cc-integer-suffix-start` returns the remaining slice and `cc-integer-literal-check` rejects a malformed suffix with code 240 (`forth-bootstrap/cc/060-cc-types.fth:150`):
+
+```forth file=cc/060-cc-types.fth
 \ cc-integer-suffix-letter? ( c -- flag )  u, U, l or L.
 : cc-integer-suffix-letter?
   dup [char] u = over [char] U = or
@@ -210,6 +253,15 @@ variable cc-literal-long
   tok-str-addr @ tok-str-len @ cc-integer-suffix-start
   cc-integer-suffix 0= if, [lit] 240 cc-die then, ;
 
+```
+
+The check word validates the current token when called. The typing word below returns early in the default model, so that path does not itself perform suffix validation. Chapter 45 also uses the suffix parser for typed constants.
+
+## Choosing an integer literal's type
+
+LP64 typing combines suffix and magnitude. A doubled long suffix selects the long-long family; a single long suffix selects the long family. Within either family, an unsigned marker or a value beyond the signed range selects the unsigned kind (`forth-bootstrap/cc/060-cc-types.fth:171`):
+
+```forth file=cc/060-cc-types.fth
 \ cc-integer-literal-type ( -- ty )  Type of the current tk-num token.
 \ The original spelling (050) distinguishes decimal from hex/octal and
 \ preserves U/L/LL suffixes without expanding the lexer's snapshot state.
@@ -230,6 +282,11 @@ variable cc-literal-long
     cc-literal-unsigned @ tok-num @ 2^63 / or if,
       ty-ulong
     else, ty-long then,
+```
+
+Without a long suffix, `U` chooses between `uint` and `ulong`. Without any suffix, a small value gets `int`; a larger octal or hexadecimal value can get `uint` before the long family is needed. The continuation uses the leading source character to make that distinction (`forth-bootstrap/cc/060-cc-types.fth:191`):
+
+```forth file=cc/060-cc-types.fth
   else,
     cc-literal-unsigned @ if,
       tok-num @ [lit] 4294967296 / if, ty-ulong else, ty-uint then,
@@ -250,47 +307,11 @@ variable cc-literal-long
 
 ```
 
-A type lives in one 64-bit word.  `ty-make` builds it: shift the base
-kind left by 16 (Forth has no shift operator, so multiply by 65 536)
-and add the pointer depth (0 = scalar, 1 = `T*`, 2 = `T**`, ...).
-Bits 8–15 are always 0: the depth field is simply given a byte of its
-own, and nothing else is packed there.  The original base kinds stay
-numbered 0 to 4; LP64 additions occupy 5 to 13.  `cc-target-lp64`
-defaults to zero, preserving the original 64-bit `int` data model.
+The unsigned divisions compare magnitudes without treating the high bit as a negative sign. A decimal value beyond signed-long range gets `ulong` as a bootstrap extension. The final `ty-make` wraps the selected base as a scalar type.
 
-A struct's type word says only "a struct", never which one.  Which
-struct lives beside the type: in the tag's symbol (its `val`), in a
-struct variable's struct-desc cell (§2), and in a field record's
-pointee slot (below).
+## Record descriptors: stable identity, movable fields
 
-`ty-size` shows why the depth sits in the low bits.  Any non-zero
-pointer depth means "pointer, 8 bytes."  Otherwise it falls back to
-the base kind: `void` is 0 bytes (only legal in `void f(void)`-style
-signatures), `char` is 1 byte, and everything else (`int`, `func`,
-plain `struct`) is 8 in the legacy target.  With `cc-target-lp64`
-set, `short` is 2 bytes, `int` and `float` are 4, `long`, `double`,
-and pointers are 8, and `long double` occupies 16.  Unsigned kinds
-share the corresponding width.  `ty-unsigned?` classifies integer
-conversion and comparison semantics; `ty-align` supplies scalar
-alignment.  Floating storage sizes alone do not implement floating
-arithmetic.  A separate, default-off `cc-bootstrap-floatbits` flag
-lets the restricted first bootstrap stage transport all three floating
-kinds in 8-byte integer cells.  That approximation is not IEEE
-arithmetic and does not change standard LP64 mode.
-
-An LP64 integer literal's type comes from its spelling.
-`cc-integer-suffix` is the only reader of its `U`/`L` suffix: an
-optional `U` on either side of `l`, `L`, `ll` or `LL`.  Literal typing,
-Ch 41's constant evaluator and `#if` (Ch 28's `cc-cx-operand`) all call
-it, so `1LLL`, `1lL`, `1LUL` and `1uu` are error 240 wherever they
-appear rather than being typed by a count of letters.
-
-The 8 for a struct is deliberately wrong.  `ty-size` sees only the
-type word, not the struct descriptor.  When codegen needs
-`sizeof(struct foo)` it looks up the struct's symbol, reads `val` to
-get the descriptor pointer, and calls `cc-sd-total-size`.  Every site
-that handles structs does that lookup explicitly and never asks
-`ty-size`.
+A struct descriptor has a fixed header and a separate field table. Keeping the header address stable lets a symbol or a self-referential field retain the descriptor while its fields are being assembled (`forth-bootstrap/cc/060-cc-types.fth:209`):
 
 ```forth file=cc/060-cc-types.fth
 \ ===========================================================================
@@ -315,6 +336,11 @@ that handles structs does that lookup explicitly and never asks
 \     + 32: aggregate/pointee descriptor, or 0
 \     + 40: array length (0 for a scalar)
 \
+```
+
+The table grows only when a requested field exceeds its capacity. Old tables remain allocated, so memory use includes the growth history; the comment's "fewer than twice" bound applies after the initial small-table allocation, not to a single-field record (`forth-bootstrap/cc/060-cc-types.fth:231`):
+
+```forth file=cc/060-cc-types.fth
 \ Legacy records keep only the first five cells (40 bytes) and legacy
 \ code reads only the first two header cells.  The table starts with room
 \ for 8 records and doubles when an append needs more, so small structs
@@ -329,6 +355,11 @@ that handles structs does that lookup explicitly and never asks
 \ bfd's (elf_backend_data, 143).  The legacy M2-Planet subset
 \ keeps its documented 16-field limit and small arena.
 
+```
+
+The member limit is policy, separate from allocated capacity. `cc-sd-field-cap` chooses the limit, and the replaceable `cc-sd-record-bytes` chooses the record stride (`forth-bootstrap/cc/060-cc-types.fth:250`):
+
+```forth file=cc/060-cc-types.fth
 [lit] 16 constant cc-sd-max-fields
 [lit] 1023 constant cc-sd-lp64-max-fields
 [lit] 56 constant cc-sd-header-bytes
@@ -342,6 +373,15 @@ that handles structs does that lookup explicitly and never asks
 defer cc-sd-record-bytes
 ' cc-sd-record-bytes-default is cc-sd-record-bytes
 
+```
+
+The current header occupies 56 bytes in either model. Legacy field records occupy 40 bytes and LP64 records 48; the separate table is allocated by capacity, not exactly by member count.
+
+## Allocating and reading a descriptor
+
+Fresh headers and replacement tables must start cleared. `cc-zalloc` uses `cc-alloc` (Chapter 27), clears the requested byte range, and returns its start; `cc-sd-alloc` requests a header with no field table yet (`forth-bootstrap/cc/060-cc-types.fth:258`):
+
+```forth file=cc/060-cc-types.fth
 \ cc-zalloc ( bytes -- addr )  Arena storage cleared to zero, so cells a
 \ target adds read as 0 even where the arena reuses mapped memory.
 : cc-zalloc
@@ -355,6 +395,20 @@ defer cc-sd-record-bytes
 \ cc-sd-alloc ( -- desc )  A zeroed header with no field table yet.
 : cc-sd-alloc  cc-sd-header-bytes cc-zalloc ;
 
+```
+
+The header keeps layout facts apart from table-management facts. The readers take a descriptor; each paired setter takes a value followed by that descriptor (`forth-bootstrap/cc/060-cc-types.fth:271`).
+
+| Input → result | Reader | Setter |
+|---|---|---|
+| descriptor → total size | `cc-sd-total-size` | `cc-sd-set-total-size` |
+| descriptor → member count | `cc-sd-field-count` | `cc-sd-set-field-count` |
+| descriptor → aggregate alignment | `cc-sd-align` | `cc-sd-set-align` |
+| descriptor → union flag | `cc-sd-union?` | `cc-sd-set-union` |
+| descriptor → field table | `cc-sd-table` | growth updates it |
+| descriptor → table capacity | `cc-sd-table-cap` | growth updates it |
+
+```forth file=cc/060-cc-types.fth
 : cc-sd-total-size      @ ;                            \ ( desc -- size )
 : cc-sd-field-count     [lit] 8 + @ ;                  \ ( desc -- n )
 : cc-sd-align           [lit] 16 + @ ;                 \ ( desc -- align )
@@ -366,6 +420,15 @@ defer cc-sd-record-bytes
 : cc-sd-table           [lit] 40 + @ ;                 \ ( desc -- addr )
 : cc-sd-table-cap       [lit] 48 + @ ;                 \ ( desc -- n )
 
+```
+
+Allocation does not calculate field offsets or update the member count. Chapter 35 makes those layout decisions and stores their results here.
+
+## Growing the field table
+
+A side table keyed by field-record address must follow a move. `cc-sd-table-moved` exposes that event; its default ignores it, while `cc-sd-grow-desc` keeps the descriptor available during copying (`forth-bootstrap/cc/060-cc-types.fth:282`):
+
+```forth file=cc/060-cc-types.fth
 \ cc-sd-grow ( desc need -- )  Replace the table with a zeroed one holding
 \ at least need records (double, at least 8, at most the field cap) and
 \ copy the old records across.  The old table stays behind in the arena,
@@ -377,6 +440,11 @@ defer cc-sd-record-bytes
 defer cc-sd-table-moved
 ' cc-sd-table-moved-default is cc-sd-table-moved
 variable cc-sd-grow-desc
+```
+
+Growth doubles capacity until it meets the request, applies the member cap, then copies the old table into cleared storage. The move hook runs before the header is updated (`forth-bootstrap/cc/060-cc-types.fth:293`):
+
+```forth file=cc/060-cc-types.fth
 : cc-sd-grow
   swap cc-sd-grow-desc !                         ( need )
   cc-sd-grow-desc @ cc-sd-table-cap [lit] 2 *    ( need cap )
@@ -394,6 +462,13 @@ variable cc-sd-grow-desc
   cc-sd-grow-desc @ [lit] 40 + !
   cc-sd-grow-desc @ [lit] 48 + ! ;
 
+```
+
+A field-record address becomes stale when its table moves. Fetch it again after any operation that can append fields to the same descriptor.
+
+The public record lookup checks the member cap before requesting growth. Afterward, index times stride selects the record in the current table (`forth-bootstrap/cc/060-cc-types.fth:310`):
+
+```forth file=cc/060-cc-types.fth
 \ cc-sd-field-rec ( desc i -- rec-addr )  Error 50 if record i would exceed
 \ the target's member cap; grow the table when i is past its capacity.
 : cc-sd-field-rec
@@ -401,6 +476,22 @@ variable cc-sd-grow-desc
   over cc-sd-table-cap over > 0= if, over over 1+ cc-sd-grow then,
   cc-sd-record-bytes * swap cc-sd-table + ;
 
+```
+
+## Field records and pointee identity
+
+A field carries both an encoded type and an optional descriptor. For a struct pointer field such as `next`, the latter identifies the pointee layout needed to resolve a following field access. These accessor pairs keep that distinction explicit (`forth-bootstrap/cc/060-cc-types.fth:317`).
+
+| Input → result | Reader | Setter |
+|---|---|---|
+| record → name address | `cc-sf-name-addr` | `cc-sf-set-name-addr` |
+| record → name length | `cc-sf-name-len` | `cc-sf-set-name-len` |
+| record → type | `cc-sf-type` | `cc-sf-set-type` |
+| record → byte offset | `cc-sf-offset` | `cc-sf-set-offset` |
+| record → aggregate/pointee descriptor | `cc-sf-desc` | `cc-sf-set-desc` |
+| LP64 record → array length | `cc-sf-array-len` | `cc-sf-set-array-len` |
+
+```forth file=cc/060-cc-types.fth
 \ Field-record accessors / mutators.  Each takes rec-addr on TOS.
 \ Alignment, union and array-length accessors are for LP64 descriptors only.
 : cc-sf-name-addr       @ ;                            \ ( rec -- a )
@@ -417,6 +508,11 @@ variable cc-sd-grow-desc
 : cc-sf-set-desc        [lit] 32 + ! ;                 \ ( desc rec -- )
 : cc-sf-set-array-len   [lit] 40 + ! ;                 \ ( n rec -- )
 
+```
+
+Nested-array metadata has a separate extension point. The default reader reports no inner node; the default setter accepts absence and rejects a nonzero node with code 213 (`forth-bootstrap/cc/060-cc-types.fth:333`):
+
+```forth file=cc/060-cc-types.fth
 \ Targets may extend field shape without changing legacy/native records.
 : cc-sf-array-inner-default ( rec -- n ) drop [lit] 0 ;
 : cc-sf-set-array-inner-default ( n rec -- )
@@ -427,67 +523,9 @@ defer cc-sf-set-array-inner
 ' cc-sf-set-array-inner-default is cc-sf-set-array-inner
 ```
 
-The struct descriptor is two pieces of arena memory from `cc-alloc`
-(Ch 21).  The 56-byte header never moves, so symbols and field
-records can hold its address while the body is still being parsed
-(`struct node *next;` inside `struct node`).  The field records live in
-a separate table that the header points at.  `cc-sd-alloc` returns a
-zeroed header with no table; the first `cc-sd-field-rec` for index 0
-makes room for 8 records, and each later append past the end doubles
-the table (`cc-sd-grow`), copying the old records and leaving the old
-table behind in the bump arena.  The live table holds fewer than 2n
-records for a struct of n fields, but the arena keeps every outgrown
-table too: capacities 8, 16, ... up to the final C sum to less than
-2C, so under 4n records.  A 513-member struct ends with a 1,023-record table
-(the cap) and 2,039 records allocated in all, about four times its
-exact size; a struct of 8 or fewer fields costs just its one 8-record
-table.  That is still far less than a fixed worst-case block for every
-struct.  An LP64 record is 48 bytes, a SysV
-one 72 (Ch 47 adds bitfield and matrix cells), and a legacy one 40.
+## The symbol-table parallel arrays
 
-Because records move when a table grows, a record address is only
-good until the next append to the same descriptor.  Every caller
-fetches the record it is about to fill after any append, and the one
-side table keyed by record address — field qualification, Ch 34 — is
-re-keyed through the `cc-sd-table-moved` hook.
-
-The field limit is now a policy rather than a storage size.  LP64
-code accepts 1023 members per struct or union, C99's translation limit
-(§5.2.4.1); anonymous members count once flattened into their parent.
-The largest records in the sources this compiler targets are far
-below it: binutils 2.30 bfd's `struct elf_backend_data` has 143
-members and GCC 4.0.4's largest, `JNINativeInterface` in libjava, 232.
-`cc-sd-field-rec` checks the cap before it touches a record and stops
-with code 50 on the 1024th member (`tests/gcc/large-record-check.py`).
-The legacy subset keeps its 16-field limit: M2-Planet's largest struct
-has 11 fields, its eight descriptors now take about 4.3 KB of the
-32 KB legacy arena instead of 5.2 KB, and the legacy 17th-field error
-remains code 50 (`tests/cc/die-50-struct-fields.c`).
-
-The pointee descriptor at offset 32 of each field record is the
-non-obvious piece.  When the parser sees `node->next->prev`, it needs
-to know *which struct* `next` points at to resolve `prev` against that
-struct's fields.  Carrying the pointee descriptor in the field record
-lets chained arrow access navigate without looking the type up again
-by name.
-
-## 2. The symbol-table parallel arrays
-
-The live-row limit is 8192. Scope pops recover rows, so this bounds
-simultaneously visible declarations rather than all declarations ever seen.
-`cc-sym-add` checks the next count before touching any column and keeps
-error 60 for the first excess row. Reusing a row clears all five auxiliary
-columns, including qualification provenance.
-
-The original GCC 4.0.4 `c-parse.c` compilation reached the earlier 4096-row
-limit before it exhausted its separately mapped arena. Doubling the row
-limit adds 320 KiB across these ten columns. The direct System V signature
-column also follows `cc-sym-cap`, adding another 32 KiB. The focused
-`tests/gcc/symbol-capacity-check.py` gate verifies both boundary behavior
-and that loading the compiler plus linker still fits the unchanged seed's
-16 MiB mapping. Other limits remain independent: object records and ELF
-symbols have their own capacities, and function signatures use arena bytes.
-A larger symbol table alone does not establish a complete GCC build.
+A symbol id selects the same row across each column. Its kind determines how to interpret `val`: a location for an object or function, a descriptor for a tag, a value for an enum constant, or an aliased type for a typedef (`forth-bootstrap/cc/070-cc-sym.fth:1`):
 
 ```forth file=cc/070-cc-sym.fth
 \ 070-cc-sym.fth — symbol table for the C-subset compiler.
@@ -517,6 +555,11 @@ A larger symbol table alone does not establish a complete GCC build.
 
 [lit] 8192 constant cc-sym-cap
 
+```
+
+The columns reserve space for simultaneously live declarations, bounded by `cc-sym-cap`. `cc-sym-desc` and `cc-sym-inner` separate aggregate and nested-array metadata, while `cc-sym-qualified` keeps qualifier provenance outside the type word (`forth-bootstrap/cc/070-cc-sym.fth:28`):
+
+```forth file=cc/070-cc-sym.fth
 create cc-sym-name-addr  cc-sym-cap [lit] 8 * allot
 create cc-sym-name-len   cc-sym-cap [lit] 8 * allot
 create cc-sym-kind       cc-sym-cap [lit] 8 * allot
@@ -528,6 +571,11 @@ create cc-sym-desc        cc-sym-cap [lit] 8 * allot
 create cc-sym-inner       cc-sym-cap [lit] 8 * allot
 \ Qualification provenance is separate from the encoded C type.
 create cc-sym-qualified cc-sym-cap [lit] 8 * allot
+```
+
+Field qualification uses a different key: a field-record address. `cc-qualified-fields` heads a list whose newest matching entry wins; `cc-field-set-qualified` adds only nonzero sets, so passing zero does not erase an older entry (`forth-bootstrap/cc/070-cc-sym.fth:46`):
+
+```forth file=cc/070-cc-sym.fth
 variable cc-qualified-fields
 \ A field's qualifier set (110's cc-qualifier-bit) lives in a list of
 \ { next, record, set } nodes; the newest node for a record wins.
@@ -542,6 +590,15 @@ variable cc-qualified-fields
   else, 2drop then, ;
 variable cc-sym-count
 
+```
+
+The getter returns zero when no entry matches. This address-keyed list is why descriptor growth exposes a move hook; Chapter 39 supplies the relocation work for qualifications.
+
+## Linking live symbols by name
+
+The hash index stores a bucket head as id-plus-one, leaving zero for an empty bucket. Links in `cc-sym-hnext` instead use the id directly and end at negative one; `cc-sym-bucket-of` finds the bucket from the stored name (`forth-bootstrap/cc/070-cc-sym.fth:62`):
+
+```forth file=cc/070-cc-sym.fth
 \ Lookup by name goes through a hash table, as the preprocessor's macros
 \ do (040): cc-sym-bucket holds, per cc-name-hash bucket (030), one more
 \ than the id of the newest live symbol there (0 for none), and
@@ -555,6 +612,11 @@ create cc-sym-hnext   cc-sym-cap [lit] 8 * allot
   dup cc-sym-name-addr cell[] @ swap cc-sym-name-len cell[] @
   cc-name-hash cc-sym-bucket cell[] ;
 
+```
+
+Reusing a row must not link it to discarded entries. `cc-sym-link` skips ids at or above the new id before inserting it; `cc-sym-unlink` restores the next older head and requires its argument to be the newest symbol in that bucket (`forth-bootstrap/cc/070-cc-sym.fth:66`):
+
+```forth file=cc/070-cc-sym.fth
 \ cc-sym-link ( id -- )  Put symbol id, whose name is filed, at the head
 \ of its bucket.  Entries at id or above were discarded without
 \ cc-scope-pop (a count stored directly): leave them out of the chain.
@@ -569,6 +631,11 @@ create cc-sym-hnext   cc-sym-cap [lit] 8 * allot
 : cc-sym-unlink
   dup cc-sym-hnext cell[] @ 1+  swap cc-sym-bucket-of ! ;
 
+```
+
+Scope markers need only a saved row count. `cc-scope-stack` holds those counts, `cc-scope-depth` selects the next marker, and `cc-scope-cap` bounds nesting. The kind constants distinguish the row payloads described above (`forth-bootstrap/cc/070-cc-sym.fth:80`):
+
+```forth file=cc/070-cc-sym.fth
 [lit] 64 constant cc-scope-cap
 create cc-scope-stack  cc-scope-cap [lit] 8 * allot
 variable cc-scope-depth
@@ -582,38 +649,15 @@ variable cc-scope-depth
 [lit] 5 constant sk-typedef
 
 \ ===========================================================================
-```
-
-Ten columns × 8192 rows × 8 bytes = 640 KiB, plus a 512-byte scope
-stack (64 entries × 8 bytes).  That is the entire memory budget for
-global declarations, function definitions, every local variable in
-every function, every struct tag and every typedef.  The ten columns
-are the union of the metadata any symbol kind needs.
-
-`name-addr` and `name-len` point back into `cc-src-buf`.  There is no
-deep copy, because the source buffer lives until process exit.
-(Macros are not symbols; their names live in Ch 22's pool.)  `kind`
-is one of six `sk-*` codes, and `type` is the type word from §1.
-
-`val` is overloaded.  For functions it holds the absolute virtual
-address where the function lives in the emitted ELF (0 while it's
-only forward-declared).  For globals it holds an offset into
-`cc-globals-buf`, since the data's vaddr isn't known until the code
-ends (Ch 26 §5).  For locals it holds a *slot index* counted by
-`cc-fn-local-count`; the `rbp` displacement `-8*(slot+1)` is computed
-at emit time (Ch 25), so locals live below the saved frame pointer.
-For structs it holds the descriptor pointer, for enum constants the
-integer value, and for typedefs the type word the name aliases.
-
-`extra` and `extra2` are two more cells.  Their meaning depends on the
-symbol, so no code outside this file reads them by those names; §3's
-accessors name each meaning instead.
-
-## 3. Adding and finding symbols
-
-```forth file=cc/070-cc-sym.fth
 \ Add / lookup
 \ ===========================================================================
+```
+
+## Adding and finding symbols
+
+Appending a symbol checks capacity before touching a column. The id stays on the return stack while the payload values are consumed from right to left; every auxiliary column is cleared before the row becomes live (`forth-bootstrap/cc/070-cc-sym.fth:95`):
+
+```forth file=cc/070-cc-sym.fth
 
 \ cc-sym-add ( name-addr name-len kind type val -- id )
 \ Append a new symbol; return its id.  Dies with code 60 if the table
@@ -642,30 +686,9 @@ accessors name each meaning instead.
 
 ```
 
-`cc-sym-add` takes five arguments (`name-addr`, `name-len`, `kind`,
-`type`, `val`), writes them into the parallel arrays at index
-`cc-sym-count`, zeroes both extra slots, and bumps the count.
+Clearing matters when scope exit makes an old row reusable: an ordinary scalar must not inherit an array length, descriptor or pending function reference.
 
-After `cc-sym-count @` puts the new id on top, `>r` parks it on the
-return stack (Ch 4).  Each column store then uses `r@` to get a fresh
-copy of the id without disturbing the data stack.  The data stack
-starts as `(a u k t v)`; after `r@ cc-sym-val cell[] !` it is
-`(a u k t)`; after `r@ cc-sym-type cell[] !` it is `(a u k)`; and
-so on until all five values are stored.  `cell[]` (Ch 21) turns the
-id into the address of its cell in one column.  A 4,097th symbol dies
-with code 60 before anything is written.
-
-Why not `dup` the id five times on the data stack?  Because the data
-stack already holds five operands, and weaving the id around them
-would be unreadable.  Forth code gets hard to follow once the stack
-holds more than three or four unrelated values; the return stack is
-the release valve.
-
-Adding is half the job; the other half is finding a name again.
-Ordinary names and explicit tag references enter through separate deferred
-words. Both retain the historical lookup by default. The System V target
-binds namespace-aware searches, allowing `struct stat` and the function
-`stat` to coexist while retaining the same scope stack:
+Lookup follows the selected bucket and returns the first matching live row, or negative one. `cc-sym-find` and `cc-sym-find-tag` initially share this implementation; Chapter 41 separates ordinary and tag namespaces (`forth-bootstrap/cc/070-cc-sym.fth:121`):
 
 ```forth file=cc/070-cc-sym.fth
 \ cc-sym-find ( name-addr name-len -- id-or-neg1 )
@@ -691,19 +714,21 @@ defer cc-sym-find-tag
 
 ```
 
-The default `cc-sym-find` walks the chain of the name's hash bucket,
-as the macro table does (Ch 22): `cc-sym-add` files each symbol at the
-head of its bucket through `cc-sym-link`, so the chain runs
-newest-first and the walk returns with `exit,` on the first hit.
-Innermost declarations are added later, so the walk finds them first,
-and innermost-scope-wins falls out without any explicit scope check.
-This is Ch 17's newest-wins lookup with scope added, and hashed
-because GCC's headers declare thousands of names.
+The count check excludes discarded rows, and the length check precedes byte comparison. Shadowing depends on insertion order within the bucket, not on a scope number stored in each row.
 
-The chain ends in `-1` when nothing matches, and that `-1` is the
-"not found" answer, so the caller reads either "found id N"
-or "not found" with no flag variable.  Once the caller has an id,
-it reads the row through one-line accessors:
+## Reading a symbol's payload
+
+Named accessors prevent callers from confusing the meanings of shared columns. Here is the read interface; setters take the new value followed by the id. The fixup accessors return a cell address so callers can update a list head (`forth-bootstrap/cc/070-cc-sym.fth:142`).
+
+| Input → result | Accessor | Storage |
+|---|---|---|
+| id → kind / type / value | `cc-sym-kind-of`, `cc-sym-type-of`, `cc-sym-val-of` | corresponding column |
+| id → array length | `cc-sym-array-len-of` | `cc-sym-extra` |
+| id → struct descriptor | `cc-sym-struct-desc-of` | legacy extra; LP64 desc |
+| id → inner array node | `cc-sym-array-inner-of` | `cc-sym-inner` |
+| function id → call-list head cell | `cc-sym-call-fixups` | default extra |
+| function id → address-list head cell | `cc-sym-addr-fixups` | default extra2 |
+| object id → storage size | `cc-sym-object-size-of` | `cc-sym-extra2` |
 
 ```forth file=cc/070-cc-sym.fth
 \ ===========================================================================
@@ -729,6 +754,13 @@ it reads the row through one-line accessors:
   cc-target-lp64 @ if, cc-sym-desc else, cc-sym-extra then, cell[] ! ;
 : cc-sym-array-inner-of cc-sym-inner cell[] @ ;
 : cc-sym-set-array-inner cc-sym-inner cell[] ! ;  \ ( desc id -- )
+```
+
+Legacy array length and struct identity share a column, which constrains their simultaneous use. LP64 gives struct identity its own column. The setters `cc-sym-set-array-len`, `cc-sym-set-struct-desc` and `cc-sym-set-array-inner` follow the same choices as their readers.
+
+A function can be referenced before its address is known. The default call and address accessors expose separate pending-reference heads; object-size accessors reuse the latter column for objects. Chapter 32 builds the fixup machinery, and Chapter 37 resolves function references (`forth-bootstrap/cc/070-cc-sym.fth:165`):
+
+```forth file=cc/070-cc-sym.fth
 \   call fixups: for an sk-func not yet defined, the head of the list of
 \   `call rel32` sites waiting for its address.  This word gives the cell's
 \   address, so the list code can push onto it (0 = no pending calls).
@@ -749,33 +781,9 @@ defer cc-sym-addr-fixups
 
 ```
 
-Each accessor is a `cell[]` fetch or store with the id on top of the
-stack.  The extra cell carries one of three facts, and each fact gets
-its own name even though they share the array:
+## Scopes are a stack of integers
 
-- **array length** (`cc-sym-array-len-of`): an array variable's
-  element count, 0 for a scalar, so Ch 28 can tell `int a[4]` (take
-  the address) from `int *p` (load the value);
-- **struct descriptor** (`cc-sym-struct-desc-of`): for a variable
-  whose type's base is `ty-struct`, the descriptor that lays it out;
-  the type is how a reader knows which of the first two it is;
-- **call fixups** (`cc-sym-call-fixups`): for a function called
-  before its definition, the head of the list of `call` sites waiting
-  for its address.
-
-The fixup-cell accessors are deferred, with these array cells as their
-default. The System V target may instead return a cell in a persistent
-implicit-external declaration record. That keeps a pending call alive when
-its block-scoped symbol is removed, without extending the name's visibility.
-
-The extra2 cell has one fact, **address fixups**
-(`cc-sym-addr-fixups`): the list of places that load a function's
-address before it is defined.  The two fixup words return the cell's
-address rather than its contents, because Ch 26's list code pushes
-onto the list in place, and Ch 31 walks both lists when the definition
-arrives.
-
-## 4. Scopes are a stack of integers
+Pushing a scope saves `cc-sym-count` at the next marker and advances the depth. The capacity check rejects excessive nesting before writing the marker (`forth-bootstrap/cc/070-cc-sym.fth:183`):
 
 ```forth file=cc/070-cc-sym.fth
 \ ===========================================================================
@@ -790,6 +798,11 @@ arrives.
   cc-scope-depth @ cc-scope-stack cell[] !
   [lit] 1 cc-scope-depth +! ;
 
+```
+
+Popping must undo bucket links as well as reduce the count. It discards rows in reverse insertion order, ensuring each discarded row is still its bucket's newest member (`forth-bootstrap/cc/070-cc-sym.fth:195`):
+
+```forth file=cc/070-cc-sym.fth
 \ cc-scope-pop ( -- )  Discard any symbols added since the matching push;
 \ pops the marker off cc-scope-stack.  A pop with no push to match is a
 \ parser bug: die with code 62.
@@ -802,199 +815,74 @@ arrives.
   repeat, drop ;
 ```
 
-`cc-scope-push` saves the current `cc-sym-count` onto
-`cc-scope-stack`, and `cc-scope-pop` reads it back into
-`cc-sym-count`.  Lexical scope is a counter manipulation: no tree, no
-parent pointers, no per-scope allocation.
+A pop without a matching push dies with code 62. Rows below the saved count survive, so an outer `x` becomes visible again after an inner `x` is removed. Scope exit leaves the old bytes in the columns; the next addition overwrites and clears the reused row.
 
-When the parser enters a function, it pushes a scope.  Each local
-declaration calls `cc-sym-add`, which appends.  When the function
-ends, the parser pops, which restores the count to its pre-function
-value and so deletes the locals by making them unreachable.  The
-bytes are still in the arrays, but `cc-scope-pop` takes each
-discarded symbol off its bucket with `cc-sym-unlink` (each is the
-newest in its bucket when its turn comes, since the pop goes from the
-newest down), and later additions overwrite them.
+## How types and symbols connect
 
-Globals are never popped because no scope is pushed at file scope.
-They sit below every scope marker, so the reverse walk always reaches
-them.
+For `struct point p`, the type word identifies a struct, the descriptor identifies `point`'s layout, and `p`'s symbol holds its storage payload. A tag symbol carries the descriptor in `val`; an object symbol uses `cc-sym-set-struct-desc`. The descriptor supplies aggregate size and field offsets, which cannot be recovered from `ty-struct` alone.
 
-The 64-deep scope cap is far more than M2-Planet needs; its nested
-blocks rarely exceed 4.  Both ends are guarded: a 65th push dies with
-code 61 (`tests/cc/die-61-scopes-deep.c` nests 70 blocks), and a pop
-with no push to match dies with 62.  The parser keeps pushes and pops
-paired, so 62 would mean a bug in the parser, not in the C.
-
-## 5. How types and symbols connect
-
-Here is the lifecycle of a single C declaration `struct point p;`
-inside a function:
-
-1. The lexer (Ch 23) produces tokens: `kw-struct`, `tk-ident`
-   `"point"`, `tk-ident` `"p"`, `tk-punct` `;`.
-2. The parser (Chs 29–31) reaches the declaration and looks up
-   `"point"` via `cc-sym-find`, finding an `sk-struct` entry.  It
-   reads `cc-sym-val-of` to get the descriptor pointer.
-3. It reads `cc-sd-total-size` from the descriptor: say, 24 bytes,
-   which is three 8-byte slots.
-4. It reserves those three slots.  If `p` is the function's first
-   local they are slots 0–2, and `p` takes the *highest*, slot 2,
-   so its base address `rbp - 8*(2+1)` = `rbp - 24` is the lowest
-   of the three.
-5. It calls `cc-sym-add` with the name `"p"`, kind `sk-local`, type
-   `ty-make ty-struct 0`, val `2`, then stores the descriptor
-   pointer with `cc-sym-set-struct-desc`.
-6. The new symbol is now findable.  A reference to `p.x` looks `p`
-   up, sees `sk-local`, reads slot 2 from its val and the field
-   layout from its descriptor, and codegen emits `lea rdi, [rbp - 24]`
-   to get the struct's base address.
-
-Every later chapter uses exactly this protocol.
+These records retain the decisions that Chapter 35's declaration parser makes. Chapter 34 consumes field and type information for expressions; instruction emission begins in Chapter 31.
 
 ## Try it
 
-**Small check:** the `cc-sym-add` snippet below adds one symbol and prints
-its id and the new count.
-
-**Layer check:** the root test script covers both files from this
-chapter.
+Run from the `forth-bootstrap` checkout root. This driver constructs the opening pointer-to-int example, then inserts enum name `x` with value 7 and looks it up. `digit-out` prints the single-digit results used here.
 
 ```sh
-./seed/build.sh
-./test.sh               # exercises types via cc/test-060-cc-types.fth
-                        # and symbols via cc/test-070-cc-sym.fth
-```
-
-`test-060-cc-types.fth` exercises `ty-make`, `ty-base`, `ty-ptr`,
-`ty-size`, and the struct-descriptor accessors round-trip.
-`test-070-cc-sym.fth` exercises `cc-sym-add`, `cc-sym-find`, and
-the scope push/pop dance.
-
-For the small check, load the seven Forth files and call
-`cc-sym-add` directly, all through stdin:
-
-```sh
-./seed/build.sh
+./seed/build.sh >/dev/null
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
       cc/060-cc-types.fth cc/070-cc-sym.fth
   cat <<'FORTH'
-    here  [lit] 102 c, [lit] 111 c, [lit] 111 c,
-    [lit] 3
-    sk-global
-    ty-int [lit] 0 ty-make
-    [lit] 1024
-    cc-sym-add
-    [lit] 48 + emit
-    cc-sym-count @ [lit] 48 + emit
-    bye
+: digit-out [lit] 48 + emit ;
+ty-int [lit] 1 ty-make
+  dup ty-size digit-out [lit] 32 emit
+  dup ty-base digit-out [lit] 32 emit
+  ty-ptr digit-out [lit] 10 emit
+[lit] 120 cc-src-buf c!
+cc-src-buf [lit] 1 sk-enum ty-int [lit] 0 ty-make [lit] 7
+  cc-sym-add drop
+cc-src-buf [lit] 1 cc-sym-find
+  dup cc-sym-kind-of digit-out [lit] 32 emit
+  cc-sym-val-of digit-out [lit] 10 emit
+bye
 FORTH
-} | ./seed-forth
+} | ./seed-forth # prints '8 2 1\n4 7'
+printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
 ```
 
-Expected output: `01` — the new symbol's id is `0`, and the count
-after the add is `1`.
-
-**tri.c at this stage:** feed lines 2–3 of `tri.c` through the
-parser (Chs 29–31) and read back the rows it added.  The probe runs
-`cc-parse-program`'s steps up to the top-level loop and stops there:
-the whole-program check that follows would reject a fragment with no
-`main`.  `row` prints a symbol's id, name, kind and base type:
-
-```sh
-./seed/build.sh
-{
-  cat forth/010-lib.fth cc/0[2-9]0-cc-*.fth cc/1[01][0-9]-cc-*.fth
-  cat <<'FORTH'
-    : .d  dup [lit] 9 > if, dup [lit] 10 / .d then,
-          dup [lit] 10 / [lit] 10 * - [lit] 48 + emit ;
-    : .n  .d [lit] 32 emit ;
-    : row  dup .n  dup [lit] 1 over cc-sym-name-addr cell[] @
-           rot cc-sym-name-len cell[] @ write drop [lit] 32 emit
-           dup cc-sym-kind-of .n  cc-sym-type-of ty-base .d [lit] 10 emit ;
-    : probe
-      cc-load-stdin cc-preprocess cc-out-init cc-globals-init
-      cc-emit-elf-header
-      cc-emit-entry-stub cc-emit-shims cc-register-late-shims
-      cc-emit-external-protos cc-emit-libc-typedefs cc-parse-function-list
-      [lit] 32 row  [lit] 33 row
-      [lit] 32 cc-sym-val-of  dup cc-sd-total-size .n
-      dup cc-sd-field-count .n  dup [lit] 0 cc-sd-field-rec cc-sf-offset .n
-      [lit] 1 cc-sd-field-rec cc-sf-offset .d  bye ;
-    probe
-FORTH
-  cat <<'C'
-struct tri { int rows; int stars; };
-struct tri t;
-C
-} | ./seed-forth
-```
+Observed output:
 
 ```text
-32 tri 3 0
-33 t 0 3
-16 2 0 8
+8 2 1
+4 7
+driver exit: 0
 ```
 
-Ids 0–31 are filled before any C is read (Ch 31's eleven libc shims,
-its eight late shims, a `memset` prototype, twelve built-in typedefs).
-`tri` is row 32, kind 3
-(`sk-struct`), and its val points at a descriptor in the arena: 16
-bytes, 2 fields, `rows` at offset 0 and `stars` at offset 8.  `t` is
-row 33, kind 0 (`sk-global`), base type 3 (`ty-struct`).  Those two
-offsets become the `add rdi, 0x0` and `add rdi, 0x8` in every `t.rows`
-and `t.stars` the compiler emits (Ch 28).
+The first line is pointer size, base kind (`ty-int`) and depth. The second is the found symbol's kind (`sk-enum`) and value. The shell reports the driver's exit status afterward.
 
-**Bootstrap relevance:** Stage-A reaches this layer through every
-identifier lookup, local declaration, struct field, typedef, and
-function symbol in the M2-Planet input.
+For the coverage check, run just the layer-test pipelines selected by `forth-bootstrap/test.sh:129` and `forth-bootstrap/test.sh:134`:
 
-## Exercises
+```sh
+cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
+    cc/040-cc-prep.fth cc/050-cc-lex.fth cc/060-cc-types.fth \
+    cc/test-060-cc-types.fth | timeout 5 ./seed-forth
+printf 'types exit: %s\n' "$?" # prints 'types exit: 0'
+cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
+    cc/040-cc-prep.fth cc/050-cc-lex.fth cc/060-cc-types.fth \
+    cc/070-cc-sym.fth cc/test-070-cc-sym.fth | timeout 5 ./seed-forth
+printf 'symbols exit: %s\n' "$?" # prints 'symbols exit: 0'
+```
 
-1. **★★★ Trace.** Follow LP64 `ty-short` from its 2-byte `ty-size`
-   through loads, stores, casts, and array strides.  Which parser
-   decisions must change as well as the type helpers?  Verify that
-   switching LP64 off retains the original generated bytes.
+Observed output:
 
-2. **★★ Verify.** Legacy struct fields max out at 16 per struct.  Find the largest
-   struct in M2-Planet's source.  Does it fit?
+```text
+types exit: 0
+symbols exit: 0
+```
 
-3. **★★ Trace.** The symbol table is a linear-scan parallel-array.  What's the
-   worst-case lookup time for a 1000-symbol table?  Would a
-   hash-based table fit in this codebase's size budget?
+The type test checks base/depth round trips and default-model sizes (`forth-bootstrap/cc/test-060-cc-types.fth:10`). The symbol test checks insertion, successful and missing lookup, local kind and payload, global payload, shadowing, count restoration and reappearance of the outer binding (`forth-bootstrap/cc/test-070-cc-sym.fth:9`). These are smoke tests: they do not check LP64 widths, unsigned predicates, integer suffixes, descriptor allocation or growth, array metadata, qualifier lists, namespace rebinding, fixup heads or capacity-error paths. Passing them does not establish those behaviors.
 
-4. **★★★ Extend.** Add `ty-array` as a base kind distinct from `ty-ptr`.  Where
-   would it differ in behaviour from a plain pointer?  Hint:
-   array-to-pointer decay (in expression context) and
-   `sizeof(arr)` (in `sizeof` context) are the two C rules.
+## Exercise
 
-5. **★★★ Modify.** `cc-sym-find` is linear in table size: a name
-   declared early in a large translation unit is found only after
-   every newer entry has been length-checked.  Add a hash (say, of
-   the first byte and the length) to a bucket-head array and chain
-   entries through a new column.  Keep newest-first order within a
-   bucket so shadowing still works, and measure on the M2-Planet
-   build whether it is worth the bytes.
-
-## After this chapter
-
-The compiler has runtime data for names and C types: every type fits
-in one word (base kind plus pointer depth, with `ty-size` deriving the
-size), every symbol is a row across parallel columns, and scopes push
-and pop by remembering a count.  Struct definitions get their own
-16+40·N-byte legacy or 32+48·N-byte LP64 descriptor.  Identical name resolution gives identical
-slot assignments and struct layouts, which every load and store byte
-in the Stage-A comparison depends on.  `tri.c` now has rows for `tri`
-and `t`, but the output buffer still holds nothing a CPU can run.  Ch
-25 writes the first bytes: the ELF header and the instruction
-encoders.
-
-## Takeaways
-
-- Every C type fits in one word, with an out-of-band arena descriptor for struct layouts, which keeps the symbol table a set of fixed-size parallel columns.
-- Lexical scope is "remember the count, truncate to it on pop", with globals below every scope marker so they survive every pop.
-- The struct descriptor is the only per-field metadata in the compiler; variables, functions, enum constants and typedefs are each a single symbol-table row.
-
-Next: Chapter 25 — ELF Emission and Codegen, Part 1.
+**Trace — easy.** Follow the symbol test's inner `x` through `cc-sym-link` and `cc-scope-pop`. Identify the bucket head before the inner insertion, after it, and after the pop. Explain why decrementing `cc-sym-count` alone would leave the bucket pointing at a discarded row.

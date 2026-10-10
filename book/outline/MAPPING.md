@@ -28,7 +28,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [21-arena-and-io-buffers.md](../27-arena-and-io-buffers.md) | Chapter 21 — Arena and I/O Buffers | 3 | [Arena and I/O buffers](27-arena-and-io-buffers.md) | keep |
 | [22-the-preprocessor.md](../28-the-preprocessor.md) | Chapter 22 — The Preprocessor | 3 | [The preprocessor](28-the-preprocessor.md) | keep |
 | [23-the-lexer.md](../29-the-lexer.md) | Chapter 23 — The Lexer | 3 | [The lexer](29-the-lexer.md) | keep |
-| [24-types-and-symbols.md](../24-types-and-symbols.md) | Chapter 24 — Types and Symbols | 3 | [Types and symbols](30-types-and-symbols.md) | keep |
+| [24-types-and-symbols.md](../30-types-and-symbols.md) | Chapter 24 — Types and Symbols | 3 | [Types and symbols](30-types-and-symbols.md) | keep |
 | [25-elf-and-codegen-part-1.md](../25-elf-and-codegen-part-1.md) | Chapter 25 — ELF Emission and Codegen, Part 1: Instructions | 3 | [ELF emission and instruction encoding](31-elf-and-codegen-part-1.md) | keep |
 | [26-codegen-part-2.md](../26-codegen-part-2.md) | Chapter 26 — Codegen, Part 2: Calls, Shims, and Globals | 3 | [Calls, shims, and globals](32-codegen-part-2.md) | keep |
 | [27-expressions-part-1.md](../27-expressions-part-1.md) | Chapter 27 — Expressions, Part 1: The Precedence Cascade | 3 | [Expressions: precedence](33-expressions-part-1.md) | keep |
