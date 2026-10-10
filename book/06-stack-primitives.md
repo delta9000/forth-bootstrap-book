@@ -1,7 +1,7 @@
-# Chapter 06 — Stack and memory primitives
+# Chapter 6 — Stack and memory primitives
 
-You can locate the seed's stacks, but you cannot yet audit the words that move
-their contents. Reading each primitive as register and memory changes gives you
+`dup`, `drop`, `swap`, `@` and `!` are each a few instructions that move
+cells between registers, the data stack and memory. Reading each primitive as register and memory changes gives you
 decoded stack-transfer and memory-access bodies you can trace against their stack
 effects. Chapter 7 uses these operand movements for arithmetic; Chapters 17 and
 22 combine the primitives into Forth definitions and memory-update words.

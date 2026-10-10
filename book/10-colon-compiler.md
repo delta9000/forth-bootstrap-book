@@ -1,7 +1,6 @@
 # Chapter 10 — The colon compiler
 
-You can run existing words, but you cannot yet combine them into a named
-word of your own. The colon compiler writes a native call for each ordinary word
+`: double dup + ;` defines a new word that doubles the top of the stack. The colon compiler writes a native call for each ordinary word
 in a definition and a return instruction at its end. With inline literals,
 those definitions can also carry values to use when they run.
 

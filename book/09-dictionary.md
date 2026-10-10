@@ -1,6 +1,6 @@
-# Chapter 09 — The dictionary and token reader
+# Chapter 9 — The dictionary and token reader
 
-You can decode the seed's stack operations and Linux calls, but you cannot yet follow an input name to the code it selects. The dictionary puts a linked header before each word's instructions, and the token reader supplies the names to search for. Together they let you trace that search, execute its result, and use the allocation cursor to store a cell.
+When the seed reads the name `dup`, it walks a linked list of word headers until a name matches, then runs the code behind it. The dictionary puts a linked header before each word's instructions, and the token reader supplies the names to search for. Together they let you trace that search, execute its result, and use the allocation cursor to store a cell.
 
 ## The header layout
 

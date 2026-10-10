@@ -1,6 +1,6 @@
-# Chapter 04 — x86-64 encoding and the two-stack machine
+# Chapter 4 — x86-64 encoding and the two-stack machine
 
-Chapter 3 placed the seed in the bootstrap route, but you still need a way to read its instruction bytes. Decoding each instruction against the seed's register and stack conventions gives you a register map and a repeatable method for checking instructions by hand. Chapter 5 uses that method to read the executable headers and entry code.
+The bytes `48 83 ED 08` mean `sub rbp, 8`: they make room for one more cell on the seed's data stack. Reading the seed means decoding bytes like these against its register and stack conventions. This chapter gives a register map and a repeatable method for checking instructions by hand; Chapter 5 applies it to the executable headers and entry code.
 
 ## The machine before the instructions
 

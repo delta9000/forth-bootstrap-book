@@ -1,7 +1,6 @@
-# Chapter 05 — ELF, entry, and the memory map
+# Chapter 5 — ELF, entry, and the memory map
 
-Instruction bytes alone do not tell Linux where to load the seed or where
-execution begins. ELF headers establish a fixed address map, and entry
+Linux learns where to load the seed, and where to start running it, from the first bytes of the file. ELF headers establish a fixed address map, and entry
 code prepares the state that uses it. Together they define the complete
 seed's loading and startup contract: Chapter 6 uses this initialized
 machine, and Chapter 31 builds an ELF emitter for compiled programs.

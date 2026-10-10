@@ -1,9 +1,9 @@
-# Chapter 07 — Arithmetic and logic in machine code
+# Chapter 7 — Arithmetic and logic in machine code
 
-You can move and store operands, but cannot yet account for the seed's
-arithmetic results. Each primitive's register-level contract ties its result
+The seed has one logic primitive, `nand`, beside `+`, `0=`, `/` and `*`.
+Each primitive's register-level contract ties its result
 and stack effect to its machine code, giving you reference contracts for
-`+`, `nand`, `0=`, `/`, and `*`. Chapter 16 builds logic on these contracts,
+all five. Chapter 16 builds logic on these contracts,
 Chapter 17 builds subtraction, and Chapter 20 builds comparisons.
 
 Recall the stack and memory operations from Chapter 6 and the

@@ -1,6 +1,6 @@
-# Chapter 08 — The seed’s Linux boundary
+# Chapter 8 — The seed’s Linux boundary
 
-The stack primitives can compute with bytes, but they cannot yet exchange them with the outside world. The new step is to lend the stack registers to a Linux system call and recover the Forth state afterward. With `emit`, `key`, `bye`, and `syscall6`, a Forth program can read input, write output, and terminate its process.
+`emit`, `key` and `bye` are the seed's whole conversation with the outside world, and `syscall6` reaches every other Linux call. Each one lends the stack registers to a Linux system call and recovers the Forth state afterward. With them, a Forth program can read input, write output, and terminate its process.
 
 Recall the Linux syscall register convention from Chapter 4; the problem here is adapting the Forth stack to that convention. In particular, `rdi` cannot remain the cached top while it also carries a kernel argument. The skeleton of each primitive is a preparation step, a `syscall`, and, if the call returns, a step that establishes the resulting Forth stack:
 

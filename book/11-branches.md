@@ -1,7 +1,6 @@
 # Chapter 11 — Branches and inline cells
 
-A compiled definition can call words in sequence, but it cannot yet choose
-which instructions to run next. A branch takes its destination from an
+`0branch` is how compiled code chooses: it jumps when the top of the stack is zero and falls through otherwise. A branch takes its destination from an
 inline cell. By the end, you can trace `branch` and `0branch` through both
 stacks and run a definition that takes or declines a branch.
 

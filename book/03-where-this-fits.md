@@ -1,4 +1,4 @@
-# Chapter 03 — Where this fits: routes and history
+# Chapter 3 — Where this fits: routes and history
 
 A seed's size does not tell you how its project relates to the tools around it.
 To place a source bootstrap, trace what it inherits and where its route branches.

@@ -1,6 +1,6 @@
 # Chapter 12 — Decimal parsing and the REPL
 
-You can read the seed's primitives, but you have not yet followed how an input stream selects them or supplies decimal values. A token loop joins dictionary lookup to execution and compilation, while `[lit]` requests decimal conversion explicitly. By the end, you can build the complete seed and trace input through its REPL.
+Each token the seed reads is either a word to run, a word to compile, or, after `[lit]`, a decimal number. A token loop joins dictionary lookup to execution and compilation, while `[lit]` requests decimal conversion explicitly. By the end, you can build the complete seed and trace input through its REPL.
 
 ## The shape of the loop
 

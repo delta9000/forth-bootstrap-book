@@ -1,6 +1,6 @@
-# Chapter 01 — Reading the book
+# Chapter 1 — Reading the book
 
-You can read C and some assembly, but you cannot yet follow this book's path from a small seed to Linux or choose where to run its examples. The route pairs source reading with checkpoints: read to explain a mechanism, then run a command to test a concrete result. By the end of this setup, you will have the route in view and a built `seed-forth` in the working directory used by the checkpoints.
+This book follows one route from a 229-byte hex0 program to a Linux kernel built from source, reading the code at each step. Each chapter pairs source reading with a checkpoint: read to explain a mechanism, then run a command to test a concrete result. This chapter sets out that route and leaves a built `seed-forth` in the working directory the checkpoints use.
 
 ## Follow the route
 

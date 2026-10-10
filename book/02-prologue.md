@@ -1,4 +1,4 @@
-# Chapter 02 — Prologue: Seventeen hundred and seventy-two bytes
+# Chapter 2 — Prologue: Seventeen hundred and seventy-two bytes
 
 A file small enough to inspect byte by byte can start a chain that builds Linux. The file is `seed-forth`: a 1,772-byte Forth executable for x86-64 Linux, represented as annotated hexadecimal in `seed/000-seed.hex0`. The checkpoint below builds it and puts its size and opening bytes in front of you.
 
