@@ -10,7 +10,7 @@ Prerequisites: [43 — Runtime, libc, streams, and formatting](43-runtime-and-li
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [40-direct-gcc-target.md](../40-direct-gcc-target.md) — Reuse the source walkthrough: Describe the explicit target facts and the supported historical header dialect.
+Reuses: [40-direct-gcc-target.md](../44-target-headers.md) — Reuse the source walkthrough: Describe the explicit target facts and the supported historical header dialect.
 
 TODO:
 
