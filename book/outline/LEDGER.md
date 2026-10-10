@@ -1308,6 +1308,14 @@ Register convention (rdi accumulator) | 31 ELF emission and instruction encoding
 Frame-pointer local addressing | 31 ELF emission and instruction encoding | locals are rbp-relative slots; cc-emit-local-ea picks the short or long displacement form
 System V AMD64 calling convention | 31 ELF emission and instruction encoding | integer and pointer arguments go in rdi rsi rdx rcx r8 r9; results return in rax
 rel32 placeholder and patch | 31 ELF emission and instruction encoding | emit a jump with a zero displacement, then cc-patch-rel32-to-here fixes it to the current position
+Full-width immediate placeholder | 32 Calls, shims, and globals | movabs rdi with an empty imm64 field, patched once an absolute address is known
+Forward-call fixup list | 32 Calls, shims, and globals | arena nodes of patch offset plus old head; walked to patch every call site once the target exists
+Escape decoding (string literals) | 32 Calls, shims, and globals | cc-emit-string-bytes emits decoded bytes and a terminating NUL
+Stack-buffer pattern | 32 Calls, shims, and globals | a pushed value doubles as a one-byte I/O buffer for write and read
+Inline allocator state | 32 Calls, shims, and globals | the calloc shim keeps heap_base and heap_pos after its own ret, reached rip-relative
+libc shims | 32 Calls, shims, and globals | small emitted runtime routines (putchar, getchar, fopen, calloc, memcpy...) with narrower behaviour than libc
+Global-address fixups | 32 Calls, shims, and globals | parallel columns pair an output patch position with a data or BSS slot until placement
+Typed integer emission | 32 Calls, shims, and globals | storage width, value conversion and unsigned operations kept separate
 Scope stack (push/pop count) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
 Struct descriptor | 30 Types and symbols | idea; How types and symbols connect
 Struct descriptor (16 + 40·N legacy, 32 + 48·N LP64 bytes) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
