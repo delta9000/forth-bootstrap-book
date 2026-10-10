@@ -10,7 +10,7 @@ Prerequisites: [32 — Calls, shims, and globals](32-codegen-part-2.md)
 
 Checkpoint: TODO — the cumulative core checkpoint is Stage A at the end of the core compiler sequence.
 
-Reuses: [27-expressions-part-1.md](../27-expressions-part-1.md) — Reuse the source walkthrough: Follow the precedence cascade and binary operator folding.
+Reuses: [27-expressions-part-1.md](../33-expressions-part-1.md) — Reuse the source walkthrough: Follow the precedence cascade and binary operator folding.
 
 TODO:
 

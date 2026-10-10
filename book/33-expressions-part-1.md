@@ -1,36 +1,10 @@
-# Chapter 27 — Expressions, Part 1: The Precedence Cascade
+# Chapter 33 — Expressions: precedence
 
-```text
-Missing capability: the token stream cannot become expression machine code.
-New pattern: a precedence cascade repeats one binary-fold codegen template at each operator level.
-Artifact after this chapter: arithmetic, comparison, bitwise, and logical binary expression codegen.
-Proof link: Stage-A binary expressions lower through one auditable cascade.
-```
+`2 + 3 * 4` needs the multiplication to finish before the addition can use its result. A precedence cascade makes that order emerge from parser calls, without building an expression tree. The resulting binary-expression compiler connects tokens to arithmetic, comparison, bitwise operations, and short-circuit branches.
 
-Chs 25–26 supplied the encoders; the parser now has to call them in
-the right order.  Given `a*b + c << d == e & f | g && h || i`, the
-compiler has to emit code that applies each operator in C's precedence order, and it
-has no expression tree to lean on: the lexer hands over one token at
-a time and the emitters write bytes immediately.  `100-cc-expr.fth`
-(2657 lines total) solves this with a *precedence cascade*: plain
-recursive descent with one word per precedence level.  Each word
-asks the next-tighter level for its operands, then loops over its
-own operators.  (This is not *precedence climbing*, which uses a
-single function and a table of binding powers; see Appendix E.)
+## The shape of the cascade
 
-This chapter covers the scaffolding the whole file needs, forward
-references for the mutually recursive parsers, and then the ten binary layers from
-`cc-parse-mul` to `cc-parse-log-or`.  Eight of the ten follow one
-five-step template: evaluate the left operand, push it, evaluate the
-right, pop, apply the operator.  Which operators each of the eight
-accepts, and what instruction each emits, is one table.  `&&` and
-`||` short-circuit, so they emit jumps instead.  Ch 28 covers the levels above the cascade
-(ternary, assignment, `cc-parse-expr`) and below it (unary, primary,
-and the lvalue tracking that `cc-emit-materialize` reads).
-
----
-
-## 1. The root block: how the file is assembled
+Each level asks the next-tighter level for an operand, then consumes its own operators in a loop. Call order determines binding; the operator table selects the operation within a level. The root block places these levels between operand parsing and assignment (`forth-bootstrap/cc/100-cc-expr.fth:1`):
 
 ```forth file=cc/100-cc-expr.fth
 <<expr-header>>
@@ -55,12 +29,9 @@ and the lvalue tracking that `cc-emit-materialize` reads).
 <<expr-top>>
 ```
 
-The root block fixes the assembly order: header, forward references, the parsers in source order, and the top-level
-driver.  Each `<<name>>` expands to a chunk defined in this chapter
-or in Ch 28, and the result is byte-identical to the checked-in
-`100-cc-expr.fth`.
+This is the assembly recipe for the file, not its literal header. The operand and assignment chunks belong to Chapter 34; `expr-call` belongs to Chapter 37. Their names here establish placement, not ownership.
 
-## 2. File header and dependency comment
+The grammar makes each binary operand a call to a tighter production (`forth-bootstrap/cc/100-cc-expr.fth:1`):
 
 ```forth chunk=expr-header
 \ 100-cc-expr.fth — recursive-descent expression parser for the C subset.
@@ -81,6 +52,11 @@ or in Ch 28, and the result is byte-identical to the checked-in
 \   shift   := add (('<<'|'>>') add)*
 \   add     := mul (('+'|'-') mul)*
 \   mul     := unary (('*'|'/'|'%') unary)*
+```
+
+At the bottom, unary and primary parsing supply values; the dependency comment identifies the token interface used throughout (`forth-bootstrap/cc/100-cc-expr.fth:19`):
+
+```forth chunk=expr-header
 \   unary   := ('*'|'&'|'-'|'!'|'~'|'++'|'--') unary | 'sizeof' '(' ... ')'
 \            | primary
 \   primary := (NUMBER | CHAR | STRING | IDENT | IDENT '(' args ')'
@@ -96,30 +72,11 @@ or in Ch 28, and the result is byte-identical to the checked-in
 
 ```
 
-The grammar in the comment lists every level, loosest first, and
-each level is one `cc-parse-LEVEL` word: this chapter's cascade from
-`assign` down to `mul`, and Ch 28's `unary` and `primary` with its
-postfix chain (`[]`, `.`, `->`, `++`, `--`).  Every binary
-production has the same shape: parse an operand at the
-next-tighter level, then loop over this level's operators.
+## One token of putback
 
-## 3. One token of putback
+After `cc-parse-mul` consumes `a * b`, it reads the following `+` and returns it through the lexer’s putback interface (Chapter 29). The additive parser can then consume that same operator. A level relinquishes a token whenever it cannot use it.
 
-A cascade always reads one operator too many.  After folding the two
-`*`s in `a * b * c + d`, `cc-parse-mul` reads the `+`, finds it isn't
-a multiplicative operator, and has to hand it back so the next-looser
-layer (`add`) can see it.
-
-The lexer's interface does that (Ch 23 §7).  The parsers read tokens
-with `cc-next-token-keep`, and `cc-putback-token` sets
-`cc-tok-pending`, so the next `cc-next-token-keep` clears the flag
-*without* advancing the lexer: `tok-kind`, `tok-num`, and `tok-str-*`
-still describe the same token.  Every binary layer ends with
-`cc-putback-token`.
-
-Most of the questions a parser asks about the token it has just read
-are "is it this punctuation?" or "is it this keyword?".  Two words
-answer them, so a dispatch can read as a list of cases:
+Token tests must check the kind as well as the payload, so a numeric value cannot be mistaken for punctuation (`forth-bootstrap/cc/100-cc-expr.fth:57`):
 
 ```forth chunk=expr-tok-tests
 \ ===========================================================================
@@ -135,13 +92,13 @@ answer them, so a dispatch can read as a list of cases:
 
 ```
 
-`cc-tok-punct?` takes a punct code, which is the character itself for
-one-character operators (`[char] (` is 40) and a `pt-*` constant from
-Ch 23 for the longer ones.  `cc-tok-kw?` takes a `kw-*` id.  Both
-check the token's kind first: a number token's `tok-num` holds its
-value, and the number 40 is not a `(`.
+`cc-tok-punct?` compares a character or `pt-*` code with `tok-num`; `cc-tok-kw?` compares a keyword ID with `tok-kw-id`. Both leave the token in place. They answer a question about the current token rather than consuming another one.
 
-## 4. Forward references for mutual recursion
+## Forward references for mutual recursion
+
+Parentheses re-enter expression parsing, while a cast needs a type parser defined outside this file. The forward slots separate those call relationships from source order.
+
+Declare the recursive entry points before their callers, together with the guard used when runtime lowering is forbidden (`forth-bootstrap/cc/100-cc-expr.fth:32`):
 
 ```forth chunk=expr-fwd-refs
 \ ===========================================================================
@@ -171,42 +128,32 @@ variable cc-native-static-init                    \ restrict runtime lowering to
 
 ```
 
-The grammar is mutually recursive: `primary` parses `'(' expr ')'`,
-which re-enters the whole grammar, and so does each argument of a
-call.  A word can call itself, since `:` makes a word findable as
-soon as its header is built, but it cannot call a word that comes
-later in the file.  So the file declares two deferred words
-(Ch 12): `cc-parse-expr-fwd` and `cc-parse-assign-fwd` run whatever
-xt their cells hold.  The words before `cc-parse-expr` call them,
-and the last lines of the file (Ch 28's `expr-top` chunk) fill
-the cells with `is`.  `cc-parse-unary-fwd` serves prefix `++`, whose
-operand is a unary expression parsed by a word defined after it.
-`cc-try-cast-fwd` reaches further: a cast has to read a type name,
-and the type parser is in `110-cc-decl.fth` (Ch 29), which fills it
-in.
+`cc-parse-expr-fwd`, `cc-parse-assign-fwd`, and `cc-parse-unary-fwd` reach their respective grammar entries. `cc-parse-comma-fwd` reaches comma expressions without forcing a value load. Chapter 34 supplies those parsers and the initial constant-expression target of `cc-parse-const-fwd`; Chapter 45 develops typed constants.
 
-Part III uses this pattern wherever load order and call order
-disagree: `defer NAME-fwd` before the callers, `' NAME is NAME-fwd`
-once the real word exists.  Ch 22's `#include` recursion and Ch 30's
-statement parser use it too.
+`cc-try-cast-fwd` delegates a possible cast. `cc-sizeof-type-start-fwd` asks whether the current token starts a type, and `cc-sizeof-type-fwd` obtains its type and descriptor. Chapter 35 supplies declaration-side type parsing.
 
-## 5. The operator table
+`cc-native-static-init` requests the static-initializer restriction. `cc-expr-unevaluated` suspends evaluation while syntax is still parsed. `cc-check-static-init` rejects a runtime operation when the restriction is active and the expression is evaluated. Chapter 39 supplies the initializer context.
 
-Eight of the binary levels, `mul` down to `bit-or`, do the same thing
-with different operators.  Each parses an operand at the next-tighter
-level, and while the next token is one of *its* operators, parses
-another operand and combines the two with one instruction sequence.
-What differs from level to level is only which operators it accepts
-and which encoder each one calls.  That is data, so it lives in one
-table.
+## The operator table
 
-A row has one more column, for a second use of the same operators.
-Array sizes, case labels, enum values and `#if` lines are *constant
-expressions*: their value is needed while compiling, so there is no
-code to emit, only a number to compute (Ch 28 §9).  For that, every
-operator also names a Forth word that does to two 64-bit values what
-its instructions do at run time.  The seed's `/` is unsigned and it has
-no shifts and no xor, so the signed versions come first:
+An operator has separate actions at compile time and at runtime. Its evaluator computes a Forth value; its emitter writes machine instructions. Keeping both in one row lets later constant parsing reuse the operator identities without executing generated code.
+
+### Arithmetic helpers
+
+The small handlers have these contracts:
+
+| Input → result | Words |
+|---|---|
+| value → negation, complement, magnitude | `cc-negate`, `cc-invert`, `cc-abs` |
+| pair of values → bitwise exclusive-or | `cc-xor` |
+| Forth flag → C truth value | `cc-flag` |
+| divisor → checked divisor | `cc-divisor` |
+| dividend, divisor → signed quotient or remainder | `cc-div`, `cc-mod` |
+| exponent → power of two | `cc-pow2` |
+| value, count → left or arithmetic-right shift | `cc-shl`, `cc-sar` |
+| pair of values → C comparison result | `cc-lt`, `cc-gt`, `cc-le`, `cc-ge`, `cc-eq`, `cc-ne` |
+
+Constant arithmetic first needs signed and Boolean adapters around the available Forth operations (`forth-bootstrap/cc/100-cc-expr.fth:1579`):
 
 ```forth chunk=expr-binops
 \ ===========================================================================
@@ -224,6 +171,11 @@ no shifts and no xor, so the signed versions come first:
 : cc-flag    0= 1+ ;                              \ ( f -- 1|0 ): C truth
 : cc-abs     dup 0< if, cc-negate then, ;         ( n -- |n| )
 
+```
+
+Signed division operates on magnitudes, then restores the quotient’s sign or the dividend’s sign for the remainder (`forth-bootstrap/cc/100-cc-expr.fth:1594`):
+
+```forth chunk=expr-binops
 \ cc-divisor ( b -- b )  Die with 124 if a constant divisor is 0.
 : cc-divisor  dup 0= if, [lit] 124 cc-die then, ;
 
@@ -236,6 +188,13 @@ no shifts and no xor, so the signed versions come first:
   cc-divisor
   over 0< >r  cc-abs swap cc-abs swap  2dup / * -  r> if, cc-negate then, ;
 
+```
+
+`cc-divisor` rejects a zero divisor before either calculation. `cc-div` uses the sign of the operands’ exclusive-or to decide whether to negate the quotient; `cc-mod` remembers only the dividend’s sign. These are the baseline evaluators, not the checked typed arithmetic developed in Chapter 45.
+
+A power-of-two factor implements shifting; complementing a negative input before division and afterwards preserves arithmetic-right-shift behavior (`forth-bootstrap/cc/100-cc-expr.fth:1606`):
+
+```forth chunk=expr-binops
 \ cc-pow2 ( n -- 2^n )
 : cc-pow2
   [lit] 1 swap
@@ -250,6 +209,11 @@ no shifts and no xor, so the signed versions come first:
     cc-pow2 /
   then, ;
 
+```
+
+The comparison adapters return normalized C truth values (`forth-bootstrap/cc/100-cc-expr.fth:1620`):
+
+```forth chunk=expr-binops
 \ The comparisons answer C's 1 or 0.
 : cc-lt  <  cc-flag ;
 : cc-gt  >  cc-flag ;
@@ -260,16 +224,11 @@ no shifts and no xor, so the signed versions come first:
 
 ```
 
-`cc-div` and `cc-mod` divide the magnitudes with the seed's unsigned
-`/` and fix the sign afterwards, which gives `idiv`'s truncation
-toward zero: -7 / 2 is -3 and -7 % 3 is -1, the values the emitted
-code computes.  Dividing by zero dies with code 124 rather than
-faulting inside the compiler.  `cc-sar` shifts a negative number by
-complementing it, shifting the non-negative result, and complementing
-back, which copies the sign bit in, as `sar` does.  `cc-flag` turns
-Forth's -1/0 into C's 1/0.
+### Row layout and construction
 
-Now the table itself:
+The table describes membership, not the recursive call order. Changing a `level-*` label alone does not change which parser supplies an operand.
+
+The row contract also reserves a compound-assignment key so Chapter 34 can reuse the operation (`forth-bootstrap/cc/100-cc-expr.fth:1628`):
 
 ```forth chunk=expr-binops
 \ ===========================================================================
@@ -291,6 +250,11 @@ Now the table itself:
 \ `+=` and the rest up by compound, so `a + b` and `a += b` share an
 \ emitter.  A row whose op is 0 ends the table.
 
+```
+
+Named fields let a consumer select the operator, its grammar level, or either execution token (`forth-bootstrap/cc/100-cc-expr.fth:1647`):
+
+```forth chunk=expr-binops
 [lit] 1 constant level-mul                        \ * / %
 [lit] 2 constant level-add                        \ + -
 [lit] 3 constant level-shift                      \ << >>
@@ -309,18 +273,11 @@ Now the table itself:
 
 ```
 
-A row is five cells.  `op` is the punct code the lexer gives the
-operator; `level` names the precedence level that owns it; `emitter`
-is the execution token of the Ch 25–26 encoder that computes
-`rdi := rdi OP rcx`; `evaluator` is the word above (or the seed's own
-`+`, `-`, `*`, `and`, `or`) that computes the same thing now.  `compound` is the operator's compound-assignment
-twin, which Ch 28's assignment parser looks up in the same table, so
-`a + b` and `a += b` reach the same `add rdi, rcx`.  The level
-numbers only label rows; they don't rank anything.
+`level-mul`, `level-add`, `level-shift`, `level-rel`, and `level-eq` identify arithmetic and comparison groups. `level-bit-and`, `level-bit-xor`, and `level-bit-or` identify the bitwise groups.
 
-`cc-binop,` lays down one row.  Its last two fields come from the
-input, the way `char` takes its argument: `'` reads a word's name and
-`,` stores its xt.
+`bo-op` addresses the punctuation key; `bo-compound` addresses its assignment twin. `bo-level` selects the owning group. `bo-emitter` and `bo-eval` select runtime emission and compile-time evaluation respectively. `bo-size` advances to the next row.
+
+`cc-binop,` stores the supplied keys, then reads the emitter and evaluator names from the input to construct `cc-binops` (`forth-bootstrap/cc/100-cc-expr.fth:1663`):
 
 ```forth chunk=expr-binops
 \ cc-binop, ( op compound level "emitter" "evaluator" -- )  Lay down one
@@ -349,17 +306,13 @@ char |      pt-pipe-eq     level-bit-or   cc-binop, cc-emit-or-rdi-rcx     or
 
 ```
 
-The table reads like the grammar's operator lists turned sideways.
-Division and remainder share one `idiv` sequence (Ch 25 §5) and
-differ in which half of the result they keep; `>>` is an arithmetic
-(sign-extending) shift, because the only integer type is signed
-`int`, so an unsigned `cc-emit-shr-rdi-cl` doesn't exist.  The
-comparisons use the `cmp-set` encoders (Ch 25 §6), which leave
-exactly 0 or 1 in `rdi`; the logical operators below rely on that,
-since `1 && 2` must produce 1, not 2.  A row whose `op` is 0 ends the
-table.
+The final zero operator is a sentinel. The default division, comparison, and right-shift rows select signed emitters; the native dispatch below can replace that choice for unsigned operands.
 
-Three words read it:
+### Finding an operator
+
+A search takes a field as well as a key. Binary parsing searches by punctuation; assignment can search by the compound form.
+
+`cc-binop-row` walks until either its selected field matches or the sentinel ends the search (`forth-bootstrap/cc/100-cc-expr.fth:1689`):
 
 ```forth chunk=expr-binops
 \ cc-binop-row ( key field -- row | 0 )  The first row whose cell at byte
@@ -376,6 +329,11 @@ Three words read it:
   repeat,
   2drop r> drop [lit] 0 ;
 
+```
+
+`cc-binop?` admits a token only when its row belongs to the requested level (`forth-bootstrap/cc/100-cc-expr.fth:1704`):
+
+```forth chunk=expr-binops
 \ cc-binop? ( level -- row | 0 )  Read the next token.  If it is one of
 \ this level's operators, answer its row; otherwise 0, and the caller
 \ puts the token back.
@@ -393,6 +351,17 @@ Three words read it:
   then,
   drop [lit] 0 ;                                  \ another level's operator
 
+```
+
+Failure leaves the token available for putback by the caller. Finding an operator in the table is insufficient: a multiplication parser must also reject an addition row.
+
+### Preserving operand types
+
+The native path needs facts about both operands after recursive parsing has finished. It carries the left facts across the right parse, then copies them into temporary cells for the operation. The type encodings themselves are unchanged (Chapter 30).
+
+Keep the completed operands’ metadata separate from the parser’s current-expression state (`forth-bootstrap/cc/100-cc-expr.fth:1718`):
+
+```forth chunk=expr-binops
 \ Native arithmetic preserves type information and applies pointer scaling.
 \ These temporary cells are only used after recursive operand parsing ends.
 variable cc-expr-left-qualified
@@ -408,6 +377,13 @@ variable cc-expr-right-inner
 variable cc-expr-common
 variable cc-expr-op-row
 
+```
+
+The `cc-expr-left-type` and `cc-expr-right-type` cells hold encoded types; their `-desc` partners hold descriptors. `cc-expr-left-inner` and `cc-expr-right-inner` retain array row widths. The `-null` pair records null-constant status, and the `-qualified` pair retains qualification. `cc-expr-common` holds the selected result/conversion type; `cc-expr-op-row` holds the operator row.
+
+Promotion first widens small integer operands, while the equal-width long-long case preserves rank and signedness (`forth-bootstrap/cc/100-cc-expr.fth:1733`):
+
+```forth chunk=expr-binops
 : cc-expr-promote                                ( ty -- ty' )
   dup ty-ptr if, exit, then,
   dup ty-size [lit] 4 < if, drop ty-int [lit] 0 ty-make then, ;
@@ -419,6 +395,13 @@ variable cc-expr-op-row
   ty-unsigned? swap ty-unsigned? or if, ty-ullong else, ty-llong then,
   [lit] 0 ty-make ;
 
+```
+
+`cc-expr-promote` leaves pointers alone. `cc-expr-long-long-common` selects unsigned long long if either operand is unsigned, otherwise signed long long.
+
+The default common-type policy promotes both operands, prefers a pointer or wider type, then resolves equal-width rank and unsignedness (`forth-bootstrap/cc/100-cc-expr.fth:1744`):
+
+```forth chunk=expr-binops
 : cc-expr-common-type-default                            ( left right -- ty )
   cc-expr-promote swap cc-expr-promote swap
   over ty-ptr if, drop exit, then,
@@ -433,6 +416,13 @@ variable cc-expr-op-row
 defer cc-expr-common-type
 ' cc-expr-common-type-default is cc-expr-common-type
 
+```
+
+`cc-expr-common-type` is the replaceable entry point, initially bound to `cc-expr-common-type-default`. This describes the policy implemented here; it does not establish that every possible C operand pair is valid.
+
+Snapshotting after recursion protects the left operand from the right parser’s updates (`forth-bootstrap/cc/100-cc-expr.fth:1758`):
+
+```forth chunk=expr-binops
 : cc-expr-save-types                             ( left-ty left-desc right-ty right-desc -- )
   cc-expr-right-desc ! cc-expr-right-type !
   cc-expr-left-desc ! cc-expr-left-type !
@@ -446,6 +436,17 @@ defer cc-expr-common-type
   cc-last-expr-array-inner @ cc-expr-right-inner !
   cc-last-expr-type @ cc-last-struct-desc @ cc-expr-save-types ;
 
+```
+
+`cc-expr-save-types` stores the type/descriptor pairs and computes their common type. `cc-expr-save-native-types` adds qualification, null status, and inner width, taking the left facts from its arguments and the right facts from the current-expression cells.
+
+### Pointer steps and result descriptors
+
+A pointer operation must retain both the pointed-to layout and the amount by which an integer offset advances it. These helpers choose that information from the saved operand facts.
+
+`cc-expr-common-inner` keeps the chosen pointer’s row width, while `cc-expr-left-step` and `cc-expr-right-step` multiply pointee size by any saved inner width (`forth-bootstrap/cc/100-cc-expr.fth:1771`):
+
+```forth chunk=expr-binops
 : cc-expr-common-inner                           ( -- row-width )
   cc-expr-common @ ty-ptr if,
     cc-expr-left-type @ cc-expr-common @ = if,
@@ -460,6 +461,11 @@ defer cc-expr-common-type
   cc-expr-right-type @ cc-expr-right-desc @ cc-expr-pointee-size
   cc-expr-right-inner @ if, cc-expr-right-inner @ * then, ;
 
+```
+
+`cc-expr-common-desc` preserves the matching descriptor for a struct, function, or array base and returns zero for other bases (`forth-bootstrap/cc/100-cc-expr.fth:1785`):
+
+```forth chunk=expr-binops
 : cc-expr-common-desc                            ( -- desc )
   cc-expr-common @ ty-base dup ty-struct = over ty-func = or swap ty-array = or if,
     cc-expr-left-type @ cc-expr-common @ = if,
@@ -467,6 +473,15 @@ defer cc-expr-common-type
     else, cc-expr-right-desc @ then,
   else, [lit] 0 then, ;
 
+```
+
+### Selecting the native operation
+
+Unsigned division, remainder, comparisons, and right shift need different instructions from the default table rows.
+
+`cc-native-binop-emit-default` checks the common type before falling back to the row’s emitter (`forth-bootstrap/cc/100-cc-expr.fth:1792`):
+
+```forth chunk=expr-binops
 : cc-native-binop-emit-default                           ( -- )
   cc-expr-common @ ty-unsigned? if,
     cc-expr-op-row @ bo-op + @
@@ -484,6 +499,13 @@ defer cc-expr-common-type
 defer cc-native-binop-emit
 ' cc-native-binop-emit-default is cc-native-binop-emit
 
+```
+
+The `cc-native-binop-emit` slot permits a later numeric layer to replace that dispatch. The table remains the default for operations whose instruction is unchanged by signedness.
+
+Array-related policy has separate extension slots so binary, compound, and conditional expressions can share this machinery (`forth-bootstrap/cc/100-cc-expr.fth:1809`):
+
+```forth chunk=expr-binops
 : cc-array-binop-default ;
 defer cc-array-binop-fwd
 ' cc-array-binop-default is cc-array-binop-fwd
@@ -493,6 +515,17 @@ defer cc-array-compound-fwd
 : cc-array-ternary-default ;
 defer cc-array-ternary-fwd
 ' cc-array-ternary-default is cc-array-ternary-fwd
+```
+
+`cc-array-binop-fwd`, `cc-array-compound-fwd`, and `cc-array-ternary-fwd` initially call the empty `cc-array-binop-default`, `cc-array-compound-default`, and `cc-array-ternary-default`. They perform no validation in this binding. The binary application calls its hook after saving operand facts; Chapter 34 owns the compound and conditional callers.
+
+### Applying a typed operator
+
+The native fold combines scaling, conversion, and emission after both operands have been parsed. Its stack comment omits the saved qualification argument consumed by `cc-expr-save-native-types`; the level parsers below supply that argument.
+
+Save the row and operand facts, select the promoted left type for a shift, and scale an integer right operand when the left is a pointer (`forth-bootstrap/cc/100-cc-expr.fth:1818`):
+
+```forth chunk=expr-binops
 : cc-native-binop-apply                          ( left-ty left-desc left-inner left-null row -- )
   cc-expr-op-row !
   cc-emit-materialize
@@ -507,6 +540,11 @@ defer cc-array-ternary-fwd
     then,
   then,
   cc-emit-mov-rcx-rdi cc-emit-pop-rdi
+```
+
+After restoring the left value, pointer-on-the-right addition scales the integer left value before conversion and emission (`forth-bootstrap/cc/100-cc-expr.fth:1832`):
+
+```forth chunk=expr-binops
   cc-expr-op-row @ bo-op + @ [char] + = if,
     cc-expr-left-type @ ty-ptr 0=
     cc-expr-right-type @ ty-ptr [lit] 0 <> and if,
@@ -516,6 +554,11 @@ defer cc-array-ternary-fwd
   cc-expr-left-type @ cc-expr-common @ cc-emit-convert-value
   cc-expr-right-type @ cc-expr-common @ cc-emit-convert-right
   cc-native-binop-emit
+```
+
+Pointer subtraction converts a byte difference to an element difference, while comparisons publish an integer result (`forth-bootstrap/cc/100-cc-expr.fth:1841`):
+
+```forth chunk=expr-binops
   cc-expr-op-row @ bo-op + @ [char] - = if,
     cc-expr-left-type @ ty-ptr cc-expr-right-type @ ty-ptr and if,
       cc-expr-left-step
@@ -537,6 +580,13 @@ defer cc-array-ternary-fwd
   then,
   cc-expr-common-inner cc-last-expr-array-inner ! ;
 
+```
+
+The final marking preserves the selected descriptor, combines pointer qualification, and propagates the common inner width. Those facts let the enclosing expression consume the result without recovering its history.
+
+The baseline `cc-binop-apply` needs only the saved left value, the current right value, and the row’s emitter (`forth-bootstrap/cc/100-cc-expr.fth:1865`):
+
+```forth chunk=expr-binops
 \ cc-binop-apply ( row -- )  The left operand is pushed and the right one
 \ is in rdi.  Materialize the right, move it to rcx, pop the left into rdi,
 \ emit the row's operation, and mark the result a plain value.
@@ -549,16 +599,13 @@ defer cc-array-ternary-fwd
 
 ```
 
-`cc-binop-row` is the table's only search: walk the rows until the
-end row, and return (with `exit,`, after `r> drop` clears the field
-offset it parked) the first one whose cell at byte offset `field`
-equals the key.  `cc-binop?` is the question a level asks after each
-operand: read a token, and answer its row if it is punctuation, in
-the table, and at this level.  Anything else answers 0, and the
-level puts the token back.  `cc-binop-apply` is the second half of
-the fold, which the next section walks through.
+Its machine-code sequence moves the right value to `rcx`, restores the left into `rdi`, and emits `left OP right`. Materialization requests a value from a possibly pending address; marking clears assignability. Chapter 34 owns those mechanisms.
 
-## 6. The level template: `cc-parse-mul`
+## The level template: `cc-parse-mul`
+
+Call this repeated sequence the **binary fold**: parse left, preserve left, parse right, restore left, apply the operator. The Forth parser is executing during compilation; its emitted pushes and pops execute in the resulting program.
+
+The multiplicative level repeats the binary fold while the lookahead row belongs to `level-mul` (`forth-bootstrap/cc/100-cc-expr.fth:1872`):
 
 ```forth chunk=expr-mul
 \ ===========================================================================
@@ -585,36 +632,15 @@ the fold, which the next section walks through.
 
 ```
 
-Every level from `mul` to `bit-or` is this word with two names
-changed, so it is worth reading slowly.
+`cc-parse-unary` supplies an operand. `cc-binop? dup` keeps the row while the loop tests whether it exists. Inside the loop, `>r` protects that row across recursive parsing; `cc-emit-push-rdi` preserves the generated program’s left value.
 
-1. **Parse the left operand** at the next-tighter level
-   (`cc-parse-unary` for `mul`).  `rdi` now holds the left value,
-   or, for a pending dereference, an *address* that
-   `cc-emit-materialize` must load.
-2. **Loop while the next token is one of our operators.**
-   `level-mul cc-binop?` reads a token and answers its row for `*`,
-   `/` or `%`, or 0.  `dup` keeps a copy of the answer for `while,`
-   to test, so the loop body starts with the row on the stack.
-3. **Inside the loop:** park the row on the return stack, materialize
-   the left value, push `rdi`, and parse the right operand.  Then
-   `cc-binop-apply` finishes: materialize the right value, `mov rcx,
-   rdi` (right into the temp), `pop rdi` (left into the result
-   register), run the row's encoder, and mark the result a plain
-   value.
-4. **After the loop** the last token read isn't ours, so `drop`
-   discards `cc-binop?`'s 0 and `cc-putback-token` returns the token
-   to the caller.
+With the native target enabled, the parser also saves the left operand’s metadata on the Forth data stack. After the right parse, it passes the restored row to the selected apply word. Another iteration uses the result as its left operand. On failure, `drop` removes the failed lookup result and putback returns the unaccepted token.
 
-The operator codes are the lexer's punct codes from Ch 23, which
-for single characters are ASCII: `*` = 42, `/` = 47, `%` = 37.
+## `cc-parse-add`: just like `mul`, looser
 
-The row rides on the return stack because the recursive
-`cc-parse-unary` call can parse a parenthesised expression with
-operators of its own, and those need the data stack for their own
-intermediate values.
+Addition uses a complete multiplicative expression as each operand. That call boundary, rather than an arithmetic comparison of level numbers, makes multiplication bind tighter.
 
-## 7. `cc-parse-add`: just like `mul`, looser
+The additive binary fold changes the operand parser and the accepted row group (`forth-bootstrap/cc/100-cc-expr.fth:1894`):
 
 ```forth chunk=expr-add
 \ ===========================================================================
@@ -641,18 +667,13 @@ intermediate values.
 
 ```
 
-The shape is identical to `cc-parse-mul` with two substitutions: the
-operand parser is `cc-parse-mul`, and the level asked about is
-`level-add`, whose rows are `+` and `-`.
+The loop also gives **left associativity**. For `a - b - c`, it emits the subtraction of `b` before it begins the next iteration for `c`, so the grouping is `(a - b) - c`. Recursing into the same level for the right operand would change that grouping.
 
-Each layer calls the one below it, so a bare number passes through
-fifteen parser words (`expr` → `assign` → `ternary` → `log-or` →
-`log-and` → `bit-or` → `bit-xor` → `bit-and` → `eq` → `rel` →
-`shift` → `add` → `mul` → `unary` → `primary`) before reaching the
-literal.  Each layer needs one token of lookahead, allocates
-nothing, and costs one call.
+## Shifts: between relational and additive
 
-## 8. Shifts: between relational and additive
+A shift’s operand parser consumes addition first, so `a + b << c` groups as `(a + b) << c`. The binary fold already places the right value in `rcx`, where the shift emitter needs its count.
+
+The shift level delegates operands to addition and accepts the shift rows (`forth-bootstrap/cc/100-cc-expr.fth:1916`):
 
 ```forth chunk=expr-shift
 \ ===========================================================================
@@ -681,14 +702,19 @@ nothing, and costs one call.
 
 ```
 
-C puts shifts between additive and relational operators, so
-`a + b << c` parses as `(a + b) << c` and `a << b < c` as
-`(a << b) < c`.  The call chain encodes that: `cc-parse-shift` uses
-`cc-parse-add` for its operands, and `cc-parse-rel` (next) uses
-`cc-parse-shift`.  The shift count must be in `cl`, and
-`cc-binop-apply` has already moved the right operand into `rcx`.
+## Relational and equality
 
-## 9. Relational and equality
+The remaining ordinary folds differ by input level and accepted operators:
+
+| Operand parser → result parser | Operators |
+|---|---|
+| `cc-parse-shift` → `cc-parse-rel` | `<`, `>`, `<=`, `>=` |
+| `cc-parse-rel` → `cc-parse-eq` | `==`, `!=` |
+| `cc-parse-eq` → `cc-parse-bit-and` | `&` |
+| `cc-parse-bit-and` → `cc-parse-bit-xor` | `^` |
+| `cc-parse-bit-xor` → `cc-parse-bit-or` | `\|` |
+
+A relational operand contains any tighter shifts and arithmetic before the comparison emits (`forth-bootstrap/cc/100-cc-expr.fth:1940`):
 
 ```forth chunk=expr-rel
 \ ===========================================================================
@@ -715,8 +741,7 @@ C puts shifts between additive and relational operators, so
 
 ```
 
-`cc-parse-eq` is the same template one level looser, over `==` and
-`!=`:
+Equality accepts completed relational results as operands (`forth-bootstrap/cc/100-cc-expr.fth:1962`):
 
 ```forth chunk=expr-eq
 \ ===========================================================================
@@ -743,7 +768,13 @@ C puts shifts between additive and relational operators, so
 
 ```
 
-## 10. The bitwise trio
+Thus `a < b == c < d` compares the results of the relational expressions. The comparison emitters supply C truth values; this layer selects their order.
+
+## The bitwise trio
+
+Bitwise operators also use the binary fold, without runtime short-circuiting.
+
+Operator position distinguishes this binary `&` from the address-of operand handled in Chapter 34 (`forth-bootstrap/cc/100-cc-expr.fth:1984`):
 
 ```forth chunk=expr-bit
 \ ===========================================================================
@@ -770,6 +801,11 @@ C puts shifts between additive and relational operators, so
   drop                                            \ cc-binop?'s 0
   cc-putback-token ;                              \ we read one too many
 
+```
+
+Exclusive-or accepts a complete bitwise-and operand (`forth-bootstrap/cc/100-cc-expr.fth:2008`):
+
+```forth chunk=expr-bit
 \ ===========================================================================
 \ cc-parse-bit-xor: bit-and ('^' bit-and)*
 \ ===========================================================================
@@ -792,6 +828,11 @@ C puts shifts between additive and relational operators, so
   drop                                            \ cc-binop?'s 0
   cc-putback-token ;                              \ we read one too many
 
+```
+
+Bitwise-or accepts a complete exclusive-or operand (`forth-bootstrap/cc/100-cc-expr.fth:2030`):
+
+```forth chunk=expr-bit
 \ ===========================================================================
 \ cc-parse-bit-or: bit-xor ('|' bit-xor)*
 \ ===========================================================================
@@ -816,18 +857,11 @@ C puts shifts between additive and relational operators, so
 
 ```
 
-Three layers, one operator each, and the same template.  Before the
-table existed these three were the only levels without a dispatch
-on the operator; now no level has one.
+## Short-circuit `&&` and `||`
 
-C's `&` is overloaded.  Where an operand is expected it is unary
-address-of; between two operands it is binary bitwise-and.  The
-grammar separates the two by position: `cc-parse-unary` (Ch 28)
-sees `&` only at operand position, and `cc-parse-bit-and` sees it
-only at operator position, so they never compete for the same
-token.
+A logical operator must sometimes skip its right operand at runtime. Both sides are still parsed and emitted. Conditional branches determine whether the resulting program executes the right side.
 
-## 11. Short-circuit `&&` and `||`
+The conjunction sketch directs either false operand to a shared false-result path (`forth-bootstrap/cc/100-cc-expr.fth:2052`):
 
 ```forth chunk=expr-log
 \ ===========================================================================
@@ -854,6 +888,11 @@ token.
 \ We push the three fixups onto rstack so the data stack stays clear for the
 \ nested parse calls and any pending operator codes.
 
+```
+
+`cc-parse-log-and` emits those paths and patches the saved branch sites after their targets exist (`forth-bootstrap/cc/100-cc-expr.fth:2076`):
+
+```forth chunk=expr-log
 : cc-parse-log-and
   cc-parse-bit-or
   begin,
@@ -880,6 +919,13 @@ token.
   repeat,
   cc-putback-token ;
 
+```
+
+The return stack holds the left-false site, right-false site, and end-jump site in emission order. Patching pulls the end site aside, patches both false sites to the current position, emits the false result, then patches the end site. A nested right operand cannot consume the enclosing operation’s saved sites.
+
+`cc-parse-log-or` reverses the deciding condition: either nonzero operand reaches the shared true-result path (`forth-bootstrap/cc/100-cc-expr.fth:2102`):
+
+```forth chunk=expr-log
 : cc-parse-log-or
   cc-parse-log-and
   begin,
@@ -908,173 +954,61 @@ token.
 
 ```
 
-`&&` and `||` can't use the template, because the right operand
-must not run at all when the left one already decides the result.
+When neither operand decides early, conjunction produces true and disjunction produces false. `cc-mark-int-value` describes the joined result. Each loop then tests for another operator at its own level, and puts back the first token it cannot use.
 
-The code follows the sketch in the comment.  Each operand is tested
-and, if it decides the result early, jumps to a shared join point.
-The path where neither does sets `rdi` to 1 and jumps to the end.
-The join point sets `rdi` to 0, and the end label follows.
+## The cascade in motion
 
-That takes three rel32 fixups: the early exit after the left
-operand, the early exit after the right, and the jump to the end.
-Each is pushed to the return stack as it is emitted, using the
-emit-remember-patch pattern from Ch 11.
+For `2 + 3 * 4`, follow the calls that actually emit an operation:
 
-The patching code pops them in reverse.  The top of the return
-stack is `f-end`, then `f-RHS`, then `f-LHS`.  Two `r>`s put
-`( f-end f-RHS )` on the data stack.  The code patches `f-RHS` to
-the current `cc-out-pos` (the join point), pops and patches
-`f-LHS` to the same place, emits `mov rdi, 0`, and finally patches
-`f-end`.
+- The additive parser asks multiplication for its left operand. Multiplication obtains `2`, rejects `+`, and puts it back.
+- Addition accepts `+`, emits a push of the left value, and calls multiplication for its right operand.
+- That multiplication parses `3`, accepts `*`, saves its left value, and parses `4`. Its fold emits multiplication before returning.
+- Addition receives the completed product, restores its own left value, and emits addition.
 
-`||` is the mirror image: it jumps on non-zero, the path where
-neither operand is true produces 0, and the join point produces 1.
-
-## 12. The cascade in motion
-
-Here is `a + b * c < 5` passing through the layers:
-
-1. `cc-parse-rel` is the outer call (`<` is a relational op).
-2. It calls `cc-parse-shift`, which calls `cc-parse-add`, which
-   calls `cc-parse-mul`, which calls `cc-parse-unary`, which
-   bottoms out in `cc-parse-primary`, whose `cc-parse-ident`
-   emits `mov rdi, [rbp - 8]` (load `a`).
-3. `cc-parse-mul` reads the next token, `+`.  Not a mul-op;
-   putback, return.
-4. `cc-parse-add` reads `+`.  Match.  Materialize, stash `+`,
-   push `rdi`, call `cc-parse-mul` again.
-5. The inner `cc-parse-mul` calls `cc-parse-unary` → `b` →
-   load.  Then it reads `*`, matches, stashes, pushes, and calls
-   `cc-parse-unary` → `c` → load.  Materialize, `mov rcx, rdi`,
-   `pop rdi`, dispatch `*` → `imul rdi, rcx`.  It reads the next
-   token, `<`.  Not a mul-op; putback, return.
-6. Back in `cc-parse-add`: `mov rcx, rdi`, `pop rdi`, dispatch
-   `+` → `add rdi, rcx`.  Reads `<`.  Not an add-op; putback,
-   return.
-7. `cc-parse-shift` reads `<`.  Not a shift-op; putback, return.
-8. `cc-parse-rel` reads `<`.  Match.  Materialize, stash `<`,
-   push, and call `cc-parse-shift` again, which bottoms out at `5`.
-9. `cc-parse-rel`: `mov rcx, rdi`, `pop rdi`, dispatch `<` →
-   `cmp-lt`, which leaves a clean 0/1 in `rdi`.
-
-The operator table only says which level owns each operator; nothing
-in this trace ranks one level above another.  The order in which the
-layers call each other is the precedence table.
-
-**tri.c at this stage.**  Line 16 of tri.c computes
-`w[r] = 1 + r * 2`.  Compile tri.c with Ch 21's command, which
-leaves the binary in `/tmp/cc-out`, and disassemble the right-hand
-side:
-
-```sh
-objdump -D -b binary -m i386:x86-64 -M intel \
-    --start-address=0x365 --stop-address=0x388 /tmp/cc-out | grep '^ '
-```
-
-```
- 365:   48 c7 c7 01 00 00 00    mov    rdi,0x1
- 36c:   57                      push   rdi
- 36d:   48 8b 7d d8             mov    rdi,QWORD PTR [rbp-0x28]
- 371:   57                      push   rdi
- 372:   48 c7 c7 02 00 00 00    mov    rdi,0x2
- 379:   48 89 f9                mov    rcx,rdi
- 37c:   5f                      pop    rdi
- 37d:   48 0f af f9             imul   rdi,rcx
- 381:   48 89 f9                mov    rcx,rdi
- 384:   5f                      pop    rdi
- 385:   48 01 cf                add    rdi,rcx
-```
-
-The `1` is loaded first and parked on the machine stack at 0x36c.
-Then `cc-parse-add` asks `cc-parse-mul` for its right operand, and
-all of `r * 2` (`r` is `[rbp-0x28]`) is emitted inside that call,
-ending in the `imul` at 0x37d.  Only then does the `add` run.  The
-`*` binds tighter because its code was written inside the `+`'s
-operand.
+The machine stack preserves the outer left value while the inner fold uses its own saved operand. No expression tree is needed: the nested calls put multiplication’s instructions before addition’s instructions. The checkpoint makes the resulting value visible.
 
 ## Try it
 
-**Small check:** read one focused expression fixture and trace it
-through the precedence cascade.  The fixtures under `tests/cc/` start
-at `G0.c` (return 42) and walk up through `G14*.c`.  `G1.c` exercises
-basic arithmetic precedence (`a + b * 2 - 1`); `G11.c` covers shifts,
-bitwise operators, `&&`/`||`, the ternary, postfix `++`, and compound
-assignment in a single fixture.
+Run from the `forth-bootstrap` checkout root. This driver loads through the expression file and calls `cc-parse-log-or` directly. It uses Chapter 34’s operand parsing from that same file as a black box; it loads no declaration, statement, function, or compiler-entry layer.
 
-**Layer check:** `./test.sh` exercises the expression parser through
-the focused C fixtures.
+The driver points the lexer at the expression text, emits the cascade into an ELF image, and appends the exit shim. The shell runs that image from a fresh temporary directory and prints its exit status:
 
 ```sh
-./seed/build.sh
-./test.sh                              # exercises the expression parser
+probe_dir=$(mktemp -d)
+{
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
+      cc/040-cc-prep.fth cc/050-cc-lex.fth \
+      cc/060-cc-types.fth cc/070-cc-sym.fth \
+      cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth
+  cat <<'FORTH'
+cc-src-init
+here dup cc-src-buffer ! s, 2+3*4 here swap - cc-src-len !
+[lit] 0 cc-src-pos ! [lit] 0 cc-tok-pending !
+cc-out-init [lit] 0 cc-bss-size ! cc-emit-elf-header
+cc-parse-log-or cc-emit-exit-shim
+cc-finalize-elf
+[lit] 1 cc-out-buf cc-out-pos @ write drop
+bye
+FORTH
+} | ./seed-forth > "$probe_dir/expression"
+printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
+chmod +x "$probe_dir/expression"
+"$probe_dir/expression"
+printf '2 + 3 * 4 = %s (exit status)\n' "$?" # prints '2 + 3 * 4 = 14 (exit status)'
+rm -r "$probe_dir"
 ```
 
-**Bootstrap relevance:** the end-to-end gate confirms that the same
-expression paths emit byte-identical `.M1` for M2-Planet.
+Observed output:
 
-```sh
-tests/cc/stage-a-check.sh
+```text
+driver exit: 0
+2 + 3 * 4 = 14 (exit status)
 ```
 
-## Exercises
+This run exercises token handoff, the operator lookup, and nested multiplication/addition folds. It does not verify native pointer arithmetic, constant evaluation, or short-circuit execution.
 
-1. **★★ Trace.** Trace `cc-parse-add` parsing `a - b - c`.  Where does
-   left-associativity come from?
+## Exercise
 
-2. **★★ Trace.** The `<<` row of the operator table also names `<<=`,
-   but no level parses `<<=`: `cc-binop?` compares `tok-num` with
-   the `op` column only.  Who reads the `compound` column, and why
-   does it have to be a different parser from `cc-parse-shift`?
-   (Hint: where does the parse tree branch into right-associative
-   territory?)
+**Trace — easy.** Follow `a - b - c` through `cc-parse-add`. Identify when each subtraction emits and which value becomes the next iteration’s left operand.
 
-3. **★★★ Modify.** The short-circuit `&&` produces `1` on success.  Modify it
-   to produce the *right operand's value* instead.  This is no
-   longer C (the standard requires `&&` to yield exactly `0` or
-   `1`), but it is what some other languages (Lua, JavaScript)
-   do.  How many bytes does that save, and which M2-Planet idiom
-   would break?
-
-4. **★★ Trace.** The order of the three return-stack pushes in
-   `cc-parse-log-and` matters: get it wrong and the wrong fixup is
-   patched first.  Sketch a diagram showing each `>r`/`r>` and
-   verify the comment's `R:` annotations match the code.
-
-5. **★★★ Extend.** Add an `>>>` unsigned-right-shift operator (it's not in C,
-   but imagine it).  What would it touch in the lexer (Ch 23),
-   the instruction encoders (Ch 25), and this file?
-
-## After this chapter
-
-The compiler can lower binary expressions: arithmetic, comparison,
-bitwise, and logical operators at every C precedence level, eight
-of them through one five-step fold template (left, push, right,
-pop, op) driven by the operator table, and two through
-short-circuit jumps.
-
-You can read `cc-parse-mul`/`add`/`rel`/`eq`/`bit`/`log` and the
-operator table, explain the precedence cascade, and predict what code an expression like
-`a + b * c > d` will emit without running it.
-
-What the cascade cannot do yet is write.  In `w[r] = 1 + r * 2`,
-everything above computed the right side; the left side needs the
-*address* of `w[r]`, and the parser does not know it wants an
-address until it reaches the `=`.  Ch 28 solves that.
-
-## Takeaways
-
-- Each binary precedence level is one word that parses its operands
-  at the next-tighter level, so the order of the calls is the
-  precedence table.
-- One table row per operator names its level, its compound form and
-  its encoder, so the eight folding levels share one template and
-  `+` and `+=` share one emitter.
-- The operator's row travels on the return stack, which leaves the
-  data stack free for a parenthesised expression parsed inside an
-  operand.
-- `&&` and `||` replace the fold template with conditional jumps
-  whose three rel32 fixups wait on the return stack and are patched
-  in reverse order.
-
-Next: Chapter 28 — Expressions, Part 2: Primary, Unary, Assignment.
+**Trace — moderate.** Follow `a && b || c`. Identify the branches that skip `b`, and explain why a false result from the conjunction must still allow `c` to run.
