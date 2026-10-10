@@ -1,7 +1,7 @@
 [book]
-title = "Seed Forth"
+title = "forth-bootstrap"
 authors = ["Ben Sandbrook"]
-description = "A literate bootstrap from 1772 bytes to a self-hosting C compiler"
+description = "A literate bootstrap from 229 bytes of hex0 to Linux"
 src = "book"
 language = "en"
 
@@ -10,12 +10,12 @@ build-dir = "docs"
 create-missing = false
 
 [output.html]
-site-url = "/seed-forth/"
+site-url = "/forth-bootstrap-book/"
 default-theme = "light"
 preferred-dark-theme = "coal"
 mathjax-support = false
 no-section-label = false
-git-repository-url = "https://github.com/delta9000/seed-forth"
+git-repository-url = "https://github.com/delta9000/forth-bootstrap-book"
 
 [output.html.fold]
 enable = true
