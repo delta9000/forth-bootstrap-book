@@ -15,7 +15,7 @@ chapter 28; the object adapter supplies address leaves from chapter 36.
 **Concepts carried in:** the operator table and constant grammar from
 [chapter 28](34-expressions-part-2.md), LP64 types and unevaluated `sizeof` from
 [chapter 34](34-direct-tinycc.md), and the scalar target from
-[chapter 36](36-direct-gcc-calls.md).
+[chapter 36](41-system-v-calls.md).
 
 **Concepts introduced:** value/type pairs, conversions at every operator,
 checked signed arithmetic, symbolic addends, side-effect-free dead arms, and

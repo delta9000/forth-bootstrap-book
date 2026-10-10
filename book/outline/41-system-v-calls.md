@@ -10,7 +10,7 @@ Prerequisites: [40 — Objects and relocations](40-objects-and-relocations.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [36-direct-gcc-calls.md](../36-direct-gcc-calls.md) — Reuse the source walkthrough: Teach integer and pointer argument passing, stack alignment, and return values under System V.
+Reuses: [36-direct-gcc-calls.md](../41-system-v-calls.md) — Reuse the source walkthrough: Teach integer and pointer argument passing, stack alignment, and return values under System V.
 
 TODO:
 

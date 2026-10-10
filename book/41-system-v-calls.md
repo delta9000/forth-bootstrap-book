@@ -1,452 +1,12 @@
-# Chapter 36: Scalar calls across the System V boundary
+# Chapter 41 — System V calls and separate compilation
 
-Descriptor-backed fixed-array pointers preserve their element layout behind
-pointer objects and function signatures. `sizeof(*p)`, row stepping, array
-addressing and a genuine `va_list *` callback use the array's complete shape.
-Qualified arrays decay to pointers to qualified rows, and implicitly
-discarding a row qualifier fails closed. The source document `tests/gcc/array-pointer-README.md`
-describes grouped declarators, null constants, supported aliases and rejection
-checks. This extension does not establish a complete libcpp build.
+A call to `add(&base, 1, 2, 3, 4, 5, 6, 7)` can cross from one C object into another and return `42`. Separate compilation requires the caller and callee to agree without seeing each other’s bodies. The System V target gives the compiler that agreement for integer and pointer values, then carries unresolved calls into relocatable objects.
 
-## Goal
+## One signature, two places to use it
 
-Compile integer and pointer functions whose callers and callees agree with
-AMD64 System V. Chapter 34 deliberately used a private stack convention.
-That remains the native TinyCC route; this chapter adds an explicit target
-selection, `cc-sysv-enable`, for separately compiled scalar code.
+The implementation has three parts: retain a signature, lower both sides of a call from it, and export code with unresolved references. `cc-sysv-enable` selects this target explicitly; loading its definitions preserves the private all-stack target (Chapter 39). The signature describes C types, while the call emitter decides where their values travel.
 
-This is new reconstruction work. Its tests establish the behavior of the
-source shown here; they do not recover or validate an earlier unpublished
-GCC bootstrap implementation. Completing this calling convention does not
-by itself mean that this compiler can build GCC.
-
-## Concepts carried in
-
-You need the LP64 type and declaration machinery from Chapter 34, the
-expression stack and machine encoders from Chapters 25–28, and the function
-scopes and forward fixups from Chapter 31. Chapter 35 supplies the
-relocatable object writer used at the separate-compilation boundary.
-
-## 1. One signature, two places to use it
-
-A function signature records a tag, return type and descriptor, fixed
-parameter count, prototype flags, parameter type/descriptor pairs, and
-parameter names for definitions.
-The same record drives incoming parameters and outgoing calls. Narrow
-integers are converted to their declared width before a call and after a
-return; the existing typed local loads read the low bytes saved on entry.
-Struct pointers retain their tag identity. Function-pointer descriptors
-hold a tagged signature, and repeated declarations compare that signature
-recursively instead of quietly replacing the first declaration's type.
-
-C tags have a separate lookup path from ordinary identifiers. A function
-named `stat` can coexist with `struct stat`; typedefs, objects, enumerators,
-and function pointers likewise ignore tag entries. Both searches walk the
-same scoped records backwards, and members stay in their own aggregate
-descriptors. Native mode retains its existing lookup through the default
-binding. `tests/gcc/sysv-namespaces-check.sh` covers both declaration orders,
-ordinary local shadowing, static address initializers, and member names in
-standalone ELF and relocatable objects.
-
-Prototype parameters can omit the name inside a function-pointer
-declarator, including pointer-returning callbacks such as
-`FILE *(*)(struct buf *, struct stat *, int)`. The signature stores the
-same nested type for named and unnamed forms. A definition still requires
-names for its own parameters. The focused abstract-callback gate checks
-compatible redeclarations, pointer sizes, an actual indirect call and
-incompatible return/argument types.
-
-Function-declared parameters, such as GCC's
-`void (callback)(struct graph *, struct edge *)`, adjust to pointers to
-functions in both prototypes and identifier-list definitions. Reparse the
-saved function suffix with the same signature parser used by `(*callback)`;
-then restore the enclosing parameter delimiter. The parameter is an
-eight-byte pointer object, so `sizeof callback` and an indirect call behave
-just as for the explicit pointer spelling. Names, nested signatures, return
-types, and storage-specifier checks remain in the existing representation.
-`tests/gcc/function-parameter-check.py` checks compatible spellings,
-recursive callbacks, pointer and binary64 returns, eight arguments,
-bidirectional GCC interoperability, and unchanged rejection boundaries.
-
-Explicit function-pointer casts use that same signature parser in abstract
-type names. For example, libiberty's
-`(struct _obstack_chunk * (*)(void *, long)) chunkfun` restores a typed
-allocator after storing its address through a generic callback type.
-The cast leaves the address bits unchanged and replaces the expression's
-signature descriptor. Casting back therefore preserves pointer equality,
-while the next indirect call gets the selected parameter conversions,
-return type, and nested return descriptor. A callback that returns another
-callback retains both signatures; a callback returning a struct pointer
-retains the struct tag needed by `->`.
-
-This permission covers conversion and restoration, not calling a function
-through a signature incompatible with its actual definition. The focused
-`sysv-function-pointer-casts-check.sh` gate only calls restored matching
-types. It exercises direct addresses, generic locals and record members,
-narrow integer arguments, and callbacks returning callbacks through both
-Forth-only executable paths. Optional `SF_GCC_CAST_ORACLE=1` runs separate
-host `-O0` and `-O2` semantic oracles and a host-linked Forth object.
-
-The explicit Linux AMD64 LP64 target also defines integer/function-pointer
-representation casts. ISO C leaves the general mapping implementation-defined
-([N1570, 6.3.2.3 paragraphs 3, 5, 6 and 8](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf));
-the [AMD64 psABI scalar-type table](https://gitlab.com/x86-psABIs/x86-64-ABI/-/raw/master/x86-64-ABI/low-level-sys-info.tex)
-represents LP64 function pointers as unsigned eightbytes. This target chooses
-an explicit bit-preserving mapping, after normalizing the source integer's
-width and signedness: signed 8/16/32-bit values sign-extend, unsigned values
-zero-extend, and 64-bit values preserve all bits. Integer zero becomes the
-all-zero null function pointer. A reverse cast to 64-bit `long` or
-`unsigned long` preserves the same bits; `long` interprets them as two's
-complement. `long long` and `unsigned long long` share that 64-bit
-representation as distinct types, so they behave the same way.
-Reverse casts to narrower integer types reject with 230.
-
-This is necessary for actual source boundaries: Linux signal headers express
-`SIG_DFL`, `SIG_IGN`, and `SIG_ERR` as function-pointer casts of 0, 1, and -1
-([glibc definitions](https://raw.githubusercontent.com/bminor/glibc/master/bits/signum-generic.h)).
-Original `oyacc` passes these sentinels to `signal`; the runtime must pass
-through their representation rather than treating them as callable functions.
-The same mapping lets an ABI test export a real function address as `long`
-and restore its original signature. Arbitrary numeric values can be stored,
-passed, returned, or compared as this target's representation; this gives no
-permission to call a sentinel, a noncanonical address, or a function through
-an incompatible signature.
-
-Explicit casts between a function pointer and any object pointer, such as
-`void *`, `char *`, a struct pointer, or a pointer to a function pointer,
-keep the same 64-bit value in both directions. Strict C90 leaves this
-conversion undefined, but POSIX requires it for `dlsym`
-([dlsym rationale](https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlsym.html))
-and GCC accepts it on LP64, where both pointers are eight bytes. Original
-binutils' `bfd/doc/chew.c` depends on it: its threaded interpreter stores a
-dictionary pointer in a `void (*)()` code slot and recovers it with
-`(dict_type *) (pc[1])`. Only explicit casts cross. Assignments, arguments,
-and conditional operands that mix the two kinds keep their existing shape
-diagnostics, and calling through a pointer-to-function-pointer still rejects
-with 230. A function pointer cast to or from a floating type also rejects
-with 230; a struct or union partner reaches Chapter 48's aggregate policy
-first and rejects with 232.
-
-The type policy in `cc-sysv-cast-types` is pure and is shared by runtime casts
-and Chapter 41's static constant evaluator. The separate `cc-cast-value-fwd`
-hook normalizes runtime integer operands and then uses the existing conversion
-emitter. Its default preserves the native target's conversion path. Constants
-normalize their integer source using the typed constant evaluator, without
-emitting instructions. Both typedef and abstract casts keep the destination
-signature descriptor, including callbacks returned from callbacks.
-`sysv-function-integer-casts-check.sh` checks all supported integer widths,
-null comparisons, static sentinels and address relocations, side effects once,
-restored typed calls, and rejection of narrow and floating partners in both
-output paths. `function-object-cast-check.py` runs object-pointer round trips,
-static initializers, and a chew-style interpreter against host GCC `-O0` and
-`-O2`, and checks the exact codes of the remaining rejections.
-`SF_GCC_CAST_ORACLE=1` adds host `-O0`/`-O2` semantic and cross-compiler ABI
-oracles; sentinels are never called.
-
-Together with Chapter 47's bitfield layout, the pinned-source
-`sysv-gcc-obstack-check.sh` gate compiles the unchanged original
-`libiberty/obstack.c` and its original header. Its Forth-only executable
-exercises both callback dispatch modes, copies an object into a grown chunk,
-and checks allocation and release counts. Callback casts at the public
-API boundary are restored to their actual definitions before invocation.
-The fixture therefore tests the original allocator's control flow without
-relying on incompatible function calls or a replacement allocator body.
-
-The explicit-cast hook in Chapter 29 defaults to doing nothing; SysV installs
-the representation policy above. Explicit function/object-pointer casts
-preserve all 64 bits, so the configure probe that casts a function address
-to `char **` can compile. Integral values convert to function pointers after
-width and signedness normalization; integer zero becomes a null function
-pointer, including `(int (*)(void))0` and `(Callback)0`. Reverse conversions
-to eight-byte integers preserve the bits. The acceptance gates exercise
-these conversions; the negative gates retain narrow reverse casts, floating
-partners, and invalid calls as rejection boundaries. A cast to `void`
-discards the value. Supported casts still enforce call checks.
-
-Later chapters add scalar binary32/binary64 arguments and INTEGER/MEMORY
-record values through the shared plan. Chapter 48 adds long double X87 data
-transport and scalar x87 computations. Records containing binary32 or
-binary64 members still reject with 232 at the call boundary. Negative
-fixtures verify that rejected compilation preserves an existing output file.
-
-A call to an undeclared ordinary identifier creates C90's implicit
-`extern int name()` declaration. Its name is visible only in the current
-block. A separate translation-unit record keeps the external identity,
-unspecified signature, and pending call/address fixups after that block's
-parser symbols are discarded. Later compatible declarations and definitions
-reuse the identity; incompatible returns, non-promoted parameter types,
-variadic prototypes, static linkage, and file-scope objects reject with237.
-An unknown identifier used as a value still rejects with93.
-
-The two fixup accessors in Ch24 are deferred so existing call and address
-emitters can use that persistent record without changing the native default.
-Object records retain the same identity in their final cell. Each unresolved
-call therefore survives as a real relocation, even across nested blocks and
-reused parser symbol IDs. A missing implementation remains a final link
-failure; standalone ELF mode rejects unresolved records with206. The implicit
-call gate covers scoped names, promoted arguments, function addresses, later
-definitions and unresolved symbols. This also lets the unchanged configure
-endianness probe call `exit` under its original C90 declaration rules.
-
-The same rule is a trap on LP64: an implicit `int` result keeps only the low
-32 bits of a `char *` from `popen` or `strdup` and none of a `double` from
-`floor`, and these were the hardest bugs in the plumbing builds. GCC's option
-`-Werror=implicit-function-declaration`, passed to `tools/gcc-direct-cc.py`,
-sets `cc-sysv-implicit-error`, and `cc-sysv-unknown-ident` then stops at the
-first call to an undeclared function with error 228:
-`implicit declaration of function 'strdup' at a.c:11: cc: line 29: error 228`.
-The file and line are the source's, found through the preprocessor's line
-map (Ch 22), which the driver turns on with the option; the trailing
-`cc: line` is the usual flattened line. Without the option nothing changes.
-`python3 tests/gcc/implicit-error-check.py` compares the reported function,
-file and line with host GCC's for calls after system and local headers,
-inside a header found through `-I`, after splices and comments and after
-`#line`, and checks that a program with only declared calls compiles to the
-same bytes with and without the option.
-
-Old GNU code writes the same thing explicitly: GNU make, bash and coreutils
-put `extern char *getenv ();` inside the function that calls it.
-`cc-sysv-block-function` handles a function declarator at block scope, with
-or without `extern`. It parses the signature exactly as a file-scope
-declaration does, so a `char *` result reaches the caller as a full 64-bit
-pointer and a prototype such as `extern int open (const char *, int, ...);`
-passes its variadic arguments by the usual rules. When a function of that
-name is already visible, the declaration only checks compatibility and the
-visible function stays the call target. Otherwise it adds a block-scoped
-`sk-func` symbol backed by the implicit declarations' translation-unit
-record, which now holds the declared signature in place of `int ()`. The
-name disappears at the block's end, but its pending fixups and object
-record survive, so a later definition or the linker still resolves every
-call. C90 allows no storage class other than `extern` on such a
-declaration: `static`, `auto` and `register`, and an identifier list in a
-declaration, reject with 233. A function definition inside a block rejects
-with 238, and a type that disagrees with another declaration of the same
-external function rejects with 237.
-`python3 tests/gcc/block-function-decl-check.py` compares a program that
-calls `getenv`, `open` and a second translation unit only through such
-declarations against host GCC, and checks each rejection.
-
-Bash and readline name function types rather than pointers:
-`typedef int Function ();`, `typedef char *CPFunction ();`. A typedef whose
-declarator ends in a parameter list records base `ty-func` with no star and
-the signature as its descriptor, which is the pointer-to-function
-representation one star short. `Function *p`, `CPFunction *table[3]` and a
-member `VFunction *cb` therefore add their star and become ordinary function
-pointers, calling through the recorded signature, so a `char *` result is
-not truncated. `cc-sysv-function-typedef` runs as each declarator ends: a
-declarator of that type with no star declares a function, `Function g;` at
-file or block scope. `nc-func` then holds the typedef's signature in place
-of `true`, nc-ty and nc-desc hold the return type, and
-`cc-sysv-declarator-signature` returns that signature where a written suffix
-would be reparsed. A parameter `sh_fn_t f` adjusts to a pointer through the
-same word. An array or member of function type, a function returning one,
-and a definition `Function g { ... }` reject with 238; a typedef with an
-identifier list rejects with 233. `python3 tests/gcc/function-typedef-check.py`
-compares a program using each form with host GCC.
-
-C90 distinguishes `f()` from `f(void)`: the first leaves the parameter
-list unspecified and applies default integer promotions, while the second
-is a prototype requiring zero arguments. Identifier-list definitions
-retain their parameter names, then bind the following declarations by
-name. Parameters without a declaration become `int`. Comparing such a
-definition with a prototype compares its promoted parameter types; a
-later unspecified declaration does not erase an already visible prototype.
-A definition's empty parentheses, `long f() { ... }`, are an empty
-identifier list: the function has zero parameters, so a prior `long f(int);`
-disagrees with it (237), as it does for GCC, while `long f(void);` agrees.
-
-File-scope declarations and function definitions also admit C90's
-omitted `int`; typedef names still introduce explicit types. This handles
-the original configure probe `main(){return(0);}` through the ordinary
-parser, without recognizing that spelling specially or rewriting source.
-
-Function bodies install the finalized signature directly, avoiding a
-second parameter parser with different type rules.
-
-Every declaration context and type name accepts qualifiers between type
-keywords, as C90 allows: `unsigned const char *q` in zlib's `gzread.c`,
-`long const int`, and typedef names with a qualifier on either side
-(`const size_t`, `size_t const`). The qualifier keeps the shared parser's
-flag; the base comes from the counted keywords (Chapter 34). In this
-target `cc-sysv-spec-check` then applies C90's constraint on that
-keyword set in any order: only `long` may repeat (`long long`), at most
-one of `signed` and `unsigned`, `void`, `float` and `_Bool` stand alone,
-`double` admits one `long`, `char` only a sign, `short` only `int` and a sign.
-`unsigned signed int`, `long char`, `short long`, `unsigned double`,
-`unsigned _Bool` and a third `long` reject with error 233 instead of quietly
-selecting a type.
-
-Parameter declaration specifiers accept one `register` in any order with
-qualifiers and the base type, including `register const char *` from the
-original Flex headers. Named parameters, abstract parameters and nested
-callback signatures use the same parser as function definitions and K&R
-parameter declarations. Other storage classes and repeated `register`
-reject with error 233. A context guard keeps this policy out of aggregate
-member declarations and ordinary type names.
-
-File- and block-scope declarations accept their storage class anywhere
-among the other specifiers too, as C90 6.5 sets no order: `int static x`,
-`long static int y`, `char const static *p`, `unsigned extern long z`,
-`int typedef T`, and after a typedef name or tag, `struct S static s`. 115's
-`cc-native-declaration` names its own context in `cc-nstorage-context` while
-it reads the base, and `cc-sysv-storage-specifier?` sets the same
-`nc-static`, `nc-extern` and `nc-td` cells a leading keyword would. The
-context's `nc-storage` counts every storage class, those read before the
-base by `cc-skip-storage-quals` included, so `static extern int x` and
-`int static static x` reject with 233. A storage class in a member or a type
-name, even one nested in a declaration's enumerator, is 233 as well.
-Qualifiers keep the shared
-parser's existing behavior; they do not replace or weaken the recorded
-base type, signedness, pointer depth, aggregate identity or callback signature.
-
-`long long` and `unsigned long long` are LP64 eightbytes in the INTEGER
-class, passed and returned exactly as `long` is. They remain distinct
-types: redeclaring a `long` object or parameter as `long long`, or
-selecting between `long *` and `long long *` arms of a conditional,
-rejects with 237 like any other pair of distinct integer types.
-
-GNU C's `__extension__` only suppresses pedantic diagnostics, which this
-compiler never issues. The target's lexer seam, `cc-sysv-lex-extra`,
-skips the reserved word wherever a token may begin, so original sources
-may place it before declarations, `typedef`s, members and operands.
-The preprocessed text keeps the word; Ch 45's number scanner plugs in
-behind the seam through `cc-sysv-lex-number-fwd`.
-
-The executable ABI admits integer and pointer values. Declarations may
-record floating or aggregate parameter and return types without generating
-code for them. Defining or calling a function across an unsupported value
-boundary stops compilation. Scalar variadic *calls* set the vector argument
-count to zero, while this layer defaults to rejecting variadic definitions
-until the register-save-area and `va_list` hooks supplied by Chapter 42 are
-installed. Parameter lists and call lists have a checked
-bound; this is a diagnostic boundary, not permission to discard excess
-arguments. Pointer-depth overflow is rejected too.
-
-## 2. Keep expression temporaries alive
-
-Expressions already save intermediate values on the machine stack. A
-call nested inside another expression may therefore start with any number
-of eight-byte temporaries below the frame. Counting pushes globally would
-couple every expression operator, switch, and call to the alignment rule.
-Instead, we finish evaluating this call's arguments, then construct a
-fresh outgoing block below all those live values.
-
-`r11` remembers the staged arguments. We reserve room for stack arguments
-and alignment padding, then round `rsp` down to a multiple of sixteen.
-Arguments zero through five go into `rdi`, `rsi`, `rdx`, `rcx`, `r8`, and
-`r9`. Remaining arguments are copied in order to the bottom of the
-outgoing block, so the seventh argument sits just above the return address
-in the callee.
-
-The caller's stack pointer and surviving expression values need a longer
-lifetime than that outgoing block. A function such as `setjmp` can return
-again after intervening calls have overwritten its former stack area.
-Saving only `rsp` is insufficient: in `0 == setjmp(state)`, the zero was
-also a live expression-stack value. Each call site therefore reserves
-persistent slots in its fixed frame for the original `rsp` and the exact
-surviving stack span. Compile-time push/pop accounting includes outer
-argument staging; lexical switch depth accounts for saved `rbx` values.
-This call's own arguments are excluded because they are discarded after
-return. Every return restores the surviving span and `rsp`, discards the
-staged arguments, and transfers the still-intact `rax` result to `rdi`.
-
-Indirect targets remain staged alongside their arguments until the final
-call sequence. We load the target into `r10`, leaving `al` available for
-the System V vector-argument count. Caller-saved registers can all be
-clobbered by the callee: recovery reads persistent frame slots. No function
-name triggers this mechanism; it applies to every call, including nested
-calls and callbacks. The price is a larger bounded frame in this
-unoptimized compiler.
-
-The accounting relies on the current fixed-frame contract. Variable-length
-arrays and dynamic stack allocation are unsupported; implementing them
-requires revisiting stack-span lifetime and restoration. The nonlocal
-return oracle in `tests/gcc/sysv-setjmp-check.sh` checks both valid operand
-orders, repeated returns, loops, callback recursion, switch re-entry, and
-all callee-saved registers. It uses host libc only as an interoperability
-oracle; a source-built `setjmp` runtime is a separate milestone.
-
-## 3. Save the registers the caller owns
-
-The existing emitter saves and restores `rbp`. This mode reserves the
-first local slot for `rbx`, the only other callee-saved register used by
-the expression backend, and restores it on every epilogue. The backend
-does not use `r12` through `r15`. Register arguments are copied into local
-slots before parsing the body; later stack arguments are copied from the
-caller's incoming stack area. All parameters can then use the same typed
-local load and store machinery as ordinary variables.
-
-The opt-in hooks have native defaults. Merely loading this module does
-not select System V or change the private native argument convention.
-The tests must keep checking that property as both routes develop.
-
-Floating type spelling is distinct from floating computation. A header may
-legitimately declare an unused `double` function, or a pointer to a floating
-object. We keep its real type, size, and alignment: local storage also
-aligns long doubles and containing aggregates to sixteen bytes. Scalar
-local lvalues materialize only when their value is needed, so taking
-`&local_double` does not first perform an unsupported floating load.
-Typed load, store, and conversion hooks reject unsupported value classes.
-[Ch45](45-direct-gcc-binary64.md) adds binary32/binary64 computation and return values,
-and [Ch41](41-direct-gcc-constants.md) §5 folds static binary32/binary64
-initializers; unsupported function definitions/calls fail before publication.
-
-Long double takes a different route. `cc-nbase-scalar-fwd` lets this target
-replace the keyword-spelled `ty-ldouble` base with an opaque record: base
-`ty-struct` and one shared, memberless sixteen-byte, sixteen-aligned
-descriptor from `cc-ld-descriptor`. `cc-ld?` recognizes it. The value is then
-carried by address and copied whole, like a record, and never loaded into a
-register, so no x87 computation is ever needed to move it. The same
-descriptor makes it one leaf for initializers (`cc-opaque-scalar-fwd`).
-`cc-ld-mismatch` provides the transport-only default. Layer 132 replaces its
-scalar conversion policy; `cc-ld-die` retains prefixed error 249 for invalid
-integer-only uses. [Ch48](48-direct-gcc-aggregate-abi.md) gives the type its
-X87 calling convention and scalar computations. `sizeof` may inspect their types without
-creating a call or a value operation. Existing aggregate byte copies remain
-supported; aggregate values still cannot cross this scalar call boundary.
-
-`tests/gcc/sysv-declaration-types-check.sh` checks that distinction against a
-host layout/address oracle and tests failure-output preservation. These
-rules admit real headers without pretending to implement SSE arithmetic,
-rewriting their declarations, or treating floating values as integer bits.
-
-## Try it
-
-The first gate uses only the seed interpreter to produce its executables:
-
-```sh
-./seed/build.sh
-tests/gcc/sysv-check.sh
-tests/gcc/sysv-knr-check.sh
-tests/gcc/sysv-setjmp-check.sh
-```
-
-It checks direct and indirect calls, arguments on both sides of the
-six-register boundary, nested argument evaluation, recursion, incoming
-`argc`/`argv`, narrow integer results, and explicit rejection of unsupported
-value classes and inconsistent prototypes. Host-compiler interoperability
-is a separate boundary check added with the object adapter; a host-built
-reference must never become a production bootstrap input.
-
-## Canonical source
-
-Grouped function-pointer declarators and abstract casts retain each star
-in the type word. For example, `void (**)(rtx)` has depth two and the same
-recursive signature as `void (*)(rtx)`. Its value points to a stored
-function pointer; dereferencing loads that pointer before a call. Only
-depth zero function designators and depth one function pointers are
-callable. Calling a deeper pointer object is rejected with error 230, while a depth above
-255 is rejected with error 231 instead of wrapping. The focused
-`tests/gcc/nested-function-pointer-check.py` gate covers those boundaries,
-object-pointer casts, load/store behavior and mixed GCC O0/O2 execution.
-
-Grouped abstract pointer types without a suffix retain the base type and
-add the grouped stars: `char *(*)` is `char **`, while `int (**)` is
-`int **`. GCC 4.0.4 uses `(char *(*)) malloc` in its declaration probes.
-This is an explicit function-to-object pointer cast, not a call through a
-function pointer. Array and function suffixes still select their respective
-descriptors. `tests/gcc/grouped-pointer-type-check.py` compares declaration
-probes, pointer depth, and dereferences with host GCC.
+Target state and a tagged signature table keep that choice separate from loading the module (`forth-bootstrap/cc/121-cc-sysv.fth:1`):
 
 ```forth file=cc/121-cc-sysv.fth
 \ 121-cc-sysv.fth — explicit scalar System V AMD64 target.
@@ -458,6 +18,11 @@ variable cc-target-sysv
 [lit] 1398362966 constant cc-sysv-signature-tag
 create cc-sysv-signatures cc-sym-cap [lit] 8 * allot
 
+```
+
+A function named `stat` must remain visible beside `struct stat`; ordinary lookup skips tags, while tag lookup keeps its own path (`forth-bootstrap/cc/121-cc-sysv.fth:10`):
+
+```forth file=cc/121-cc-sysv.fth
 \ An ordinary identifier never resolves to a struct/union tag. The walk
 \ along the name's bucket (070), newest first, still chooses the innermost
 \ ordinary declaration; member names live in their aggregate descriptors
@@ -481,6 +46,11 @@ create cc-sysv-signatures cc-sym-cap [lit] 8 * allot
 ' cc-sysv-find-ordinary is cc-sym-find
 ' cc-sysv-find-tag is cc-sym-find-tag
 
+```
+
+Source compatibility has its own lexer seam: `cc-sysv-extension?` recognizes the complete `__extension__` token, `cc-sysv-skip-extensions` skips it, and `cc-sysv-lex-extra` delegates number scanning through `cc-sysv-lex-number-fwd` (`forth-bootstrap/cc/121-cc-sysv.fth:33`):
+
+```forth file=cc/121-cc-sysv.fth
 \ GNU C's __extension__ only silences pedantic diagnostics, which this
 \ compiler never issues. The SysV lexer drops the reserved word between
 \ tokens, so it may precede declarations, members and operands alike;
@@ -504,6 +74,18 @@ defer cc-sysv-lex-number-fwd
   cc-sysv-skip-extensions cc-sysv-lex-number-fwd ;
 ' cc-sysv-lex-extra is cc-lex-extra-fwd
 
+```
+
+| Signature input | Result |
+|---|---|
+| Signature → `cc-sysv-sig-return`, `cc-sysv-sig-desc` | Result type and descriptor |
+| Signature → `cc-sysv-sig-count`, `cc-sysv-sig-varargs` | Fixed count and prototype flags |
+| Signature and index → `cc-sysv-sig-param`, `cc-sysv-sig-name` | Parameter type pair and optional name record |
+| Signature → `cc-sysv-prototype?`, `cc-sysv-known-params?` | Whether callers or definitions supply parameter information |
+
+The same accessors serve calls and definitions; a signature check rejects missing metadata, and the default executable boundary accepts scalar integers and pointers (`forth-bootstrap/cc/121-cc-sysv.fth:56`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Signature: tag, return type, return descriptor, count, variadic flag,
 \ then 64 (type, descriptor) pairs and 64 (name, length, declared) records.
 \ Flags: 1 variadic, 2 unspecified prototype, 4 identifier-list definition.
@@ -529,6 +111,15 @@ defer cc-sysv-lex-number-fwd
 defer cc-sysv-check-scalar
 ' cc-sysv-check-scalar-default is cc-sysv-check-scalar
 
+```
+
+## Preserve array shape in signatures
+
+An array parameter becomes a pointer, but its row size still determines indexing. A descriptor must preserve that shape through typedefs, parameter adjustment, and abstract type names.
+
+Size multiplication checks the bound before computing a product; typedef lookup also carries the declaration’s array shape and qualifiers forward (`forth-bootstrap/cc/121-cc-sysv.fth:81`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Bound object-size arithmetic before multiplying. Explicit bounds are
 \ distinct from the unsized-array sentinel inherited from the native parser.
 [lit] 1073741824 constant cc-sysv-object-size-limit
@@ -549,6 +140,11 @@ defer cc-sysv-check-scalar
 ' cc-sysv-typedef-check is cc-ntypedef-check-fwd
 \ Preserve array typedef shape through aliases and ordinary declarations.
 \ Two bounded dimensions can also be retained behind pointer constructors.
+```
+
+`cc-sysv-array-node` turns legacy matrix metadata into recursive element nodes, so equivalent row types do not depend on declarator spelling (`forth-bootstrap/cc/121-cc-sysv.fth:106`):
+
+```forth file=cc/121-cc-sysv.fth
 [lit] 64 constant cc-sysv-array-rank-limit
 : cc-sysv-array-rank ( type descriptor -- dimensions )
   over ty-base ty-array = [lit] 2 cc-npick ty-ptr 0= and if,
@@ -575,6 +171,11 @@ defer cc-sysv-check-scalar
   r@ cc-ad-inner if, r@ cc-ad-inner cc-sysv-size-product then,
   r@ [lit] 32 + !
   r@ cc-ad-type r@ cc-ad-desc cc-nalignment r@ [lit] 40 + ! r> ;
+```
+
+Shared typedef nodes cannot be modified in place: qualification creates a copy, and additional suffixes recursively construct bounded element types (`forth-bootstrap/cc/121-cc-sysv.fth:127`):
+
+```forth file=cc/121-cc-sysv.fth
 \ A new node may be born qualified. An existing one may be shared by a
 \ typedef or declaration, so qualifying it builds a qualified copy.  The
 \ cell holds the row's qualifier set (110's cc-qualifier-bit), never a
@@ -607,6 +208,11 @@ defer cc-sysv-check-scalar
     [lit] 0 nc-inner ! nc-bound-mask @ [lit] 1 and nc-bound-mask !
   then, ;
 ' cc-sysv-array-extra is cc-narray-extra-fwd
+```
+
+Decay keeps the qualifier on the pointed-to row; `cc-sysv-array-decay` handles both an existing element node and the legacy inner-count form (`forth-bootstrap/cc/121-cc-sysv.fth:164`):
+
+```forth file=cc/121-cc-sysv.fth
 \ A qualified array decays like any other (C90 6.2.2.1): the qualifier moves
 \ onto the pointed-to type. A matrix's row node records it, and the value
 \ keeps the expression's qualified flag, so `const T t[2][3]` gives a
@@ -626,6 +232,13 @@ defer cc-sysv-check-scalar
     r> cc-last-expr-qualified !
   then, ;
 ' cc-sysv-array-decay is cc-array-decay-fwd
+```
+
+## Carry array shape through declarations
+
+Grouped array pointers take the base type’s qualifiers, while address-of constructs a descriptor for the entire array (`forth-bootstrap/cc/121-cc-sysv.fth:178`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Declared array pointers take the base type's qualifiers: in
 \ `const long (*p)[3]` the rows are qualified, in `long (*const p)[3]` only p.
 : cc-sysv-grouped-array ( stars -- )
@@ -643,6 +256,11 @@ defer cc-sysv-check-scalar
   >r >r swap [lit] 1 - swap r> r> cc-last-expr-qualified @
   cc-sysv-qualified-node ty-array [lit] 1 ty-make swap ;
 ' cc-sysv-array-address is cc-array-address-fwd
+```
+
+An inherited array alias either stays an object shape or moves behind a pointer constructor; `cc-sysv-type-shape` makes the same distinction for type names (`forth-bootstrap/cc/121-cc-sysv.fth:212`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-inherit-array
   nc-base-array @ if,
     nc-ty @ nc-base @ <> if,
@@ -669,6 +287,11 @@ defer cc-sysv-check-scalar
   then,
   nc-base-array @ cc-type-name-array ! nc-base-inner @ cc-type-name-inner ! + ;
 ' cc-sysv-type-shape is cc-native-type-shape-fwd
+```
+
+`sizeof` retains the complete array extent, while indexing and member access reject a base whose pointer or record shape cannot support the operation (`forth-bootstrap/cc/121-cc-sysv.fth:221`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-sizeof-type ( type descriptor -- bytes )
   cc-expr-type-size
   cc-target-sysv @ if,
@@ -698,6 +321,15 @@ defer cc-sysv-check-scalar
   then, ;
 ' cc-sysv-member-base is cc-member-base-fwd
 
+```
+
+## Retain layouts without promising value operations
+
+A declaration may name a type whose executable call boundary is unsupported. Taking an address must preserve its layout without first trying to load its value.
+
+`cc-ld-desc` caches a shared opaque long-double descriptor; `cc-ld?` recognizes it, `cc-ld-mismatch` rejects cross-type transport, and `cc-ld-die` emits `cc-ld-error-prefix` before failing (`forth-bootstrap/cc/121-cc-sysv.fth:250`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Real layouts are retained even when floating/aggregate value operations
 \ are unsupported. Taking an address must not read that value first.
 : cc-sysv-float-types cc-target-sysv @ cc-bootstrap-floatbits @ or ;
@@ -730,6 +362,11 @@ create cc-ld-error-prefix s, long-double: bl c,
   then, ;
 ' cc-sysv-scalar-base is cc-nbase-scalar-fwd
 ' cc-ld? is cc-opaque-scalar-fwd
+```
+
+Local scalar references become deferred lvalues, so address-taking avoids an unsupported load; `cc-sysv-local-layout` reserves storage with the type’s actual alignment (`forth-bootstrap/cc/121-cc-sysv.fth:293`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-value-type-check ( type -- type )
   cc-target-sysv @ cc-expr-unevaluated @ 0= and if,
     dup cc-sysv-check-scalar
@@ -749,6 +386,15 @@ create cc-ld-error-prefix s, long-double: bl c,
   [lit] 8 / dup cc-fn-local-count @ - swap 1- ;
 ' cc-sysv-local-layout is cc-native-local-layout-fwd
 
+```
+
+Long-double arithmetic and its call classification belong to Chapter 49. Binary floating value operations belong to Chapter 47; these hooks preserve storage identity until those layers install their policies.
+
+## Read a function declaration once
+
+An omitted file-scope base becomes `int` unless the identifier is a typedef; a function’s saved suffix is then reparsed through `cc-sysv-declarator-signature` (`forth-bootstrap/cc/121-cc-sysv.fth:320`):
+
+```forth file=cc/121-cc-sysv.fth
 \ C90 permits an omitted int at file scope. A typedef name still starts
 \ an explicit type; other identifiers remain pending for the declarator.
 : cc-sysv-implicit-base ( -- type descriptor true | false )
@@ -777,6 +423,11 @@ defer cc-sysv-signature-fwd
 \ `typedef int F (char *);` names a function type: base ty-func with no
 \ star, its signature as descriptor, so `F *p` is a function pointer. A
 \ declarator of that type with no star declares a function, `F g;`.
+```
+
+A function typedef stores a signature without a pointer star; using that typedef as a declaration recovers its result type, after which the common declarator check enforces shape bounds (`forth-bootstrap/cc/121-cc-sysv.fth:329`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-function-typedef
   nc-func @ nc-ty @ ty-func [lit] 0 ty-make = and if, [lit] 238 cc-die then,
   nc-td @ nc-func @ and if,
@@ -812,6 +463,11 @@ defer cc-sysv-signature-fwd
   then, ;
 ' cc-sysv-check-declarator is cc-ndeclarator-check-fwd
 
+```
+
+Array parameters adjust to pointers to their elements, and function-pointer declarations retain a signature independently of whether a parameter name is present (`forth-bootstrap/cc/121-cc-sysv.fth:364`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-adjust-array-parameter
   nc-array @ if,
     \ Ranked element nodes also construct a pointer-to-array at adjustment.
@@ -848,6 +504,11 @@ defer cc-sysv-signature-fwd
   ty-func r> ty-make nc-ty ! ;
 ' cc-sysv-fnptr is cc-nfnptr-fwd
 
+```
+
+Identifier-list definitions first save names in source order with provisional `int` types; `cc-sysv-find-parameter` later locates the name being refined (`forth-bootstrap/cc/121-cc-sysv.fth:400`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-find-parameter ( sig name length -- index|-1 )
   [lit] 0 begin, [lit] 3 cc-npick cc-sysv-sig-count over > while,
     [lit] 3 cc-npick over cc-sysv-sig-name
@@ -878,6 +539,15 @@ defer cc-sysv-signature-fwd
       [char] ) cc-tok-punct? 0= if, [lit] 233 cc-die then, exit,
     then,
   again, ;
+```
+
+## Keep declaration policy out of the ABI
+
+Storage keywords and accepted source spellings are parser policy. They do not change the register assignment of an integer or pointer argument.
+
+The declaration context counts storage classes wherever they appear among type keywords, rejecting repeated or conflicting choices (`forth-bootstrap/cc/121-cc-sysv.fth:430`):
+
+```forth file=cc/121-cc-sysv.fth
 \ C90 parameter declarations allow one register specifier, interleaved
 \ with type keywords and qualifiers. Keep this policy in the parameter's
 \ own declaration context: an aggregate member uses a different context.
@@ -908,6 +578,11 @@ variable cc-sysv-parameter-register
 : cc-sysv-storage-keyword? ( -- flag )
   kw-static cc-tok-kw? kw-extern cc-tok-kw? or kw-typedef cc-tok-kw? or
   kw-auto cc-tok-kw? or kw-register cc-tok-kw? or ;
+```
+
+Parameter context admits `register` and qualifiers while excluding other storage classes; `cc-sysv-base-trailing` applies the same policy after a typedef name or tag (`forth-bootstrap/cc/121-cc-sysv.fth:478`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-parameter-specifiers
   cc-target-sysv @ 0= if, exit, then,
   cc-nctx @ cc-nstorage-context @ = if, cc-sysv-declaration-specifiers exit, then,
@@ -930,6 +605,11 @@ variable cc-sysv-parameter-register
   cc-target-sysv @ 0= if, exit, then,
   cc-next-token-keep cc-nbase-next-specifier cc-putback-token ;
 ' cc-sysv-base-trailing is cc-nbase-trailing-fwd
+```
+
+`cc-sysv-spec-total`, `cc-sysv-spec-only`, and `cc-sysv-spec-fail` accumulate invalid keyword combinations before `cc-sysv-spec-check` reports them (`forth-bootstrap/cc/121-cc-sysv.fth:482`):
+
+```forth file=cc/121-cc-sysv.fth
 \ C90 constrains the multiset of type keywords, whatever their order and
 \ any qualifiers between them. Only long may repeat (long long); one sign;
 \ void and float stand alone; double admits one long; char admits a sign;
@@ -969,6 +649,11 @@ variable cc-sysv-spec-bad
   r> drop
   cc-sysv-spec-bad @ if, [lit] 233 cc-die then, ;
 ' cc-sysv-spec-check is cc-nspec-check-fwd
+```
+
+Nested parameter parsing saves the outer context, and a function-declared parameter adjusts through the same signature parser as an explicit function pointer (`forth-bootstrap/cc/121-cc-sysv.fth:521`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-parameter-base ( -- type descriptor )
   cc-sysv-parameter-context @ >r cc-sysv-parameter-register @ >r
   cc-nctx @ cc-sysv-parameter-context !
@@ -987,6 +672,15 @@ variable cc-sysv-spec-bad
     ty-func [lit] 1 ty-make nc-ty ! [lit] 0 nc-func !
   then, ;
 
+```
+
+## Distinguish prototypes from unspecified lists
+
+`f()` leaves argument types unspecified; `f(void)` requires no arguments. A definition with an identifier list supplies names that subsequent declarations refine. Keeping those states distinct prevents a later weak declaration from erasing a useful prototype.
+
+Signature construction records the result and opens a fresh declaration context before distinguishing empty, variadic, void, and identifier-list endings (`forth-bootstrap/cc/121-cc-sysv.fth:539`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-signature ( return-type return-desc -- signature )
   [lit] 2600 cc-alloc dup >r [lit] 2600 cc-nzero
   r@ [lit] 16 + ! r@ [lit] 8 + !
@@ -1015,6 +709,11 @@ variable cc-sysv-spec-bad
     tok-kind @ tk-ident = cc-native-type-start 0= and if,
       r> cc-nctx ! r> cc-sysv-identifier-list exit,
     then,
+```
+
+Each typed parameter is adjusted, checked for a duplicate name, and stored with its descriptor and qualification before the parser advances (`forth-bootstrap/cc/121-cc-sysv.fth:567`):
+
+```forth file=cc/121-cc-sysv.fth
     cc-sysv-parameter-base nc-sdesc ! nc-base ! cc-ndeclarator
     cc-sysv-adjust-function-parameter
     cc-sysv-adjust-array-parameter
@@ -1040,6 +739,11 @@ variable cc-sysv-spec-bad
   again, ;
 ' cc-sysv-signature is cc-sysv-signature-fwd
 
+```
+
+Abstract grouped type names preserve every pointer star and reuse the array or function descriptor constructor selected by their suffix (`forth-bootstrap/cc/121-cc-sysv.fth:592`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Grouped object-pointer type names add their stars to the base type.
 \ Abstract function-pointer type names reuse the declaration signature parser.
 \ Each grouped star is retained in the type word beside its signature.
@@ -1080,6 +784,11 @@ variable cc-sysv-spec-bad
       then,
     then,
   else, cc-putback-token then, ;
+```
+
+A type name temporarily clears storage-declaration context and restores surrounding qualifier state, preventing a nested cast from changing its enclosing declaration (`forth-bootstrap/cc/121-cc-sysv.fth:632`):
+
+```forth file=cc/121-cc-sysv.fth
 \ A type name shares its enclosing declaration's context but is never a
 \ declaration: a storage class inside one, as in an enumerator's
 \ sizeof (int static), is 233 (cc-sysv-parameter-specifiers).
@@ -1093,6 +802,15 @@ variable cc-sysv-spec-bad
   r> cc-nstorage-context ! ;
 ' cc-sysv-type-name is cc-native-type-name-fwd
 
+```
+
+## Separate address representation from callability
+
+An explicit function-pointer cast changes the selected signature without moving the address. A later indirect call must still use a signature compatible with the actual definition. A pointer to a stored function pointer requires a load before it is callable.
+
+`cc-sysv-cast-types` allows the target’s bit-preserving pointer representation casts and rejects integer destinations too narrow to retain a function address, except for a Boolean test (`forth-bootstrap/cc/121-cc-sysv.fth:664`):
+
+```forth file=cc/121-cc-sysv.fth
 \ C permits function-pointer conversions and a round trip back to the
 \ original signature. A call still uses its actual selected signature and
 \ the normal ABI class checks. Only explicit casts cross to object pointers.
@@ -1127,6 +845,11 @@ variable cc-sysv-spec-bad
   then,
   ty-ptr 0= swap ty-ptr 0= or if, [lit] 230 cc-die then, ;
 ' cc-sysv-cast-types is cc-cast-types-fwd
+```
+
+Runtime integer casts normalize width and signedness before conversion; `cc-sysv-cast-null` separately tracks whether a cast preserves null-pointer-constant status (`forth-bootstrap/cc/121-cc-sysv.fth:692`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Normalize an integral operand before replacing its type with a pointer:
 \ signed narrow values extend their sign and unsigned ones extend zero.
 : cc-sysv-cast-value ( source destination -- )
@@ -1149,6 +872,14 @@ variable cc-sysv-spec-bad
 ' cc-sysv-ternary-split is cc-value-ternary-split-fwd
 
 
+```
+
+## Compare the shape behind a pointer
+
+
+`cc-sysv-compatible-types` recursively compares function signatures and array elements, while record pointers retain descriptor identity (`forth-bootstrap/cc/121-cc-sysv.fth:715`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Type identity is checked at redeclarations. Struct pointers retain tag
 \ identity; function-pointer signatures compare recursively by shape.
 \ A row reached through a pointer carries its qualifier set on its node;
@@ -1184,6 +915,11 @@ defer cc-sysv-compatible-signatures-fwd
     cc-sysv-compatible-types exit,
   then,
   ty-struct = if, r> r> = else, r> drop r> drop true then, ;
+```
+
+Redeclarations require equal row qualifier sets through `cc-sysv-same-types`; an implicit value conversion may add an outer row qualifier but cannot discard one (`forth-bootstrap/cc/121-cc-sysv.fth:739`):
+
+```forth file=cc/121-cc-sysv.fth
 \ cc-sysv-same-types also requires equal outermost row sets: redeclared
 \ objects and prototype parameters and results must match exactly, so
 \ `extern const long (*p)[3]; extern volatile long (*p)[3];` is 237.
@@ -1210,6 +946,11 @@ defer cc-sysv-compatible-signatures-fwd
       cc-invert and if, [lit] 238 cc-die then,
     then,
   then, ;
+```
+
+`cc-sysv-value-shape` applies that distinction at value boundaries, handling Boolean conversion, null constants, and the permitted generic-pointer cases first (`forth-bootstrap/cc/121-cc-sysv.fth:762`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-value-shape ( source descriptor destination descriptor -- )
   cc-target-sysv @ 0= if, 2drop 2drop exit, then,
   \ Every scalar, a function or array pointer included, converts to _Bool.
@@ -1227,6 +968,13 @@ defer cc-sysv-compatible-signatures-fwd
     cc-sysv-row-qualifier-check 2drop 2drop
   else, 2drop 2drop then, ;
 ' cc-sysv-value-shape is cc-value-shape-fwd
+```
+
+## Check array-pointer operators
+
+Array-pointer arithmetic permits compatible pointer comparisons and subtraction, or integral stepping; `cc-sysv-array-pair-check` keeps unrelated row shapes from mixing (`forth-bootstrap/cc/121-cc-sysv.fth:783`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-array-operands?
   cc-target-sysv @ if,
     cc-expr-left-type @ ty-base ty-array = cc-expr-right-type @ ty-base ty-array = or
@@ -1256,6 +1004,11 @@ defer cc-sysv-compatible-signatures-fwd
   then,
   [lit] 237 cc-die ;
 ' cc-sysv-array-binop is cc-array-binop-fwd
+```
+
+Compound stepping requires an integral increment, and a conditional combines compatible row qualifiers while distinguishing a null constant from a pointer variable (`forth-bootstrap/cc/121-cc-sysv.fth:808`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-array-compound
   cc-sysv-array-operands? if,
     cc-expr-left-type @ ty-ptr 0= cc-expr-right-type @ cc-sysv-integral? 0= or
@@ -1294,6 +1047,16 @@ defer cc-sysv-compatible-signatures-fwd
     cc-sysv-qualify-node cc-expr-left-desc !
   then, ;
 ' cc-sysv-array-ternary is cc-array-ternary-fwd
+```
+
+Row qualifiers are descriptor sets. Scalar pointer qualification remains less precise: this representation does not consistently distinguish qualification of a scalar pointee from qualification of the pointer itself.
+
+## Compare declarations before emitting calls
+
+
+`cc-sysv-default-type` models default promotions even for declaration-only types; `cc-sysv-comparison-param` uses them when an identifier-list definition meets a prototype (`forth-bootstrap/cc/121-cc-sysv.fth:846`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-signature-result dup cc-sysv-sig-return swap cc-sysv-sig-desc ;
 : cc-sysv-parameter-type cc-sysv-sig-param dup @ swap [lit] 8 + @ ;
 \ Default promotions matter to prototype compatibility even for types
@@ -1312,6 +1075,11 @@ defer cc-sysv-compatible-signatures-fwd
       2drop [lit] 0 exit,
     then, 1+
   repeat, 2drop true ;
+```
+
+Signature compatibility checks the result first, then the known parameter counts, variadic state, and recursively compatible promoted parameter types (`forth-bootstrap/cc/121-cc-sysv.fth:864`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-compatible-signatures ( sig1 sig2 -- flag )
   2dup cc-sysv-check-signature drop cc-sysv-check-signature drop
   2dup >r cc-sysv-signature-result r> cc-sysv-signature-result
@@ -1335,6 +1103,15 @@ defer cc-sysv-compatible-signatures-fwd
   repeat, drop 2drop true ;
 ' cc-sysv-compatible-signatures is cc-sysv-compatible-signatures-fwd
 
+```
+
+## Keep an external identity after a block ends
+
+An undeclared call uses the source dialect’s implicit `extern int` declaration. Its name has block scope, but its pending calls must survive after the parser reuses that block’s symbol slots. A persistent translation-unit record separates those lifetimes.
+
+`cc-sysv-implicit-find` and `cc-sysv-implicit-symbol` locate that record; call and address fixup accessors redirect to its persistent cells (`forth-bootstrap/cc/121-cc-sysv.fth:887`):
+
+```forth file=cc/121-cc-sysv.fth
 \ C90 implicit externs keep scoped visibility but persistent declaration
 \ identity and fixups: a block's symbol IDs may be reused after it exits.
 \ Record: next, name, length, unspecified-int signature, calls, addresses.
@@ -1361,6 +1138,11 @@ variable cc-sysv-implicit-count
 ' cc-sysv-call-fixups is cc-sym-call-fixups
 ' cc-sysv-address-fixups is cc-sym-addr-fixups
 : cc-sysv-implicit-record ( name length -- record )
+```
+
+Creating an implicit record installs an unspecified `int` signature; `cc-sysv-implicit-error` can instead request rejection, with message pieces retained for the diagnostic (`forth-bootstrap/cc/121-cc-sysv.fth:913`):
+
+```forth file=cc/121-cc-sysv.fth
   2dup cc-sysv-implicit-find dup if, nip nip exit, then, drop
   cc-sysv-implicit-count @ 1+ cc-sym-cap [lit] 60 cc-check-cap
   [lit] 1 cc-sysv-implicit-count +!
@@ -1385,6 +1167,11 @@ create cc-sysv-implicit-close [lit] 39 c, [lit] 58 c, bl c,       \ "': "
 create cc-sysv-implicit-at s, ' bl c, s, at bl c,     \ "' at "
 \ Name the source file and line through the preprocessor's line map, then
 \ the usual flattened line: "... function 'f' at a.c:11: cc: line 29: ...".
+```
+
+The diagnostic reports mapped source locations when available, and `cc-sysv-unknown-ident` creates a function only when the next token is a call delimiter (`forth-bootstrap/cc/121-cc-sysv.fth:947`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-implicit-die
   cc-sysv-implicit-message [lit] 34 cc-err-write
   tok-str-addr @ tok-str-len @ cc-err-write
@@ -1405,6 +1192,11 @@ create cc-sysv-implicit-at s, ' bl c, s, at bl c,     \ "' at "
   r> [lit] 24 + @ over cc-sysv-signatures cell[] !
   dup cc-sysv-implicit-declared-fwd ;
 ' cc-sysv-unknown-ident is cc-native-unknown-ident-fwd
+```
+
+A later declaration must agree with the persistent signature and external linkage; standalone program completion rejects fixups still lacking a definition (`forth-bootstrap/cc/121-cc-sysv.fth:957`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-check-implicit-signature ( signature -- )
   nc-name @ nc-nlen @ cc-sysv-implicit-find dup if,
     nc-static @ if, [lit] 237 cc-die then,
@@ -1422,6 +1214,20 @@ create cc-sysv-implicit-at s, ' bl c, s, at bl c,     \ "' at "
     dup [lit] 32 + @ over [lit] 40 + @ or if, [lit] 206 cc-die then, @
   repeat, drop ;
 
+```
+
+## Recover a call’s result type
+
+| Symbol input | Result |
+|---|---|
+| `cc-sysv-symbol-signature` | Validated function or function-pointer signature |
+| `cc-sysv-call-qualified` | Qualification of the declared result |
+| `cc-sysv-function-desc` | Descriptor used for a function address |
+| `cc-sysv-call-result` | Result type and descriptor used by an expression |
+
+These symbol adapters expose the retained signature to existing expression hooks and preserve their native defaults (`forth-bootstrap/cc/121-cc-sysv.fth:974`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-symbol-signature ( id -- signature )
   dup cc-sym-kind-of sk-func = if,
     cc-sysv-signatures cell[] @
@@ -1444,6 +1250,15 @@ create cc-sysv-implicit-at s, ' bl c, s, at bl c,     \ "' at "
   else, cc-native-call-result then, ;
 ' cc-sysv-call-result is cc-native-call-result-fwd
 
+```
+
+## Keep expression temporaries alive
+
+Arguments are evaluated before the register/stack split. Staging them keeps nested calls from destroying earlier arguments and gives the final call sequence a stable source vector.
+
+`cc-sysv-parse-args` converts fixed arguments to their prototype types, promotes unspecified arguments, checks arity, and reverses the staged vector into parameter order (`forth-bootstrap/cc/121-cc-sysv.fth:1001`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Stage each argument in an eight-byte temporary, converting fixed arguments
 \ to the prototype's actual width before the register/stack split.
 : cc-sysv-argument-check-default ( signature index -- ) 2drop ;
@@ -1476,6 +1291,11 @@ defer cc-sysv-argument-check-fwd
   then,
   nip dup cc-native-reverse-args ;
 
+```
+
+Push/pop hooks count live expression cells; staged loads map the first six integer-class arguments to `rdi`, `rsi`, `rdx`, `rcx`, `r8`, and `r9`, while later arguments need outgoing stack slots (`forth-bootstrap/cc/121-cc-sysv.fth:1028`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Count actual expression/argument pushes, separately from lexical switch
 \ saves. A call snapshots the complete surviving span, including outer-call
 \ arguments and switch RBX saves; its own argument vector is transient.
@@ -1505,6 +1325,11 @@ variable cc-sysv-stack-depth
 : cc-sysv-store-outgoing ( offset -- )
   [lit] 72 cc-emit-byte [lit] 137 cc-emit-byte
   [lit] 132 cc-emit-byte [lit] 36 cc-emit-byte cc-emit-4le ;
+```
+
+A call record describes the original stack pointer, surviving span, and staged span; saving and restoring the surviving cells uses persistent local slots rather than the outgoing call area (`forth-bootstrap/cc/121-cc-sysv.fth:1057`):
+
+```forth file=cc/121-cc-sysv.fth
 \ Call record: RSP frame slot, surviving cell count, staged cell count.
 : cc-sysv-save-live ( record -- )
   >r
@@ -1528,6 +1353,13 @@ variable cc-sysv-stack-depth
     dup r@ [lit] 16 + @ + [lit] 8 * cc-emit-4le
     1+
   repeat, drop r> drop ;
+```
+
+Saving only `rsp` would leave a hole for a function that returns again after intervening calls, such as `setjmp`: the pointer could be restored while an expression operand had already been overwritten. The saved span includes outer argument staging and switch saves, but excludes this call’s disposable argument vector. This scheme assumes fixed frames.
+
+`cc-sysv-prepare-call` snapshots that span, points `r11` at the staged vector, reserves stack-argument space plus padding, and rounds `rsp` down to a multiple of sixteen before copying arguments (`forth-bootstrap/cc/121-cc-sysv.fth:1080`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-prepare-call ( count indirect? -- record )
   >r dup r> if, 1+ then,
   [lit] 24 cc-alloc dup >r [lit] 16 + !
@@ -1555,6 +1387,13 @@ variable cc-sysv-stack-depth
   [lit] 0 begin, 2dup > over [lit] 6 < and while,
     dup cc-sysv-load-gp 1+
   repeat, 2drop r> ;
+```
+
+The seventh argument occupies the outgoing block’s first slot. After `call` pushes its return address, that argument sits just above the return address in the callee. Padding is above the copied argument block, so it never separates the return address from the first stack argument.
+
+Call completion restores the saved span and discards staging before moving `rax` into the expression register; indirect targets use `r10`, leaving `al` free to report zero vector arguments (`forth-bootstrap/cc/121-cc-sysv.fth:1107`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-finish-call ( count indirect? record -- )
   >r 2drop r@ cc-sysv-restore-live
   r@ [lit] 16 + @ dup cc-sysv-stack-depth @ swap - cc-sysv-stack-depth !
@@ -1571,6 +1410,13 @@ variable cc-sysv-stack-depth
 defer cc-sysv-result-value-fwd
 ' cc-emit-convert-rdi is cc-sysv-result-value-fwd
 
+```
+
+## Emit direct and indirect calls
+
+A direct call either reaches a known address or joins a fixup list; a named function-pointer object instead stages its loaded target before evaluating arguments (`forth-bootstrap/cc/121-cc-sysv.fth:1123`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-call ( id -- )
   cc-target-sysv @ 0= if, cc-parse-native-call exit, then,
   cc-check-static-init
@@ -1594,6 +1440,11 @@ defer cc-sysv-result-value-fwd
   then,
   r> cc-sysv-sig-return cc-sysv-result-value-fwd ;
 ' cc-sysv-call is cc-native-call-fwd
+```
+
+An arbitrary callable expression uses the same staging and recovery, normalizes the returned integer to its declared width, then attaches the signature’s result descriptor and qualifiers (`forth-bootstrap/cc/121-cc-sysv.fth:1146`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-check-callable ( type -- )
   dup ty-base ty-func <> swap ty-ptr [lit] 1 > or if, [lit] 230 cc-die then, ;
 : cc-sysv-indirect-call
@@ -1609,6 +1460,15 @@ defer cc-sysv-result-value-fwd
   r> cc-last-expr-qualified ! ;
 ' cc-sysv-indirect-call is cc-native-indirect-fwd
 
+```
+
+## Save the registers the caller owns
+
+The core prologue already preserves `rbp` (Chapter 31). This target also preserves `rbx`, the expression backend’s other used callee-saved register. Incoming arguments are copied into typed local slots so body expressions no longer depend on argument registers.
+
+The first local slot holds saved `rbx`; `cc-sysv-store-gp` dispatches register arguments to the matching local-store emitter (`forth-bootstrap/cc/121-cc-sysv.fth:1172`):
+
+```forth file=cc/121-cc-sysv.fth
 \ RBX is the only callee-saved expression register. RBP is saved by090;
 \ R12..R15 are never touched. Reserve local slot0 before any parameters.
 : cc-sysv-restore-callee
@@ -1628,6 +1488,11 @@ defer cc-sysv-result-value-fwd
   dup [lit] 3 = if, drop cc-emit-store-local-from-rcx exit, then,
   dup [lit] 4 = if, drop cc-emit-store-local-from-r8 exit, then,
   drop cc-emit-store-local-from-r9 ;
+```
+
+Identifier-list declarations refine saved names without changing their order; `cc-sysv-abi-type-fwd` is the boundary check before installing an executable parameter (`forth-bootstrap/cc/121-cc-sysv.fth:1180`):
+
+```forth file=cc/121-cc-sysv.fth
 \ K&R declarations refine the identifier list by name, preserving order.
 \ Undeclared parameters keep C90's implicit int. Only register storage is
 \ permitted here; a declaration outside the identifier list is an error.
@@ -1656,6 +1521,11 @@ defer cc-sysv-abi-type-fwd
     [char] ; cc-tok-punct? 0= if, [lit] 233 cc-die then,
     cc-next-token-keep
   repeat, drop r> cc-nctx ! ;
+```
+
+`cc-sysv-params` installs finalized parameter metadata, while the default variadic-definition hooks reject a body that would need a register save area (`forth-bootstrap/cc/121-cc-sysv.fth:1208`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-params ( sig -- )
   dup cc-sysv-sig-count cc-native-param-count !
   [lit] 0 begin, over cc-sysv-sig-count over > while,
@@ -1679,6 +1549,11 @@ defer cc-sysv-varargs-save-fwd
 ' cc-sysv-varargs-prepare-default is cc-sysv-varargs-prepare-fwd
 ' cc-sysv-varargs-save-default is cc-sysv-varargs-save-fwd
 
+```
+
+Register arguments and incoming stack arguments converge on local slots through `cc-sysv-store-params-default`; the return hook independently validates the result class (`forth-bootstrap/cc/121-cc-sysv.fth:1233`):
+
+```forth file=cc/121-cc-sysv.fth
 defer cc-sysv-params-fwd
 ' cc-sysv-params is cc-sysv-params-fwd
 : cc-sysv-store-params-default
@@ -1694,6 +1569,15 @@ defer cc-sysv-store-params-fwd
 defer cc-sysv-return-check-fwd
 ' cc-sysv-return-check-default is cc-sysv-return-check-fwd
 
+```
+
+Chapter 46 supplies variadic definitions. Integer-only variadic calls can already report an empty vector-register argument set; that does not supply a variadic callee’s argument cursor.
+
+## Build the body from its retained signature
+
+A block-scope function declaration checks a visible function or creates a scoped symbol backed by the persistent external record; `cc-sysv-function-signature` holds the selected signature (`forth-bootstrap/cc/121-cc-sysv.fth:1246`):
+
+```forth file=cc/121-cc-sysv.fth
 variable cc-sysv-frame-patch
 variable cc-sysv-function-signature
 \ A block-scope function declarator names the one external function. With
@@ -1721,6 +1605,11 @@ variable cc-sysv-function-signature
   nc-desc @ over cc-sym-set-struct-desc
   r> @ over cc-sysv-signatures cell[] !
   cc-sysv-implicit-declared-fwd ;
+```
+
+File-scope processing refines identifier-list definitions and checks prior declarations, retaining an existing prototype when a later declaration leaves parameters unspecified (`forth-bootstrap/cc/121-cc-sysv.fth:1273`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-function
   cc-target-sysv @ 0= if, cc-native-function exit, then,
   nc-top @ 0= if, cc-sysv-block-function exit, then,
@@ -1756,6 +1645,11 @@ variable cc-sysv-function-signature
   nc-ty @ nc-id @ cc-sym-type cell[] !
   nc-desc @ nc-id @ cc-sym-set-struct-desc
   [char] { cc-tok-punct? 0= if, exit, then,
+```
+
+A definition resolves pending addresses, creates parameter locals, saves incoming registers, and parses the body; `cc-sysv-frame-patch` delays the frame allocation size until all call-save slots are known (`forth-bootstrap/cc/121-cc-sysv.fth:1308`):
+
+```forth file=cc/121-cc-sysv.fth
   nc-ty @ nc-desc @ cc-sysv-return-check-fwd
   nc-id @ cc-sym-val-of if, [lit] 211 cc-die then,
   cc-here-vaddr nc-id @ cc-sym-val cell[] !
@@ -1787,6 +1681,11 @@ variable cc-sysv-function-signature
   cc-scope-pop r> cc-nctx ! ;
 ' cc-sysv-function is cc-native-function-fwd
 
+```
+
+`cc-sysv-enable` resets per-translation-unit identities and selects LP64 scalar calls; the standalone entry passes the process arguments to `main`, while object mode will omit that entry (`forth-bootstrap/cc/121-cc-sysv.fth:1339`):
+
+```forth file=cc/121-cc-sysv.fth
 : cc-sysv-enable
   [lit] 0 cc-qualified-fields ! [lit] 0 cc-ld-desc !
   [lit] 0 cc-sysv-implicit-head ! [lit] 0 cc-sysv-implicit-count !
@@ -1810,85 +1709,11 @@ variable cc-sysv-function-signature
   cc-check-fns-defined cc-patch-call-main ;
 ```
 
-## 4. Carry code and storage into a relocatable object
+## Carry code and storage into a relocatable object
 
-The object adapter uses the same parser and emitter. It leaves out the
-kernel entry stub and private runtime, copies generated function code
-into the object writer's text section, and exports each function's name,
-binding, start, and size. Calls resolved within that text remain valid
-because moving caller and callee together preserves their relative
-distance. Calls to declarations without a definition become explicit
-`R_X86_64_PLT32` relocations with an addend of minus four.
+The object adapter keeps the same parser and call lowering. It omits a process entry and records unresolved targets for the linker. Relative calls already resolved within the text remain valid when caller and callee move together.
 
-An object needs identities that last longer than a parser scope. The
-symbol table reuses IDs when a block ends, but a static local must survive
-for the entire program. The adapter therefore maintains separate stable
-object records. Every global reference names a record; only final
-serialization translates records to ELF symbol IDs. Two static locals
-with the same spelling retain distinct records even when their parser
-slots were reused. An `extern` declaration stays undefined until a real
-definition appears, while a tentative definition receives zeroed BSS at
-the end of the translation unit. Completing a tentative array updates its
-record, so earlier references keep naming the final object.
-
-Initialized objects reserve aligned data storage. The adapter reuses
-Chapter 34's recursive initializer traversal and replaces only its scalar
-and string leaves. Chapter 41's typed constant evaluator returns a value,
-type, descriptor, and optional symbolic target. Absolute values write the
-destination's low bytes. A symbolic pointer writes an `R_X86_64_64`
-relocation with its explicit addend. This handles function pointers,
-array elements, and aggregate fields without executing an initializer at
-startup. Unsigned intermediate arithmetic follows the same width rules
-as ordinary expressions, rather than using an untyped host-sized result.
-Each absolute leaf passes through `cc-om-value-fwd` with its source and
-destination types. Its default keeps the bits; Chapter 41 installs a
-conversion that acts only when a `float` or `double` is involved, so
-`double d = -1;` stores binary64 -1.0 and `int i = 2.7;` stores 2. The leaf
-checks its type with the deferred `cc-sysv-check-scalar`, which accepts these
-types once Chapter 45 loads. A symbolic value never initializes a `double`
-(232).
-
-String literals live in read-only object storage; character-array
-initializers copy their decoded bytes into the array's own data or local
-storage. Function addresses and global addresses materialized in code
-also receive `R_X86_64_64` relocations. The current emitter uses absolute
-addresses, so these objects target the bounded static executable path;
-they do not claim position-independent code generation.
-
-Object bounds are checked before multiplication, and explicit zero or
-negative bounds are rejected separately from an unsized `[]`. Repeated
-object declarations must agree on scalar versus array shape. Array
-typedefs retain their shape through aliases, declarations, and `sizeof`.
-A one-dimensional alias can be an element of an outer array; the existing
-object representation holds at most two dimensions. A parameter declared
-with a one-dimensional array alias decays to its element pointer, while a
-local object keeps the array's full size. This is the ordinary type rule
-used by Chapter 42's real `va_list[1]` representation, not a special size
-attached to that typedef name. Type-name queries preserve the enclosing
-declaration's shape, and casting to an array type is rejected.
-
-The constant type representation does not yet encode a pointer to an
-array. Address constants such as `&rows[i][j]` are supported, while a bare
-`&array` or unindexed multidimensional-array decay is rejected. Multidimensional array parameters and
-narrow integer relocations are also rejected. A block-scope function
-declaration reuses the implicit declarations' record (section 1): its
-calls become relocations against the one external symbol.
-Unsupported forms must stop before publication, rather than preserving an
-absolute address that happened to work inside the old executable image.
-
-Run the interoperability and storage gates with:
-
-```sh
-tests/gcc/sysv-interop-check.sh
-tests/gcc/sysv-storage-check.sh
-```
-
-The first gate crosses the host ABI in both directions. The storage gate
-checks globals, tentative arrays, strings, aggregate-field and array
-element addends, external providers, and static-local identity. It first
-uses a host harness, then repeats the storage checks with independently
-Forth-compiled objects, a Forth-emitted startup object, and the Forth
-linker. Host oracle bytes never enter the production proof.
+`cc-sysv-object-mode` selects the adapter, and its stable-record workspace can use either the default buffer or an explicitly mapped larger buffer (`forth-bootstrap/cc/123-cc-object-program.fth:1`):
 
 ```forth file=cc/123-cc-object-program.fth
 \ 123-cc-object-program.fth — shared scalar C parser to ELF64 ET_REL.
@@ -1917,6 +1742,20 @@ variable cc-om-direct-base
     cc-om-direct-base !
   then,
   cc-om-direct-base @ cc-om-buffer ! cc-om-direct-cap cc-om-limit ! ;
+```
+
+The source comment’s historical capacity measurement is not a measurement made by this checkpoint. The accessors below expose record fields without giving parser symbol IDs ownership of their lifetime.
+
+| Record input | Field accessors |
+|---|---|
+| Identity and binding | `om-name`, `om-nlen`, `om-bind`, `om-kind` |
+| Storage location and extent | `om-section`, `om-offset`, `om-size`, `om-align` |
+| C declaration shape | `om-type`, `om-desc`, `om-array`, `om-inner` |
+| Publication state | `om-flags`, `om-output`, `om-symbol` |
+
+`cc-om-count` tracks allocated records, and `cc-om-record` checks an ID before converting it into a record address (`forth-bootstrap/cc/123-cc-object-program.fth:29`):
+
+```forth file=cc/123-cc-object-program.fth
 variable cc-om-count
 \ Reject invalid IDs before subtraction or multiplication in either workspace.
 : cc-om-record ( id -- address )
@@ -1938,6 +1777,11 @@ variable cc-om-count
 : om-flags cc-om-record [lit] 96 + ;
 : om-output cc-om-record [lit] 104 + ;
 : om-symbol cc-om-record [lit] 112 + ;
+```
+
+`cc-om-bucket` and `cc-om-hnext` index names; reset clears buckets, link prepends a record, and new-record construction zeroes state before setting binding and kind (`forth-bootstrap/cc/123-cc-object-program.fth:48`):
+
+```forth file=cc/123-cc-object-program.fth
 \ Lookup by name goes through a hash table (cc-name-hash, 030):
 \ cc-om-bucket holds the newest record whose name hashes there (0 for
 \ none), and cc-om-hnext the next older record in the same bucket.
@@ -1961,6 +1805,11 @@ create cc-om-hnext   cc-om-direct-cap 1+ [lit] 8 * allot
   r@ om-kind ! r@ om-bind ! r@ om-nlen ! r@ om-name !
   r@ cc-om-link
   [lit] 1 r@ om-align ! r> ;
+```
+
+Lookup uses `cc-om-find-name` and `cc-om-find-length` as scratch state and selects the oldest ordinary external identity, excluding block statics and anonymous records (`forth-bootstrap/cc/123-cc-object-program.fth:71`):
+
+```forth file=cc/123-cc-object-program.fth
 variable cc-om-find-name
 variable cc-om-find-length
 \ The oldest record of that name that is neither a block static nor
@@ -1984,6 +1833,14 @@ variable cc-om-find-length
   dup cc-sym-name-addr cell[] @ swap cc-sym-name-len cell[] @ cc-om-find
   dup 0= if, [lit] 238 cc-die then, ;
 
+```
+
+## Turn references into relocation requests
+
+
+`om-implicit` preserves the external declaration record, while `cc-om-reloc` queues a relocation against an object record; address emission reserves an absolute field without guessing its final address (`forth-bootstrap/cc/123-cc-object-program.fth:94`):
+
+```forth file=cc/123-cc-object-program.fth
 \ The unused final record cell retains an implicit declaration's stable
 \ identity even after its block-scoped parser symbol has disappeared.
 : om-implicit cc-om-record [lit] 120 + ;
@@ -2014,6 +1871,11 @@ variable cc-om-relocations
   then, cc-sysv-function-desc ;
 ' cc-sysv-object-function-desc is cc-native-function-desc-fwd
 
+```
+
+`cc-om-string-piece` decodes bytes into read-only storage, `cc-om-string` creates an anonymous `.Lstring` record, and the expression hook emits a reference to it (`forth-bootstrap/cc/123-cc-object-program.fth:124`):
+
+```forth file=cc/123-cc-object-program.fth
 create cc-om-string-name s, .Lstring
 : cc-om-string-piece ( address length -- )
   begin, dup while,
@@ -2041,6 +1903,11 @@ create cc-om-string-name s, .Lstring
     cc-putback-token cc-om-reference
   else, cc-parse-native-string-literal then, ;
 ' cc-sysv-object-string is cc-native-string-fwd
+```
+
+The function adapter wraps ordinary lowering and measures the emitted text span, recording a local binding for a static function and leaving a mere declaration undefined (`forth-bootstrap/cc/123-cc-object-program.fth:151`):
+
+```forth file=cc/123-cc-object-program.fth
 
 : cc-sysv-object-function
   cc-sysv-object-mode @ 0= nc-top @ 0= or if, cc-sysv-function exit, then,
@@ -2057,6 +1924,13 @@ create cc-om-string-name s, .Lstring
     r@ om-size ! r@ om-offset ! cc-obj-text r@ om-section !
   else, 2drop then, r> drop ;
 ' cc-sysv-object-function is cc-native-function-fwd
+```
+
+## Complete storage declarations before export
+
+Repeated object declarations must agree on type and array shape; size updates complete tentative arrays, and parser symbols are installed with the stable record as their value (`forth-bootstrap/cc/123-cc-object-program.fth:167`):
+
+```forth file=cc/123-cc-object-program.fth
 
 : cc-om-compatible-object ( record -- )
   dup om-kind @ cc-obj-object <> if, [lit] 237 cc-die then,
@@ -2089,6 +1963,11 @@ create cc-om-string-name s, .Lstring
     over over cc-sym-val cell[] !
   then,
   dup nc-id ! cc-sysv-object-size swap cc-sym-set-object-size drop ;
+```
+
+A block static gets its own record even when names repeat; initialized storage reserves aligned data bytes, while extern-only and tentative declarations retain distinct flags (`forth-bootstrap/cc/123-cc-object-program.fth:199`):
+
+```forth file=cc/123-cc-object-program.fth
 : cc-om-initializer
   true cc-ni-static ! cc-next-token-keep
   nc-ty @ nc-desc @ nc-array @ nc-inner @ [lit] 0 [lit] 0 cc-ni-value ;
@@ -2117,6 +1996,11 @@ create cc-om-string-name s, .Lstring
   then, ;
 ' cc-sysv-object-declaration is cc-nobject-fwd
 
+```
+
+Static scalar leaves either patch absolute bytes or queue a symbolic pointer relocation; `cc-om-value-fwd` keeps a conversion seam for Chapter 45’s typed constant evaluator (`forth-bootstrap/cc/123-cc-object-program.fth:227`):
+
+```forth file=cc/123-cc-object-program.fth
 \ Reuse118's recursive aggregate/array traversal; only static leaves differ.
 \ A floating leaf is converted at compile time (125); others keep their bits.
 : cc-om-value-default ( value source destination -- value ) 2drop ;
@@ -2142,6 +2026,11 @@ defer cc-om-value-fwd
   then,
   cc-next-token-keep ;
 ' cc-om-scalar-initializer is cc-ni-scalar-fwd
+```
+
+A string initializer copies decoded bytes into the destination array, using object-data patches for static storage and emitted copies for automatic storage (`forth-bootstrap/cc/123-cc-object-program.fth:252`):
+
+```forth file=cc/123-cc-object-program.fth
 : cc-om-string-initializer
   cc-sysv-object-mode @ 0= if, cc-ni-string exit, then,
   cc-om-string
@@ -2159,6 +2048,15 @@ defer cc-om-value-fwd
     ni-offset @ cc-ni-address cc-ni-copy-bytes
   then, ;
 ' cc-om-string-initializer is cc-ni-string-fwd
+```
+
+The recursive initializer traversal is reused unchanged. At this layer the static-expression hook still rejects every static scalar expression; Chapter 45 installs its evaluator. The checkpoint therefore assigns its local value in executable code.
+
+## Represent an address without loading it
+
+Function, array, and string constants carry a record plus an addend; `cc-om-const-ident` retains row shape, while a skipped string expression consumes tokens without allocating storage (`forth-bootstrap/cc/123-cc-object-program.fth:272`):
+
+```forth file=cc/123-cc-object-program.fth
 
 \ Symbolic constant leaves feed125's typed expression grammar. Record IDs
 \ are never addresses; arithmetic only changes an explicit RELA addend.
@@ -2190,6 +2088,17 @@ defer cc-om-value-fwd
     [lit] 0
   else, cc-om-string then,
   >r cc-putback-token [lit] 0 ty-char [lit] 1 ty-make [lit] 0 r> ;
+```
+
+| Address-frame input | Field accessors |
+|---|---|
+| Symbolic address | `oa-value` for the addend; `oa-record` for identity |
+| Type shape | `oa-type`, `oa-desc`, `oa-array`, `oa-inner` |
+| Expression category | `oa-lvalue`, `oa-qualified` |
+
+`cc-om-address-frame` parks the current operand, and `cc-const-qualified` transfers qualification into it; cast, unary, and index hooks reject until a constant-expression layer supplies them (`forth-bootstrap/cc/123-cc-object-program.fth:300`):
+
+```forth file=cc/123-cc-object-program.fth
 \ An address operand carries an lvalue category separately from its type.
 \ Parentheses preserve it; casts produce values. Arrow and subscripting may
 \ consume a constant pointer value, but must never load a pointer object.
@@ -2213,6 +2122,11 @@ defer cc-om-address-index-fwd
   oa-record ! oa-desc ! oa-type ! oa-value !
   [lit] 0 oa-array ! [lit] 0 oa-inner ! [lit] 0 oa-lvalue !
   cc-const-qualified @ oa-qualified ! ;
+```
+
+An identifier becomes an addressable operand; array descent unwraps its element descriptor, while dereference accepts a constant pointer value but refuses to load a pointer object (`forth-bootstrap/cc/123-cc-object-program.fth:323`):
+
+```forth file=cc/123-cc-object-program.fth
 : cc-om-address-ident
   tok-str-addr @ tok-str-len @ cc-sym-find
   dup 0< if, cc-const-unsupported then,
@@ -2245,6 +2159,13 @@ defer cc-om-address-index-fwd
   oa-type @ ty-ptr 0= oa-type @ ty-base ty-void = and if,
     cc-const-unsupported
   then, ;
+```
+
+## Compose symbolic address selections
+
+Member selection adds a field offset and qualification; indexing scales an evaluated constant index by the element extent, preserving symbolic identity (`forth-bootstrap/cc/123-cc-object-program.fth:355`):
+
+```forth file=cc/123-cc-object-program.fth
 : cc-om-address-member
   oa-lvalue @ 0= oa-array @ or oa-type @ ty-ptr or if,
     cc-const-unsupported
@@ -2275,6 +2196,11 @@ defer cc-om-address-index-fwd
     cc-om-address-index-fwd r> * oa-value +!
   then,
   [char] ] cc-expect-punct-c ;
+```
+
+The address-operand parser distinguishes identifiers, parenthesized lvalues, casts, and unary dereference; casts replace the operand category with a value (`forth-bootstrap/cc/123-cc-object-program.fth:385`):
+
+```forth file=cc/123-cc-object-program.fth
 : cc-om-address-operand
   cc-next-token-keep
   tok-kind @ tk-ident = if,
@@ -2298,6 +2224,11 @@ defer cc-om-address-index-fwd
       cc-const-unsupported
     then,
   then,
+```
+
+Postfix selection composes those operations, and `cc-om-const-address` returns the resulting addend, pointer type, descriptor, and record before restoring the outer address frame (`forth-bootstrap/cc/123-cc-object-program.fth:422`):
+
+```forth file=cc/123-cc-object-program.fth
   begin,
     cc-next-token-keep
     [char] [ cc-tok-punct? if,
@@ -2329,6 +2260,13 @@ defer cc-om-address-index-fwd
 ' cc-om-const-ident is cc-const-ident-fwd
 ' cc-om-const-address is cc-const-address-fwd
 ' cc-om-const-string is cc-const-string-fwd
+```
+
+## Finish the translation unit
+
+Tentative objects receive BSS storage before export; `cc-om-export-needed?` retains defined or referenced records, and unresolved function calls become PLT-relative relocations with the call-field adjustment (`forth-bootstrap/cc/123-cc-object-program.fth:452`):
+
+```forth file=cc/123-cc-object-program.fth
 
 : cc-om-finalize-storage ( record -- )
   dup om-kind @ cc-obj-object = over om-section @ 0= and if,
@@ -2352,6 +2290,11 @@ defer cc-om-address-index-fwd
     cc-obj-text over @ cc-obj-plt32 [lit] 4 cc-npick [lit] 0 [lit] 4 - cc-om-reloc
     [lit] 8 + @
   repeat, 2drop ;
+```
+
+`cc-sysv-object-enable` clears adapter state; `cc-sysv-object-program` collects text, storage, calls, and global references, then translates record identities to writer symbol handles (`forth-bootstrap/cc/123-cc-object-program.fth:462`):
+
+```forth file=cc/123-cc-object-program.fth
 : cc-sysv-object-enable
   cc-sysv-enable true cc-sysv-object-mode !
   [lit] 0 cc-om-count ! [lit] 0 cc-om-relocations ! cc-om-hash-reset ;
@@ -2376,116 +2319,61 @@ defer cc-om-address-index-fwd
   repeat, drop ;
 ```
 
-## 5. Compile an unchanged GCC source unit
+Absolute address fields make this a static executable path rather than position-independent code generation. Chapter 42 supplies the Forth linker that resolves these objects; this chapter’s checkpoint uses the host linker.
 
-GCC 4.0.4's `libiberty/ffs.c` is a useful first source boundary: it has no
-headers, uses an identifier-list definition and a `register` parameter,
-and returns the position of the first set bit. We compile the original
-file from the pinned archive without changing its bytes. This is one
-source unit from GCC, not evidence that the complete GCC compiler builds.
+## Try it
+
+Run from the `forth-bootstrap` checkout root with the seed already built. This block loads the Forth library, the compiler layers before `cc/120-cc-main.fth`, and this chapter’s target and adapter. Each seed process compiles one C unit. All generated files live in a `mktemp -d` directory. `gcc` is used only as a linker, adding host startup and library support; it compiles neither C file.
 
 ```sh
-tests/gcc/sysv-gcc-ffs-check.sh
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+cat > "$work/add.c" <<'C'
+long add(long *base, long a, long b, long c, long d,
+         long e, long f, long g) {
+    return *base + a + b + c + d + e + f + g;
+}
+C
+cat > "$work/caller.c" <<'C'
+extern long add(long *, long, long, long, long, long, long, long);
+int main(void) {
+    long base;
+    base = 14;
+    return add(&base, 1, 2, 3, 4, 5, 6, 7);
+}
+C
+for unit in add caller; do
+  {
+    cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
+        cc/121-cc-sysv.fth cc/123-cc-object-program.fth
+    printf 'create output-path s, %s/%s.o [lit] 0 c,\n' "$work" "$unit"
+    cat <<'FORTH'
+cc-sysv-object-enable
+: object-main
+  cc-load-stdin cc-preprocess cc-out-init cc-globals-init
+  cc-sysv-object-program output-path cc-obj-write bye ;
+object-main
+FORTH
+    cat "$work/$unit.c"
+  } | ./seed-forth || exit "$?"
+done
+gcc -no-pie -Wl,-z,noexecstack "$work/caller.o" "$work/add.o" -o "$work/call" || exit "$?"
+"$work/call"
+result=$?
+printf 'separate call returned %s\n' "$result"
+test "$result" -eq 42
 ```
 
-The gate requires the original source at its prepared path, or accepts
-its path as an argument. It verifies the file's exact hash before parsing
-it. Its first executable consists of the Forth-compiled GCC function, a
-Forth-compiled comparison harness, the Forth-emitted startup object, and
-the Forth linker. A second executable links the same Forth object into a
-host-compiled harness as a separate interoperability oracle. Each runs
-100,032 comparisons, including zero, signed inputs, and every single-bit
-position. The upstream revision and archive hash remain in `gcc64/SOURCES`.
+Observed output:
 
-A second unchanged source unit exercises declarations and initialized data:
-
-```sh
-tests/gcc/sysv-gcc-hex-check.sh
+```text
+separate call returned 42
 ```
 
-This compiles GCC's original `libiberty/hex.c` together with its original
-`libiberty.h`, `safe-ctype.h`, and `ansidecl.h`. Their exact hashes are checked,
-and the runtime supplies its real standard headers. The resulting object
-contains the complete 256-entry hexadecimal lookup table and `hex_init`.
-A Forth-built/Forth-linked executable checks every entry and the original
-header macros, including single evaluation of a side-effectful argument.
-A separately host-built harness repeats the checks against the Forth
-object. Unused floating declarations in the original header remain typed
-metadata; they neither require fake ABI code nor become unresolved calls.
+The pointer and the first integer arguments travel in registers; `f` and `g` travel on the stack. The callee dereferences the pointer, adds the arguments, and returns the result through `rax`. The shell prints the program’s exit status.
 
-## Exercises
+## Exercise
 
-- **★** Draw the outgoing stack block for a call with eight integer arguments
-- **★★** Add a boundary case where a nested call runs while a switch scrutinee is saved
-- **★★★** Design the signature extension needed for System V aggregate classification
+**Trace — easy.** Follow `f` and `g` from `cc-sysv-parse-args` through `cc-sysv-prepare-call` into `cc-sysv-store-params-default`. Draw the caller’s outgoing block and the callee’s frame, including the return address and saved `rbp`. Explain why alignment padding cannot move either argument’s expected location.
 
-## Takeaways
-
-- One tagged signature controls both sides of a scalar call
-- A separate aligned outgoing block preserves arbitrary expression temporaries
-- Explicit target selection keeps the existing private native ABI available
-
-The object adapter connects these calls to the ELF symbols and relocations
-introduced in Chapter 35.
-
-## Ranked fixed-array descriptors
-
-The original GCC induction-variable optimizer contains a local static
-`unsigned costs[2][2][2][2]`. Two count cells cannot represent its row types.
-In direct System V mode, further dimensions therefore become recursive
-`ty-array` element descriptors. Each descriptor retains a positive count, its
-element type and descriptor, checked byte size and actual element alignment.
-Pointer-to-array construction normalizes two-dimensional count metadata into
-the same single-dimension nodes, so spelling does not change type identity.
-
-Indexing consumes one real dimension at a time. Array `sizeof`, static address
-addends and recursive initializer descent follow those same element types.
-Record ABI classification descends to the leaf, preserving unsupported
-floating-member rejection and integer-record transport.
-
-A qualified array decays like any other (C90 6.2.2.1): the qualifier moves
-onto the pointed-to type. Scalar element types carry no qualifier bits, so a
-decay to `const T *` keeps only the expression's `cc-last-expr-qualified`
-provenance, exactly as an ordinary `const T *` variable does. A row, however,
-is an array node, and the node's last cell, `cc-ad-qualified`, records the
-set of qualifiers on its elements: bits for `const`, `volatile` and
-`restrict` from Ch 29's `cc-qualifier-bit`, which the declaration parser's
-qualifier notes, `cc-prefix-qualified` and field qualification (Ch 24) all
-carry instead of a yes/no flag. `cc-sysv-array-decay` gives a qualified matrix a
-qualified row node; `cc-sysv-array-address` does the same for `&a`, and a
-ranked array's existing element node is replaced by a qualified copy
-(`cc-sysv-qualify-node`), since typedefs and declarations share nodes.
-Declared array pointers take the base type's qualifiers (`nc-base-qualified`):
-`const long (*p)[3]` points at qualified rows, `long (*const p)[3]` does not.
-Static address constants, parameters adjusted from `const long a[2][3]`, and
-abstract type names such as `(const long (*)[3])` build their nodes the same
-way, and a conditional's result row is qualified when either arm's is.
-
-Implicit conversion may add that qualifier but never discard it.
-`cc-sysv-row-qualifier-check`, run by `cc-sysv-value-shape` for initializers,
-assignments, arguments and returns, rejects `long (*p)[3] = t` for a
-`const long t[2][3]` with 238; an explicit cast or a qualified destination
-accepts. This covers binutils' elflink.c, which reads
-`&((const Elf32_External_Rel *) p)->r_offset`, and zlib's
-`(const z_crc_t FAR *)crc_table`. Because the cell is a set, a `const`
-row converts implicitly to a `const volatile` row but not to a `volatile`
-one (238), and `cc-sysv-same-types` makes redeclarations and prototypes
-compare sets exactly: `extern const long (*p)[3]; extern volatile long
-(*p)[3];` is 237. Below the first pointer the sets must be equal, as
-C90 6.3.16.1 requires compatible pointed-to types, so
-`const long (**q)[3] = &p` for `long (*p)[3]` is 237. Like GCC without
-`-pedantic`, this target lets the first level add a qualifier to an array
-row; strict C90 counts that as an incompatible conversion too, since the
-qualifier belongs to the element type, not to the pointed-to array.
-
-Element pointers follow the existing
-scalar policy: `char *q = a` from a `const char a[3]`, or a store through it,
-is not diagnosed, because nothing records whether a scalar pointer's pointee
-or the pointer itself is qualified.
-
-The direct profile checks a maximum of 64 written suffixes and a total rank of
-64 after typedef composition. It also checks the existing 1 GiB complete-object
-limit before multiplying. Rank 65, invalid positive bounds and oversized
-products fail before output publication. The legacy/native parser keeps its
-previous suffix boundary. See `tests/gcc/ranked-arrays-README.md` and its executable test for the original
-source witness, mixed ABI checks, and declaration-only boundary proofs.
+**Verify — moderate.** Change the checkpoint’s call to pass `add(&base, 1, 2, 3, 4, 5, 6, 7)` as its final argument to a second call of `add`. Predict the exit status before running it, then identify which outer staged values must survive the inner call.

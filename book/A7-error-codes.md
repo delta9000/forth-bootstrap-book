@@ -259,7 +259,7 @@ declaration admits only `extern` (`static int g();`, `auto` or `register`
 inside a function body is 233), and its parameter list cannot be an
 identifier list, nor can a function typedef's. Storage classes may otherwise
 appear among the type specifiers in any order (`int static x`). See
-[chapter 36](36-direct-gcc-calls.md).
+[chapter 36](41-system-v-calls.md).
 
 In the System V target, 238 rejects an array shape the type system cannot
 represent or that C forbids: a non-positive or excessive bound, a function
@@ -273,7 +273,7 @@ Grouped abstract object-pointer types such as `char *(*)` are representable
 and must not report 238 merely because they have no array or function
 suffix. Their total pointer depth is checked with 231. Qualified arrays
 themselves decay normally; an explicit cast or a qualified destination
-accepts the conversion. See [chapter 36](36-direct-gcc-calls.md).
+accepts the conversion. See [chapter 36](41-system-v-calls.md).
 Inside a grouped declarator, `cc-ngroup-name` (`115-cc-native.fth`) accepts
 redundant parentheses around a name and its array suffixes but gives 238 for
 a pointer group nested in a group, `int (*(*p))(void)`, and for array suffixes
@@ -283,7 +283,7 @@ In the System V target, 238 also rejects a function definition nested inside
 a block, which C does not have. A block-scope function declaration, such as
 `extern char *getenv ();` in a function body, is accepted; one whose type
 disagrees with another declaration of the same function is 237
-([chapter 36](36-direct-gcc-calls.md)). A typedef of a function type, such
+([chapter 36](41-system-v-calls.md)). A typedef of a function type, such
 as `typedef int Function ();`, is accepted; 238 rejects an array or member
 of that type, a function returning it, and a definition written through it,
 `Function g { ... }`.
@@ -313,7 +313,7 @@ states the supported argument classes and the public list representation.
 In the System V target, 228 is a call to an undeclared function when the
 driver was given `-Werror=implicit-function-declaration`; the diagnostic names
 the function and its source file and line before the usual flattened line
-([chapter 36](36-direct-gcc-calls.md)). Without that option such a call is
+([chapter 36](41-system-v-calls.md)). Without that option such a call is
 C90's implicit `extern int name ();`.
 
 The System V target prints an `aggregate-abi: ` prefix before code 232 when

@@ -12,7 +12,7 @@ The public declarations live in `runtime/gcc-seed/include/stdarg.h`.
 
 **Concepts carried in:** nominal aggregate descriptors and local storage from
 [chapter 34](34-direct-tinycc.md), signatures and GP argument registers from
-[chapter 36](36-direct-gcc-calls.md), and separate-object reconstruction from
+[chapter 36](41-system-v-calls.md), and separate-object reconstruction from
 [chapter 37](37-direct-gcc-linker.md).
 
 **Concepts introduced:** array typedef identity, per-invocation register-save
