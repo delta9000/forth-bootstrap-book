@@ -2274,6 +2274,9 @@ Remainder-based rounding | 47 Floating values and exact literals | twice the exa
 Direct destination rounding | 47 Floating values and exact literals | the destination format is chosen before a literal or constant operation is rounded
 Bitfield slice | 48 Record bitfields | a field is a width and bit shift inside a containing storage unit at a byte offset
 Preserving store | 48 Record bitfields | a bitfield store masks the unit and merges new bits, leaving neighbours unchanged; signed fields sign-extend on load
+Aggregate classification | 49 Aggregates and extended floating values | a record is MEMORY, one or two INTEGER eightbytes, scalar SSE or X87 by size and leaf types; floating members and mixed classes are rejected
+Call transport plan | 49 Aggregates and extended floating values | each argument gets an explicit register or stack location before any value moves
+Extended floating value | 49 Aggregates and extended floating values | long double travels as a 16-byte-aligned stack copy and returns in st(0); no x87 state is kept between operations
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
