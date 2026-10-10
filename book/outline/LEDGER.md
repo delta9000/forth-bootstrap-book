@@ -479,6 +479,11 @@ Owed newlines | 28 The preprocessor | consumed newlines emitted later to keep li
 Unavailable tokens | 28 The preprocessor | shadow marks keep a macro from re-expanding across rescans
 Computed include operand | 28 The preprocessor | expand macros before validating and opening a header name
 Logical source location | 28 The preprocessor | presumed file and line, tracked apart from physical include paths
+Numeric token spelling | 29 The lexer | the token keeps its source slice, so base and suffix survive beside the wrapped value
+Shared escape decoder | 29 The lexer | cc-decode-escape returns a byte and the source length it consumed
+Consume-peek-commit | 29 The lexer | consume the first punctuation byte, peek at the rest, consume a continuation only when it completes a longer token
+Lexer extension hook | 29 The lexer | cc-lex-extra-fwd may supply a token before ordinary classification (used by Chapter 47)
+Putback, mark and reset | 29 The lexer | putback re-offers the current token; mark/reset copy the whole lexer state block for lookahead
 `asm-next-char` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
 `asm-nl-byte` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); The output side
 `asm-number-bounds` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
