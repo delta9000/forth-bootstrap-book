@@ -344,7 +344,7 @@ create cc-sysrt-longjmp-code
   cc-obj-text [lit] 0 [lit] 43 cc-obj-symbol drop ;
 ```
 
-The function that called `setjmp` must still be active. A changed non-volatile automatic local in that function has an indeterminate value after `longjmp`; this mechanism does not restore ordinary local storage. It also saves no signal mask or floating-point environment. The Flex consumer belongs to Chapter 51; its runtime dependency is documented in `forth-bootstrap/chain/runtime/gcc-seed/NONLOCAL.md:3`.
+The function that called `setjmp` must still be active. A changed non-volatile automatic local in that function has an indeterminate value after `longjmp`; this mechanism does not restore ordinary local storage. It also saves no signal mask or floating-point environment. The Flex consumer belongs to Chapter 51; its runtime dependency is documented in `forth-bootstrap/chain/runtime/gcc-seed/NONLOCAL.md:8`.
 
 ## Allocation owns both payload and metadata
 

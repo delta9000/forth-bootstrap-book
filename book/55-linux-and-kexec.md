@@ -122,7 +122,7 @@ The comparison records actual hashes even when a path-dependent pin cannot be en
     done < "$GCC64/HASHES"
 ```
 
-A missing artifact is skipped, so a partial invocation cannot prove that the entire pin set exists. A mismatched comparable artifact fails unless the explicit repinning mode is enabled (`forth-bootstrap/chain/gcc64/run-gcc64.sh:445`). The recorded full guest run matched all 31 pins, as reported in the project results (`forth-bootstrap/README.md:164`). This proves agreement with that set of output digests. It does not cover every generated file, and it does not prove a boot.
+A missing artifact is skipped, so a partial invocation cannot prove that the entire pin set exists. A mismatched comparable artifact fails unless the explicit repinning mode is enabled (`forth-bootstrap/chain/gcc64/run-gcc64.sh:445`). The recorded full guest run matched all 31 pins, as reported in the project results (`forth-bootstrap/README.md:231`). This proves agreement with that set of output digests. It does not cover every generated file, and it does not prove a boot.
 
 ## Build a kernel with its own init
 
@@ -247,7 +247,7 @@ Init then flushes output and uses QEMU's debug-exit device. The wrapper requires
 
 ## Try it
 
-Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and 24 GiB of free host RAM for the guest. The README estimates about 80 minutes; its completed run took 1 h 38 min with `JOBS=2` and that guest memory (`forth-bootstrap/README.md:116`, `forth-bootstrap/README.md:164`). The wrapper defaults to that memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:26`).
+Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and 24 GiB of free host RAM for the guest. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:174`, `forth-bootstrap/README.md:231`). The wrapper defaults to that memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:26`).
 
 The command recreates the input and output images under `build-out/k1-direct-linux` and writes `serial.log` there. Preserve earlier results before starting; the output disk is replaced (`forth-bootstrap/kernel/k1/run-chain.sh:26`, `forth-bootstrap/kernel/k1/run-chain.sh:36`).
 
@@ -257,7 +257,7 @@ The command recreates the input and output images under `build-out/k1-direct-lin
 JOBS=2 kernel/k1/run-chain.sh --direct-linux
 ```
 
-Recorded output from the completed run of 2026-10-08 (`forth-bootstrap/README.md:156`), marker lines in order with the tool output between them omitted. Only the prefix of the K0 handover line is shown:
+Recorded output from the completed run of 2026-10-08 (`forth-bootstrap/README.md:223`), marker lines in order with the tool output between them omitted. Only the prefix of the K0 handover line is shown:
 
 ```text
 k0: K1 built by seed Forth

@@ -136,7 +136,7 @@ echo "plumbing-root: $ok successful execve calls ($hosts of them the host's bwra
 
 The host-entry counter recognizes the literal `/usr/bin/bwrap`. If bwrap is installed elsewhere, its successful path still appears in the trace, but this counter will miss it. Inspect the successful list rather than treating that count alone as the audit verdict.
 
-README records one run taking 18 minutes, with about 63,000 programs run and 2,581 distinct paths (`forth-bootstrap/README.md:162`). Those are recorded observations, not a duration or count promised for another machine. The launcher also returns the final entry's exit status after writing the summaries (`forth-bootstrap/chain/plumbing-root.sh:94`); trace completeness and build success both matter.
+README records one run taking 18 minutes, with about 63,000 programs run and 2,581 distinct paths (`forth-bootstrap/README.md:229`). Those are recorded observations, not a duration or count promised for another machine. The launcher also returns the final entry's exit status after writing the summaries (`forth-bootstrap/chain/plumbing-root.sh:94`); trace completeness and build success both matter.
 
 ## Bind the archive names to bytes
 
@@ -260,7 +260,7 @@ sha256sum -c MANIFEST.sha256
 sh chain/plumbing-root.sh
 ```
 
-Allow a sustained build: `check-all.sh` estimates about 40 minutes (`forth-bootstrap/check-all.sh:24`), while the README observation above records a shorter run. Inspect `build-out/plumbing-root.trace/execve-programs.txt` and `execve-failed.txt`, then resolve each unexplained success using the raw traces and its producing recipe. The report from Chapter 52 establishes the build result; the audit establishes which executable paths participated.
+Allow a sustained build: 18 minutes on a 24-thread host (`forth-bootstrap/check-all.sh:24`), longer with fewer. Inspect `build-out/plumbing-root.trace/execve-programs.txt` and `execve-failed.txt`, then resolve each unexplained success using the raw traces and its producing recipe. The report from Chapter 52 establishes the build result; the audit establishes which executable paths participated.
 
 ## Exercise
 

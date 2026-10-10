@@ -342,7 +342,7 @@ The report is written to `build-out/late/report.txt` by the default output path 
 
 ## Try it
 
-Run from the forth-bootstrap checkout root. Fetching verifies the pinned archives before use (`forth-bootstrap/tools/fetch-archives.py:2`). The full checkpoint requires those archives, bwrap, strace, and working user namespaces; the launcher executes the plumbing controller inside its prepared root (`forth-bootstrap/chain/plumbing-root.sh:60`). Allow a sustained build: the recorded host run took 18 minutes (`forth-bootstrap/README.md:162`). Chapter 53 audits that root and its execution traces.
+Run from the forth-bootstrap checkout root. Fetching verifies the pinned archives before use (`forth-bootstrap/tools/fetch-archives.py:2`). The full checkpoint requires those archives, bwrap, strace, and working user namespaces; the launcher executes the plumbing controller inside its prepared root (`forth-bootstrap/chain/plumbing-root.sh:60`). Allow a sustained build: the recorded host run took 18 minutes (`forth-bootstrap/README.md:229`). Chapter 53 audits that root and its execution traces.
 
 <!-- check-tryit: the scratch checkout lacks chain/, pinned archives, and build-out/; this sustained build also requires bwrap, strace, and user namespaces. -->
 <!-- tryit: skip -->
@@ -360,7 +360,7 @@ Stage 3 vs stage 4: 54 files, 0 differ.
 Stage 2 vs stage 3: 54 files, 0 differ.
 ```
 
-The recorded run likewise reports stage 2 = 3 = 4, with 54 files in each installation and no differences (`forth-bootstrap/README.md:162`). These counts describe that run, not a fixed size every configuration must produce.
+The recorded run likewise reports stage 2 = 3 = 4, with 54 files in each installation and no differences (`forth-bootstrap/README.md:229`). These counts describe that run, not a fixed size every configuration must produce.
 
 ## Exercise
 
