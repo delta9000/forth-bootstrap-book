@@ -87,20 +87,20 @@ The input handoff determines where this file belongs. Anything appended after it
 
 A star on the terminal checks the entry path. Stage-A parity asks a larger, precise question: does M2-Planet built by the Forth compiler emit byte-identical M1 output to M2-Planet built by GCC when both compile the same M2-Planet source set for amd64?
 
-The test constructs the comparison in `forth-bootstrap/tests/cc/stage-a-check.sh:43`:
+The test constructs the comparison in `forth-bootstrap/tests/cc/stage-a-check.sh:41`:
 
 - Build a fresh reference executable, `m2-ref`, using host GCC.
 - Build `cc-out-v1` by feeding the compiler vocabulary and an M2-Planet monolith to the seed.
 - Run both executables on the same source list with the same architecture and include-expansion options.
 - Compare `self-v1-amd64.M1` and `self-ref-amd64.M1` with `cmp`.
 
-The monolith builder prepares the C input and feeds it after the Forth vocabulary (`forth-bootstrap/tests/cc/build-m2planet-monolith.sh:72`). Stage A invokes that builder with `CC_OUT` pointing into its build directory. The builder tries a private `/tmp` and falls back to the shared `/tmp/cc-out` when namespaces are unavailable (`forth-bootstrap/tests/cc/build-m2planet-monolith.sh:43`). The checkpoint preserves that shared path around Stage A too.
+The monolith builder prepares the C input and feeds it after the Forth vocabulary (`forth-bootstrap/tests/cc/build-m2planet-monolith.sh:71`). Stage A invokes that builder with `CC_OUT` pointing into its build directory. The builder tries a private `/tmp` and falls back to the shared `/tmp/cc-out` when namespaces are unavailable (`forth-bootstrap/tests/cc/build-m2planet-monolith.sh:42`). The checkpoint preserves that shared path around Stage A too.
 
 The equality is between the emitted assembly files, not between `cc-out-v1` and `m2-ref`, whose machine code came from different compilers: Stage A proves that the Forth-built M2-Planet emits the same M1 as the GCC-built reference on this source set and these options. Assembling that M1, a self-hosting fixed point, a GCC-free route and correctness beyond the exercised paths are left to later tests; the script names host GCC as its reference dependency (`forth-bootstrap/tests/cc/stage-a-check.sh:4`).
 
 ## The wider chain
 
-A bootstrap chain is a sequence in which tools built from source provide the means to build the next tools. Stage A is a comparison alongside that construction, not the downstream route itself. The current route in `forth-bootstrap/README.md:14` proceeds through `seed-cc`, the build tools, GCC, and Linux; the README distinguishes the host and kernel runs in `forth-bootstrap/README.md:84`.
+A bootstrap chain is a sequence in which tools built from source provide the means to build the next tools. Stage A is a comparison alongside that construction, not the downstream route itself. The current route in `forth-bootstrap/README.md:14` proceeds through `seed-cc`, the build tools, GCC, and Linux; the README distinguishes the host and kernel runs in `forth-bootstrap/README.md:81`.
 
 Part 4 follows that route: Chapter 50 builds `seed-cc`, Chapter 51 builds the tools, and Chapter 52 follows GCC. Chapter 53 audits the sealed host run; Chapter 54 introduces K0 and K1; Chapter 55 carries the chain to Linux. Chapter 39 begins the compiler extensions needed before that route. Stage A closes the core compiler sequence without claiming those later results.
 

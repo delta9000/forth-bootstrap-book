@@ -8,7 +8,7 @@ A declaration context collects the base and declarator; a descriptor supplies si
 
 LP64 gives `char`, `short`, and `int` storage widths of one, two, and four bytes, while `long` and pointers occupy eight. An expression register can hold a wider value than the object from which it came. Layout therefore uses object size and alignment, not stack-cell width.
 
-Native mode first served the TinyCC route, which stayed in the older seed-forth project (`forth-bootstrap/HISTORY.md:14`); building TinyCC is not a step here. Chapter 41 supplies the System V AMD64 calling convention, and Chapter 43 supplies the later runtime.
+Chapter 41 supplies the System V AMD64 calling convention, and Chapter 43 supplies the later runtime.
 
 The declaration walker needs deep stack access, maximum selection, and record copying without tying those operations to a particular C type (`forth-bootstrap/cc/115-cc-native.fth:1`):
 
@@ -1486,7 +1486,7 @@ A kernel error must match the failure value expected by this boundary’s C call
 \ cc-native-syscall ( syscall-number argument-count -- )
 \ Linux returns -errno in rax. Portable libc tests fd == -1, so turn
 \ [-4095,-1] into -1. This bootstrap boundary does not maintain errno.
-\ Unlike seed-forth's earlier pnut boundary, an absent file therefore makes fopen fail
+\ An absent file therefore makes fopen fail
 \ cleanly rather than allocating a FILE containing a negative errno.
 : cc-native-syscall
   dup [lit] 0 > if, [lit] 8 [lit] 124 cc-native-sysarg then,

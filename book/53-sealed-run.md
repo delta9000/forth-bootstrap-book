@@ -136,7 +136,7 @@ echo "plumbing-root: $ok successful execve calls ($hosts of them the host's bwra
 
 The host-entry counter recognizes the literal `/usr/bin/bwrap`. If bwrap is installed elsewhere, its successful path still appears in the trace, but this counter will miss it. Inspect the successful list rather than treating that count alone as the audit verdict.
 
-README records one run taking 18 minutes, with about 63,000 programs run and 2,581 distinct paths (`forth-bootstrap/README.md:240`). Those are recorded observations, not a duration or count promised for another machine. The launcher also returns the final entry's exit status after writing the summaries (`forth-bootstrap/chain/plumbing-root.sh:94`); trace completeness and build success both matter.
+README records one run taking 18 minutes, with about 63,000 programs run and 2,581 distinct paths (`forth-bootstrap/README.md:237`). Those are recorded observations, not a duration or count promised for another machine. The launcher also returns the final entry's exit status after writing the summaries (`forth-bootstrap/chain/plumbing-root.sh:94`); trace completeness and build success both matter.
 
 ## Bind the archive names to bytes
 

@@ -967,7 +967,7 @@ The default columns and accessors come first (`forth-bootstrap/cc/090-cc-emit.ft
 
 ```forth file=cc/090-cc-emit.fth
 \ Capacity for deferred global-vaddr fixups (each use of a global's name
-\ is one).  M2-Planet's source has about 1,600, and so has pnut's.
+\ is one).  M2-Planet's source has about 1,600.
 [lit] 16384 constant cc-gfixup-default-cap
 variable cc-gfixup-limit
 cc-gfixup-default-cap cc-gfixup-limit !

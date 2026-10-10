@@ -124,8 +124,3 @@ for kernel entry and handoff, use [K0 and K1](54-k0-and-k1.md) and
   A source-bootstrap project for studying how a complete chain is assembled
   and made reproducible.
 
-- **[seed-forth](https://github.com/delta9000/seed-forth)**.
-  The earlier project retains routes discussed in
-  [Appendix C](57-historical-reproducibility.md) and the GCC continuation
-  discussed in the [epilogue](56-gcc-15-epilogue.md). Keep those historical
-  results distinct from the current forth-bootstrap route.

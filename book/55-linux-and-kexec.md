@@ -33,7 +33,7 @@ mkdir -p /usr
 [ -e /usr/bin ] || ln -s ../build-out/plumbing/bin /usr/bin
 ```
 
-That script checks the stage-D report before building the late tools, then removes source and build trees that the remaining route does not read (`forth-bootstrap/kernel/k1/direct-full.sh:29`). `stage10-direct.sh` replaces the plumbing links with directories containing the late tools and makes `/bin/sh` point to their bash (`forth-bootstrap/chain/ladder/stage10-direct.sh:12`). Thus later scripts' system paths still name programs built inside K1.
+That script checks the stage-D report before building the late tools, then removes source and build trees that the remaining route does not read (`forth-bootstrap/kernel/k1/direct-full.sh:29`). `stage10-direct.sh` replaces the plumbing links with directories containing the late tools and makes `/bin/sh` point to their bash (`forth-bootstrap/chain/ladder/stage10-direct.sh:11`). Thus later scripts' system paths still name programs built inside K1.
 
 ## Carry inputs, check bytes
 
@@ -58,7 +58,7 @@ def k1_tree(smoke, linux=False):
 
 `_files` rejects absent files and symlinks; it checks availability and file type, not their digests (`forth-bootstrap/kernel/k1/direct_inputs.py:404`). The host image writer copies this inventory onto hda, marking hex0-seed as the initial tree's only executable (`forth-bootstrap/kernel/k1/mkdisk.py:23`).
 
-Archive integrity is a separate check. The host prerequisite `tools/fetch-archives.py` accepts cached archives only when their SHA-256 matches the manifest and rejects downloaded bytes with the wrong digest (`forth-bootstrap/tools/fetch-archives.py:146`, `forth-bootstrap/tools/fetch-archives.py:181`). Within the compiler climb, `need` checks cached inputs against `chain/gcc64/SOURCES` before use (`forth-bootstrap/chain/gcc64/run-gcc64.sh:183`). Linux's build script uses `MANIFEST.sha256` instead. Its `unpack` function verifies the archive before extraction (`forth-bootstrap/chain/ladder/stage12.sh:27`):
+Archive integrity is a separate check. The host prerequisite `tools/fetch-archives.py` accepts cached archives only when their SHA-256 matches the manifest and rejects downloaded bytes with the wrong digest (`forth-bootstrap/tools/fetch-archives.py:146`, `forth-bootstrap/tools/fetch-archives.py:181`). Within the compiler climb, `need` checks cached inputs against `chain/gcc64/SOURCES` before use (`forth-bootstrap/chain/gcc64/run-gcc64.sh:182`). Linux's build script uses `MANIFEST.sha256` instead. Its `unpack` function verifies the archive before extraction (`forth-bootstrap/chain/ladder/stage12.sh:27`):
 
 ```text
 unpack() {
@@ -93,18 +93,18 @@ The stage names belong to gcc64's script; they are distinct from the ladder scri
 
 | Step | Builder → output | Source |
 |---|---|---|
-| Bridge | Direct GCC 4.0.4 → binutils 2.30 and GCC 4.0.4, named gcc-A | `forth-bootstrap/chain/gcc64/run-gcc64.sh:268` |
-| `stage6` | gcc-A → gcc-B; gcc-B → gcc-C; compare B with C | `forth-bootstrap/chain/gcc64/run-gcc64.sh:309` |
-| `stage7` | gcc-B → musl, GMP, MPFR and MPC; run their checks | `forth-bootstrap/chain/gcc64/run-gcc64.sh:331` |
-| `stage8` | gcc-B → GCC 4.7.4 with C and C++ | `forth-bootstrap/chain/gcc64/run-gcc64.sh:368` |
-| `stage9` | GCC 4.7.4 → binutils 2.41 | `forth-bootstrap/chain/gcc64/run-gcc64.sh:388` |
-| `stage10` | GCC 4.7.4 with binutils 2.41 → GCC 10.5.0 | `forth-bootstrap/chain/gcc64/run-gcc64.sh:405` |
+| Bridge | Direct GCC 4.0.4 → binutils 2.30 and GCC 4.0.4, named gcc-A | `forth-bootstrap/chain/gcc64/run-gcc64.sh:267` |
+| `stage6` | gcc-A → gcc-B; gcc-B → gcc-C; compare B with C | `forth-bootstrap/chain/gcc64/run-gcc64.sh:308` |
+| `stage7` | gcc-B → musl, GMP, MPFR and MPC; run their checks | `forth-bootstrap/chain/gcc64/run-gcc64.sh:330` |
+| `stage8` | gcc-B → GCC 4.7.4 with C and C++ | `forth-bootstrap/chain/gcc64/run-gcc64.sh:367` |
+| `stage9` | GCC 4.7.4 → binutils 2.41 | `forth-bootstrap/chain/gcc64/run-gcc64.sh:387` |
+| `stage10` | GCC 4.7.4 with binutils 2.41 → GCC 10.5.0 | `forth-bootstrap/chain/gcc64/run-gcc64.sh:404` |
 
-The final step explicitly selects the newer assembler and linker before invoking `build-gcc10.sh`; it also compiles and runs C and C++ test programs (`forth-bootstrap/chain/gcc64/run-gcc64.sh:410`). Those tests check behavior on their workloads. The B/C comparison checks repeatability of the selected rebuilt artifacts, rather than general compiler correctness (`forth-bootstrap/chain/gcc64/run-gcc64.sh:313`).
+The final step explicitly selects the newer assembler and linker before invoking `build-gcc10.sh`; it also compiles and runs C and C++ test programs (`forth-bootstrap/chain/gcc64/run-gcc64.sh:409`). Those tests check behavior on their workloads. The B/C comparison checks repeatability of the selected rebuilt artifacts, rather than general compiler correctness (`forth-bootstrap/chain/gcc64/run-gcc64.sh:312`).
 
 Output pins ask another question: did this run produce the recorded bytes? `chain/gcc64/HASHES` gives each artifact a digest and a scope. `any` applies regardless of the build root; `root` applies at its declared `/build-out/g64` because configured paths are embedded in the files (`forth-bootstrap/chain/gcc64/HASHES:2`).
 
-The comparison records actual hashes even when a path-dependent pin cannot be enforced, in `run-gcc64.sh` (`forth-bootstrap/chain/gcc64/run-gcc64.sh:432`):
+The comparison records actual hashes even when a path-dependent pin cannot be enforced, in `run-gcc64.sh` (`forth-bootstrap/chain/gcc64/run-gcc64.sh:431`):
 
 ```text
     root=$(sed -n 's/^root //p' "$GCC64/HASHES")
@@ -122,7 +122,7 @@ The comparison records actual hashes even when a path-dependent pin cannot be en
     done < "$GCC64/HASHES"
 ```
 
-A missing artifact is skipped, so a partial invocation cannot prove that the entire pin set exists. A mismatched comparable artifact fails unless the explicit repinning mode is enabled (`forth-bootstrap/chain/gcc64/run-gcc64.sh:445`). The recorded full guest run matched all 31 pins, as reported in the project results (`forth-bootstrap/README.md:242`). This proves agreement with that set of output digests. It does not cover every generated file, and it does not prove a boot.
+A missing artifact is skipped, so a partial invocation cannot prove that the entire pin set exists. A mismatched comparable artifact fails unless the explicit repinning mode is enabled (`forth-bootstrap/chain/gcc64/run-gcc64.sh:444`). The recorded full guest run matched all 31 pins, as reported in the project results (`forth-bootstrap/README.md:239`). This proves agreement with that set of output digests. It does not cover every generated file, and it does not prove a boot.
 
 ## Build a kernel with its own init
 
@@ -247,7 +247,7 @@ Init then flushes output and uses QEMU's debug-exit device. The wrapper requires
 
 ## Try it
 
-Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and 24 GiB of free host RAM for the guest. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:185`, `forth-bootstrap/README.md:242`). The wrapper defaults to that memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
+Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and 24 GiB of free host RAM for the guest. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:182`, `forth-bootstrap/README.md:239`). The wrapper defaults to that memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
 
 The command recreates the input and output images under `build-out/k1-direct-linux` and writes `serial.log` there. Preserve earlier results before starting; the output disk is replaced (`forth-bootstrap/kernel/k1/run-chain.sh:28`, `forth-bootstrap/kernel/k1/run-chain.sh:38`).
 
@@ -257,7 +257,7 @@ The command recreates the input and output images under `build-out/k1-direct-lin
 JOBS=2 kernel/k1/run-chain.sh --direct-linux
 ```
 
-Recorded output from the completed run of 2026-10-08 (`forth-bootstrap/README.md:234`), marker lines in order with the tool output between them omitted. Only the prefix of the K0 handover line is shown:
+Recorded output from the completed run of 2026-10-08 (`forth-bootstrap/README.md:231`), marker lines in order with the tool output between them omitted. Only the prefix of the K0 handover line is shown:
 
 ```text
 k0: K1 built by seed Forth

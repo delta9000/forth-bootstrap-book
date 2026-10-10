@@ -1,10 +1,10 @@
 # Chapter 56 — Epilogue: onward to GCC 15.2
 
-GCC 15.2.0 already stands at the end of a bootstrap route in [seed-forth](https://github.com/delta9000/seed-forth). The climb stayed in that older project when forth-bootstrap's direct route to Linux was extracted (`forth-bootstrap/HISTORY.md:23`). Bringing it across would produce a new guest checkpoint; the existing sources give us a concrete integration plan, not a command that works here.
+GCC 15.2.0 already stands at the end of a bootstrap route in [seed-forth](https://github.com/delta9000/seed-forth). The climb stayed in that older project when forth-bootstrap's direct route to Linux was extracted (`forth-bootstrap/HISTORY.md:28`). Bringing it across would produce a new guest checkpoint; the existing sources give us a concrete integration plan, not a command that works here.
 
 ## The route that stayed behind
 
-The scripts have different shapes. Seed-forth's default stage list runs from `stage0` through `stage12`; forth-bootstrap selects `bridge`, then `stage6` through `stage10` (seed-forth's `gcc64/run-gcc64.sh:687`; `forth-bootstrap/chain/gcc64/run-gcc64.sh:453`). Seed-forth reaches gcc-A through TinyCC, musl and binutils (`forth-bootstrap/HISTORY.md:23`). Forth-bootstrap reaches it from the direct GCC 4.0.4 of Chapter 52, through the bridge stage of Chapter 55 (`forth-bootstrap/chain/gcc64/run-gcc64.sh:268`).
+The scripts have different shapes. Seed-forth's default stage list runs from `stage0` through `stage12`; forth-bootstrap selects `bridge`, then `stage6` through `stage10` (seed-forth's `gcc64/run-gcc64.sh:687`; `forth-bootstrap/chain/gcc64/run-gcc64.sh:452`). Seed-forth reaches gcc-A through TinyCC, musl and binutils (`forth-bootstrap/HISTORY.md:28`). Forth-bootstrap reaches it from the direct GCC 4.0.4 of Chapter 52, through the bridge stage of Chapter 55 (`forth-bootstrap/chain/gcc64/run-gcc64.sh:267`).
 
 That distinction must survive an extension: importing the final compiler build does not require changing the route's beginning.
 

@@ -16,9 +16,7 @@ cc-in-buf → region walker → cc-src-buf
 
 The recurring operation is *save-switch-restore*: suspend a region or sink,
 process nested text, then resume its caller. The code retains legacy and
-direct preprocessing policies. The TinyCC route and stage0-posix handoff
-remained in the older project (`forth-bootstrap/HISTORY.md:14`); their
-historical presence does not make them steps in the current route.
+direct preprocessing policies.
 
 The header names the supported directives (`forth-bootstrap/cc/040-cc-prep.fth:1`):
 

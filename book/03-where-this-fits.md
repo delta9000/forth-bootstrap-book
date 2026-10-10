@@ -36,7 +36,7 @@ its product. They occupy different places in the dependency chain.
 ## How the route changed
 
 forth-bootstrap began as route D of the older **seed-forth project**, then
-moved into its own repository (`forth-bootstrap/README.md:254`). Distinguish
+moved into its own repository (`forth-bootstrap/HISTORY.md:3`). Distinguish
 that project name from the executable named `seed-forth`, which remains in
 this checkout (`forth-bootstrap/README.md:16`).
 
@@ -44,7 +44,7 @@ The older project explored several onward routes. Its history records a
 route to self-hosted M2-Planet and a handoff into stage0-posix's recipes;
 it also records direct TinyCC and pnut routes. Those routes stayed in the
 older project when forth-bootstrap split off
-(`forth-bootstrap/HISTORY.md:14–29`). Read their reproducibility account as
+(`forth-bootstrap/HISTORY.md:19–29`). Read their reproducibility account as
 history in Appendix C, rather than as the operating instructions for this
 checkout.
 
@@ -67,7 +67,7 @@ M2-Planet still has a role here as a comparison target. Stage A compares
 assembly emitted by a Forth-built M2-Planet with assembly emitted by a
 GCC-built reference on the same M2-Planet source. The script compares those
 outputs, not the compiler executables themselves
-(`forth-bootstrap/tests/cc/stage-a-check.sh:59–76`). Chapter 38 returns to
+(`forth-bootstrap/tests/cc/stage-a-check.sh:57–76`). Chapter 38 returns to
 that check. Agreement on this input is a bounded result, not a claim about
 every C program. The history explains the names; from Chapter 4 on, the
 book reads the machinery itself.

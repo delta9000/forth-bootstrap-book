@@ -30,7 +30,7 @@ note "stage D"
 
 `chain.sh` stops after Stage D; the late tools at the end of this chapter run from the K1 route.
 
-GCC's `cc1` is the compiler proper: it translates C into assembly. The driver coordinates that translation with assembly and linking. Before either can build a replacement compiler, GCC's assembly output needs an assembler, and its objects need a linker. The seed-built binutils supplies that boundary; Stage C checks its tools against the Stage B report before copying them into its toolchain directory (`forth-bootstrap/chain/gcc-direct/stage-c.sh:111`).
+GCC's `cc1` is the compiler proper: it translates C into assembly. The driver coordinates that translation with assembly and linking. Before either can build a replacement compiler, GCC's assembly output needs an assembler, and its objects need a linker. The seed-built binutils supplies that boundary; Stage C checks its tools against the Stage B report before copying them into its toolchain directory (`forth-bootstrap/chain/gcc-direct/stage-c.sh:110`).
 
 Binutils uses the pinned source and regenerates its shipped parsers and scanners, so the build depends on the chain's generators rather than accepting generated C from the release (`forth-bootstrap/chain/gcc-direct/binutils.sh:65`):
 
@@ -133,7 +133,7 @@ The configured seed-cc performs this link with its Forth linker, using the estab
 
 ## Cross from the builder's runtime to the target runtime
 
-Stage C installs musl's headers before configuring GCC. The headers describe the target environment even though seed-cc builds the compiler executable. GCC configuration receives both the binutils directory and a sysroot, the directory tree containing its target headers and libraries (`forth-bootstrap/chain/gcc-direct/stage-c.sh:158`):
+Stage C installs musl's headers before configuring GCC. The headers describe the target environment even though seed-cc builds the compiler executable. GCC configuration receives both the binutils directory and a sysroot, the directory tree containing its target headers and libraries (`forth-bootstrap/chain/gcc-direct/stage-c.sh:157`):
 
 ```sh
 step_headers() {
@@ -156,11 +156,11 @@ step_configure() {
   done
 ```
 
-The input step unpacks GCC 4.0.4 and musl 1.1.24, applies the checked alloca adapter, and patches collect2 (`forth-bootstrap/chain/gcc-direct/stage-c.sh:127`). The adapter checks the source and patch hashes before application and the result afterward (`forth-bootstrap/chain/gcc-direct/stage-c.sh:144`). The collect2 correction prevents a failed link probe using `/dev/null` as its output from unlinking that device (`forth-bootstrap/chain/gcc-direct/stage-c.sh:132`).
+The input step unpacks GCC 4.0.4 and musl 1.1.24, applies the checked alloca adapter, and patches collect2 (`forth-bootstrap/chain/gcc-direct/stage-c.sh:126`). The adapter checks the source and patch hashes before application and the result afterward (`forth-bootstrap/chain/gcc-direct/stage-c.sh:143`). The collect2 correction prevents a failed link probe using `/dev/null` as its output from unlinking that device (`forth-bootstrap/chain/gcc-direct/stage-c.sh:131`).
 
-After the census links `cc1`, GCC's Makefile builds `xgcc`, `cpp`, `collect2`, and `specs` (`forth-bootstrap/chain/gcc-direct/stage-c.sh:179`). `xgcc` is the build-tree driver. The next compilation changes builder: libgcc is compiled by this GCC, rather than seed-cc. Libgcc supplies target support routines that generated code calls when an operation needs a helper.
+After the census links `cc1`, GCC's Makefile builds `xgcc`, `cpp`, `collect2`, and `specs` (`forth-bootstrap/chain/gcc-direct/stage-c.sh:178`). `xgcc` is the build-tree driver. The next compilation changes builder: libgcc is compiled by this GCC, rather than seed-cc. Libgcc supplies target support routines that generated code calls when an operation needs a helper.
 
-Recursive target-library builds discard command-line overrides. Stage C therefore creates the combined-tree library links and binutils links that the Makefile's defaults expect (`forth-bootstrap/chain/gcc-direct/stage-c.sh:196`). Its target archiver must handle the GNU assembler's objects. The target-library request and recorded products are explicit (`forth-bootstrap/chain/gcc-direct/stage-c.sh:218`):
+Recursive target-library builds discard command-line overrides. Stage C therefore creates the combined-tree library links and binutils links that the Makefile's defaults expect (`forth-bootstrap/chain/gcc-direct/stage-c.sh:195`). Its target archiver must handle the GNU assembler's objects. The target-library request and recorded products are explicit (`forth-bootstrap/chain/gcc-direct/stage-c.sh:217`):
 
 ```sh
   (target_env; cd "$gcc_build" && run "$out/libgcc.log" make -j "$jobs" $OVERRIDES stmp-multilib)
@@ -170,9 +170,9 @@ Recursive target-library builds discard command-line overrides. Stage C therefor
 }
 ```
 
-Fixincludes is disabled and `gsyslimits.h` supplies `syslimits.h`; musl's headers do not need rewriting (`forth-bootstrap/chain/gcc-direct/stage-c.sh:190`). The install step then installs GCC before musl uses it (`forth-bootstrap/chain/gcc-direct/stage-c.sh:224`).
+Fixincludes is disabled and `gsyslimits.h` supplies `syslimits.h`; musl's headers do not need rewriting (`forth-bootstrap/chain/gcc-direct/stage-c.sh:189`). The install step then installs GCC before musl uses it (`forth-bootstrap/chain/gcc-direct/stage-c.sh:223`).
 
-Musl's own configure and Makefile build the target C library with the installed GCC, then place it in the sysroot (`forth-bootstrap/chain/gcc-direct/stage-c.sh:232`):
+Musl's own configure and Makefile build the target C library with the installed GCC, then place it in the sysroot (`forth-bootstrap/chain/gcc-direct/stage-c.sh:231`):
 
 ```sh
 step_musl() {
@@ -193,7 +193,7 @@ step_musl() {
 
 The compiler executable uses the builder's runtime; the programs it emits use the target runtime selected through the sysroot. That distinction breaks the apparent cycle: headers can be installed before libc is compiled.
 
-Stage C's final check compiles and statically links `stage-c-hello.c` with the installed GCC, runs it, compares stdout with its expected file, and requires `nm` to find libgcc's `__divti3` (`forth-bootstrap/chain/gcc-direct/stage-c.sh:247`). Those checks exercise the output path across GCC, binutils, libgcc, and musl.
+Stage C's final check compiles and statically links `stage-c-hello.c` with the installed GCC, runs it, compares stdout with its expected file, and requires `nm` to find libgcc's `__divti3` (`forth-bootstrap/chain/gcc-direct/stage-c.sh:246`). Those checks exercise the output path across GCC, binutils, libgcc, and musl.
 
 ## Rebuild across the compiler boundary
 
@@ -295,7 +295,7 @@ This is narrower than raw archive equality and stronger than comparing an unorde
 
 The demonstrated late-tools run belongs to K1. Its full-route script checks the Stage D verdict before invoking `late-tools.sh` (`forth-bootstrap/kernel/k1/direct-full.sh:28`). The recipe used by `kernel/k1/run-chain.sh --direct-linux` executes that script under K1 (`forth-bootstrap/kernel/k1/direct-linux.recipe:1`). Chapters 54 and 55 build that environment.
 
-Late tools use the Stage D `prefix` compiler with Stage C's binutils and musl. Plumbing programs stay first in the search path; newly installed programs fill capabilities absent from the plumbing set (`forth-bootstrap/chain/gcc-direct/late-tools.sh:46`):
+Late tools use the Stage D `prefix` compiler with Stage C's binutils and musl. Plumbing programs stay first in the search path; newly installed programs fill capabilities absent from the plumbing set (`forth-bootstrap/chain/gcc-direct/late-tools.sh:45`):
 
 ```sh
 P=$out/usr
@@ -308,20 +308,20 @@ require_tool as "$TOOLS/as"
 PATH=$BIN:$TOOLS:$P/bin
 ```
 
-Configure always runs under the plumbing bash. When `/bin/sh` is that bash, as it is under K1, the script names it `/bin/sh`, so installed scripts such as `zgrep` start with `#!/bin/sh` rather than a path into `build-out/plumbing` (`forth-bootstrap/chain/gcc-direct/late-tools.sh:58`).
+Configure always runs under the plumbing bash. When `/bin/sh` is that bash, as it is under K1, the script names it `/bin/sh`, so installed scripts such as `zgrep` start with `#!/bin/sh` rather than a path into `build-out/plumbing` (`forth-bootstrap/chain/gcc-direct/late-tools.sh:57`).
 
-Building a new make or bash does not immediately replace the tools interpreting this build. The initial bash and make continue to run the package builds, with static linking and the fixed-point compiler selected in the environment (`forth-bootstrap/chain/gcc-direct/late-tools.sh:63`).
+Building a new make or bash does not immediately replace the tools interpreting this build. The initial bash and make continue to run the package builds, with static linking and the fixed-point compiler selected in the environment (`forth-bootstrap/chain/gcc-direct/late-tools.sh:62`).
 
 The package sequence is recorded directly in the recipe:
 
 | Inputs, in recipe order | Result | Source |
 |---|---|---|
-| make 4.4.1, sed 4.9, grep 3.11, gzip 1.13, xz 5.6.3 | build, text, and decompression tools | `forth-bootstrap/chain/gcc-direct/late-tools.sh:170` |
-| bzip2 1.0.8 | compressor built with its own Makefile | `forth-bootstrap/chain/gcc-direct/late-tools.sh:175` |
-| tar 1.35, gawk 5.3.1, patch 2.7.6, coreutils 9.5, bash 5.2.37 | archive, text, file, and shell tools | `forth-bootstrap/chain/gcc-direct/late-tools.sh:188` |
-| diffutils 3.10, findutils 4.10.0, m4 1.4.19, bison 3.8.2, flex 2.6.4, bc 1.07.1 | comparison, search, macro, parser, scanner, and calculation tools | `forth-bootstrap/chain/gcc-direct/late-tools.sh:193` |
+| make 4.4.1, sed 4.9, grep 3.11, gzip 1.13, xz 5.6.3 | build, text, and decompression tools | `forth-bootstrap/chain/gcc-direct/late-tools.sh:168` |
+| bzip2 1.0.8 | compressor built with its own Makefile | `forth-bootstrap/chain/gcc-direct/late-tools.sh:173` |
+| tar 1.35, gawk 5.3.1, patch 2.7.6, coreutils 9.5, bash 5.2.37 | archive, text, file, and shell tools | `forth-bootstrap/chain/gcc-direct/late-tools.sh:186` |
+| diffutils 3.10, findutils 4.10.0, m4 1.4.19, bison 3.8.2, flex 2.6.4, bc 1.07.1 | comparison, search, macro, parser, scanner, and calculation tools | `forth-bootstrap/chain/gcc-direct/late-tools.sh:191` |
 
-Each GNU package runs its own configure, followed by make and install; bzip2 is the explicit make-only exception. Package-specific configure arguments disable optional dependencies and choose supported features (`forth-bootstrap/chain/gcc-direct/late-tools.sh:117`). The common build path records each command and its output (`forth-bootstrap/chain/gcc-direct/late-tools.sh:152`):
+Each GNU package runs its own configure, followed by make and install; bzip2 is the explicit make-only exception. Package-specific configure arguments disable optional dependencies and choose supported features (`forth-bootstrap/chain/gcc-direct/late-tools.sh:115`). The common build path records each command and its output (`forth-bootstrap/chain/gcc-direct/late-tools.sh:150`):
 
 ```sh
   t0=$(date +%s)
@@ -338,11 +338,11 @@ Each GNU package runs its own configure, followed by make and install; bzip2 is 
   fi
 ```
 
-The report is written to `build-out/late/report.txt` by the default output path and report writer (`forth-bootstrap/chain/gcc-direct/late-tools.sh:200`). K1's finish script includes that report and the late-tools logs in the archive written to the output disk (`forth-bootstrap/chain/ladder/finish.sh:7`). A host-side late-tools checkpoint remains open.
+The report is written to `build-out/late/report.txt` by the default output path and report writer (`forth-bootstrap/chain/gcc-direct/late-tools.sh:198`). K1's finish script includes that report and the late-tools logs in the archive written to the output disk (`forth-bootstrap/chain/ladder/finish.sh:7`). A host-side late-tools checkpoint remains open.
 
 ## Try it
 
-Run from the forth-bootstrap checkout root. Fetching verifies the pinned archives before use (`forth-bootstrap/tools/fetch-archives.py:2`). The full checkpoint requires those archives, bwrap, strace, and working user namespaces; the launcher executes the plumbing controller inside its prepared root (`forth-bootstrap/chain/plumbing-root.sh:60`). Allow a sustained build: the recorded host run took 18 minutes (`forth-bootstrap/README.md:240`). Chapter 53 audits that root and its execution traces.
+Run from the forth-bootstrap checkout root. Fetching verifies the pinned archives before use (`forth-bootstrap/tools/fetch-archives.py:2`). The full checkpoint requires those archives, bwrap, strace, and working user namespaces; the launcher executes the plumbing controller inside its prepared root (`forth-bootstrap/chain/plumbing-root.sh:60`). Allow a sustained build: the recorded host run took 18 minutes (`forth-bootstrap/README.md:237`). Chapter 53 audits that root and its execution traces.
 
 <!-- check-tryit: the scratch checkout lacks chain/, pinned archives, and build-out/; this sustained build also requires bwrap, strace, and user namespaces. -->
 <!-- tryit: skip -->
@@ -360,7 +360,7 @@ Stage 3 vs stage 4: 54 files, 0 differ.
 Stage 2 vs stage 3: 54 files, 0 differ.
 ```
 
-The recorded run likewise reports stage 2 = 3 = 4, with 54 files in each installation and no differences (`forth-bootstrap/README.md:240`). These counts describe that run, not a fixed size every configuration must produce.
+The recorded run likewise reports stage 2 = 3 = 4, with 54 files in each installation and no differences (`forth-bootstrap/README.md:237`). These counts describe that run, not a fixed size every configuration must produce.
 
 ## Exercise
 

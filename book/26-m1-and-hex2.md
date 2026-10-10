@@ -35,7 +35,7 @@ The header states the supported input language and its exclusions in
 ```forth file=forth/130-asm.fth
 \ 130-asm.fth — M1 + hex2 assembler / linker in Forth.
 \
-\ Closes the bootstrap gap below seed-forth's C compiler: consumes the
+\ Closes the bootstrap gap below the Forth C compiler: consumes the
 \ M1 macro syntax that M2-Planet emits and produces ELF bytes directly,
 \ removing the need to trust GCC-built mescc-tools (M1, hex2).  Stage0-
 \ posix's M1+hex2 stays in the picture as an independent byte-level
