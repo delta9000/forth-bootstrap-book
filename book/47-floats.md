@@ -1,6 +1,6 @@
 # Chapter 47 — Floating values and exact literals
 
-`double sum(void)` can add decimal literals and return their rounded sum. Storage alone cannot give those bits floating arithmetic or choose their return register: the compiler needs type-directed SSE operations and an exact decimal decoder. The result is executable floating expressions with correctly rounded literal bits.
+`double sum(void)` can add decimal literals and return their rounded sum. This chapter adds type-directed SSE operations that compute with those bits and return them in the right register, and an exact decimal decoder that produces them. The result is executable floating expressions with correctly rounded literal bits.
 
 ## Keep the payload, preserve the type
 
@@ -383,6 +383,8 @@ The remaining hooks distinguish payload operations from integer-only operations 
 ```
 
 ## Build literal bits without floating arithmetic
+
+The seed and the Forth layers have no floating-point words, and the decoder uses only integer Forth operations (`forth-bootstrap/cc/128-cc-float-literal.fth:2`). The bits of a literal therefore never depend on the host's FPU or C library: every machine produces the same encoding, as a reproducible bootstrap requires. The decoder does exact integer arithmetic and rounds once.
 
 The literal `0.1` becomes an exact integer ratio, then rounds once to the requested format. The returned cell is either a scalar encoding or an address for an extended constant; Chapter 49 owns extended runtime operations (`forth-bootstrap/cc/128-cc-float-literal.fth:1`):
 ```forth file=cc/128-cc-float-literal.fth
