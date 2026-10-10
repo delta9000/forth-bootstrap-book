@@ -10,7 +10,7 @@ Prerequisites: [44 — Target headers](44-target-headers.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [41-direct-gcc-constants.md](../41-direct-gcc-constants.md) — Reuse the source walkthrough: Evaluate typed integer expressions with checked arithmetic.
+Reuses: [41-direct-gcc-constants.md](../45-typed-constants.md) — Reuse the source walkthrough: Evaluate typed integer expressions with checked arithmetic.
 
 TODO:
 

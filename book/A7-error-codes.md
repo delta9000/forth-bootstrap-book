@@ -297,11 +297,11 @@ A floating operand of `%`, a shift or a bitwise operator is 240. Binary32 and
 binary64 constant division by zero is 124; a result too large for either
 format is 248 with the `cc-f64-literal: overflow` reason. Extended constants
 instead produce infinity or a canonical quiet NaN
-([chapter 41](41-direct-gcc-constants.md) §5). Under LP64, 240 also rejects a malformed integer suffix, such as
+([chapter 41](45-typed-constants.md) §5). Under LP64, 240 also rejects a malformed integer suffix, such as
 `1LLL`, `1lL`, `1LUL` or `1uu`, in every context: runtime expressions, constant
 expressions and `#if` lines all read suffixes through `cc-integer-suffix` in
 `060-cc-types.fth`. Integer division by zero retains 124. Constant evaluation never executes
-generated target code; see [chapter 41](41-direct-gcc-constants.md).
+generated target code; see [chapter 41](45-typed-constants.md).
 
 The variadic parser prints a `varargs: ` prefix before the usual compiler
 diagnostic. Code 246 means an invalid intrinsic invocation or a list whose

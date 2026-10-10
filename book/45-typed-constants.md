@@ -1,235 +1,10 @@
-# 41. Typed constants without executing target code
+# Chapter 45 — Typed constants
 
-## Goal
+`static long x = sizeof(long) * 3 + (1 << 4);` asks the compiler to calculate a value before the program runs. The static-expression hook still rejects that request; a typed evaluator supplies the missing value while preserving C conversions at each operator. Its result becomes either initializer bytes or a symbolic address for the linker.
 
-Evaluate LP64 integer constant expressions in Forth, preserving their C types
-until the consuming declaration performs its final conversion. The same parser
-can carry one symbolic address into a relocatable static initializer, and it
-folds binary32 and binary64 arithmetic constants bit-exactly. Neither path runs
-generated target code or calls a host compiler for production work.
+## A value carries its type
 
-**Source coverage:** `125-cc-consteval.fth`, whose canonical source appears
-below. Its deferred entry points live with the original expression parser in
-chapter 28; the object adapter supplies address leaves from chapter 36.
-
-**Concepts carried in:** the operator table and constant grammar from
-[chapter 28](34-expressions-part-2.md), LP64 types and unevaluated `sizeof` from
-[chapter 34](34-direct-tinycc.md), and the scalar target from
-[chapter 36](41-system-v-calls.md).
-
-**Concepts introduced:** value/type pairs, conversions at every operator,
-checked signed arithmetic, symbolic addends, side-effect-free dead arms, and
-floating records whose value cell is an IEEE encoding.
-
-**Deferred:** binary32/binary64 overflow and division-by-zero constant results,
-arbitrary link-time expressions, multiple symbols in one relocation, pointer
-comparisons, comma expressions, and the remaining work required to reconstruct
-GCC itself.
-
-## 1. A value alone is insufficient
-
-For the old compiler, a constant was one Forth cell. Under LP64,
-`0xffffffffU + 2U` must become one before it participates in a later operation.
-Keeping the mathematical result until a declaration stores it is incorrect:
-`(0xffffffffU + 2U) > 2U` would then choose the wrong branch. A signed `long`
-and an unsigned `long` also occupy identical cells but divide and compare
-differently when their top bit is set.
-
-We reuse the compiler's literal classification, integer promotions, and usual
-arithmetic conversion rules. Every binary operation converts its operands to
-the common type, evaluates, then normalizes the result to that type. Shifts
-instead use the promoted left operand's type. Relational, equality, and logical
-operators produce `int`; `sizeof` produces the target's unsigned `size_t`.
-Floating type names are valid inside `sizeof`: `float`, `double`, and
-`long double` occupy four, eight, and sixteen bytes; their pointers occupy
-eight bytes. Floating values are a separate record kind, described in §5.
-Array typedefs retain their full shape in `sizeof`; a cast to an array typedef
-is rejected before its operand is evaluated. `long long` and
-`unsigned long long` have the width and signedness of `long`, but rank
-above it: `1L + 1LL` is `long long` and `-1LL < 1UL` compares as
-`unsigned long long`. An `LL` suffix makes a literal `long long`, or
-`unsigned long long` with `U` or when its value needs bit 63. Decimal
-literals beyond signed `long` retain the documented unsigned extension,
-provided the value fits in an unsigned machine word.
-
-The lexer preserves a numeric token's spelling while accumulating its value
-modulo the machine word. The typed evaluator checks that spelling again. It
-rejects a value beyond the unsigned range, malformed suffixes, invalid octal
-digits, and malformed spellings before an integer prefix can become a result;
-a floating spelling arrives as its own token kind (§5).
-Suffixes are read by Ch 24's `cc-integer-suffix`, the same parser that types
-every LP64 literal, so `1LLL`, `1lL`, `1LUL` and `1uu` are 240 in a runtime
-expression or an `#if` line just as they are here. The legacy target's lexer
-and constant evaluator keep their original behavior.
-
-## 2. Keep the numeric boundary explicit
-
-`cc-parse-integer-const` returns `( value type )`. It parses a conditional
-expression and leaves the following delimiter pending, so array bounds, enum
-values, and case labels retain the existing parser contract. The target opts
-in through the deferred `cc-parse-const` entry; preprocessing and the existing
-native/TinyCC route still use `cc-parse-const-default`.
-
-Narrow signed values are sign-extended into the Forth cell. Narrow unsigned
-values are zero-extended. This representation lets signed division retain C's
-truncation toward zero while unsigned division uses the seed's division
-primitive directly. Full-range comparison checks the operands' sign bits
-before subtraction; the simpler comparison word used for compiler offsets
-cannot safely compare all possible constant values.
-
-Division by zero reports error 124. Invalid shift counts, negative or at
-least the promoted left operand's width, report 241. Signed addition,
-subtraction, multiplication, negation and division overflow report 242. A
-left shift by a valid count keeps the low bits as two's complement, even for
-a negative or overflowing signed operand: C leaves that undefined, but GCC
-folds it this way, and code relies on it. Coreutils computes the smallest
-value of a signed type as `~(t)0 << (sizeof (t) * CHAR_BIT - 1)`, so
-`static long x = -1L << 3;` is -8 and `case (-1 << 2):` is -4. Unsupported value forms and literal spellings
-report 240. These are target diagnostics, rather than substituted zero values.
-Unsigned arithmetic continues to wrap at the declared width. Conversion to
-`_Bool` keeps only whether the value is nonzero (`cc-const-convert`); a
-floating value converts to 1 unless all its bits but the sign are zero
-(`cc-const-float-bool`), and static `_Bool` leaves take the same
-conversion (`cc-const-initial`), so `static _Bool b = 256, h = 0.5;`
-stores 1 and 1.
-
-## 3. Carry an address without knowing its final location
-
-`cc-parse-static-const` returns `( value type descriptor symbol )`. A zero
-symbol denotes an absolute value. A nonzero symbol identifies an object or
-function, and the value becomes its relocation addend. The descriptor supplies
-aggregate element sizes and function-pointer type metadata.
-
-Three deferred callbacks supply leaves: `cc-const-ident-fwd` handles a current
-non-enum identifier, `cc-const-address-fwd` parses the operand after unary `&`,
-and `cc-const-string-fwd` handles a current string literal. Each returns the
-same four cells. Their defaults reject; the object adapter installs callbacks
-that know its stable symbol records and read-only data allocation. The parser
-itself neither allocates object bytes nor publishes relocations.
-
-Adding an integer to a pointer scales it by the pointed-to element size.
-Casting a symbolic pointer to `long` preserves its symbol but changes later
-addition to byte arithmetic. Casts to pointer-sized integer or pointer types
-preserve the relocation; narrowing a symbolic value rejects. Two-symbol
-arithmetic, pointer comparison, and multiplication of a symbolic value also
-reject because one ELF address relocation cannot represent those expressions.
-Pointer conditionals currently accept matching types and descriptors or an
-integer null arm. Other pointer combinations remain an explicit boundary.
-
-The object adapter keeps an address operand's value category alongside its
-type. Parenthesized objects remain lvalues; a cast produces a constant pointer
-value. Member selection, array subscripts, and explicit dereference can then
-calculate an address from static storage or from that constant pointer without
-loading target memory. Nested records and scalar array elements add their byte
-offsets to the same symbol. A pointer object such as `global_pointer` cannot be
-loaded to evaluate `&global_pointer->member`; that form rejects even if the
-object has an initializer. Taking a bitfield's address also rejects.
-
-The direct target accepts the traditional null-base `offsetof` spelling as a
-compile-time extension: `(size_t)&(((struct S *)0)->member)` adds the member's
-layout offset to zero. This is compiler arithmetic, never a target null-pointer
-dereference. The runtime header keeps its original macro, and GCC's unchanged
-`rtl.c` can use it when initializing the `rtx_size` table. Constant pointer
-subscripting scales by element size; casting the completed address to an integer
-changes subsequent addition to byte arithmetic, just as for symbolic addresses.
-
-This grammar remains bounded. It accepts parenthesized lvalues, typed constant
-pointer bases, `*`, `.`, `->`, and scalar-element subscripts. It rejects value
-loads, calls, assignments, address-of-array results whose pointer shape is not
-represented, and incompatible member bases. Known arrays retain their bounds
-check; pointers carry no inferred allocation bound. The integer-index callback
-inherits the enclosing dead-arm state, so a discarded subscript such as `1/0`
-is parsed without evaluating the division. Nested address frames restore their
-parent, and the enclosing public constant parse restores all temporary records.
-`tests/gcc/constant-address-check.py` checks these boundaries against independent
-GCC objects and executions, preserves legacy/native output bytes, and can replay
-the retained original `rtl.c` Makefile invocation.
-
-Internally, the parser uses four-cell records in a bounded private pool.
-Combining an expression overwrites its left record. Each public call restores
-the pool's previous watermark after returning its cells, including recursive
-array-bound evaluation inside `sizeof`. The pool is compile-time workspace;
-it creates no lasting allocation in the compiler arena or output object.
-
-## 4. Parse dead arms while suppressing their effects
-
-Both arms of a conditional must be parsed to determine its result type. The
-unselected arm sets `cc-cx-skip`, as does the right operand of a short-circuited
-logical operator. Arithmetic is then skipped while tokens and types continue
-to be checked. Thus `1 ? -1 : 1U` has an unsigned result, and
-`1 || (1 / 0)` completes without attempting division.
-
-Leaf callbacks inspect the same flag. They must preserve type information
-while avoiding observable object allocation or relocation publication for a
-dead string or address. The tests install isolated callbacks and count string
-allocations, independently of the object adapter's own tests. `sizeof` uses
-the existing unevaluated expression parser and discards its temporary emitted
-bytes; it never executes them.
-
-## 5. Floating constants are exact records
-
-GNU make 3.82 declares `double max_load_average = -1.0;` at file scope, and
-older GNU tools go further: tables of doubles, scaled constants, and integer
-objects initialized from floating expressions. C treats all of these as
-arithmetic constant expressions, folded once with round to nearest, ties to
-even. Generated code cannot help, because an object-file `.data` section has
-no code to run. The compiler must produce the IEEE bytes itself.
-
-A floating record keeps the type `float` or `double` and holds the encoding
-in its value cell: binary64 uses all 64 bits, binary32 the low 32.
-`cc-const-float?` recognizes these types only on the System V target, so the
-legacy and native constant paths cannot meet one. A long double constant
-keeps `ty-ldouble` internally and carries the address of an exact extended
-encoding. Ch 48 adapts this to the runtime opaque-object representation.
-
-The record operations are bit-level and short. Unary minus flips only the sign
-bit, so `-0.0` has the sign set and `-(-0.0)` is `+0.0`. Truth tests ignore the
-sign: both zeros are false for `!`, `&&`, `||` and `?:`, which all go through
-`cc-const-truth` and `cc-const-boolean`. Comparisons map an encoding to an
-ordered integer key, with a negative value's magnitude negated; the two zeros
-share key zero, so `-0.0 == 0.0`. Each comparison yields `int`.
-
-Everything that needs rounding goes through five hooks that Ch 46's layer
-fills in: `cc-fp-decimal-fwd` decodes a spelling, `cc-fp-integer-fwd` converts
-an integer, `cc-fp-resize-fwd` changes width, `cc-fp-arith-fwd` applies `+`,
-`-`, `*` or `/`, and `cc-fp-truncate-fwd` truncates toward zero. A format is
-the byte size, four, eight or sixteen. `cc-const-change` is the one conversion word:
-integer to floating rounds once; floating to integer truncates, then checks the
-destination's range with the full-width unsigned comparison of §2. A result that
-does not fit, such as `int i = 1e10;` or `unsigned u = -1.0;`, is error 242.
-Integer to integer still narrows through `cc-const-convert`.
-
-`cc-const-float-binary` applies C's usual arithmetic conversions: either
-operand `long double` makes the operation extended precision; otherwise either
-`double` operand selects `double`, and the remaining floating case is `float`.
-An integer operand converts to the selected type first. Only the four arithmetic operators
-and the six comparisons accept a floating operand; `%`, shifts and bitwise
-operators reject with 240, as does a floating operand with a symbol. In binary32
-and binary64, a zero divisor, including `-0.0`, is error 124. A result too large for its format
-reports Ch 46's `overflow`, error 248, rather than producing an infinity. Extended constants instead produce
-infinity or a canonical quiet NaN for overflow and invalid arithmetic (Ch 48). Dead
-arms skip the arithmetic, so `0 ? 1.0 / 0 : 2.0` folds to `2.0`.
-
-Casts and conditionals reuse `cc-const-change`, so `(double)3`, `(int)2.7`
-and `1.0 ? 2 : 3.5` behave as at run time. The integer API stays an integer
-API: `cc-parse-integer-const` still rejects a floating result, but a floating
-operand inside a cast is fine, so `int a[(int)2.5];` declares two elements.
-
-The object adapter (Ch 36) asks `cc-om-value-fwd` to convert each static
-scalar leaf. `cc-const-initial` changes the representation only when a floating
-type is involved, so integer and pointer initializers keep their exact bytes.
-The bitfield initializer of Ch 47 converts a floating value to its member's
-declared type before masking it.
-
-`tests/gcc/static-float-check.py` compiles a fixture of named edge cases and
-four hundred generated expressions with this compiler. Host GCC compiles a
-renamed copy as the independent oracle, and every object's bytes must match.
-The cases cover signed zeros, subnormals, overflow boundaries, binary32
-double-rounding traps, 64-bit integer rounding and records with padding. A
-Forth-only executable then checks the same bytes through the seed runtime, and
-each rejection must leave an existing output untouched.
-
-## Canonical source
+The evaluator has a simple shape: parse operands into records, combine them under C types, then return cells to the declaration. A record carries value, type, descriptor, and symbol; an absent symbol means an absolute value, while a present symbol preserves the address addend (Chapter 41). `cc-const-values` is the private pool, `cc-const-cap` bounds it, and `cc-const-used` is its watermark. `cc-const-new` allocates; `cc-const-type`, `cc-const-desc`, and `cc-const-symbol` read fields; `cc-const-cells` unpacks the result (`forth-bootstrap/cc/125-cc-consteval.fth:1`):
 
 ```forth file=cc/125-cc-consteval.fth
 \ 125-cc-consteval.fth — typed LP64 constants for the direct System V target.
@@ -254,6 +29,11 @@ variable cc-const-used
   r@ [lit] 24 + ! r@ [lit] 16 + ! r@ [lit] 8 + ! r@ ! r> ;
 : cc-const-cells ( record -- value type descriptor symbol )
   dup @ swap dup cc-const-type swap dup cc-const-desc swap cc-const-symbol ;
+```
+
+The integer-only API needs a value free of a relocation symbol. `cc-const-int-type` supplies the result type for Boolean operations; `cc-const-integer?` excludes pointers, and `cc-const-check-integer` enforces both restrictions (`forth-bootstrap/cc/125-cc-consteval.fth:23`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-int-type ty-int [lit] 0 ty-make ;
 : cc-const-integer? ( type -- flag )
   dup ty-ptr if, drop [lit] 0 exit, then,
@@ -267,6 +47,11 @@ variable cc-const-used
     cc-const-unsupported
   then, ;
 
+```
+
+Full-range comparisons need `cc-const-slt` and `cc-const-ult`: when sign bits differ, their order is known without subtraction. `cc-const-format` returns the storage size; `cc-const-signed-min` constructs the signed lower bound from that size (`forth-bootstrap/cc/125-cc-consteval.fth:36`):
+
+```forth file=cc/125-cc-consteval.fth
 \ 010's subtraction comparison is sufficient for compiler offsets, but
 \ constants may straddle the entire signed or unsigned 64-bit range.
 : cc-const-slt ( a b -- flag )
@@ -277,6 +62,13 @@ variable cc-const-used
 : cc-const-signed-min ( type -- value )
   ty-size [lit] 8 * 1- cc-pow2 cc-negate ;
 
+```
+
+## Floating constants are exact records
+
+Floating values reserve the same record shape. `cc-const-float?` recognizes them only for the System V target; `cc-const-sign` locates their sign bit. A binary floating value carries encoded bits, while an extended value carries an encoding address. `cc-fp-decimal-fwd`, `cc-fp-integer-fwd`, `cc-fp-resize-fwd`, `cc-fp-arith-fwd`, and `cc-fp-truncate-fwd` reserve decimal parsing, integer conversion, resizing, arithmetic, and truncation; their defaults reject. `cc-f80-new` reserves construction from a significand and sign/exponent. Chapter 47 supplies numeric operations; Chapter 49 connects extended values to runtime storage (`forth-bootstrap/cc/125-cc-consteval.fth:46`):
+
+```forth file=cc/125-cc-consteval.fth
 \ Floating constants exist only for the System V target. A format is the
 \ byte size: 4 for binary32, 8 for binary64, 16 for extended precision.
 : cc-const-float? ( type -- flag )
@@ -296,6 +88,11 @@ defer cc-fp-truncate-fwd ( bits format -- magnitude negative? fits? )
 ' cc-const-unsupported is cc-fp-resize-fwd
 ' cc-const-unsupported is cc-fp-arith-fwd
 ' cc-const-unsupported is cc-fp-truncate-fwd
+```
+
+A suffix chooses a format before decoding. `cc-const-float-spelling` removes the suffix, passes the remaining token spelling to `cc-fp-decimal-fwd`, and pairs the returned encoding with its type. Loading this file alone therefore does not enable floating literals (`forth-bootstrap/cc/125-cc-consteval.fth:67`):
+
+```forth file=cc/125-cc-consteval.fth
 \ A trailing f/F selects binary32; l/L selects extended precision.
 \ The decoder checks the remaining spelling without a suffix.
 : cc-const-float-spelling ( -- bits type )
@@ -309,6 +106,13 @@ defer cc-fp-truncate-fwd ( bits format -- magnitude negative? fits? )
   then,
   [lit] 0 ty-make ;
 
+```
+
+## Keep the numeric boundary explicit
+
+Unsigned wraparound must happen before the next operator, not just when an initializer is stored. `cc-const-convert` masks narrow values and sign-extends signed results; `cc-const-bool?` selects the separate nonzero test for `_Bool`. `cc-const-promote` updates a checked integer record through the existing promotion rule. `cc-const-scalar?` admits integers and pointers for the nonfloating cast path (`forth-bootstrap/cc/125-cc-consteval.fth:78`):
+
+```forth file=cc/125-cc-consteval.fth
 \ Narrowing keeps low bits, then sign extends signed integer targets.
 \ / is the seed's unsigned division, so a bit-63-set value stays intact.
 \ _Bool instead keeps whether the value is nonzero.
@@ -328,6 +132,11 @@ defer cc-fp-truncate-fwd ( bits format -- magnitude negative? fits? )
 : cc-const-scalar? ( type -- flag )
   dup ty-ptr if, drop true else, cc-const-integer? then, ;
 
+```
+
+Crossing the floating boundary changes representation. `cc-const-to-float` either resizes an encoding or converts an integer with its signedness. In the reverse direction, `cc-const-from-float` requests a truncated magnitude and sign, checks the destination range with unsigned comparisons, then applies the sign. A negative nonzero magnitude cannot become an unsigned result; signed destinations allow the extra negative endpoint. `cc-const-range` is the common failure (`forth-bootstrap/cc/125-cc-consteval.fth:97`):
+
+```forth file=cc/125-cc-consteval.fth
 \ Integer to floating rounds once; floating to integer truncates toward
 \ zero and must fit the destination (242). Width changes round once too.
 : cc-const-to-float ( value from to -- bits )
@@ -355,6 +164,11 @@ defer cc-fp-truncate-fwd ( bits format -- magnitude negative? fits? )
       over swap cc-const-ult 0= if, cc-const-range then,
     then,
   then, r> drop ;
+```
+
+Truth conversion must bypass truncation: a nonzero fraction is true. `cc-const-float-bool` ignores only the sign, making either signed zero false. `cc-const-change` chooses this path for floating-to-`_Bool`, otherwise dispatches to floating conversion or integer normalization. `cc-const-arithmetic?` admits either numeric family (`forth-bootstrap/cc/125-cc-consteval.fth:124`):
+
+```forth file=cc/125-cc-consteval.fth
 \ A floating value is nonzero, NaN included, when any bit but the sign is set.
 : cc-const-float-bool ( bits from -- value )
   dup ty-base ty-ldouble = if,
@@ -370,6 +184,11 @@ defer cc-fp-truncate-fwd ( bits format -- magnitude negative? fits? )
 : cc-const-arithmetic? ( type -- flag )
   dup cc-const-integer? swap cc-const-float? or ;
 
+```
+
+Casts must preserve the meaning of a symbol. `cc-const-cast` routes numeric conversions through `cc-const-change`, checks scalar compatibility otherwise, and refuses to narrow a symbolic value below pointer width. A symbolic pointer cast to `long` retains its symbol but changes subsequent addition to byte arithmetic. Absolute values can be normalized before the destination type and descriptor replace the old fields (`forth-bootstrap/cc/125-cc-consteval.fth:139`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-cast ( record type descriptor -- record )
   2dup cc-ld? if, swap drop ty-ldouble [lit] 0 ty-make swap then,
   >r >r
@@ -395,6 +214,13 @@ defer cc-fp-truncate-fwd ( bits format -- magnitude negative? fits? )
   then,
   r> over [lit] 8 + ! r> over [lit] 16 + ! ;
 
+```
+
+## Validate leaves before combining them
+
+The lexer retains a spelling even if its accumulated value has wrapped. `cc-const-literal-check` validates it before trusting that value: `cc-const-literal-base` selects the radix, `cc-const-literal-value` tracks the checked accumulation, and `cc-const-literal-digit` records whether any digit occurred. Before multiplying, the loop compares the accumulator with the remaining capacity, after subtracting the digit, divided by the base. The suffix parser must accept the entire suffix; trailing identifier characters or a decimal point reject (`forth-bootstrap/cc/125-cc-consteval.fth:170`):
+
+```forth file=cc/125-cc-consteval.fth
 \ The lexer retains the spelling but accumulates modulo2^64. Recheck the
 \ digits before accepting that value, and reject floating or malformed
 \ spellings instead of accepting their integer prefix as a constant.
@@ -432,6 +258,11 @@ variable cc-const-literal-digit
   cc-const-literal-digit @ 0= if, cc-const-unsupported then,
   c@ dup ident-cont? swap [char] . = or if, cc-const-unsupported then, ;
 
+```
+
+`cc-const-unary-fwd` and `cc-const-conditional-fwd` provide the recursive parser entries. Conditions also need a shared conversion: `cc-const-truth` inspects a floating encoding or checks an integer record, while `cc-const-boolean` stores the C truth value and changes its type to `int`. A symbolic record cannot pass the integer truth test (`forth-bootstrap/cc/125-cc-consteval.fth:201`):
+
+```forth file=cc/125-cc-consteval.fth
 defer cc-const-unary-fwd
 defer cc-const-conditional-fwd
 
@@ -445,6 +276,11 @@ defer cc-const-conditional-fwd
   dup cc-const-truth cc-flag over !
   cc-const-int-type over [lit] 8 + ! ;
 
+```
+
+`cc-const-operand` keeps each leaf typed. Numeric tokens undergo spelling validation, characters and enum members become integer records, and identifier or string callbacks return the object adapter’s cells. After an opening parenthesis, a type name selects a cast; otherwise the conditional parser handles a grouped expression. Array casts reject before the operand is parsed. Both recursive paths return a record rather than emitted target code (`forth-bootstrap/cc/125-cc-consteval.fth:214`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-operand ( -- record )
   cc-next-token-keep
   tok-kind @ tk-num = if,
@@ -483,6 +319,13 @@ defer cc-const-conditional-fwd
   then,
   cc-const-unsupported ;
 
+```
+
+## Apply unary operators to records
+
+`cc-const-unary` wraps `sizeof` in an unsigned-long record and delegates address leaves after `&`. Unary plus promotes integers but keeps floating types. Unary minus has separate halves: an encoding changes only its sign, whereas an integer needs overflow checking and width normalization in the continuation below (`forth-bootstrap/cc/125-cc-consteval.fth:252`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-unary ( -- record )
   cc-next-token-keep
   kw-sizeof cc-tok-kw? if,
@@ -505,6 +348,11 @@ defer cc-const-conditional-fwd
       then,
       dup @ over cc-const-type cc-const-sign cc-xor over ! exit,
     then,
+```
+
+The integer half rejects negation of the signed minimum unless arithmetic is being skipped. Complement promotes and normalizes; logical negation uses the shared truth conversion. Falling through puts the token back for operand parsing, and the final binding closes the recursive unary entry (`forth-bootstrap/cc/125-cc-consteval.fth:274`):
+
+```forth file=cc/125-cc-consteval.fth
     cc-const-promote
     cc-cx-skip @ 0= if,
       dup cc-const-type ty-unsigned? 0= if,
@@ -526,6 +374,13 @@ defer cc-const-conditional-fwd
   cc-putback-token cc-const-operand ;
 ' cc-const-unary is cc-const-unary-fwd
 
+```
+
+## Carry an address without knowing its final location
+
+Binary scratch state belongs to a completed pair of operands: `cc-const-left` and `cc-const-right` hold records, `cc-const-row` the operator, `cc-const-common` the working type, and `cc-const-a` and `cc-const-b` the converted values. Filling these only after recursion returns avoids overwriting an outer operation. `cc-const-op`, `cc-const-unsigned?`, and `cc-const-less` read that state. `cc-const-address?` recognizes both symbolic integers and pointer-typed constants (`forth-bootstrap/cc/125-cc-consteval.fth:295`):
+
+```forth file=cc/125-cc-consteval.fth
 \ Binary temporaries are filled only after both recursive operands return.
 variable cc-const-left
 variable cc-const-right
@@ -540,6 +395,11 @@ variable cc-const-b
   cc-const-unsigned? if, cc-const-ult else, cc-const-slt then, ;
 : cc-const-address? ( record -- flag )
   dup cc-const-symbol swap cc-const-type ty-ptr or ;
+```
+
+Address arithmetic accepts an address plus an integer, or an address minus an integer. `cc-const-address-binary` rejects other operators and any pair of addresses, then puts the address on the left. Pointer arithmetic scales by the pointee size and descriptor; a symbolic integer uses the common integer type without scaling. The result overwrites only the addend, preserving the symbol for relocation. A skipped operation substitutes an irrelevant addend while retaining the record’s type (`forth-bootstrap/cc/125-cc-consteval.fth:309`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-address-binary ( -- record )
   cc-const-op [char] + = cc-const-op [char] - = or 0= if,
     cc-const-unsupported
@@ -570,6 +430,22 @@ variable cc-const-b
     cc-const-left @ @ +
   then,
   cc-const-left @ ! cc-const-left @ ;
+```
+
+## Check arithmetic at the working width
+
+The handlers share converted operands and return a normalized value.
+
+| Input | Result handler | Check or rule |
+|---|---|---|
+| Sum or difference | `cc-const-add`, `cc-const-subtract` | Detect signed overflow, then check the destination width. |
+| Product | `cc-const-multiply` | Bound operand magnitudes before multiplying. |
+| Quotient or remainder | `cc-const-divide` | Reject a zero divisor and signed minimum divided by negative unity. |
+| Shift | `cc-const-shift` | Validate the count against the promoted left width. |
+
+Machine-cell overflow and narrow-type overflow are different failures. The sign tests cover the former; `cc-const-check-result` catches the latter when normalization would change a signed result. Unsigned results simply normalize (`forth-bootstrap/cc/125-cc-consteval.fth:339`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-check-result ( value -- value )
   cc-const-unsigned? 0= if,
     dup cc-const-common @ cc-const-convert over <> if, [lit] 242 cc-die then,
@@ -589,6 +465,11 @@ variable cc-const-b
       over r@ cc-xor 0< if, [lit] 242 cc-die then,
     then,
   then, 2drop r> cc-const-check-result ;
+```
+
+The product limit depends on its sign: a negative result may reach the signed minimum’s magnitude. Division selects unsigned operations or signed truncation toward zero after validating the divisor (`forth-bootstrap/cc/125-cc-consteval.fth:358`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-multiply ( a b -- product )
   cc-const-unsigned? 0= over 0= 0= and if,
     2dup cc-xor 0< >r
@@ -608,6 +489,11 @@ variable cc-const-b
     then,
     cc-const-op [char] / = if, cc-div else, cc-mod then,
   then, ;
+```
+
+With a valid count, `cc-const-shift` keeps low bits even for a negative or overflowing signed left operand; this is the evaluator’s deliberate extension. Right shift chooses zero fill or sign propagation. `cc-const-evaluate` dispatches the checked cases, converts comparisons to C flags, and uses the existing operator-table evaluator for the remaining operators (`forth-bootstrap/cc/125-cc-consteval.fth:377`):
+
+```forth file=cc/125-cc-consteval.fth
 \ A count outside the promoted width is 241. Within it, a left shift keeps
 \ the low bits as two's complement, as GCC folds it even for a negative or
 \ overflowing signed operand: TYPE_MINIMUM (t) is ~(t)0 << (bits - 1).
@@ -633,6 +519,13 @@ variable cc-const-b
   dup pt-ge = if, drop cc-const-less 0= cc-flag exit, then,
   drop cc-const-row @ bo-eval + @ execute ;
 
+```
+
+## Compare floating records without target execution
+
+Floating operands first pass through `cc-const-float-operand`, which rejects symbols and converts to the selected type. `cc-const-float-key` maps ordinary encodings into signed ordering keys with a shared key for signed zeros. Extended encodings instead compare sign, exponent, then significand through `cc-const-extended-compare`; `cc-const-extended-nan?` identifies their unordered case. These helpers inspect encodings, leaving their construction to the later numeric layers (`forth-bootstrap/cc/125-cc-consteval.fth:402`):
+
+```forth file=cc/125-cc-consteval.fth
 \ Usual arithmetic conversions: double if either operand is double, else
 \ float. Only + - * / and comparisons accept floating operands.
 : cc-const-float-operand ( record -- value )
@@ -657,6 +550,11 @@ variable cc-const-b
   else, 2drop [lit] 0 then, ;
 : cc-const-extended-nan? ( bits -- flag )
   dup [lit] 8 + @ [lit] 32767 and [lit] 32767 = swap @ 2^63 <> and ;
+```
+
+`cc-const-float-compare` accepts only comparison operators. Extended NaNs make only inequality true. Other extended values compare through the preceding helper; ordinary encodings compare through their keys. The explicit operator gate prevents bitwise operators from accidentally using this path (`forth-bootstrap/cc/125-cc-consteval.fth:426`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-float-compare ( a b -- flag )
   cc-const-op dup [char] < = over [char] > = or over pt-le = or over pt-ge = or
   over pt-eq-eq = or swap pt-bang-eq = or 0= if, cc-const-unsupported then,
@@ -681,6 +579,11 @@ variable cc-const-b
   dup pt-eq-eq = if, drop = exit, then,
   pt-bang-eq = if, <> exit, then,
   cc-const-unsupported ;
+```
+
+`cc-const-float-binary` chooses extended precision ahead of double, and double ahead of float, then converts both operands. Arithmetic calls `cc-fp-arith-fwd`; comparisons return `int`. Skipped arithmetic bypasses the hook. The left record receives the result and its type, so later operators see the conversion already applied (`forth-bootstrap/cc/125-cc-consteval.fth:450`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-float-binary ( -- record )
   cc-const-left @ cc-const-type ty-base ty-ldouble =
   cc-const-right @ cc-const-type ty-base ty-ldouble = or if,
@@ -704,6 +607,13 @@ variable cc-const-b
   then,
   cc-const-left @ [lit] 8 + ! cc-const-left @ ! cc-const-left @ ;
 
+```
+
+## Combine operands before releasing recursion
+
+`cc-const-binary-apply` first routes addresses and floating values, then converts integers before evaluating. Shifts promote their operands independently; other integer operators use a common type. Comparison results change to `int`, and every result is normalized before replacing the left record. `cc-const-binary` recurses by precedence and fills the scratch state only when both operands have returned (`forth-bootstrap/cc/125-cc-consteval.fth:473`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-binary-apply ( left right row -- left )
   cc-const-row ! cc-const-right ! cc-const-left !
   cc-const-left @ cc-const-address? cc-const-right @ cc-const-address? or if,
@@ -741,6 +651,13 @@ variable cc-const-b
     >r over 1- cc-const-binary r> cc-const-binary-apply
   repeat, drop cc-putback-token nip ;
 
+```
+
+## Parse dead arms while suppressing their effects
+
+Under the inherited skip state (Chapter 34), an unused operand still supplies a typed record. `cc-const-logical-and` and `cc-const-logical-or` save `cc-cx-skip`, enable it for an irrelevant right operand, and restore the outer state afterward. Arithmetic handlers consult that state before calculating; tokens and operand types still pass through the parser. Each logical result reuses the left record as an `int` (`forth-bootstrap/cc/125-cc-consteval.fth:510`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-logical-and ( -- record )
   level-bit-or cc-const-binary
   begin, cc-next-token-keep pt-and-and cc-tok-punct? while,
@@ -761,6 +678,11 @@ variable cc-const-b
     @ 0= 0= over @ 0= 0= or cc-flag over !
     cc-const-int-type over [lit] 8 + !
   repeat, cc-putback-token ;
+```
+
+A conditional’s unselected arm still affects its type. `cc-const-null?` recognizes an absolute integer zero, allowing `cc-const-select` to adopt the other arm’s pointer type and descriptor. Pointer arms must then be compatible. Numeric arms determine a common type before choosing a value; a selected symbol must remain pointer-width and nonfloating. The chosen absolute value passes through `cc-const-change` (`forth-bootstrap/cc/125-cc-consteval.fth:530`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-null? ( record -- flag )
   dup cc-const-type cc-const-integer? over cc-const-symbol 0= and swap @ 0= and ;
 : cc-const-select ( condition yes no -- result )
@@ -788,6 +710,11 @@ variable cc-const-b
     r@ ty-size [lit] 8 <> r@ cc-const-float? or if, cc-const-unsupported then,
   else, dup @ over cc-const-type r@ cc-const-change over ! then,
   r> over [lit] 8 + ! ;
+```
+
+`cc-const-conditional` applies the skip state separately to each arm, keeping the saved outer state across nested conditionals. It calls `cc-const-select` only after parsing both arms. The final binding connects parenthesized expressions and casts back to this parser (`forth-bootstrap/cc/125-cc-consteval.fth:557`):
+
+```forth file=cc/125-cc-consteval.fth
 : cc-const-conditional ( -- record )
   cc-const-logical-or cc-next-token-keep
   [char] ? cc-tok-punct? if,
@@ -802,6 +729,13 @@ variable cc-const-b
   else, cc-putback-token then, ;
 ' cc-const-conditional is cc-const-conditional-fwd
 
+```
+
+## Return values to initializers
+
+The address adapter needs this evaluator inside its own grammar. `cc-const-address-cast` preserves qualification information and returns cast cells; `cc-const-address-unary` returns unary cells; `cc-const-address-index` requires an integer subscript. They inherit the current skip state. The LP64 storage traversal already owns destination widths, so `cc-const-initial` changes representation only for floating values or `_Bool`; ordinary integers and pointers pass through unchanged (`forth-bootstrap/cc/125-cc-consteval.fth:571`):
+
+```forth file=cc/125-cc-consteval.fth
 \ The object adapter parses address operands without emitting or loading
 \ target memory. These callbacks share this evaluator's casts, unary
 \ precedence and integer checks, including the current dead-arm state.
@@ -823,6 +757,11 @@ variable cc-const-b
 ' cc-const-address-unary is cc-om-address-unary-fwd
 ' cc-const-address-index is cc-om-address-index-fwd
 
+```
+
+Public parsing must release temporary records without destroying outer operands. `cc-parse-static-const` saves the pool watermark, skip state, and qualification state, returns unpacked cells, then restores all three. `cc-parse-integer-const` further rejects symbols and noninteger types. Binding the static hook enables scalar initializers; `cc-parse-target-const` selects the typed integer API only for System V outside preprocessing, preserving the default parser elsewhere (`forth-bootstrap/cc/125-cc-consteval.fth:592`):
+
+```forth file=cc/125-cc-consteval.fth
 \ Each public parse restores its pool watermark. Nested sizeof array bounds
 \ can therefore call the same API without corrupting their outer operands.
 : cc-parse-static-const ( -- value type descriptor symbol )
@@ -844,34 +783,87 @@ variable cc-const-b
 ' cc-parse-target-const is cc-parse-const
 ```
 
+The consumer in `forth-bootstrap/cc/123-cc-object-program.fth:232` calls that static hook. For an absolute result, it invokes `cc-om-value-fwd` and patches the destination-sized bytes; for a symbol, it records an address relocation with the returned addend. Thus the opening expression becomes the stored value of `x`, while `&arr[2]` keeps `arr` symbolic until linking. The evaluator computes neither a final load address nor runtime instructions.
+
 ## Try it
 
-From the repository root:
+Run from the `forth-bootstrap` checkout root with the seed already built. The block loads compiler layers through this evaluator, writes a small `_start` object, then links each probe with the Forth linker. Each executable returns one initializer result; the shell prints and checks its exit status. All generated files stay in the temporary directory.
 
 ```sh
-python3 tests/gcc/constant-check.py
+(
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+{
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  printf 'create output-path s, %s/start.o [lit] 0 c,\n' "$work"
+  cat <<'FORTH'
+cc-obj-init
+[lit] 232 cc-obj-byte [lit] 0 cc-obj-4le
+[lit] 137 cc-obj-byte [lit] 199 cc-obj-byte
+[lit] 184 cc-obj-byte [lit] 60 cc-obj-4le
+[lit] 15 cc-obj-byte [lit] 5 cc-obj-byte
+create entry-name s, _start
+create main-name s, main
+entry-name [lit] 6 cc-obj-global cc-obj-func cc-obj-default cc-obj-text [lit] 0 [lit] 14 cc-obj-symbol drop
+main-name [lit] 4 cc-obj-global cc-obj-func cc-obj-default cc-obj-undef [lit] 0 [lit] 0 cc-obj-symbol
+>r cc-obj-text [lit] 1 cc-obj-plt32 r> [lit] 0 [lit] 4 - cc-obj-reloc
+output-path cc-obj-write bye
+FORTH
+} | ./seed-forth || exit "$?"
+for probe in x pointer wrap; do
+  cat > "$work/probe.c" <<'C'
+static long x = sizeof(long) * 3 + (1 << 4);
+static int arr[3] = {7, 11, 29};
+static int *p = &arr[2];
+static unsigned int wrapped = 0xffffffffU + 2U;
+C
+  case "$probe" in
+    x) expression=x; expected=40 ;;
+    pointer) expression='*p'; expected=29 ;;
+    wrap) expression=wrapped; expected=1 ;;
+  esac
+  printf 'int main(void) { return %s; }\n' "$expression" >> "$work/probe.c"
+  {
+    cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
+        cc/121-cc-sysv.fth cc/123-cc-object-program.fth \
+        cc/124-cc-target.fth cc/125-cc-consteval.fth
+    printf 'create output-path s, %s/probe.o [lit] 0 c,\n' "$work"
+    cat <<'FORTH'
+cc-sysv-object-enable
+: object-main
+  cc-load-stdin cc-preprocess cc-out-init cc-globals-init
+  cc-sysv-object-program output-path cc-obj-write bye ;
+object-main
+FORTH
+    cat "$work/probe.c"
+  } | ./seed-forth || exit "$?"
+  {
+    cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth
+    for name in start.o probe.o result; do
+      printf 'create p-%s s, %s/%s [lit] 0 c,\n' "$name" "$work" "$name"
+    done
+    printf '%s\n' 'create entry-name s, _start' \
+      'lnk-init p-start.o lnk-add-object p-probe.o lnk-add-object' \
+      'entry-name [lit] 6 lnk-entry p-result lnk-link lnk-release bye'
+  } | ./seed-forth || exit "$?"
+  "$work/result"
+  result=$?
+  printf '%s = %s\n' "$probe" "$result"
+  test "$result" -eq "$expected" || exit 1
+done
+) # prints "x = 40\npointer = 29\nwrap = 1"
 ```
 
-The golden vectors check values, result types, diagnostics, pool restoration,
-and target isolation without a host compiler. If GCC is installed, a separate
-oracle checks the same typed results plus deterministic randomized unsigned
-arithmetic. GCC participates only in that independent comparison.
+Observed output:
 
-## Exercises
+```text
+x = 40
+pointer = 29
+wrap = 1
+```
 
-1. **★** Explain why `-1 < 1U` differs from `-1L < 1U` on this target
-2. **★★** Add a golden expression whose ternary result changes width because
-   of an unselected arm, and compare it with the host oracle
-3. **★★** Extend the symbolic fixture with a pointer to a larger aggregate
-   and verify that subtraction changes its relocation addend correctly
-4. **★★★** Design a representation for the difference of two symbols, then
-   identify which relocation formats could preserve it through linking
+## Exercise
 
-## Takeaways
+**Trace — easy.** Follow `wrapped` through literal validation, common-type conversion, addition, and `cc-const-check-result`. Explain why delaying normalization until the final store would break a comparison of the sum with `2U`.
 
-- An integer or floating constant carries its type through every operation, not only when stored
-- A symbolic initializer carries an addend and identity until the linker assigns its address
-- Unevaluated arms retain syntax and type checking while suppressing arithmetic and output effects
-
-The [direct GCC status](https://github.com/delta9000/seed-forth/blob/bootstrap/forth-direct-gcc/DIRECT-GCC.md) records the remaining production
-reconstruction boundaries and the evidence established so far.
+**Verify — moderate.** Change `x` to select between its current initializer and an unselected division by zero. Run the checkpoint, then reverse the condition. Identify the word that suppresses arithmetic in the first run and the check that rejects the second.
