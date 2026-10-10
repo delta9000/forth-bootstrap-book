@@ -190,7 +190,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Allocation metadata** — Extent and requested size kept with each block for free and realloc. [Chapter 43](43-runtime-and-libc.md).
 
-**Arena** — See **Bump allocator**. [Chapter 27](27-arena-and-io-buffers.md).
+**Arena** — A bounded compiler region whose allocation rounds a request and advances a cursor, without individual frees (a bump allocator). [Chapter 27](27-arena-and-io-buffers.md).
 
 **Array node** — Element type, dimensions, size, alignment and qualifiers kept beside the type. [Chapter 30](30-types-and-symbols.md).
 
@@ -212,7 +212,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Buffered key handoff** — Prefetched input passes through key-drain before further reads. [Chapter 27](27-arena-and-io-buffers.md).
 
-**Bump allocator** — Allocation rounds a request and advances a cursor through a bounded region, without individual frees. [Chapter 27](27-arena-and-io-buffers.md).
+**Bump allocator** — See **Arena**. [Chapter 27](27-arena-and-io-buffers.md).
 
 **Call transport plan** — Each argument gets an explicit register or stack location before any value moves. [Chapter 49](49-aggregate-abi.md).
 
