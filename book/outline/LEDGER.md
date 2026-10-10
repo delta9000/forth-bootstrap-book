@@ -2256,6 +2256,8 @@ Allocation metadata | 43 Runtime, libc, streams, and formatting | extent and req
 Failure-preserving realloc | 43 Runtime, libc, streams, and formatting | failed growth leaves the original allocation intact
 Stream state | 43 Runtime, libc, streams, and formatting | ownership, buffered bytes, position, error and EOF tracked beyond the descriptor
 Bounded formatting count | 43 Runtime, libc, streams, and formatting | the logical output length keeps counting even when the destination truncates
+Target macro contract | 44 Target headers | in System V mode the preprocessor predefines __STDC__ 1, __STDC_HOSTED__ 0, __SEED_FORTH__, __linux__, __x86_64__ and __LP64__
+Withheld identities | 44 Target headers | no __GNUC__ or __STDC_VERSION__: headers must not select GCC extensions or a later C version
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
