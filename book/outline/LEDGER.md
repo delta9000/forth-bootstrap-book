@@ -2234,6 +2234,13 @@ Stable symbol handle | 40 Objects and relocations | an insertion ID kept indepen
 Local-first symbol numbering | 40 Objects and relocations | serialization puts local symbols first and remaps relocation targets
 Explicit relocation addend | 40 Objects and relocations | RELA records carry the adjustment apart from the field being repaired
 Atomic object publication | 40 Objects and relocations | write, close, then rename into place
+Shared call signature | 41 System V calls and separate compilation | one retained signature drives both incoming parameters and outgoing calls
+Aligned outgoing argument block | 41 System V calls and separate compilation | arguments past the sixth integer register go in a 16-byte-aligned stack block above the return address
+Persistent call-save span | 41 System V calls and separate compilation | frame slots keep rsp and live expression values across calls
+Scoped external identity | 41 System V calls and separate compilation | an external's signature and fixups outlive the block-scoped parser symbol
+Ranked array descriptor | 41 System V calls and separate compilation | recursive element nodes keep array shape and row qualifiers
+Stable object record | 41 System V calls and separate compilation | storage identity survives parser scope reuse until object export
+Symbolic address operand | 41 System V calls and separate compilation | a record plus addend stands for an address without loading it
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
