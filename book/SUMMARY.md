@@ -79,8 +79,7 @@
 
 - [Appendix C: historical reproducibility routes](57-historical-reproducibility.md)
 - [Appendix D: worked exercises](58-worked-exercises.md)
-- [Appendix E: further reading](outline/59-further-reading.md)
-  - [Appendix E — Further reading](A5-further-reading.md)
+- [Appendix E: further reading](59-further-reading.md)
 - [Appendix F: the C subset](outline/60-c-subset.md)
   - [Appendix F — The C subset](A6-c-subset.md)
 - [Appendix G: compiler exit codes](outline/61-error-codes.md)
