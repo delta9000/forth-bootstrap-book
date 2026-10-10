@@ -84,15 +84,15 @@ values and reaches the seed’s interfaces. Preserve this opening from
 \ Conventions:
 \   - All arithmetic constants use [lit] (the decimal literal compiler)
 \     because the seed has no interpret-mode number parser at all — [lit]
-\     is the only path; see Ch 20 for the parser.  Characters use char /
+\     is the only path (the seed's parse_decimal_code).  Characters use char /
 \     [char] (defined below), so no ASCII code needs a comment to explain it.
 \   - No seed address is typed in: sysvar cells are found from the seed's
 \     state and latest primitives, and primitive xts with ' (tick).
 ```
 
 The literal convention uses `[lit]` from Chapter 10 throughout the
-library. The header’s “Ch 20” is an older source comment; the decimal
-parser is covered in [Chapter 12](12-repl.md) in this book. The character
+library. The decimal parser the header names is covered in
+[Chapter 12](12-repl.md). The character
 words named in the comment belong to Chapter 23; they are not needed here.
 
 The address convention keeps the library tied to named seed interfaces

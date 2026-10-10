@@ -40,7 +40,7 @@ The body should push the supplied value and return. Its instruction skeleton
 and return emitter appear together in `forth-bootstrap/forth/010-lib.fth:191`:
 
 ```forth file=forth/010-lib.fth
-\ ===== the push body: constant (and create / variable in Ch 12) =====
+\ ===== the push body: constant (and create / variable, further below) =====
 \ constant is defined early so branch-xt/0branch-xt can use it: the
 \ control-flow combinators below need the xts of branch/0branch, and
 \ hard-coding them as numeric literals would break every time
@@ -62,9 +62,8 @@ and return emitter appear together in `forth-bootstrap/forth/010-lib.fth:191`:
 
 `ret,` appends the opcode `195` (`C3`) to the future body.
 Call this distinction **emit versus execute**: an emitter runs now to write
-instructions that another word will execute later. The source comment's
-reference to Chapter 12 uses the old numbering; `create` and `variable`
-belong to Chapter 25.
+instructions that another word will execute later. `create` and
+`variable` belong to Chapter 25.
 
 The value-dependent part is the immediate operand of `movabs`.
 `forth-bootstrap/forth/010-lib.fth:209` writes the fixed instruction bytes

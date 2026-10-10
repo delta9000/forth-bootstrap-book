@@ -22,7 +22,7 @@ These are stored spellings, not switches that implement the named features. The 
 ```forth file=cc/124-cc-target.fth
 \ 124-cc-target.fth -- explicit predefined macros for the SysV C90-oriented mode.
 \ The legacy/native route keeps its existing macro policy. No GCC identity
-\ or C99/C11 language version is advertised. See book Ch 40 for the boundary.
+\ or C99/C11 language version is advertised.
 create cc-target-name-stdc       s, __STDC__
 create cc-target-name-hosted     s, __STDC_HOSTED__
 create cc-target-name-seed       s, __SEED_FORTH__
@@ -31,8 +31,6 @@ create cc-target-name-amd64      s, __x86_64__
 create cc-target-name-lp64       s, __LP64__
 
 ```
-
-The comment's “book Ch 40” refers to this chapter in the old numbering.
 
 The LP64 promise rests on the storage model already implemented (Chapter 39). The runtime agrees: its `stddef.h` uses `unsigned long` for `size_t` and `long` for `ptrdiff_t` (`forth-bootstrap/chain/runtime/gcc-seed/include/stddef.h:3`). Defining a macro alone would not make those declarations match generated code.
 

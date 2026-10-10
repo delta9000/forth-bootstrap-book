@@ -91,7 +91,7 @@ records how to read the source; preserve it with the bytes it documents.
 ;; each of the 32 primitives is one unit — its dictionary header (link,
 ;; flags, nlen, name) directly followed by its machine code, so a word's
 ;; execution token (xt) is simply the address of its code.  The units
-;; appear in the order the book teaches them (Chs 14-20); the six
+;; appear in the order the book teaches them; the six
 ;; unnamed helpers and the REPL sit alongside the words that use them.
 ;; Every line is one field or one instruction; the text after ';' is a
 ;; comment (hex0 ignores it).  Addresses are file offsets; the image
@@ -299,7 +299,7 @@ The jump at `forth-bootstrap/seed/000-seed.hex0:73` transfers control to
 the REPL after all startup assignments have finished.
 
 ```hex0 chunk=jmp-to-repl
-;; ----- jmp_repl @ 0x0B5  enter the REPL (Ch 20) -----
+;; ----- jmp_repl @ 0x0B5  enter the REPL -----
 E9 DF 05 00 00                            ; jmp repl  (rel32 = 0x699 - 0x0BA)
 
 ```

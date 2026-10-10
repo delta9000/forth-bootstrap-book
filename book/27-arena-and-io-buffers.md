@@ -56,7 +56,7 @@ remembers that destination while the body is emitted (`forth-bootstrap/cc/020-cc
 \ native word gets a fresh header (code:), and native! turns the first
 \ definition into a jump to it, so every word compiled earlier, in
 \ 010-lib.fth too, runs the new code.  TOS is in rdi and the data stack
-\ grows down from rbp, as in the seed's + (Ch 15).
+\ grows down from rbp, as in the seed's +.
 : code:  : [lit] 0 state ! ;             \ header only; c, lays the body
 : native!  ( old new -- )                \ old's first bytes: JMP rel32 new
   over [lit] 5 + -  swap                 \ rel32 first: old may be - itself
@@ -269,7 +269,7 @@ before `@` is replaced, avoiding a call from the new fetch to itself (`forth-boo
 
 ```forth file=cc/020-cc-arena.fth
 \ Primitives copied in place of the CALL: the seed's bodies without their
-\ ret (Chs 14-15), with the return-stack words' own return address left out.
+\ ret, with the return-stack words' own return address left out.
 : push-tos,  [lit] 72 c, [lit] 131 c, [lit] 237 c, [lit] 8 c,      \ sub rbp, 8
              [lit] 72 c, [lit] 137 c, [lit] 125 c, [lit] 0 c, ;    \ mov [rbp], rdi
 : pop-tos,   [lit] 72 c, [lit] 139 c, [lit] 125 c, [lit] 0 c, add-rbp-8, ;
