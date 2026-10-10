@@ -1,9 +1,8 @@
 # Chapter 6 — Stack and memory primitives
 
 `dup`, `drop`, `swap`, `@` and `!` are each a few instructions that move
-cells between registers, the data stack and memory. Reading each primitive as register and memory changes gives you
-decoded stack-transfer and memory-access bodies you can trace against their stack
-effects. Chapter 7 uses these operand movements for arithmetic; Chapters 17 and
+cells between registers, the data stack and memory. This chapter decodes each one into those changes and checks
+them against its stack effect at the REPL. Chapter 7 uses these operand movements for arithmetic; Chapters 17 and
 22 combine the primitives into Forth definitions and memory-update words.
 
 For each instruction, ask which value it preserves, which it overwrites, and

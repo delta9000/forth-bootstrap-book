@@ -1,9 +1,8 @@
 # Chapter 7 — Arithmetic and logic in machine code
 
 The seed has one logic primitive, `nand`, beside `+`, `0=`, `/` and `*`.
-Each primitive's register-level contract ties its result
-and stack effect to its machine code, giving you reference contracts for
-all five. Chapter 16 builds logic on these contracts,
+This chapter ties each one's result and stack effect to its
+machine code, then runs all five at the REPL. Chapter 16 builds logic on these contracts,
 Chapter 17 builds subtraction, and Chapter 20 builds comparisons.
 
 Recall the stack and memory operations from Chapter 6 and the

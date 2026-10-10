@@ -260,7 +260,7 @@ sha256sum -c MANIFEST.sha256
 sh chain/plumbing-root.sh
 ```
 
-Allow a sustained build: `check-all.sh` estimates about 40 minutes (`forth-bootstrap/check-all.sh:20`), while the README observation above records a shorter run. Inspect `build-out/plumbing-root.trace/execve-programs.txt` and `execve-failed.txt`, then resolve each unexplained success using the raw traces and its producing recipe. The report from Chapter 52 establishes the build result; the audit establishes which executable paths participated.
+Allow a sustained build: `check-all.sh` estimates about 40 minutes (`forth-bootstrap/check-all.sh:24`), while the README observation above records a shorter run. Inspect `build-out/plumbing-root.trace/execve-programs.txt` and `execve-failed.txt`, then resolve each unexplained success using the raw traces and its producing recipe. The report from Chapter 52 establishes the build result; the audit establishes which executable paths participated.
 
 ## Exercise
 

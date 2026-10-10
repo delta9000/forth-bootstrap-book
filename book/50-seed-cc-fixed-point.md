@@ -1,6 +1,6 @@
 # Chapter 50 — Building seed-cc and seed-ar
 
-`seed-cc` turns a C source file into a runnable program by driving the Forth compiler. The seed constructs that driver itself, by reading a build controller as Forth source. The result is `seed-cc` and its companion `seed-ar`, built without Python; the project's fixed point comes later, in Chapter 52 (GCC stage D).
+`seed-cc` turns a C source file into a runnable program by driving the Forth compiler. The seed constructs that driver itself, by reading a build controller as Forth source. The result is `seed-cc` and its companion `seed-ar`, built without Python, and a `seed-cc` that rebuilds both byte for byte.
 
 
 ## Build a driver without running a driver
@@ -188,6 +188,21 @@ The C driver preserves the bootstrap's eager startup and trailing runtime archiv
     }
 ```
 
+## Rebuild the driver with itself
+
+The construction above runs no C compiler. Once it has written `seed-cc`, that driver can compile its own source and the archiver's, and the results can be compared with the bootstrap's. The check compiles both tools with the first generation's `seed-cc`, into a directory at the same depth so the driver still finds its source tree from its own path (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:15`):
+```sh
+./seed-forth < cc/driver/seed-cc-start.fth
+G1=build-out/seed-cc
+G2=build-out/seed-cc-gen2
+rm -rf "$G2"
+mkdir -p "$G2"
+"$G1/seed-cc" -static cc/driver/seed-cc.c -o "$G2/seed-cc"
+"$G1/seed-cc" -static cc/driver/seed-ar.c -o "$G2/seed-ar"
+```
+
+Equal bytes mean the bootstrap's fixed driver and the C driver produce the same compilation: the same compiler layers, the same runtime archive order and the same link. It is a fixed point of `seed-cc` alone. GCC's three-generation comparison is a different claim (Chapter 52).
+
 ## Try it
 
 Run from the `forth-bootstrap` checkout root, using the seed built in Part 1. The construction writes `seed-cc` and `seed-ar` into `build-out/seed-cc/` and takes a few seconds. The new driver then compiles a small program; the working directory stays at the checkout root so the driver can locate its source tree, while the test source and executable live in a temporary directory.
@@ -222,6 +237,20 @@ hello from seed-cc
 ```
 
 The construction log is empty on success; both artifacts are static x86-64 ELF executables.
+
+The rebuild check takes a few seconds more and is a step of `./check-all.sh`:
+
+<!-- check-tryit: its private /tmp hides the scratch checkout from the built driver; run directly. -->
+<!-- tryit: skip -->
+```sh
+tests/cc/seed-cc-rebuild-check.sh
+```
+
+Observed output:
+
+```text
+seed-cc-rebuild-check: PASS (generation 2 seed-cc and seed-ar equal generation 1: 160136 and 98624 bytes)
+```
 
 ## Exercise
 

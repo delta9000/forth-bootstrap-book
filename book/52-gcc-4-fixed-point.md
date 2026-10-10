@@ -308,7 +308,7 @@ require_tool as "$TOOLS/as"
 PATH=$BIN:$TOOLS:$P/bin
 ```
 
-Configure always runs under the plumbing bash. When `/bin/sh` is that bash, as it is under K1, the script names it `/bin/sh`, so installed scripts such as `zgrep` start with `#!/bin/sh` rather than a path into `build-out/plumbing` (`forth-bootstrap/chain/gcc-direct/late-tools.sh:313`).
+Configure always runs under the plumbing bash. When `/bin/sh` is that bash, as it is under K1, the script names it `/bin/sh`, so installed scripts such as `zgrep` start with `#!/bin/sh` rather than a path into `build-out/plumbing` (`forth-bootstrap/chain/gcc-direct/late-tools.sh:57`).
 
 Building a new make or bash does not immediately replace the tools interpreting this build. The initial bash and make continue to run the package builds, with static linking and the fixed-point compiler selected in the environment (`forth-bootstrap/chain/gcc-direct/late-tools.sh:62`).
 
