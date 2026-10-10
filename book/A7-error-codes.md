@@ -240,7 +240,7 @@ the usual floating declaration of `ldexp` is rejected first with 214.
 These components have separate bounded interfaces, so their numeric ranges
 overlap other programs. Read the phase and diagnostic prefix together with
 the number. The object writer and standalone linker are described in
-[chapter 35](35-direct-gcc-objects.md) and
+[chapter 35](40-objects-and-relocations.md) and
 [chapter 37](37-direct-gcc-linker.md); those chapters document their API
 checks and output-publication failures.
 

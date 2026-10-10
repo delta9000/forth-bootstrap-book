@@ -10,7 +10,7 @@ Prerequisites: [39 — LP64 storage and initializers](39-lp64-storage-and-initia
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [35-direct-gcc-objects.md](../35-direct-gcc-objects.md) — Reuse the source walkthrough: Replace direct executable output with relocatable sections, symbols, and relocation records.
+Reuses: [35-direct-gcc-objects.md](../40-objects-and-relocations.md) — Reuse the source walkthrough: Replace direct executable output with relocatable sections, symbols, and relocation records.
 
 TODO:
 

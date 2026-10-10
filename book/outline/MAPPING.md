@@ -39,7 +39,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [32-main-and-bootstrap-chain.md](../38-main-and-bootstrap-chain.md) | Chapter 32 — End to End: Main and the Bootstrap Chain | 3 | [Compiler entry and Stage A](38-main-and-bootstrap-chain.md) | keep |
 | [33-the-assembler.md](../26-m1-and-hex2.md) | Chapter 33 — The Assembler: M1 and hex2 in Forth | 2 | [The M1 assembler and hex2 linker](26-m1-and-hex2.md) | keep |
 | [34-direct-tinycc.md](../34-direct-tinycc.md) | Chapter 34 — Compiling TinyCC Directly | 3 | [LP64 storage and initializers](39-lp64-storage-and-initializers.md) | retire |
-| [35-direct-gcc-objects.md](../35-direct-gcc-objects.md) | Chapter 35 — Forth-written relocatable objects | 3 | [Objects and relocations](40-objects-and-relocations.md) | regroup |
+| [35-direct-gcc-objects.md](../40-objects-and-relocations.md) | Chapter 35 — Forth-written relocatable objects | 3 | [Objects and relocations](40-objects-and-relocations.md) | regroup |
 | [36-direct-gcc-calls.md](../36-direct-gcc-calls.md) | Chapter 36: Scalar calls across the System V boundary | 3 | [System V calls and separate compilation](41-system-v-calls.md) | regroup |
 | [37-direct-gcc-linker.md](../37-direct-gcc-linker.md) | Chapter 37 — Linking independent AMD64 objects | 3 | [Linker and archives](42-linker-and-archives.md) | regroup |
 | [38-direct-gcc-runtime.md](../38-direct-gcc-runtime.md) | 38. The runtime syscall boundary | 3 | [Runtime, libc, streams, and formatting](43-runtime-and-libc.md) | regroup |
