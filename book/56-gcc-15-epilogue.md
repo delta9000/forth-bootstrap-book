@@ -4,9 +4,9 @@ GCC 15.2.0 already stands at the end of a bootstrap route in [seed-forth](https:
 
 ## The route that stayed behind
 
-The scripts have different shapes. Seed-forth's default stage list runs from `stage0` through `stage12`; forth-bootstrap selects `bridge`, then `stage6` through `stage10` (seed-forth's `gcc64/run-gcc64.sh:687`; `forth-bootstrap/chain/gcc64/run-gcc64.sh:453`). The shared stage names describe a shared stretch of the climb, not identical starting conditions.
+The scripts have different shapes. Seed-forth's default stage list runs from `stage0` through `stage12`; forth-bootstrap selects `bridge`, then `stage6` through `stage10` (seed-forth's `gcc64/run-gcc64.sh:687`; `forth-bootstrap/chain/gcc64/run-gcc64.sh:453`). Seed-forth reaches gcc-A through TinyCC, musl and binutils (`forth-bootstrap/HISTORY.md:23`). Forth-bootstrap reaches it from the direct GCC 4.0.4 of Chapter 55, through its bridge stage (`forth-bootstrap/chain/gcc64/run-gcc64.sh:268`).
 
-In seed-forth, the early stretch passes through TinyCC, musl and binutils before TinyCC builds gcc-A (`forth-bootstrap/HISTORY.md:15`, `forth-bootstrap/HISTORY.md:23`). Forth-bootstrap instead enters its climb with the direct GCC 4.0.4 (Chapter 55). Its bridge supplies the gcc-A handoff without importing the TinyCC stages (`forth-bootstrap/chain/gcc64/run-gcc64.sh:268`). That distinction must survive an extension: importing the final compiler build does not require changing the route's beginning.
+That distinction must survive an extension: importing the final compiler build does not require changing the route's beginning.
 
 The continuation in seed-forth is small at the orchestration level:
 

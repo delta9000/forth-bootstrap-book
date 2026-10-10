@@ -8,6 +8,7 @@
 
 # Part 1 — asm
 
+- [Part 1 — asm](part-1-asm.md)
 - [x86-64 encoding and the two-stack machine](04-x86-64-and-two-stacks.md)
 - [ELF, entry, and the memory map](05-elf-and-entry.md)
 - [Stack and memory primitives](06-stack-primitives.md)
@@ -21,6 +22,7 @@
 
 # Part 2 — Forth
 
+- [Part 2 — Forth](part-2-forth.md)
 - [Stacks and words](14-lib-01-stacks-and-words.md)
 - [Code emission and HERE](15-lib-02-code-emission-and-here.md)
 - [Logic from NAND](16-lib-03-logic-from-nand.md)
@@ -37,6 +39,7 @@
 
 # Part 3 — compiler
 
+- [Part 3 — compiler](part-3-compiler.md)
 - [Arena and I/O buffers](27-arena-and-io-buffers.md)
 - [The preprocessor](28-the-preprocessor.md)
 - [The lexer](29-the-lexer.md)
@@ -63,6 +66,7 @@
 
 # Part 4 — bootstrap
 
+- [Part 4 — bootstrap](part-4-bootstrap.md)
 - [Building seed-cc and seed-ar](50-seed-cc-fixed-point.md)
 - [Owning the tools](51-owning-the-tools.md)
 - [GCC 4.0.4: stages C and D](52-gcc-4-fixed-point.md)

@@ -1,6 +1,6 @@
 # Chapter 50 — Building seed-cc and seed-ar
 
-`seed-cc` turns a C source file into a runnable program by driving the Forth compiler. The seed constructs that driver itself, by reading a build controller as Forth source. The result is `seed-cc` and its companion `seed-ar`, built without Python; the project's fixed points come later, in Chapter 52 (GCC stage D) and Chapter 55 (the bzImage identities).
+`seed-cc` turns a C source file into a runnable program by driving the Forth compiler. The seed constructs that driver itself, by reading a build controller as Forth source. The result is `seed-cc` and its companion `seed-ar`, built without Python; the project's fixed point comes later, in Chapter 52 (GCC stage D).
 
 
 ## Build a driver without running a driver
