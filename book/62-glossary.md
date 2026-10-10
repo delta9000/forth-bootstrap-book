@@ -174,7 +174,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Store-and-advance** — Write a payload at HERE, then advance HERE by the payload's width. [Chapter 15](15-lib-02-code-emission-and-here.md).
 
-**Two's complement** — Complementing a value and adding one produces its additive inverse in wrapping cell arithmetic. [Chapter 17](17-lib-04-return-stack-over-subtract.md).
+**Two's complement** — A signed `w`-bit field with its high bit set represents its unsigned value minus `2^w`; [Chapter 4](04-x86-64-and-two-stacks.md#reading-a-negative-displacement) applies that rule to displacements. Complementing a value and adding one produces its additive inverse in wrapping cell arithmetic; [Chapter 17](17-lib-04-return-stack-over-subtract.md) derives that operation.
 
 **Two-pass assembly** — An initial scan counts bytes and records labels; a subsequent scan resolves references and emits bytes. [Chapter 26](26-m1-and-hex2.md).
 

@@ -46,6 +46,16 @@ Each Part opens with a one-screen page that maps its chapters. The
 [Glossary](62-glossary.md) gives one name per concept, and chapters use
 that name.
 
+At a difficult transition, name the action the reader needs to perform,
+not merely the earlier chapter number. Teach an unfamiliar representation
+before asking for a prediction; keep feedback separate from the attempt
+and link a specific repair. An optional expandable bridge can keep a part
+map short for experienced readers. The
+[capability checks](63-concepts.md#capability-checks-at-the-transitions)
+are examples, not a template required in every chapter. The outline's
+reading-order chain is not evidence that a learner has acquired each skill,
+and a successful build is not a substitute for explaining its mechanism.
+
 ## Checks
 
 `./check.sh`, run from the repository root, must pass before publication.

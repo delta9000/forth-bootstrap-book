@@ -101,7 +101,9 @@ K0's appended boot recipe then runs that executable. K1 takes over the machine a
 
 K1 divides responsibilities among `main.c` for boot and traps, `mm.c` for memory, `fs.c` for files, `proc.c` for processes, `sys.c` for syscall dispatch and `ata.c` for disks. Assembly routines handle privileged machine operations (`forth-bootstrap/kernel/k1/README.md:215`). The useful unit of study is the boundary these files provide to static executables.
 
-The physical-memory direct map lets kernel code address a physical page through a shared virtual address. Its translation and page size are explicit in `k1.h` (`forth-bootstrap/kernel/k1/k1.h:20`):
+### Two virtual addresses, one physical byte
+
+An instruction uses a **virtual address**; paging translates it to a **physical address** and checks whether the access is allowed. K1 needs both an identity map, where the two addresses are equal, and a direct map, where adding a fixed base gives the kernel another address for the same physical memory. The direct-map arithmetic and allocation page size are explicit in `k1.h` (`forth-bootstrap/kernel/k1/k1.h:20`):
 
 ```c
 #define NULL ((void *)0)
@@ -113,7 +115,20 @@ The physical-memory direct map lets kernel code address a physical page through 
 #define ALIGNDN(x, a) ((x) & ~((a) - 1))
 ```
 
-K1's low image mapping is supervisor-only and ends at the boundary checked by the host build test. User processes receive their own page tables, while the upper direct map remains shared (`forth-bootstrap/kernel/k1/README.md:134`). `struct mm` tracks the break and the next downward mmap placement separately, so heap growth and mapped regions can be checked for overlap (`forth-bootstrap/kernel/k1/k1.h:161`).
+`P2V(0x201234)` gives `0xFFFF800000201234`; `V2P` subtracts `KBASE` to recover `0x201234`. These macros only calculate addresses. The page tables must make both this high address and the low identity address `0x201234` reach the same physical byte.
+
+For the listing below, read **PML4** (page-map level 4) as the root table, **PDPT** (page-directory-pointer table) as the next table, and **PD** as a page directory. An entry either stores the physical address of the next table or ends the walk at a **leaf**, giving the physical base of a mapped region. In these entries, `3` sets present and writable; `0x83` also sets the large-page bit. A large leaf at PDPT level covers 1 GiB; at PD level it covers 2 MiB. Thus the allocator's `PAGE = 4096` does not make every mapping 4 KiB. The hardware formats are specified in [Intel's system programming manual, §4.5](https://cdrdv2-public.intel.com/819714/253668-sdm-vol-3a.pdf); K1 names these flag bits in `mm.c` (`forth-bootstrap/kernel/k1/mm.c:195`).
+
+Here is a manual translation trace through the tables this code constructs, not an executed memory read (`forth-bootstrap/kernel/k1/main.c:314`):
+
+| Virtual byte address | Selected entries | Leaf base + byte offset → physical address |
+|---|---|---|
+| `0x201234` | `pml4[0]` → `pdpt_low[0]` → `pd_low[1]` | `0x200000 + 0x1234 = 0x201234` |
+| `0xFFFF800000201234` | `pml4[256]` → `pdpt_dm[0]` | `0 + 0x201234 = 0x201234` |
+
+Both flag values leave the user-access bit (`4`) clear. These mappings are **supervisor-only**: K1's privileged kernel code can use them; a restricted user process cannot read or write them merely by choosing the same address. Sharing the upper map therefore does not grant user access ([Intel, §4.6](https://cdrdv2-public.intel.com/819714/253668-sdm-vol-3a.pdf)).
+
+`load_cr3` selects the root by loading its **physical** address into the CPU's CR3 register, an operation reserved for privileged code (`forth-bootstrap/kernel/k1/k1-asm.fth:87`). Here the table pointers still use K0's identity mapping, so their numeric values already are physical addresses. Loading CR3 changes translation, not the addresses held in registers or the bytes in RAM. This small model omits translation caches, detailed address-bit selection and fault handling; it is enough to follow which addresses survive a handoff.
 
 The low mapping reserves space for K1 itself rather than user images (`forth-bootstrap/kernel/k1/main.c:314`):
 
@@ -131,7 +146,7 @@ The low mapping reserves space for K1 itself rather than user images (`forth-boo
     kpd_low = (u64 *)P2V(pd_low);
 ```
 
-The build check rejects a K1 image extending beyond that mapping (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:59`). Physical memory comes from QEMU's e820 map; mapped user regions acquire zeroed pages on demand. Fork copies present pages. Guest RAM must accommodate both the file system and process memory (`forth-bootstrap/kernel/k1/README.md:130`).
+The build check rejects a K1 image extending beyond that mapping (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:59`). User processes receive their own page tables, while the upper direct map remains shared (`forth-bootstrap/kernel/k1/mm.c:202`). `struct mm` tracks the break and the next downward mmap placement separately, so heap growth and mapped regions can be checked for overlap (`forth-bootstrap/kernel/k1/k1.h:161`). Physical memory comes from QEMU's e820 map; mapped user regions acquire zeroed pages on demand. Fork copies present pages. Guest RAM must accommodate both the file system and process memory (`forth-bootstrap/kernel/k1/README.md:130`).
 
 Unlike K0's serial execution, K1 runs user processes through SYSCALL/SYSRET, blocks them on waits and pipes, and preempts user code on timer ticks (`forth-bootstrap/kernel/k1/README.md:145`). Its tool-facing services include file and directory operations, fork/exec/wait, pipes, memory mapping, clocks and signals. Console, null, zero and random devices support the runtime; `/proc/self/exe` lets seed-cc locate its source tree (`forth-bootstrap/kernel/k1/README.md:154`).
 

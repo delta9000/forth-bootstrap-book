@@ -120,6 +120,40 @@ E9 DF 05 00 00                            ; jmp repl  (rel32 = 0x699 - 0x0BA)
 
 The source identifies `0x699` as `repl`. File offsets suffice for this subtraction because both locations receive the same load-address adjustment; Chapter 5 establishes that adjustment. A backward displacement is negative and is encoded in two's complement. The same next-address rule applies to `E8` relative calls, which additionally save that next address on the return stack. Chapter 10 uses this rule when emitting calls; Chapter 11 covers the seed's Forth branch words.
 
+### Reading a negative displacement
+
+First assemble the field's bytes as an unsigned number `u`. For a signed
+field of `w` bits, its value is `u` when the high bit is clear and
+`u - 2^w` when the high bit is set. The width belongs to the field:
+`rel8` has 8 bits; `rel32` has 32. This is the reading rule for two's
+complement; Chapter 17 derives the corresponding negation operation.
+
+For example, the dictionary's backward jump is `EB E8`
+(`forth-bootstrap/seed/000-seed.hex0:350`). Here `EB` is the opcode and
+`E8` is a one-byte displacement, not another opcode. Its unsigned value is
+232, so its signed value is `232 - 256 = -24`. The next instruction is at
+offset `0x344`; the target is `0x344 - 24 = 0x32C`. The rule is still
+**add the signed distance to the next address**.
+
+Try a changed, schematic case before revealing the answer: an `E9`
+instruction begins at `0x200` and has displacement bytes `F8 FF FF FF`.
+Where does it jump? Separately, what address does a signed byte
+displacement `FC` select in `[rax + displacement]` when `rax = 0x200`?
+
+<details>
+<summary>Check the field width and address base</summary>
+
+`F8 FF FF FF` is unsigned `0xFFFFFFF8`, or `2^32 - 8`, so the signed
+distance is `-8`. The five-byte instruction ends at `0x205`; its target is
+`0x1FD`. Using the start would give the wrong answer, `0x1F8`.
+`FC` is unsigned 252 in an eight-bit field, hence `-4`. The memory
+operand selects `0x1FC`: a memory displacement is added to its base
+register, not to the next instruction. Return to the field-width rule if
+you got a large positive distance; return to the instruction skeleton if
+you added at the wrong base.
+
+</details>
+
 ## The Linux register boundary
 
 The Linux syscall register convention temporarily gives registers a different job. The syscall number goes in `rax` and arguments go, in order, in `rdi`, `rsi`, `rdx`, `r10`, `r8`, and `r9`. The result comes back in `rax`; `syscall` clobbers `rcx` and `r11`. The argument register after `rdx` is `r10`, not the C function-call convention's `rcx`.

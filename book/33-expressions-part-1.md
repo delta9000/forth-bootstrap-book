@@ -40,6 +40,17 @@ This is the assembly recipe for the file, not its literal header. The operand an
 
 The grammar makes each binary operand a call to a tighter production (`forth-bootstrap/cc/100-cc-expr.fth:1`):
 
+Read this as a description of token sequences, not as C or Forth code.
+`:=` means "is defined as"; an unquoted `|` separates alternatives;
+parentheses group a description. A trailing `?` permits zero or one
+occurrence, and a trailing `*` permits zero or more. Quoted punctuation is
+an actual C token, so `'*'` means a star token (multiplication in the
+`mul` rule, dereference in `unary`), while the unquoted repetition `*`
+does not. For example,
+`add := mul (('+'|'-') mul)*` means one `mul`, followed by any number of
+pairs consisting of a `+` or `-` token and another `mul`. The parser loop
+below implements precisely that repetition.
+
 ```forth chunk=expr-header
 \ 100-cc-expr.fth — recursive-descent expression parser for the C subset.
 \ Emits code that leaves the expression's value in rdi.  Uses 090-cc-emit.fth's

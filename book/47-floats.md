@@ -2,6 +2,94 @@
 
 `double sum(void)` can add decimal literals and return their rounded sum. This chapter adds type-directed SSE operations that compute with those bits and return them in the right register, and an exact decimal decoder that produces them. The result is executable floating expressions with correctly rounded literal bits.
 
+## Read the bits before rounding
+
+The decoder must choose between representable values. First recover what
+their encodings mean; if you can already derive the neighbours of `1.0`,
+try the prediction below and continue to the payload path.
+
+A binary floating payload has three fields, from most to least significant:
+sign `s`, unsigned exponent field `E`, and unsigned fraction field `F`.
+Here `p` counts **stored fraction bits**, and `B` is the exponent bias:
+
+In the formulas below, `2^k` means two raised to the power `k`. This is
+mathematical notation, not C's bitwise exclusive-or operator.
+
+| Format in this compiler | Sign bits | Exponent bits | Fraction bits `p` | Bias `B` |
+|---|---:|---:|---:|---:|
+| binary32 (`float`) | 1 | 8 | 23 | 127 |
+| binary64 (`double`) | 1 | 11 | 52 | 1023 |
+
+These are the IEEE [single](https://docs.oracle.com/cd/E37069_01/html/E39019/z4000ac019178.html)
+and [double](https://docs.oracle.com/cd/E37069_01/html/E39019/z4000ac019269.html)
+layouts. The compiler selects their fraction widths, leading units `2^p`
+and biases in `forth-bootstrap/cc/128-cc-float-literal.fth:278–291`.
+The field cases explain why that leading unit is sometimes present:
+
+- **Normal:** when `E` is neither zero nor all ones, the value is
+  `(-1)^s * (1 + F/2^p) * 2^(E-B)`. The significand is the
+  `1 + F/2^p` part. Its leading `1` is implicit, so `p` stored fraction
+  bits give `p+1` significant bits. The integer significand used during
+  rounding is `q = 2^p + F`.
+- **Subnormal or zero:** when `E = 0`, the value is
+  `(-1)^s * (F/2^p) * 2^(1-B)`, with no implicit `1`.
+  Nonzero `F` encodes a subnormal, allowing smaller magnitudes below the
+  smallest normal. `F = 0` encodes zero; the sign distinguishes `+0`
+  from `-0`. Both are false in a C condition.
+- **Nonfinite:** an all-ones exponent (`255` or `2047`) encodes infinity
+  when `F = 0`, and NaN (not a number) otherwise.
+
+Unpacking implements the normal/subnormal distinction at
+`forth-bootstrap/cc/128-cc-float-literal.fth:403–412`; the zero test discards
+the sign at `forth-bootstrap/cc/127-cc-binary64.fth:145–163`.
+Recognizing the IEEE cases does not establish full compiler support:
+scalar literal overflow is diagnosed, and the
+[constant-operation limits](#change-a-constants-format) remain important.
+
+### Derive unity and its neighbour
+
+Work in binary64. For positive `1.0`, `s = 0`, `F = 0`, and the actual
+exponent is zero, so `E = B = 1023 = 0x3ff`. Placing that exponent above
+the 52 fraction bits gives `0x3ff0000000000000`. Increasing `F` to `1`
+gives the next larger value, `1 + 2^-52`, encoded as
+`0x3ff0000000000001`. These are whole-payload hexadecimal values, not a
+memory byte listing.
+
+Their exact midpoint is `1 + 2^-53`, which needs one more fraction bit
+than binary64 stores. Round to nearest chooses the closer endpoint; at an
+exact tie, **ties to even** chooses the endpoint whose integer significand
+`q` is even. Here the choices have `q = 2^52` and `q = 2^52 + 1`, so
+the midpoint rounds to `1.0`. This is a manual derivation, matching the
+quotient parity test in `forth-bootstrap/cc/128-cc-float-literal.fth:252–269`.
+
+**Predict a changed tie.** Move the interval up one step: its endpoints
+are `1 + 2^-52` and `1 + 2 * 2^-52`. Which binary64 payload should their
+exact midpoint, `1 + 3 * 2^-53`, round to? Decide before opening the
+feedback; no compiler run is needed.
+
+<details>
+<summary>Hint</summary>
+
+Write the two integer significands as `2^52 + F`. Which has a zero low bit?
+
+</details>
+
+<details>
+<summary>Feedback and repair</summary>
+
+The result is the upper endpoint, `0x3ff0000000000002`. The lower
+significand is `2^52 + 1`, which is odd; the upper is `2^52 + 2`, which
+is even. Ties to even does not mean always rounding down. If you chose
+the lower endpoint, return to [unity and its neighbour](#derive-unity-and-its-neighbour)
+and compare the two low bits before trying again. If the payload itself
+was hard to form, revisit [the field layout](#read-the-bits-before-rounding).
+
+</details>
+
+The rest of the chapter first transports these payloads, then constructs
+them from exact integer ratios. The ratio must retain enough information
+to distinguish below, at, and above a midpoint before rounding once.
+
 ## Keep the payload, preserve the type
 
 The path is spelling → payload in RDI → transient SSE operands → payload in RDI → storage or return. Binary64 occupies a full expression cell; binary32 uses its low half and stores only four bytes. Separate type and transport prevent a `float` store from overwriting its neighbour.
@@ -86,6 +174,12 @@ The runtime literal hook asks the typed spelling interface (Chapter 45) for bits
 ```
 
 ## Move into SSE only to compute
+
+XMM0 and XMM1 belong to a separate bank of
+[128-bit registers](https://www.intel.com/content/dam/support/us/en/documents/processors/pentium4/sb/25366521.pdf),
+rather than being aliases of RDI and RCX. The scalar SSE/SSE2 instructions used here
+operate on one binary32 value in the low 32 bits or one binary64 value in
+the low 64 bits; the remaining bits are not extra precision for that value.
 
 The register bridges copy payloads without converting them. RAX supplies an auxiliary operand for updates and unsigned conversion; ordinary binary expressions use RCX (`forth-bootstrap/cc/127-cc-binary64.fth:67`):
 ```forth file=cc/127-cc-binary64.fth
@@ -715,7 +809,7 @@ Repeated doubling and exact remainder comparison produce the binary64 quotient 7
     cc-f64-q @ 0= cc-f64-q-carry !
   then, ;
 ```
-A halfway remainder increments only an odd retained quotient: round to nearest, ties to even. `cc-f64-q-carry` records a full-cell wrap.
+A halfway remainder increments only an odd retained quotient: round to nearest, ties to even, as in [the changed midpoint prediction](#derive-unity-and-its-neighbour). `cc-f64-q-carry` records a full-cell wrap.
 
 ## Select the destination before rounding
 
@@ -881,7 +975,7 @@ Magnitude addition retains the final carry even when it extends the destination 
 
 ## Separate sign, significand and exponent
 
-Unpacking gives sign and magnitude `M * 2^E`, restoring the implicit unit only for normal scalar values (`forth-bootstrap/cc/128-cc-float-literal.fth:400`):
+For finite binary32/binary64 values, the sign test and unpacker recover sign and magnitude `M * 2^e`, restoring the implicit unit only for normals. Here `M` is an integer significand; its scale is `e = E-B-p` for normals and `e = 1-B-p` for subnormals, using the stored field `E` from the opening layout (`forth-bootstrap/cc/128-cc-float-literal.fth:400`):
 ```forth file=cc/128-cc-float-literal.fth
 : cc-f64-negative? ( bits -- flag )
   cc-f64-format @ [lit] 16 = if, [lit] 8 + @ then,

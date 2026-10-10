@@ -227,6 +227,17 @@ The last preparation keeps the current K1 stack addressable while adding the ide
 
 `linux_jump` disables interrupts, installs the new page tables and jumps through the entry argument while leaving the boot-parameter argument in `rsi` (`forth-bootstrap/kernel/k1/k1-asm.fth:229`). Linux receives the boot protocol's machine state rather than a K1 user-process state. The preceding `k1: booting Linux` marker proves that preparation reached the jump; only subsequent Linux output proves that the successor executed.
 
+**Predict before continuing.** Suppose the loop copying `pml4[256]` through `pml4[511]` were removed, leaving only the identity map. After CR3 changes, `rsp` still holds a high direct-map address for K1's kernel stack. If the handoff code now needed to read a saved value from that stack, would the identity map make the read safe? Explain which address would be translated.
+
+<details>
+<summary>Check the stack prediction</summary>
+
+No. The read would use the unchanged high virtual address in `rsp`; it would not automatically subtract `KBASE`. With no corresponding upper PML4 entry, that address would cause a page fault even though the physical bytes still exist and have a low identity-mapped alias. K1 allocates the process's kernel stack through the direct map (`forth-bootstrap/kernel/k1/proc.c:23`, `forth-bootstrap/kernel/k1/mm.c:149`). Preserving the upper entries keeps that stack address usable across the switch.
+
+This is a conditional prediction, not a claim that removing the loop necessarily faults at the CR3 instruction: the pinned `linux_jump` touches no stack between loading CR3 and its register-indirect jump (`forth-bootstrap/kernel/k1/k1-asm.fth:232`). If you expected the identity map to repair `rsp`, revisit [the two-address trace in Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte), then explain why mapping the physical stack bytes is different from preserving the virtual address already in use.
+
+</details>
+
 The greeting is produced by the statically built init. It mounts proc and reads `/proc/version`, so its version message comes from the running kernel rather than a copied build report (`forth-bootstrap/chain/ladder/init.c:19`):
 
 ```c

@@ -2,6 +2,11 @@
 
 `?exit,` can turn a flag into an early return; `a - b - c` can expose a parser's grouping choice. These worked exercises from Parts 1–3 turn a source-reading question into a predicted result, then test that prediction. Each answer follows the same method: identify the question, sketch the answer, solve it, run a check, and explain why the result follows.
 
+Use these independently. D.1 belongs after Chapter 24; D.2 needs Chapters
+10 and 12. D.3's grouping trace belongs with Chapter 33, while its full
+compiler command loads the layers completed by Chapter 38. You do not
+need to finish the compiler before using the earlier feedback.
+
 ## D.1. Chapter 24 — Add the `?exit,` combinator
 
 **Extend — moderate.** Build an immediate `?exit,` that compiles “return if the runtime flag is nonzero,” using the emission operations behind `if,`, `exit,`, and `then,`.

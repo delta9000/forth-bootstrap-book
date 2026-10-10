@@ -23,6 +23,16 @@ represent one byte. For example, `0x10` is decimal 16, and `0xFF` is 255.
 Chapter 4 teaches the instruction fields; Chapter 6 gives the compact
 stack notation before Chapter 14 develops it fully.
 
+Part 3 adds a different reading task: recognizing the C declarations and
+expressions that the Forth compiler consumes. Its
+[C-reading bridge](part-3-compiler.md#reading-the-c-input) introduces the
+pointer, array, and record notation needed for that step, with a short
+self-check. You do not need to bring a complete C implementation or ABI
+course to the first chapter. Use the
+[capability checks](63-concepts.md#capability-checks-at-the-transitions)
+when entering a later part or returning after a break; the sidebar is a
+reading sequence, not a test of what you already know.
+
 A quick self-check: from the book root, what file does
 `forth-bootstrap/seed-forth` name, and how many bytes do `48 83 ED 08`
 represent? The answers are the executable inside the source checkout and
