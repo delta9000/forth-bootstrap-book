@@ -2247,6 +2247,15 @@ Checked relocation assignment | 42 Linker and archives | resolve and range-check
 GNU archive index | 42 Linker and archives | symbol names map to candidate member-header offsets
 Lazy member selection | 42 Linker and archives | extract only members that satisfy unresolved strong demand, until nothing new is needed
 Input identity protection | 42 Linker and archives | device/inode checks stop the output from replacing one of its inputs
+Runtime-aware entry | 43 Runtime, libc, streams, and formatting | start code initializes library state before main and routes its return through library exit
+Raw syscall result | 43 Runtime, libc, streams, and formatting | the kernel's result is left unchanged for public wrappers to translate
+Shared errno storage | 43 Runtime, libc, streams, and formatting | single-threaded error state reached through __errno_location
+Frameless adapter | 43 Runtime, libc, streams, and formatting | a machine-code leaf that keeps the stack layout its contract requires
+Nonlocal continuation | 43 Runtime, libc, streams, and formatting | saved registers, stack pointer and return address for resuming a live caller (setjmp/longjmp)
+Allocation metadata | 43 Runtime, libc, streams, and formatting | extent and requested size kept with each block for free and realloc
+Failure-preserving realloc | 43 Runtime, libc, streams, and formatting | failed growth leaves the original allocation intact
+Stream state | 43 Runtime, libc, streams, and formatting | ownership, buffered bytes, position, error and EOF tracked beyond the descriptor
+Bounded formatting count | 43 Runtime, libc, streams, and formatting | the logical output length keeps counting even when the destination truncates
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
