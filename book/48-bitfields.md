@@ -4,7 +4,7 @@ Setting `flags.low` must leave `flags.delta` negative and `flags.high` unchanged
 
 ## Describe a slice of a native object
 
-Declaration → unit offset, bit shift and width → extraction or preserving store. In the LP64 native object representation (Chapter 39), a bitfield's byte offset names its containing unit. Record arguments and returns belong to Chapter 49.
+Declaration → unit offset, bit shift and width → extraction or preserving store. In the LP64 native object storage (Chapter 39), a bitfield's byte offset names its containing unit. Record arguments and returns belong to Chapter 49.
 
 `cc-bf-record-bytes` expands compiler field metadata to 72 bytes only in explicit System V mode. `cc-bf-die` writes `cc-bf-error-prefix` and exits with 248 (`forth-bootstrap/cc/129-cc-bitfield.fth:1`):
 ```forth file=cc/129-cc-bitfield.fth

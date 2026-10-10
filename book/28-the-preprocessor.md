@@ -14,13 +14,13 @@ cc-in-buf → region walker → cc-src-buf
        temporary sinks, macro table, conditional stack
 ```
 
-The recurring operation is *save–switch–restore*: suspend a region or sink,
+The recurring operation is *save-switch-restore*: suspend a region or sink,
 process nested text, then resume its caller. The code retains legacy and
 direct preprocessing policies. The TinyCC route and stage0-posix handoff
 remained in the older project (`forth-bootstrap/HISTORY.md:14`); their
 historical presence does not make them steps in the current route.
 
-A preprocessor replaces macro names, chooses conditional groups and splices included files into the input stream; the header names the supported directives (`forth-bootstrap/cc/040-cc-prep.fth:1`):
+The header names the supported directives (`forth-bootstrap/cc/040-cc-prep.fth:1`):
 
 ```forth file=cc/040-cc-prep.fth
 \ 040-cc-prep.fth — the C preprocessor.
@@ -142,7 +142,7 @@ variable cc-pp-sink-depth
 
 ```
 
-Sink push and pop apply save–switch–restore: push installs a new sink, and pop resumes the previous destination with its corresponding flags (`forth-bootstrap/cc/040-cc-prep.fth:98`):
+Sink push and pop apply save-switch-restore: push installs a new sink, and pop resumes the previous destination with its corresponding flags (`forth-bootstrap/cc/040-cc-prep.fth:98`):
 
 ```forth file=cc/040-cc-prep.fth
 \ cc-pp-sink-push ( addr pos cap code -- )  Park the current sink and make
@@ -339,7 +339,7 @@ variable cc-macro-direct-base
 \ The selectors that switch these arrays follow the include pool below.
 ```
 
-A definition read from an include slot cannot retain pointers into that slot: a later include may overwrite it. `cc-pp-pool-copy` uses save–switch–restore to give names and bodies lasting storage (`forth-bootstrap/cc/040-cc-prep.fth:260`):
+A definition read from an include slot cannot retain pointers into that slot: a later include may overwrite it. `cc-pp-pool-copy` uses save-switch-restore to give names and bodies lasting storage (`forth-bootstrap/cc/040-cc-prep.fth:260`):
 
 ```forth file=cc/040-cc-prep.fth
 
@@ -2121,7 +2121,7 @@ variable cc-prep-isd-save-pos
 
 ```
 
-Prefix scanning uses the shared comment walker both for lookahead and consumption. Save–switch–restore preserves the caller's disposal and line-control modes across that scan (`forth-bootstrap/cc/040-cc-prep.fth:1625`):
+Prefix scanning uses the shared comment walker both for lookahead and consumption. Save-switch-restore preserves the caller's disposal and line-control modes across that scan (`forth-bootstrap/cc/040-cc-prep.fth:1625`):
 
 ```forth file=cc/040-cc-prep.fth
 : cc-prep-directive-prefix ( put-mode -- )
@@ -2396,7 +2396,7 @@ Direct mode requires a nonempty, closed name. Expanded operands must contain onl
     [lit] 0 cc-prep-inc-expanded !
 ```
 
-Opening an include uses save–switch–restore for the region as well as the packed-pool top. Entering and leaving record location-map boundaries, and the included region is walked before the caller resumes (`forth-bootstrap/cc/040-cc-prep.fth:1841`):
+Opening an include uses save-switch-restore for the region as well as the packed-pool top. Entering and leaving record location-map boundaries, and the included region is walked before the caller resumes (`forth-bootstrap/cc/040-cc-prep.fth:1841`):
 
 ```forth file=cc/040-cc-prep.fth
     cc-prep-inc-mode @ [lit] 1 = cc-prep-direct @ or if,

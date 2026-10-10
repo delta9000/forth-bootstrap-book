@@ -9,7 +9,7 @@ Proof link: the rebuilt TinyCC reaches the existing boot2 = boot3 executable and
 
 ## Goal and source coverage
 
-Ch 33 closed the assembler gap on the M2-Planet route. Here we take
+Chapter 26 builds the M1 assembler and hex2 linker. Here we take
 another branch: teach the Forth C compiler enough of the pinned,
 patched TinyCC 0.9.27 and portable-libc sources to compile them
 itself. The generated executable is a TinyCC seed; that TinyCC
@@ -24,14 +24,13 @@ The compiler files still load in numerical order: the native words
 are available before `120-cc-main.fth`, but loading them alone does
 not change the default compilation mode.
 
-**Concepts carried in:** lexer mark/reset (Ch 23), types and struct
-descriptors (Ch 24), direct ELF emission and fixups (Chs 25–26),
-lvalues and expressions (Chs 27–28), declarations and statements
-(Chs 29–30), and function scope and entry stubs (Ch 31).
+**Concepts carried in:** lexer mark/reset (Chapter 29), types and struct
+descriptors (Chapter 30), direct ELF emission and fixups (Chapters 31–32),
+lvalues and expressions (Chapters 33–34), declarations and statements
+(Chapters 35–36), and function scope and entry stubs (Chapter 37).
 
-**Concepts introduced:** LP64 object layout, a private all-stack
-call convention, initializer lowering through ordinary relocation
-fixups, an explicitly restricted bootstrap profile, and separating
+**Concepts introduced:** LP64 native object storage, the private all-stack ABI,
+initializer lowering through ordinary relocation fixups, an explicitly restricted bootstrap profile, and separating
 source preparation from executable closure.
 
 **Deferred:** a general ISO C compiler, arbitrary external object
@@ -64,9 +63,8 @@ The native driver also calls `cc-arena-map` for an additional 8 MiB
 compiler workspace. The dictionary, source/output buffers, and tables
 stay inside the seed's original 16 MiB segment; recursive native
 contexts, descriptors, and fixups use the external mapping. The
-legacy default retains its 32 KiB arena. [Appendix B](05-elf-and-entry.md#read-the-seed-memory-map)
-distinguishes those compiler allocations from a generated program's
-heap.
+legacy default retains its 32 KiB arena. [Chapter 5](05-elf-and-entry.md#read-the-seed-memory-map)
+shows the seed memory map before compiler storage is allocated.
 
 The target sources retain their existing `PNUT_CC` compatibility
 conditionals. Those macro names select a source dialect; they do
@@ -90,10 +88,9 @@ structs from unions. `cc-nadd-field` aligns the next struct field,
 puts each union field at offset zero, and tracks total size and
 maximum alignment. `cc-npromote-fields` copies anonymous aggregate
 members into the parent with their enclosing offset added.
-Qualification provenance for a member (Ch 24 §2) is a list keyed by
-the record's address, and a descriptor's field table moves when it
-grows (Ch 24 §1), so `cc-nqualified-move` re-keys the moved entries
-through the `cc-sd-table-moved` hook.
+Field qualification and descriptor growth (Chapter 30) require
+`cc-nqualified-move` to re-key moved entries through the
+`cc-sd-table-moved` hook.
 
 `cc-nbase-raw` reads the base type of every native declaration and type
 name. C90 allows qualifiers between type keywords, so
@@ -111,9 +108,9 @@ LP64, whatever their order: `long unsigned long` and
 one `long`. A target may check the counted set
 through `cc-nspec-check-fwd`; the native profile keeps its permissive
 keyword sequence, while the System V target rejects invalid sets
-(Chapter 36). The finished base passes through `cc-nbase-scalar-fwd`, an
+(Chapter 41). The finished base passes through `cc-nbase-scalar-fwd`, an
 identity here; the System V target uses it to represent `long double`
-as an opaque sixteen-byte record (Chapter 36).
+as an opaque sixteen-byte record (Chapter 41).
 
 `cc-ndeclarator` handles the bounded declarator forms the target
 needs: pointers, function pointers, arrays, and function parameter
@@ -793,11 +790,10 @@ argument slots. Arguments are pushed right-to-left; after a normal
 function's prologue, argument one is at `rbp+16`. There is no
 six-register limit, and portable-libc's simple stack-based varargs
 can read the remaining arguments. The return value is in `rax`.
-This is a private ABI shared by the code we generate together,
+This private all-stack ABI is shared by the code we generate together,
 including indirect calls and C libc functions.
 
-It is not the ABI of the programs TinyCC later compiles. TinyCC's
-own AMD64 backend emits its standard target calling convention.
+TinyCC's own AMD64 backend emits the System V AMD64 calling convention.
 No host libc or precompiled SysV object is linked into the private
 image. Crossing that boundary without an adapter would be wrong.
 Aggregate values cannot cross a function boundary: by-value
@@ -1514,13 +1510,7 @@ profile without claiming a whole-chain proof.
    the entry call that makes the initialized value visible to `main`.
 4. **★★★** Design an aggregate-by-value extension. Specify its
    caller and callee layout and rejection tests before changing the
-   parser; compare it with TinyCC's own target ABI.
-
-## Takeaways
-
-- LP64 storage and a private all-stack ABI let the Forth compiler directly compile the pinned TinyCC and portable-libc profile while preserving the legacy default.
-- Initializers reuse ordinary fixups, and the small native runtime makes its unsupported seed-only operations fail visibly.
-- A working seed, a rebuilt full compiler, a fixed point, and a source-only execution proof are separate results with separate checks.
+   parser; compare it with the System V AMD64 calling convention.
 
 Next: the appendices give reference cards for the seed, compiler,
 reproducibility checks, supported profiles, and diagnostics.

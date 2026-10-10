@@ -1,6 +1,6 @@
 # Chapter 31 — ELF emission and instruction encoding
 
-An executable that exits with status 42 needs only a header and a short instruction sequence. The compiler's type and symbol records do not supply those bytes: emitter words turn operations into instructions in the output buffer. By the checkpoint, you can write and run that executable directly, including a patched jump that skips an unwanted assignment.
+An executable that exits with status 42 needs only a header and a short instruction sequence. Emitter words turn operations into instructions in the output buffer. By the checkpoint, you can write and run that executable directly, including a patched jump that skips an unwanted assignment.
 
 ## `080-cc-elf.fth`: the ELF wrapper
 
@@ -121,7 +121,7 @@ variable cc-bss-size
   then, ;
 ```
 
-Only the low part of each size field is patched. This relies on the output and requested memory fitting the field width used by `cc-out-patch-4le`. Chapter 32 supplies the global-storage accounting that sets `cc-bss-size`; the checkpoint sets it to zero explicitly.
+Only the low part of each size field is patched. This relies on the output and requested memory fitting the field width used by `cc-out-patch-4le`. Chapter 37 supplies the global placement that sets `cc-bss-size`; the checkpoint sets it to zero explicitly.
 
 ## `090-cc-emit.fth`: register convention
 

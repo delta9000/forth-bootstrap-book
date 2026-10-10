@@ -1,6 +1,6 @@
 # Chapter 36 — Statements and control flow
 
-A `for` loop that skips an item with `continue` and stops early with `break` needs different destinations for those jumps. The expression parser alone cannot choose them: the statement parser records pending branches until their enclosing construct supplies a target. The result is `cc-parse-stmt`, which turns blocks, conditionals, loops, switches, and named jumps into executable control flow.
+A `for` loop that skips an item with `continue` and stops early with `break` needs different destinations for those jumps. The statement parser records pending branches until their enclosing construct supplies a target. The result is `cc-parse-stmt`, which turns blocks, conditionals, loops, switches, and named jumps into executable control flow.
 
 ## The forward reference, compound blocks, and `if`
 

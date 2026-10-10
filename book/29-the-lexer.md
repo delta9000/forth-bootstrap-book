@@ -361,7 +361,7 @@ After a hexadecimal byte has passed that predicate, `cc-hex-digit-val` converts 
 
 ```
 
-The decimal reader establishes the recurring *multiply–add* pattern: multiply the accumulated value by the base, add the next digit, and consume that byte (`forth-bootstrap/cc/050-cc-lex.fth:267`):
+The decimal reader uses decimal accumulation (Chapter 12), consuming each digit as it goes (`forth-bootstrap/cc/050-cc-lex.fth:267`):
 
 ```forth file=cc/050-cc-lex.fth
 \ cc-lex-number-dec ( -- )  Read decimal digits into tok-num.
@@ -380,7 +380,7 @@ The decimal reader establishes the recurring *multiply–add* pattern: multiply 
 
 ```
 
-Hexadecimal input uses the same multiply–add loop after its prefix has been consumed, with the hexadecimal predicate and conversion (`forth-bootstrap/cc/050-cc-lex.fth:281`):
+Hexadecimal input uses the same accumulation loop after its prefix has been consumed, with the hexadecimal predicate and conversion (`forth-bootstrap/cc/050-cc-lex.fth:281`):
 
 ```forth file=cc/050-cc-lex.fth
 \ cc-lex-number-hex ( -- )  '0x' already consumed; read hex digits into tok-num.
@@ -399,7 +399,7 @@ Hexadecimal input uses the same multiply–add loop after its prefix has been co
 
 ```
 
-Octal input also uses multiply–add, with the leading zero already consumed; the first byte outside its digit set remains unread (`forth-bootstrap/cc/050-cc-lex.fth:295`):
+Octal input also uses accumulation, with the leading zero already consumed; the first byte outside its digit set remains unread (`forth-bootstrap/cc/050-cc-lex.fth:295`):
 
 ```forth file=cc/050-cc-lex.fth
 \ cc-lex-number-oct ( -- )  A leading '0' already consumed; read octal

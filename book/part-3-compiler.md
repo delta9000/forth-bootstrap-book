@@ -3,11 +3,11 @@
 Part 3 builds a C compiler in Forth. Its layers, `cc/020` through
 `cc/141`, are loaded by the seed after the library. They read C source
 from standard input and write an executable or a relocatable object
-directly. No C compiler on the host runs in this Part.
+directly, without a C compiler on the host emitting those bytes.
 
 The Part has two halves. Chapters 27–38 build a compiler for the C subset
-that M2-Planet is written in. The first half ends with Stage A: the
-Forth compiler's M1 for M2-Planet equals a GCC-built M2-Planet's. Chapters 39–49 extend the same compiler toward GCC 4.0.4's own
+that M2-Planet is written in. The first half ends with the Stage-A parity proof: Forth-built and
+GCC-built M2-Planet emit identical M1 when compiling M2-Planet's own source. Chapters 39–49 extend the same compiler toward GCC 4.0.4's own
 source, adding the storage model, objects, calls and language features
 that compiler needs.
 

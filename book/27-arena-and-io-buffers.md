@@ -42,7 +42,7 @@ Variable-size records need a different home from fixed tables (`forth-bootstrap/
 
 ## Redirecting existing Forth words
 
-Previously compiled callers already contain execution addresses. `code:`
+Previously compiled callers already contain execution tokens. `code:`
 creates a fresh header and returns to interpretation so emitters can fill
 its body. `native!` redirects an old address to the new body; `code-start`
 remembers that destination while the body is emitted (`forth-bootstrap/cc/020-cc-arena.fth:12`):
@@ -94,7 +94,7 @@ slot and subtracts `rdi`. `mov-rax-[rbp],`, `add-rbp-8,`,
 ```
 
 `0<` shifts `rdi`; `<` shifts the subtraction result in `rax`. The latter
-preserves the library comparison's overflow domain (Chapter 20). It does
+preserves the library comparison's signed-overflow domain (Chapter 20). It does
 not replace subtraction with an overflow-aware signed comparison.
 
 Equality uses the subtraction's zero flag, then `sete`, zero-extension and
@@ -289,11 +289,10 @@ before `@` is replaced, avoiding a call from the new fetch to itself (`forth-boo
 ```
 
 `seed-dup`, `seed-drop`, `seed-swap` and `seed-over` retain the previous
-execution addresses. The inline `swap` uses `xchg`; inline `over` loads the
-older item after making room. Call these paired paths the *inline/fallback*
-pattern.
+execution tokens. The inline `swap` uses `xchg`; inline `over` loads the
+older item after making room. Call these paired paths **inline/fallback compilation**.
 
-Memory operations use inline/fallback without changing their stack effects.
+Memory operations use inline/fallback compilation without changing their stack effects.
 `seed-fetch`, `seed-cfetch`, `seed-store` and `seed-cstore` preserve the
 interpretation paths; the store bodies consume both address and value (`forth-bootstrap/cc/020-cc-arena.fth:159`):
 
@@ -316,7 +315,7 @@ interpretation paths; the store bodies consume both address and value (`forth-bo
   else, seed-cstore execute then, ; immediate
 ```
 
-Arithmetic uses the same inline/fallback pattern. `seed-plus` retains
+Arithmetic uses the same inline/fallback compilation. `seed-plus` retains
 addition, while `native-minus`, `native-1+` and `native-1-` retain the
 native bodies just installed (`forth-bootstrap/cc/020-cc-arena.fth:175`):
 
@@ -606,7 +605,7 @@ so the newer headers finish nearer the head (`forth-bootstrap/cc/020-cc-arena.ft
 ```
 
 `fh-find` refreshes that index before searching. A matching length and
-byte range yield the execution address, and the matching header is stored
+byte range yield the execution token, and the matching header is stored
 in LAST_FOUND so the seed can still inspect its flags. Exhausting the
 chain leaves zero (`forth-bootstrap/cc/020-cc-arena.fth:346`):
 
@@ -813,7 +812,7 @@ For the checkpoint's initial request of 16 bytes, let the old pointer be
 stores `p + 16` but returns `p`; the following allocation starts at that
 stored pointer.
 
-This is a *bump allocator*: allocation advances a pointer and there is no
+This is an *arena*: allocation advances a pointer and there is no
 individual release operation. Records remain available as long as the
 region does. Chapter 30 uses this facility for type records, Chapter 32
 for call fixups and Chapter 36 for control-flow records.
@@ -1105,7 +1104,7 @@ saved offset on its final byte store (`forth-bootstrap/cc/030-cc-io.fth:162`):
 These patchers neither reserve bytes nor check bounds. Their caller must
 have emitted the field already and must supply an offset covering a valid
 range. Chapter 31 uses this interface for executable fields; Chapter 32
-extends its use to call and global fixups. Back-patching here addresses
+extends its use to call and global fixups. Output back-patching here addresses
 output-buffer offsets, independent of dictionary HERE.
 
 ## Writing the file

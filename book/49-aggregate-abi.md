@@ -105,11 +105,11 @@ Member access must preserve a record address, while assignment must preserve des
 ```
 ## Give arguments explicit locations
 
-A **call plan** separates source argument order from register order. The caller and callee use the same plan, including a hidden result pointer before visible arguments for MEMORY returns.
+A **call transport plan** separates source argument order from register order. The caller and callee use the same plan, including a hidden result pointer before visible arguments for MEMORY returns.
 
 A plan holds the signature, a separate count for each register class (GP and SSE), the outgoing stack size and the result slot; it also remembers an indirect target and the live state that must survive the call. Each argument records its type, its class and its location: a first register, or a stack offset and frame slot.
 
-`cc-ag-plan` selects the current call plan; `cc-ag-frame` reserves rounded storage without growing an unevaluated expression frame (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:104`):
+`cc-ag-plan` selects the current call transport plan; `cc-ag-frame` reserves rounded storage without growing an unevaluated expression frame (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:104`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ A plan owns explicit argument locations. Nothing relies on the argument
 \ index also being a register index. Each record is type, descriptor, byte
@@ -364,7 +364,7 @@ The hidden result address is installed before visible GP arguments, while scalar
     else, cc-sym-val-of cc-emit-call-vaddr then,
   then, cc-ag-result ;
 ```
-`cc-ag-call-begin` allocates the result storage, and `cc-ag-call` saves the enclosing call plan, because an argument expression may itself contain a call that would otherwise overwrite it (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:289`):
+`cc-ag-call-begin` allocates the result storage, and `cc-ag-call` saves the enclosing call transport plan, because an argument expression may itself contain a call that would otherwise overwrite it (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:289`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 : cc-ag-call-begin ( signature -- )
   dup cc-ag-check-entry cc-ag-new-plan
@@ -601,7 +601,7 @@ The scalar guards run even when expression evaluation is suppressed, so an addre
 ```
 ## Retrieve the same classes through varargs
 
-The variadic cursor machinery (Chapter 46) receives the named arguments' actual consumption from the call plan. Records keep their classification in unnamed and unprototyped calls.
+The variadic cursor machinery (Chapter 46) receives the named arguments' actual consumption from the call transport plan. Records keep their classification in unnamed and unprototyped calls.
 
 `cc-ag-va-layout` derives GP, SSE and overflow offsets from the function plan; `cc-ag-va-last-slot` locates the last named parameter without confusing argument order with register order (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:479`):
 ```forth file=cc/131-cc-aggregate-abi.fth

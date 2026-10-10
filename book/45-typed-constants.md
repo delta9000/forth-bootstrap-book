@@ -1,6 +1,6 @@
 # Chapter 45 — Typed constants
 
-`static long x = sizeof(long) * 3 + (1 << 4);` asks the compiler to calculate a value before the program runs. The static-expression hook still rejects that request; a typed evaluator supplies the missing value while preserving C conversions at each operator. Its result becomes either initializer bytes or a symbolic address for the linker.
+`static long x = sizeof(long) * 3 + (1 << 4);` asks the compiler to calculate a value before the program runs. A typed evaluator calculates it while preserving C conversions at each operator. Its typed constant record becomes either initializer bytes or a symbolic address for the linker.
 
 ## A value carries its type
 
@@ -759,7 +759,7 @@ The address adapter needs this evaluator inside its own grammar. `cc-const-addre
 
 ```
 
-Public parsing must release temporary records without destroying outer operands. `cc-parse-static-const` saves the pool watermark, skip state, and qualification state, returns unpacked cells, then restores all three. `cc-parse-integer-const` further rejects symbols and noninteger types. Binding the static hook enables scalar initializers; `cc-parse-target-const` selects the typed integer API only for System V outside preprocessing, preserving the default parser elsewhere (`forth-bootstrap/cc/125-cc-consteval.fth:592`):
+Public parsing must release temporary records without destroying outer operands. `cc-parse-static-const` saves the constant pool watermark, skip state, and qualification state, returns unpacked cells, then restores all three. `cc-parse-integer-const` further rejects symbols and noninteger types. Binding the static hook enables scalar initializers; `cc-parse-target-const` selects the typed integer API only for System V outside preprocessing, preserving the default parser elsewhere (`forth-bootstrap/cc/125-cc-consteval.fth:592`):
 
 ```forth file=cc/125-cc-consteval.fth
 \ Each public parse restores its pool watermark. Nested sizeof array bounds

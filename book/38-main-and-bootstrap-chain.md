@@ -43,7 +43,7 @@ create cc-out-path
 
 ```
 
-This fixed destination is the compiler's output interface. There is no output-name argument to `cc-main`. Its writer accepts this address using the file-output contract already established (Chapter 27), so another compilation replaces the file. The checkpoint saves an existing file before running and restores it afterward.
+This fixed destination is the compiler's output interface. There is no output-name argument to `cc-main`. Its writer accepts this address (Chapter 27), so another compilation replaces the file. The checkpoint saves an existing file before running and restores it afterward.
 
 ## The nine steps
 

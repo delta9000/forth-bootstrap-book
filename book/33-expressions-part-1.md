@@ -965,7 +965,7 @@ For `2 + 3 * 4`, follow the calls that actually emit an operation:
 - That multiplication parses `3`, accepts `*`, saves its left value, and parses `4`. Its fold emits multiplication before returning.
 - Addition receives the completed product, restores its own left value, and emits addition.
 
-The machine stack preserves the outer left value while the inner fold uses its own saved operand. No expression tree is needed: the nested calls put multiplication’s instructions before addition’s instructions. The checkpoint makes the resulting value visible.
+The machine stack preserves the outer left value while the inner fold uses its own saved operand. The checkpoint makes the resulting value visible.
 
 ## Try it
 

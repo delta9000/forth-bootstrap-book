@@ -1,6 +1,6 @@
 # Chapter 43 — Runtime, libc, streams, and formatting
 
-A C runtime joins process entry, memory ownership, and output into a callable library. Linking `main` alone cannot supply initialization or flush a pending stream when it returns. The artifact here is a set of Forth-built runtime objects, with the C library contracts that let an ordinary program allocate, copy, and print.
+A C runtime joins process entry, memory ownership, and output into a callable library. Process entry initializes library state, and normal termination flushes pending streams. The artifact here is a set of Forth-built runtime objects, with the C library contracts that let an ordinary program allocate, copy, and print.
 
 ## From process entry to a C call
 
@@ -273,7 +273,7 @@ Removing a handler first prevents it from repeating if it calls `exit` itself. `
 
 ## Saving a continuation
 
-A nonlocal return restores a live caller rather than returning through intervening functions. The buffer belongs to this runtime; it cannot be exchanged with a host libc's `jmp_buf`. `forth-bootstrap/chain/runtime/gcc-seed/NONLOCAL.md` gives the permitted C expression contexts and lifetime rules.
+A nonlocal continuation restores a live caller rather than returning through intervening functions. The buffer belongs to this runtime; it cannot be exchanged with a host libc's `jmp_buf`. `forth-bootstrap/chain/runtime/gcc-seed/NONLOCAL.md` gives the permitted C expression contexts and lifetime rules.
 
 `cc-sysrt-setjmp-name` names the save operation; `cc-sysrt-setjmp-code` records preserved registers, the post-return stack pointer, and the return address (`forth-bootstrap/cc/122-cc-sysv-runtime.fth:141`):
 
@@ -298,7 +298,7 @@ create cc-sysrt-setjmp-code
 [lit] 195 c,                                    \ ret
 ```
 
-`cc-sysrt-setjmp-object` exports the saved-continuation leaf independently of the restore operation (`forth-bootstrap/cc/122-cc-sysv-runtime.fth:159`):
+`cc-sysrt-setjmp-object` exports the nonlocal continuation leaf independently of the restore operation (`forth-bootstrap/cc/122-cc-sysv-runtime.fth:159`):
 
 ```forth file=cc/122-cc-sysv-runtime.fth
 : cc-sysrt-setjmp-object
