@@ -1,34 +1,13 @@
-# Chapter 28 — Expressions, Part 2: Primary, Unary, Assignment
+# Chapter 34 — Expressions: operands and assignment
 
-```text
-Missing capability: expressions cannot address storage, handle postfix forms, or assign.
-New pattern: lvalue metadata delays loads until context decides whether a value is read or written.
-Artifact after this chapter: primary, unary, postfix, ternary, assignment, and lvalue-aware codegen.
-Proof link: Stage-A pointer, array, struct, call, increment, and assignment expressions share one value model.
-```
+`(-3 < 0) ? 7 : 9` combines a grouped operand, unary negation, and a choice of result. Compiling it requires the parser to distinguish an operand’s value from any storage it denotes. The completed expression parser carries that distinction through postfix operations and assignment, then supplies a value to its caller.
 
-Ch 27's cascade assumes that something below it leaves an operand
-in `rdi` and something above it decides what to do with the result.
-This chapter writes both ends, and both run into the same problem:
-the parser can't always know what an expression is *for* when it
-parses it.  `p[i]` on the right of `=` is a load; on the left it is
-the address of a store.  `head->next->prev` is a chain of loads until
-the last link, which might be written.
+## Lvalue tracking
 
-The answer is to emit the address, record what kind of value `rdi`
-holds, and let the consumer decide.  §1 sets up that record.  §§2–5
-are the floor below the cascade: field lookup, array indexing,
-`cc-parse-primary` with its postfix chain, and the unary operators.
-§§6–8 are the tail above it: the ternary, assignment, and the
-top-level `cc-parse-expr`.  §9 traces one condition through every
-layer.  Function-call codegen, `cc-parse-call`, sits in this file
-just above `cc-parse-primary` but is Ch 31's subject, and the
-statements that call `cc-parse-expr` are Ch 30's.
+The parser has a floor and a roof: primary and unary words supply operands to the binary cascade (Chapter 33); ternary and assignment wrap its result. Each parse leaves generated code for `rdi` plus metadata describing what `rdi` means. An lvalue denotes an object; an rvalue supplies a value for computation. Reading an lvalue’s stored value is a separate operation. This delayed load lets `p[i]` serve either side of an assignment.
 
----
-
-## 1. Lvalue tracking: four globals, four kinds
-
+The source’s introductory comment gives the core delayed-load contract; its “four facts” description predates the additional metadata below
+(`forth-bootstrap/cc/100-cc-expr.fth:68`):
 ```forth chunk=expr-lvalue
 \ ===========================================================================
 \ Lvalue tracking for assignment, address-of, and dereference.
@@ -58,6 +37,11 @@ statements that call `cc-parse-expr` are Ch 30's.
 \ parsing the left side, and keeps them on the data stack while the right
 \ side's parse overwrites them.
 
+```
+
+`lv-temporary` prevents a temporary record or member from becoming a store destination. `cc-mark` resets the entire expression record: kind, local slot, qualification, field record, descriptor, type, null provenance, and array dimensions
+(`forth-bootstrap/cc/100-cc-expr.fth:96`):
+```forth chunk=expr-lvalue
 [lit] 0 constant lv-value
 [lit] 1 constant lv-local
 [lit] 2 constant lv-deref
@@ -86,6 +70,25 @@ variable cc-last-expr-array-inner                  \ row width for a two-dimensi
   [lit] 0 cc-last-expr-array-len !
   [lit] 0 cc-last-expr-array-inner ! ;
 
+```
+
+The kind is an implementation category, not a complete C type: `lv-local` already holds a loaded value but retains its store slot; a pending dereference holds an address. Array length and inner width preserve shape for `sizeof`, while null provenance distinguishes a recognized null constant from an arbitrary runtime value.
+
+### Marking a result
+
+These small handlers give each producer a common vocabulary for the result it leaves:
+
+| Input | Result or predicate |
+|---|---|
+| Plain value | `cc-mark-not-lvalue` selects `lv-value` |
+| Local slot | `cc-mark-local-lvalue` selects `lv-local` |
+| Byte-width flag | `cc-mark-deref` selects `lv-deref-byte` or `lv-deref` |
+| Current kind | `cc-deref-pending?` recognizes an address awaiting a load |
+| Encoded type | `cc-char-ptr?` recognizes a pointer directly to `char` |
+
+The wrappers separate marking from the tests that consumers need
+(`forth-bootstrap/cc/100-cc-expr.fth:124`):
+```forth chunk=expr-lvalue
 \ cc-mark-not-lvalue ( -- )  rdi holds a plain value.
 : cc-mark-not-lvalue     true lv-value cc-mark ;
 
@@ -108,6 +111,11 @@ variable cc-last-expr-array-inner                  \ row width for a two-dimensi
 : cc-char-ptr?
   dup ty-base ty-char = swap ty-ptr [lit] 1 = and ;
 
+```
+
+`cc-expr-symbol-desc` selects descriptors for records, arrays, and functions (Chapter 30). The size helpers distinguish object size from pointee size, including the native byte stride for `void *`
+(`forth-bootstrap/cc/100-cc-expr.fth:146`):
+```forth chunk=expr-lvalue
 \ Native expression metadata uses the existing encoded type plus descriptor.
 \ A plain aggregate is represented by its address, never by its first word.
 : cc-expr-symbol-desc                             ( id -- desc )
@@ -136,6 +144,11 @@ variable cc-last-expr-array-inner                  \ row width for a two-dimensi
   then,
   swap cc-expr-pointee-type swap cc-expr-type-size ;
 
+```
+
+Typed results restore their type after marking, and `cc-unary-type` promotes narrow integers while preserving pointer types
+(`forth-bootstrap/cc/100-cc-expr.fth:174`):
+```forth chunk=expr-lvalue
 : cc-mark-int-value                               ( -- )
   cc-mark-not-lvalue
   cc-target-lp64 @ if, ty-int [lit] 0 ty-make cc-last-expr-type ! then, ;
@@ -148,6 +161,24 @@ variable cc-last-expr-array-inner                  \ row width for a two-dimensi
   cc-mark-not-lvalue
   cc-last-struct-desc ! cc-last-expr-type ! ;
 
+```
+
+### Value-operation hooks
+
+A hook lets a later target replace a value operation without replacing the parser. The bindings here are the defaults, not the later implementations:
+
+| Hook family | Default result |
+|---|---|
+| `cc-value-literal-fwd` | Declines a special literal |
+| `cc-value-test-fwd`, `cc-value-not-fwd`, `cc-value-negate-fwd`, `cc-value-complement-fwd` | Existing integer emitters |
+| `cc-value-plus-fwd`, `cc-value-ternary-fwd` | No extra operation |
+| `cc-value-ternary-split-fwd`, `cc-aggregate-ternary-fwd` | Decline special branch joining |
+| `cc-value-integer-use-fwd`, `cc-value-shape-fwd`, `cc-value-init-fwd` | Consume checking arguments without further action |
+| `cc-opaque-scalar-fwd` | Declines scalar treatment of an aggregate-shaped type |
+
+Literal dispatch and scalar operations initially use the existing encoders; conditional hooks leave the ordinary join in charge
+(`forth-bootstrap/cc/100-cc-expr.fth:186`):
+```forth chunk=expr-lvalue
 \ Typed value operations share the historical encoders until a target binds them.
 : cc-value-literal-default [lit] 0 ;
 defer cc-value-literal-fwd
@@ -170,6 +201,11 @@ defer cc-value-ternary-fwd
 : cc-value-ternary-split-default [lit] 0 ;
 defer cc-value-ternary-split-fwd
 ' cc-value-ternary-split-default is cc-value-ternary-split-fwd
+```
+
+The remaining defaults establish checking and aggregate contracts; Chapters 47–49 supply specialized value handling
+(`forth-bootstrap/cc/100-cc-expr.fth:208`):
+```forth chunk=expr-lvalue
 \ A record conditional consumes saved left metadata and the true-arm fixup,
 \ patches the join and publishes its value. Scalars leave both in place.
 : cc-aggregate-ternary-default [lit] 0 ;
@@ -190,6 +226,13 @@ defer cc-value-init-fwd
 defer cc-opaque-scalar-fwd
 ' cc-opaque-scalar-default is cc-opaque-scalar-fwd
 
+```
+
+### Choosing address or value
+
+`cc-mark-typed-deref` preserves addresses for arrays, functions, and ordinary records, but marks scalar storage for a later load
+(`forth-bootstrap/cc/100-cc-expr.fth:228`):
+```forth chunk=expr-lvalue
 : cc-mark-typed-deref                             ( ty desc -- )
   over ty-base ty-array = if,
     over ty-ptr 0= if,
@@ -210,6 +253,11 @@ defer cc-opaque-scalar-fwd
   over ty-size [lit] 1 = cc-mark-deref
   cc-last-struct-desc ! cc-last-expr-type ! ;
 
+```
+
+Indexing and pointer updates need byte offsets, so `cc-emit-scale-rdi` and `cc-emit-scale-rcx` multiply an index by its stride
+(`forth-bootstrap/cc/100-cc-expr.fth:248`):
+```forth chunk=expr-lvalue
 : cc-emit-scale-rdi                               ( bytes -- )
   dup [lit] 1 = if, drop exit, then,
   dup [lit] 8 = if, drop cc-emit-shl-rdi-3 exit, then,
@@ -221,6 +269,13 @@ defer cc-opaque-scalar-fwd
   [lit] 72 cc-emit-byte [lit] 105 cc-emit-byte [lit] 201 cc-emit-byte
   cc-emit-4le ;                                   \ imul rcx,rcx,imm32
 
+```
+
+Field operations follow a shared contract. A load or store consumes the field type and record; a value-type query returns the type of the loaded value; a use check consumes the record. The defaults use ordinary typed storage and ignore field-specific metadata. Chapter 48 supplies bitfield behavior.
+
+The field bindings isolate storage policy from expression parsing
+(`forth-bootstrap/cc/100-cc-expr.fth:259`):
+```forth chunk=expr-lvalue
 \ cc-emit-materialize ( -- )  If rdi holds an address not yet loaded, load
 \ through it (one byte or eight) so rdi holds the value, and mark it a plain
 \ value.  The struct descriptor and type describe the value either way, so
@@ -239,6 +294,11 @@ defer cc-field-use-fwd
 ' cc-field-value-type-default is cc-field-value-type-fwd
 ' cc-field-use-default is cc-field-use-fwd
 
+```
+
+`cc-emit-materialize` first offers array decay to its hook, then loads only a pending dereference; it changes the kind and slot while retaining the value’s descriptive metadata
+(`forth-bootstrap/cc/100-cc-expr.fth:277`):
+```forth chunk=expr-lvalue
 : cc-array-decay-default ;
 defer cc-array-decay-fwd
 ' cc-array-decay-default is cc-array-decay-fwd
@@ -262,38 +322,10 @@ defer cc-array-decay-fwd
 
 ```
 
-Four globals form the lvalue state.
+## Struct-field lookup
 
-- `cc-last-lvalue-kind` is the discriminator, one of four named
-  constants: `lv-value` (a temp, not assignable), `lv-local` (a
-  local's value, already in `rdi`, whose slot is in
-  `cc-last-ident-slot`), `lv-deref` (`rdi` holds the *address* of a
-  qword not yet loaded) and `lv-deref-byte` (the same for a single
-  byte, as in `s[i]` with `s` a `char*`).  Width is part of the kind,
-  so a pending deref can't be read without knowing how wide it is.
-- `cc-last-ident-slot` carries the slot for `lv-local`.
-- `cc-last-struct-desc` carries the struct descriptor (Ch 24 §1)
-  for any struct-typed value just loaded.
-- `cc-last-expr-type` is the encoded type word of the value just
-  produced, so postfix `[]` and unary `*` can choose byte or qword.
-
-Every binary-op fold in Ch 27 calls `cc-emit-materialize` before
-consuming an operand.  For `lv-value` and `lv-local` (a local
-already loaded into `rdi`) it's a no-op.  For a pending deref it
-emits the actual `mov rdi, [rdi]` (or `movzx rdi, byte [rdi]` for
-`lv-deref-byte`) and marks the result `lv-value`.  It keeps the
-descriptor and the type: they describe the loaded value just as
-well as the address, so no caller has to save them around the load.
-
-All the setters go through `cc-mark ( slot kind -- )`, which writes
-the kind and slot and clears the descriptor and type; the parser sets
-those two afterwards when it knows them.  `cc-mark-not-lvalue`,
-`cc-mark-local-lvalue` and `cc-mark-deref` (which takes a byte? flag
-and picks the deref kind) are one-line wrappers.  A binary op ends
-with `cc-mark-not-lvalue` because its result is a temp.
-
-## 2. Struct-field lookup
-
+A field lookup must return both an offset and enough metadata for the next postfix operation; the `cc-ff-*` cells hold the search name, descriptor, and matched results
+(`forth-bootstrap/cc/100-cc-expr.fth:298`):
 ```forth chunk=expr-struct-field
 \ ===========================================================================
 \ Struct-field name lookup.
@@ -320,6 +352,11 @@ variable cc-ff-result-record
   \ Loop i = 0..field-count-1.
   cc-ff-desc @ cc-sd-field-count                    ( count )
   [lit] 0                                            ( count i )
+```
+
+`cc-find-field` compares each field name, publishes its descriptor, type, array length, and record, then removes the loop state before returning the offset
+(`forth-bootstrap/cc/100-cc-expr.fth:323`):
+```forth chunk=expr-struct-field
   begin,
     over over >                                      ( count i count>i? )
   while,
@@ -346,22 +383,10 @@ variable cc-ff-result-record
 
 ```
 
-`cc-find-field` walks the descriptor's field records (Ch 24 §1)
-looking for one whose name matches the needle, returns its
-offset, and stashes the matched field's pointee descriptor and
-type in `cc-ff-result-{desc,type}` for the postfix handler.
+## Array indexing helper
 
-The walk returns with `exit,` on the first match, as
-`cc-check-keyword` (Ch 23) and `cc-sym-find` (Ch 24) do; `nip nip`
-first clears the loop's count and index so only the offset is left.
-
-A missing field is fatal (code 90).  By this point
-`cc-last-struct-desc` has confirmed that the value *is* a struct,
-so a missing field is an error in the program being compiled, not
-a parsing ambiguity.
-
-## 3. Array indexing helper
-
+A named subscript starts with a symbol, so the legacy helper distinguishes inline storage from a stored pointer before calculating the element address
+(`forth-bootstrap/cc/100-cc-expr.fth:347`):
 ```forth chunk=expr-array-index
 \ ===========================================================================
 \ cc-parse-array-index — handle `arr[expr]`.
@@ -391,6 +416,11 @@ a parsing ambiguity.
 \ step yields a single char:
 \   inline array of T:  step=1 iff base==ty-char AND ptr-depth==0
 \   pointer-to-T:       step=1 iff base==ty-char AND ptr-depth==1
+```
+
+`cc-parse-array-index` accepts a local or global symbol and selects its base-loading path
+(`forth-bootstrap/cc/100-cc-expr.fth:375`):
+```forth chunk=expr-array-index
 \
 \ This word then marks the result a pending deref (lv-deref) so the consumer
 \ either does the load (rvalue use, via cc-emit-materialize) or treats rdi
@@ -417,6 +447,11 @@ a parsing ambiguity.
     then,
   then,
 
+```
+
+The element type survives recursive index parsing on the compiler’s return stack; an array consumes its array dimension, while a pointer loses a pointer level
+(`forth-bootstrap/cc/100-cc-expr.fth:401`):
+```forth chunk=expr-array-index
   \ Element type of arr[i] plus a byte-step flag, both stashed on the rstack
   \ so they survive the index-expression parse.  An inline array (len>0)
   \ keeps the symbol's type — the subscript consumes the array dimension, not
@@ -433,6 +468,11 @@ a parsing ambiguity.
   dup ty-base ty-char = swap ty-ptr [lit] 0 = and ( char-step? ; R: elem-ty )
   >r                                              ( ; R: elem-ty char-step? )
 
+```
+
+Generated code saves the base, evaluates and scales the index, then forms an address and marks the resulting element as a pending dereference
+(`forth-bootstrap/cc/100-cc-expr.fth:417`):
+```forth chunk=expr-array-index
   cc-emit-push-rdi
 
   \ Parse the index expression.  cc-parse-expr-fwd ends with a materialize
@@ -463,35 +503,10 @@ a parsing ambiguity.
 
 ```
 
-`cc-parse-array-index` is the `[` handler that `cc-parse-primary`
-calls once it has read `IDENT [`.  It loads the base address, parses
-the index expression, scales the index by the element size (1 for
-char data, 8 for everything else), adds, and marks the result as a
-pending-deref lvalue.
+## Primary expressions
 
-The four base-loading paths (local array, local pointer, global
-array, global pointer) cover every way a name can head a `[]`.
-`argv[i]` (a `char**`) and `int arr[N]` use qword stride, while
-`s[i]` on a `char*` loads a single byte, as `is_digit(s[i])` needs.
-The choice comes from the *element type* of `arr[i]`.  An inline
-array keeps the symbol's own type (the subscript spends the array
-dimension, not a pointer level); a pointer drops one pointer level.  The step is one byte exactly when
-the element type is a plain `char`.  The helper keeps the element
-type on the return stack and writes it back to `cc-last-expr-type`
-after the mark, which clears it.  That is what makes a chained
-subscript work: in `char* v[]; v[i][j]`, the second `[` sees that
-`v[i]` is a `char*` and steps by one byte.
-
-## 4. `cc-parse-primary`: the operand and its postfix chain
-
-A primary is an operand (a literal, a name, or a parenthesised
-expression) followed by any number of postfix operators: `.`, `->`,
-`[`, `++`, `--`.  The code is a family of small words, one per form.
-Each one tests for its cases in turn and returns with `exit,` (Ch 11)
-as soon as it has compiled one, so each reads top to bottom as a list
-of cases rather than a ladder of nested `else,`s.  The chunk below
-lists them in load order: a word must come after the words it calls.
-
+The primary family is assembled in dependency order, with handlers before the dispatch loop that calls them
+(`forth-bootstrap/cc/100-cc-expr.fth:674`):
 ```forth chunk=expr-primary
 <<expr-primary-literals>>
 <<expr-primary-fn-rvalue>>
@@ -508,6 +523,8 @@ lists them in load order: a word must come after the words it calls.
 
 ### The top: operand, then postfix loop
 
+A primary can grow into a chain such as `head->next->s[i]`; `cc-postfix-op?` and the loop keep consuming suffixes, including native indirect calls
+(`forth-bootstrap/cc/100-cc-expr.fth:1182`):
 ```forth chunk=expr-primary-postfix
 \ cc-postfix-op? ( -- f )  True if the current token is a postfix operator.
 : cc-postfix-op?
@@ -539,6 +556,11 @@ lists them in load order: a word must come after the words it calls.
         then,
       then,
     then,
+```
+
+The first non-postfix token belongs to the enclosing expression, and each new primary begins with cleared lvalue metadata
+(`forth-bootstrap/cc/100-cc-expr.fth:1212`):
+```forth chunk=expr-primary-postfix
   repeat,
   cc-putback-token ;                              \ not a postfix operator
 
@@ -549,12 +571,8 @@ lists them in load order: a word must come after the words it calls.
 
 ```
 
-`cc-parse-primary` marks "not an lvalue", compiles one operand, then
-loops while the next token is a postfix operator, dispatching on its
-code to one of three words below.  The first token that isn't one
-goes back to the caller.  `cc-parse-operand` picks the operand's
-form from the token kind:
-
+`cc-parse-operand` dispatches literals, names, and parentheses; a numeric zero records null provenance, and a string publishes a character-pointer type
+(`forth-bootstrap/cc/100-cc-expr.fth:947`):
 ```forth chunk=expr-primary-operand
 \ cc-parse-operand ( -- )  Read one token and compile the operand it starts:
 \ a literal, a name, a cast or a parenthesised expression.
@@ -588,16 +606,10 @@ form from the token kind:
 
 ```
 
-Every failure in these words is a `cc-die` with its own code
-(Appendix G).  A number goes through `cc-emit-mov-rdi-int` (Ch 26),
-which widens to a 64-bit `movabs` when the value doesn't fit a
-sign-extended `imm32`, so `0x80000000` keeps its value instead of
-loading negative.  A character literal is always in `0..255` and
-takes the plain `imm32` path.  A token that can't start an operand
-at all is code 97.
-
 ### String literals
 
+Inline string data needs a jump around it so execution reaches the instruction that loads its address
+(`forth-bootstrap/cc/100-cc-expr.fth:674`):
 ```forth chunk=expr-primary-literals
 \ ===========================================================================
 \ cc-parse-primary: the operand, then its postfix operators
@@ -618,6 +630,11 @@ at all is code 97.
 \ Native strings concatenate adjacent tokens after escape decoding. Each
 \ piece's temporary terminator is removed; exactly one final NUL remains.
 \ Output positions count decoded bytes, including any explicit embedded NUL.
+```
+
+`cc-parse-native-string-literal` joins adjacent decoded tokens, retains their combined array length, and becomes the default native string hook
+(`forth-bootstrap/cc/100-cc-expr.fth:693`):
+```forth chunk=expr-primary-literals
 : cc-parse-native-string-literal
   cc-emit-jmp-rel32-placeholder
   cc-here-vaddr swap                              ( str-vaddr fixup-off )
@@ -637,6 +654,11 @@ at all is code 97.
 defer cc-native-string-fwd
 ' cc-parse-native-string-literal is cc-native-string-fwd
 
+```
+
+The legacy string path handles the current token, patches the jump over its bytes, and loads their address
+(`forth-bootstrap/cc/100-cc-expr.fth:712`):
+```forth chunk=expr-primary-literals
 : cc-parse-string-literal
   cc-target-lp64 @ if, cc-native-string-fwd exit, then,
   cc-emit-jmp-rel32-placeholder                   ( fixup-off )
@@ -654,16 +676,16 @@ defer cc-native-string-fwd
 
 ```
 
-A string literal is emitted *inline in the code segment*: a `jmp`
-over the bytes, the bytes and their NUL, then a `movabs` of their
-address into `rdi`.  There is no separate string pool, at the cost
-of 5 bytes of `jmp` per literal.  Its type is `char*` (set in
-`cc-parse-operand` below), so `"abc"[1]` subscripts bytes and loads
-one: 98, which `tests/cc/N-string-index.c` checks.  Without the type
-it loaded the eight bytes starting at `b`.
-
 ### Identifiers, calls, and subscripts
 
+| Identifier hook | Default result |
+|---|---|
+| `cc-native-intrinsic-fwd` | `cc-native-intrinsic-noop` declines to consume an intrinsic |
+| `cc-native-unknown-ident-fwd` | `cc-native-unknown-ident-default` keeps the missing-name sentinel |
+| `cc-native-call-qualified-fwd` | `cc-native-call-qualified-default` returns an unqualified result |
+
+These defaults keep name lookup usable without a target-specific intrinsic or call policy
+(`forth-bootstrap/cc/100-cc-expr.fth:870`):
 ```forth chunk=expr-primary-ident
 \ cc-parse-ident ( -- )  The current token is an identifier.  Look it up,
 \ then peek one token to tell a call, a subscript and a plain reference
@@ -681,6 +703,11 @@ defer cc-native-unknown-ident-fwd
 defer cc-native-call-qualified-fwd
 ' cc-native-call-qualified-default is cc-native-call-qualified-fwd
 
+```
+
+`cc-parse-ident` resolves enums before suffix dispatch, while a following parenthesis sends callable symbols toward the call parser
+(`forth-bootstrap/cc/100-cc-expr.fth:886`):
+```forth chunk=expr-primary-ident
 : cc-parse-ident
   cc-native-intrinsic-fwd if, exit, then,
   tok-str-addr @ tok-str-len @ cc-sym-find        ( id | -1 )
@@ -707,6 +734,11 @@ defer cc-native-call-qualified-fwd
         [lit] 94 cc-die
       then,
     then,
+```
+
+Call results recover their saved metadata; a legacy named subscript uses the helper above, and a plain reference dispatches by symbol kind
+(`forth-bootstrap/cc/100-cc-expr.fth:912`):
+```forth chunk=expr-primary-ident
     \ cc-parse-call (above) consumes the '(' (already peeked), parses the
     \ args, emits the call, and leaves the return value in rdi.
     cc-target-lp64 @ if,
@@ -734,22 +766,12 @@ defer cc-native-call-qualified-fwd
 
 ```
 
-An identifier is looked up first; an unknown name dies with code
-93.  An enum constant becomes `mov rdi, imm32` before anything else
-is considered, since it can't be called, indexed, or assigned.
-
-For any other name the parser peeks one token.  A `(` means a call.
-The name must be a function or a local function pointer (the
-`ty-func` type from Ch 29 §4), otherwise code 94, and the symbol id
-goes to `cc-parse-call`, which sits just above `cc-parse-primary` in
-this file and is Ch 31's subject.  A `[` hands the id to
-`cc-parse-array-index` (§3).  Anything else is a plain reference, so
-the peeked token goes back and the symbol's kind picks one of three
-words: a function name, a global, or a local.  Any other kind (a
-typedef name or a struct tag used as a value) is code 95.
+Chapter 37 builds `cc-parse-call` and the function machinery. This dispatcher only chooses that path and records the expression result.
 
 ### A function name as a value
 
+A function used as an operand needs its address, so `cc-parse-func-ref` emits an immediate or records a pending address fixup; an unevaluated expression does not retain that fixup
+(`forth-bootstrap/cc/100-cc-expr.fth:727`):
 ```forth chunk=expr-primary-fn-rvalue
 \ cc-parse-func-ref ( id -- )  A function name as a value — `op = square;`.
 \ Load the function's absolute vaddr into rdi via movabs.  Result is not an
@@ -778,17 +800,10 @@ typedef name or a struct tag used as a value) is code 95.
 
 ```
 
-A function name used as a value (`op = square;`) loads the
-function's address with `movabs`.  If the function has only been
-declared so far, its address isn't known.  The parser then emits a
-10-byte `movabs rdi, imm64` with a zero immediate and adds the
-patch site to the function's `cc-sym-addr-fixups` list (Ch 26 §1).
-Ch 31's `cc-parse-function` patches the list when the definition
-arrives.  M2-Planet needs this: it passes forward-declared functions
-such as `expression` as arguments.
-
 ### Globals
 
+The native global path preserves qualification and array shape across marking, leaving scalar storage for a delayed load
+(`forth-bootstrap/cc/100-cc-expr.fth:752`):
 ```forth chunk=expr-primary-global
 \ cc-parse-global-ref ( id -- )  A file-scope global.  Emit movabs rdi,
 \ <vaddr-placeholder> with a deferred fixup.  Scalar globals are
@@ -815,6 +830,11 @@ such as `expression` as arguments.
     r> cc-last-expr-qualified !
     exit,
   then,
+```
+
+Legacy global references select a descriptor-bearing address, an array address, or a pending scalar dereference according to the symbol
+(`forth-bootstrap/cc/100-cc-expr.fth:777`):
+```forth chunk=expr-primary-global
   dup cc-sym-type-of ty-base ty-struct = if,
     \ Struct or struct-pointer global.  Treat like a scalar (deref-pending
     \ lvalue) so assignment works; record the descriptor for any postfix
@@ -840,16 +860,10 @@ such as `expression` as arguments.
 
 ```
 
-A global's address comes from `cc-emit-global-ref`, and what the
-parser does next depends on the type.  A struct or struct-pointer
-global becomes a pending deref and records its descriptor for a
-following `.` or `->`.  A global array decays to its address and is
-not an lvalue.  A scalar global becomes a pending deref (`lv-deref`),
-and its type is saved across the mark so that a following unary `*`
-knows whether it points to `char`.
-
 ### Locals
 
+Native inline objects use their local address; `cc-native-local-load-fwd` reserves the ordinary typed load for scalar locals
+(`forth-bootstrap/cc/100-cc-expr.fth:800`):
 ```forth chunk=expr-primary-local
 \ cc-parse-local-ref ( id -- )  A local: struct, struct pointer, array or
 \ scalar, told apart by its type.
@@ -876,6 +890,11 @@ defer cc-native-local-load-fwd
         r> cc-last-expr-array-inner ! r> cc-last-expr-qualified ! exit,
       then,
     then,
+```
+
+A scalar local keeps its slot after loading, whereas the legacy record path keeps the object’s address and descriptor for member selection
+(`forth-bootstrap/cc/100-cc-expr.fth:825`):
+```forth chunk=expr-primary-local
     drop
     dup cc-sym-val-of dup cc-mark-local-lvalue
     over cc-sym-type-of cc-native-local-load-fwd
@@ -895,6 +914,11 @@ defer cc-native-local-load-fwd
     cc-mark-not-lvalue
     cc-last-struct-desc ! exit,
   then,
+```
+
+Legacy record pointers retain a store slot, arrays supply their address, and plain scalars republish their type after marking
+(`forth-bootstrap/cc/100-cc-expr.fth:844`):
+```forth chunk=expr-primary-local
   dup cc-sym-type-of ty-base ty-struct = if,
     \ struct T* p;  Load the pointer value; treat as an lvalue local
     \ (lv-local) so plain `p = q;` still works, AND record the descriptor
@@ -923,19 +947,12 @@ defer cc-native-local-load-fwd
 
 ```
 
-A local dispatches on its type:
-
-- `struct T x;` emits `lea` of field 0's slot, so `rdi` holds the
-  struct's address.  It is not an lvalue (a whole struct can't be
-  assigned), but its descriptor is recorded for `.field`.
-- `struct T* p;` loads the pointer and marks it `lv-local`, so
-  `p = q;` still works, and records the descriptor for `->field`.
-- An array decays to `&arr[0]` with `lea`, not an lvalue.
-- A plain scalar is loaded and marked `lv-local` with its slot.  Its
-  type is saved across the mark, as for globals.
+These words consume existing symbols. Chapter 35 builds declarations and allocates their storage; the expression checkpoint below needs neither.
 
 ### Parentheses
 
+Grouping must preserve a potential destination: `cc-parse-paren` leaves the inner metadata intact, so `(*p)++` and `(x) = y` retain their lvalue meaning
+(`forth-bootstrap/cc/100-cc-expr.fth:937`):
 ```forth chunk=expr-primary-paren
 \ cc-parse-paren ( -- )  '(' expr ')'.  Parentheses only group: the inner
 \ expression's lvalue kind, slot, type and struct descriptor are left as
@@ -949,18 +966,14 @@ A local dispatches on its type:
 
 ```
 
-`( expr )` recurses through `cc-parse-assign-fwd` (Ch 27 §4) and
-leaves the four facts of §1 as the inner expression set them, without
-materializing: parentheses only group.  So `(*p)++` bumps the pointer
-target, `(x) = 1` assigns, and `((struct pt*) raw)->y` still knows its
-struct.  Whoever consumes the value materializes it, the same
-instructions at the same point as before.  A missing `)` is code 96.
-The `(` could also start a cast, `(char*) p`; `cc-parse-operand` asks
-Ch 29's `cc-try-cast` (through `cc-try-cast-fwd`) before it treats
-the `(` as grouping.
+The operand dispatcher asks `cc-try-cast-fwd` before taking this grouping path. Chapter 35 supplies cast recognition. An isolated expression driver must bind that hook even when its input contains no cast.
 
-### The postfix operators
+## The postfix operators
 
+### Increment and decrement
+
+The `cc-change-*` cells record the operand metadata, direction, and prefix/postfix choice; the default check validates integer use, and the default update scales pointers before converting back to the stored type
+(`forth-bootstrap/cc/100-cc-expr.fth:977`):
 ```forth chunk=expr-primary-postfix-incdec
 variable cc-change-qualified
 variable cc-change-type
@@ -986,6 +999,11 @@ defer cc-change-check-fwd
 defer cc-change-value-fwd
 ' cc-change-value-default is cc-change-value-fwd
 
+```
+
+`cc-native-inc-dec` saves the destination, optionally saves the old payload, stores the changed value, and restores the old payload only for postfix use
+(`forth-bootstrap/cc/100-cc-expr.fth:1001`):
+```forth chunk=expr-primary-postfix-incdec
 \ cc-native-inc-dec ( delta postfix? -- )  Mutate one typed lvalue.
 : cc-native-inc-dec
   cc-check-static-init cc-change-check-fwd
@@ -1013,6 +1031,11 @@ defer cc-change-value-fwd
   cc-change-desc @ cc-mark-typed-value
   cc-change-qualified @ cc-last-expr-qualified ! ;
 
+```
+
+Legacy postfix mutation of a local updates its slot while leaving the already-loaded old value in `rdi`
+(`forth-bootstrap/cc/100-cc-expr.fth:1028`):
+```forth chunk=expr-primary-postfix-incdec
 \ cc-parse-postfix-inc-dec ( op -- )  Postfix '++' / '--' on an lvalue.
 \ For a local, the operand parse already loaded the old value into rdi and
 \ recorded the slot (lv-local): bump the slot in place.  For a pointer
@@ -1033,6 +1056,11 @@ defer cc-change-value-fwd
       cc-last-ident-slot @ cc-emit-dec-mem-local
     then,
   else,
+```
+
+For a pending dereference, the address moves to `rcx` before the old value is loaded and memory is changed; the result retains its type but loses assignability
+(`forth-bootstrap/cc/100-cc-expr.fth:1048`):
+```forth chunk=expr-primary-postfix-incdec
     cc-deref-pending? 0= if,
       drop
       [lit] 98 cc-die
@@ -1051,16 +1079,10 @@ defer cc-change-value-fwd
 
 ```
 
-Postfix `++` and `--` accept any lvalue (anything else is code 98).
-On an `lv-local` they bump the slot in memory with `inc`/`dec` and
-leave the old value, already loaded, in `rdi`.  On a pending
-dereference (a global, an element, a field, `*p`) the address is in
-`rdi`: it moves to `rcx`, the old value is loaded through it, and the
-memory is bumped through it, a byte for a `char`.  The result keeps
-the operand's type, so `*s++` on a `char*` loads one byte; before it
-did, the `*` saw no type and loaded eight
-(`tests/cc/L-starpp-char.c`).  A subscript:
+### Subscripts after a value
 
+`cc-index-base-fwd` and `cc-member-base-fwd` initially share the empty `cc-postfix-base-default`, reserving a target check before suffix processing
+(`forth-bootstrap/cc/100-cc-expr.fth:1064`):
 ```forth chunk=expr-primary-postfix-index
 \ cc-parse-postfix-index ( -- )  Postfix '[' INDEX ']' applied to whatever
 \ value the primary has produced so far (typically after a chain of '.' /
@@ -1076,6 +1098,11 @@ defer cc-index-base-fwd
 defer cc-member-base-fwd
 ' cc-postfix-base-default is cc-index-base-fwd
 ' cc-postfix-base-default is cc-member-base-fwd
+```
+
+Native indexing preserves qualification and row width while parsing the index, then marks either a remaining row or the selected element
+(`forth-bootstrap/cc/100-cc-expr.fth:1078`):
+```forth chunk=expr-primary-postfix-index
 : cc-parse-postfix-index
   cc-index-base-fwd
   cc-target-lp64 @ if,
@@ -1103,6 +1130,11 @@ defer cc-member-base-fwd
     r> cc-last-expr-qualified !
     exit,
   then,
+```
+
+The legacy path materializes a pointer before saving it, uses `cc-char-ptr?` for byte stride, and republishes the pointee type for another suffix
+(`forth-bootstrap/cc/100-cc-expr.fth:1105`):
+```forth chunk=expr-primary-postfix-index
   \ Keep the subscripted value's type on the rstack: the index parse
   \ overwrites cc-last-expr-type.
   cc-emit-materialize
@@ -1129,16 +1161,12 @@ defer cc-member-base-fwd
 
 ```
 
-A postfix `[` applies to whatever value the chain has produced so
-far, as in `head->s[i]`.  Unlike §3's helper it starts from a value
-rather than a symbol, so it takes the element type from
-`cc-last-expr-type`, kept on the return stack while the index
-expression is parsed.  `cc-char-ptr?` decides: a `char*` gets byte
-stride and a byte-width deref; everything
-else gets qword.  If the value was a pointer, the pointee type is
-written back so that `[i][j]` on a `char**` works.  The last word
-handles `.` and `->`:
+For `v[i][j]` with `v` pointing to character pointers, the first result denotes a pointer slot. The next subscript materializes that slot to get the character pointer. Its final pending dereference therefore has byte width.
 
+### Fields after a value
+
+`->` needs the stored pointer value, whereas `.` uses an object address directly; both add the offset returned by `cc-find-field`
+(`forth-bootstrap/cc/100-cc-expr.fth:1129`):
 ```forth chunk=expr-primary-postfix-field
 \ cc-parse-postfix-field ( op -- )  '.' or '->' followed by a field name.
 : cc-parse-postfix-field
@@ -1164,6 +1192,11 @@ handles `.` and `->`:
   tok-str-addr @ tok-str-len @ cc-last-struct-desc @
   cc-find-field                                   ( offset )
   cc-emit-add-rdi-imm32
+```
+
+The selected field republishes its type and descriptor for chaining; native handling also combines qualification, retains array shape, and prevents a temporary record’s member from becoming assignable
+(`forth-bootstrap/cc/100-cc-expr.fth:1153`):
+```forth chunk=expr-primary-postfix-field
   cc-target-lp64 @ if,
     cc-last-expr-qualified @ >r
     cc-ff-result-type @ cc-ff-result-desc @
@@ -1195,17 +1228,10 @@ handles `.` and `->`:
 
 ```
 
-`.` and `->` need a descriptor in `cc-last-struct-desc`, or the
-compile dies with code 100 (a missing field name after them is
-101).  For `->`, `cc-emit-materialize` turns a pending-deref pointer
-into its value, keeping the descriptor; for `.`, `rdi` already holds
-the struct's address.  The field name goes to `cc-find-field` (§2),
-the offset is added to `rdi`, and the result is a pending deref.
-Finally the field's pointee descriptor and type are recorded, so
-`head->next->prev` and `head->s[0]` resolve their next step.
+## `cc-parse-unary`: prefix operators
 
-## 5. `cc-parse-unary`: prefix operators
-
+A recursive unary operand supports chains such as `**p`; the header describes the legacy address-of restriction, while the native branch below accepts general addressable operands
+(`forth-bootstrap/cc/100-cc-expr.fth:1220`):
 ```forth chunk=expr-unary
 \ ===========================================================================
 \ cc-parse-unary: ('&' unary | '*' unary | primary)
@@ -1224,13 +1250,10 @@ Finally the field's pointee descriptor and type are recorded, so
 
 ```
 
-`cc-parse-unary` calls itself directly for `**p` or `-~x`: `:`
-makes a word findable as soon as its header exists, so only calls to
-words defined *later* need Ch 27 §4's deferred words.
+### Measuring an operand
 
-`sizeof` comes first.  It accepts either a type or an identifier and
-evaluates at compile time:
-
+The legacy `sizeof` dispatcher stages its answer in `cc-sizeof-bytes` instead of threading a size through every branch
+(`forth-bootstrap/cc/100-cc-expr.fth:1235`):
 ```forth chunk=expr-unary
 \ cc-parse-sizeof — `sizeof '(' (type-spec | EXPR) ')'`.
 \ Called with the `sizeof` keyword token already consumed.
@@ -1255,6 +1278,11 @@ evaluates at compile time:
 \ typedef, primitive).
 variable cc-sizeof-bytes
 
+```
+
+Pointer modifiers replace the staged size, and `cc-native-sizeof-expr-size` measures preserved array shape; the separate type-name path can replace `cc-sizeof-type-size-fwd`
+(`forth-bootstrap/cc/100-cc-expr.fth:1258`):
+```forth chunk=expr-unary
 \ cc-sizeof-count-stars-add ( -- )  Read zero-or-more '*' tokens.  Each star
 \ overrides the result with 8 (a pointer is always 8 bytes regardless of
 \ pointee).  The first non-'*' token is left current for the caller.
@@ -1266,12 +1294,6 @@ variable cc-sizeof-bytes
     [lit] 8 cc-sizeof-bytes !
   repeat, ;
 
-```
-
-`cc-parse-sizeof` itself dispatches on the token after `(`: a type
-keyword, `struct TAG`, a typedef name, or a local variable.
-
-```forth chunk=expr-unary
 \ Native sizeof parses its operand without retaining any emitted code or
 \ relocations. An array's length/row metadata prevents its normal decay.
 : cc-native-sizeof-expr-size                     ( -- bytes )
@@ -1285,6 +1307,11 @@ keyword, `struct TAG`, a typedef name, or a local variable.
 defer cc-sizeof-type-size-fwd
 ' cc-expr-type-size is cc-sizeof-type-size-fwd
 
+```
+
+`cc-native-sizeof` parses an unevaluated operand, then restores the output cursor and global-fixup count so the tentative code is discarded
+(`forth-bootstrap/cc/100-cc-expr.fth:1282`):
+```forth chunk=expr-unary
 : cc-native-sizeof                              ( -- bytes )
   cc-out-pos @ >r cc-gfixup-count @ >r
   cc-expr-unevaluated @ >r true cc-expr-unevaluated !
@@ -1313,6 +1340,13 @@ defer cc-sizeof-type-size-fwd
     cc-native-sizeof-expr-size
   then,
   r> cc-expr-unevaluated ! r> cc-gfixup-count ! r> cc-out-pos ! ;
+```
+
+A parenthesized expression can have a suffix outside its closing parenthesis: `sizeof (a)[i]` measures the subscripted operand. The native path therefore runs the postfix loop before measuring it. Type-name recognition comes from Chapter 35.
+
+`cc-parse-sizeof` chooses the native path first; its legacy record-type case obtains the descriptor’s total size
+(`forth-bootstrap/cc/100-cc-expr.fth:1310`):
+```forth chunk=expr-unary
 
 : cc-parse-sizeof
   cc-target-lp64 @ if,
@@ -1343,6 +1377,11 @@ defer cc-sizeof-type-size-fwd
       cc-sym-val-of cc-sd-total-size cc-sizeof-bytes !
       cc-sizeof-count-stars-add
     else,
+```
+
+Primitive and typedef operands select a base size before pointer modifiers override it
+(`forth-bootstrap/cc/100-cc-expr.fth:1340`):
+```forth chunk=expr-unary
       tok-kw-id @ kw-int = if,
         [lit] 8 cc-sizeof-bytes !
       else,
@@ -1369,6 +1408,11 @@ defer cc-sizeof-type-size-fwd
         cc-sym-val-of ty-size cc-sizeof-bytes !
         cc-sizeof-count-stars-add
       else,
+```
+
+A legacy local operand is measured as a record, pointer, array, or scalar; unsupported names fail instead of being evaluated
+(`forth-bootstrap/cc/100-cc-expr.fth:1366`):
+```forth chunk=expr-unary
         dup cc-sym-kind-of sk-local = if,
           \ Local — branch on struct vs array vs scalar.
           dup cc-sym-type-of ty-base ty-struct = if,
@@ -1398,6 +1442,11 @@ defer cc-sizeof-type-size-fwd
       [lit] 109 cc-die
     then,
   then,
+```
+
+The size becomes an immediate result after the closing parenthesis; the following `cc-name-alone?` helper preserves lexer state while detecting a suffix
+(`forth-bootstrap/cc/100-cc-expr.fth:1395`):
+```forth chunk=expr-unary
   \ Current token must be ')'.
   tok-kind @ tk-punct <> tok-num @ [char] ) <> or if,
     [lit] 110 cc-die
@@ -1416,21 +1465,10 @@ defer cc-sizeof-type-size-fwd
 
 ```
 
-`cc-parse-sizeof` stores the answer in `cc-sizeof-bytes` rather
-than on the stack, so the nested dispatch doesn't have to thread it
-through every branch.  A `*` after any type spec overrides the
-answer to 8, since a pointer is 8 bytes whatever it points to.
-Every path ends in `mov rdi, imm32`.
+### Prefix mutation
 
-The LP64 path, `cc-native-sizeof`, follows the C grammar more closely.
-After `sizeof (` it asks whether a type name follows.  If not, the
-parenthesis only opens a primary expression, and postfix operators
-after the `)` still belong to the operand: `sizeof (jtab)[0]` is the
-size of one element, as in binutils' `ARRAY_SIZE` macro.  So that
-branch parses the parenthesised expression with `cc-parse-paren` and
-then runs `cc-parse-postfix-ops`, the same loop `cc-parse-primary`
-uses, before measuring the result (`tests/gcc/sizeof-postfix-check.py`).
-
+Prefix mutation uses the same native updater with postfix disabled; the legacy fast path applies only when the local name has no suffix
+(`forth-bootstrap/cc/100-cc-expr.fth:1411`):
 ```forth chunk=expr-unary
 \ cc-parse-prefix-inc-dec ( delta -- )  delta = 1 (for ++) else dec.
 \ Called with the '++' / '--' punct ALREADY consumed.  A plain local (a
@@ -1452,6 +1490,11 @@ uses, before measuring the result (`tests/gcc/sizeof-postfix-check.py`).
     tok-str-addr @ tok-str-len @ cc-sym-find      ( delta id )
     dup 0< 0= if, dup cc-sym-kind-of sk-local = else, [lit] 0 then,
     cc-name-alone? and if,
+```
+
+A bare local is changed before loading its result; other operands must yield a pending address, which is changed before being read
+(`forth-bootstrap/cc/100-cc-expr.fth:1431`):
+```forth chunk=expr-unary
       dup cc-sym-type-of >r
       cc-sym-val-of                               ( delta slot ; R: ty )
       swap                                        ( slot delta )
@@ -1482,21 +1525,16 @@ uses, before measuring the result (`tests/gcc/sizeof-postfix-check.py`).
   cc-emit-load-via-rcx                            \ rdi := updated value
   cc-mark-not-lvalue
   r> cc-last-expr-type ! ;
-
 ```
 
-Prefix `++` and `--` on a plain local bump the slot in memory, then
-load the new value into `rdi`, as before.  "Plain" needs a look past
-the name: in `--b->n` the name `b` is a local, but the operand is the
-field, so `cc-name-alone?` takes a lexer mark, reads the next token and
-resets.  Any other operand is parsed as a unary expression (through
-`cc-parse-unary-fwd`, since `cc-parse-unary` is defined below); it must
-leave a pending dereference (else code 113), whose address is bumped
-through `rcx` and read back.  `tests/cc/P5-lvalue-ops.c` applies `++`,
-`--` and the compound assignments of §7 to a global, an element, a
-field, a `char` and a pointer target.
+That lookahead matters in `--b->n`: the destination is the member, not the local holding `b`. Both prefix and postfix return values, so a second mutation cannot use their result as a destination.
 
+### Taking an address
+
+`cc-array-address-default` discards shape arguments and adds indirection; the native `&` path first checks that its operand denotes addressable storage
+(`forth-bootstrap/cc/100-cc-expr.fth:1461`):
 ```forth chunk=expr-unary
+
 : cc-array-address-default ( type descriptor count inner -- type descriptor )
   2drop swap [lit] 1 + swap ;
 defer cc-array-address-fwd
@@ -1522,6 +1560,11 @@ defer cc-array-address-fwd
         cc-last-expr-type @ ty-base ty-func = or
         0= if, [lit] 116 cc-die then,
       then,
+```
+
+Array address formation can replace the default hook, while other native operands preserve qualification; legacy `&` accepts only a local name
+(`forth-bootstrap/cc/100-cc-expr.fth:1487`):
+```forth chunk=expr-unary
       cc-last-expr-array-len @ if,
         cc-last-expr-type @ cc-last-struct-desc @
         cc-last-expr-array-len @ cc-last-expr-array-inner @ cc-array-address-fwd
@@ -1551,6 +1594,13 @@ defer cc-array-address-fwd
     cc-emit-lea-rdi-local
     cc-mark-not-lvalue exit,                      \ &x is a value, not an lvalue
   then,
+```
+
+### Dereferencing and transforming a value
+
+Unary `*` materializes its pointer operand, then marks the pointed-to storage for a delayed load; preserving the pointee type keeps chained dereferences correctly sized
+(`forth-bootstrap/cc/100-cc-expr.fth:1516`):
+```forth chunk=expr-unary
   [char] * cc-tok-punct? if,
     \ '*' = dereference.  A char* operand (ty-char, ptr-depth 1) derefs to a
     \ single byte; int*, T**, etc. deref to a qword.  The operand's type sits
@@ -1574,6 +1624,20 @@ defer cc-array-address-fwd
     then,
     exit,
   then,
+```
+
+| Prefix input | Result handler |
+|---|---|
+| `++`, `--` | `cc-parse-prefix-inc-dec`, returning the changed value |
+| `-` | Negation, with native promotion and conversion |
+| `!` | `cc-value-not-fwd`, returning an integer truth value |
+| `~` | Complement, with native promotion and conversion |
+| Native `+` | `cc-value-plus-fwd`, followed by promotion |
+| No prefix | Put back the token and parse a primary |
+
+The value-transforming cases consume their recursive operand before marking the result
+(`forth-bootstrap/cc/100-cc-expr.fth:1539`):
+```forth chunk=expr-unary
   \ Prefix '++' / '--'.  Bump the operand in place, leave the new value in
   \ rdi.  cc-parse-prefix-inc-dec takes 1 for ++, anything else for --.
   pt-plus-plus   cc-tok-punct? if, [lit] 1 cc-parse-prefix-inc-dec exit, then,
@@ -1593,6 +1657,11 @@ defer cc-array-address-fwd
     cc-parse-unary cc-emit-materialize
     cc-value-not-fwd cc-mark-int-value exit,
   then,
+```
+
+Complement and native unary plus complete the dispatch; the fallback lets primary parsing see the untouched token
+(`forth-bootstrap/cc/100-cc-expr.fth:1558`):
+```forth chunk=expr-unary
   [char] ~ cc-tok-punct? if,
     cc-parse-unary cc-emit-materialize
     cc-target-lp64 @ if,
@@ -1616,30 +1685,10 @@ defer cc-array-address-fwd
 
 ```
 
-`cc-parse-unary` is a list of cases, one per operator: `sizeof`,
-`&`, `*`, prefix `++` and `--`, `-`, `!`, `~`.  Each tests the
-current token with Ch 27's `cc-tok-kw?` or `cc-tok-punct?`, compiles
-its operator and returns with `exit,`.  A token that matches none of
-them goes back, and `cc-parse-primary` takes over.
+## Ternary
 
-Unary `&` accepts only a bare local, as in `&p` or `&arr`.  The
-forms `&*p`, `&arr[i]`, and `&s->field` aren't supported, and
-M2-Planet doesn't use them.
-
-Unary `*` parses its operand with a recursive call, materializes
-it so `rdi` holds a clean address, and marks a pending deref,
-leaving the load to the consumer.  That is how `*p = q;` works: the
-assignment sees `lv-deref` and stores through the address.
-
-On a `char*` the deref must be byte-width, or `*p = c` would store
-8 bytes and clobber the seven after the target.  The operand's type
-arrives in `cc-last-expr-type` (set by §4's scalar branches) and
-survives `cc-emit-materialize`; the `*` clause reads it, passes
-`cc-char-ptr?`'s answer to `cc-mark-deref`, and records the pointee
-type for any following postfix.  This is the rule §3 applies to `p[i]`.
-
-## 6. Ternary
-
+`cc-parse-ternary` turns the condition into a branch around the true arm, so the opening example selects a result at runtime
+(`forth-bootstrap/cc/100-cc-expr.fth:2128`):
 ```forth chunk=expr-ternary
 \ ===========================================================================
 \ Ternary  cond '?' then ':' else
@@ -1669,6 +1718,11 @@ type for any following postfix.  This is the rule §3 applies to `p[i]`.
     cc-target-lp64 @ if, cc-parse-comma-fwd else, cc-parse-assign-fwd then,
                                                   \ then-arm (right-assoc)
     cc-emit-materialize
+```
+
+The true arm jumps past the false arm; after the colon, the false-branch fixup can be patched to the current position
+(`forth-bootstrap/cc/100-cc-expr.fth:2156`):
+```forth chunk=expr-ternary
     cc-target-lp64 @ if,
       cc-last-expr-type @ cc-last-struct-desc @ cc-last-expr-array-inner @ cc-last-expr-null @ cc-last-expr-qualified @
     then,
@@ -1684,6 +1738,11 @@ type for any following postfix.  This is the rule §3 applies to `p[i]`.
     >r
     cc-parse-assign-fwd                         \ else-arm
     cc-emit-materialize
+```
+
+Native joining waits until both arm types are known, allowing separate conversions or an aggregate hook; the legacy join simply publishes a value
+(`forth-bootstrap/cc/100-cc-expr.fth:2171`):
+```forth chunk=expr-ternary
     cc-target-lp64 @ if,
       r> cc-aggregate-ternary-fwd 0= if,
         \ The true arm jumps past the false arm and its conversion. Only
@@ -1715,42 +1774,12 @@ type for any following postfix.  This is the rule §3 applies to `p[i]`.
 
 ```
 
-`cc-parse-ternary` is `cc-parse-log-or` plus an optional
-`? then : else` tail.  On a `?` it emits a test and a conditional
-jump, and parses each arm. The legacy path patches two fixups, one for the
-jump to the else-arm and one for the jump past it. The System V scalar path delays
-the true arm's target until both operand types are known, emits the false
-arm's conversion, jumps to the join, then emits the true arm's conversion.
-Exactly one arm and one conversion execute. The aggregate hook instead
-patches both arms to the existing record-copy join.
+Both arms are compiled, but execution follows only the selected arm. The false arm recurses through assignment, which also makes nested conditionals associate to the right. This grammar accepts a bare assignment in the false arm; that is broader than C’s conditional-expression grammar. Chapter 41 supplies native join policy, and Chapter 49 supplies aggregate joins.
 
-The direct System V pointer join checks compatible types and descriptors.
-A recognized null pointer constant takes the other pointer type; an ordinary
-`void *` combined with an object pointer produces `void *` in either order.
-Zero numeric/character literals and their integer or unqualified `void *` casts retain
-null provenance. Runtime zero values and comma expressions do not. Qualified void-pointee
-casts also do not: their conditional result remains a qualified void pointer.
-The cast hook reads the saved target qualifier, independent of nested operands.
-Flattened qualifier metadata conservatively excludes top-level-qualified
-void-pointer casts as a documented host-valid boundary; qualified integer zero
-casts and an unqualified outer `void *` cast remain accepted. General
-zero integer constant-expression folding such as `1-1` remains a checked
-boundary in this runtime parser; the separate static constant evaluator has
-its own contract. Qualifier metadata is combined without expanding the
-existing qualifier subset. The focused `conditional-values-check.py` gate
-covers these branches with host oracles and Forth-only/mixed-ABI execution.
+## Assignment: snapshot, recurse, store
 
-Because the arms recurse through `cc-parse-assign` rather than
-`cc-parse-ternary`, each arm can hold an assignment.  For the
-middle arm that matches C.  For the last arm it doesn't: in C,
-`a ? b = 1 : c = 2` is a syntax error, because the else-arm is a
-conditional-expression and can't contain a bare `=`.  This compiler
-accepts it and parses the tail as `c = 2` (a program returning that
-expression with `a` false gets `2`).  M2-Planet never writes this,
-so Stage A never notices.
-
-## 7. Assignment: snapshot, recurse, store
-
+An assignment must remember its destination while recursively parsing its source; `cc-assign-op?` recognizes either plain assignment or a compound operator’s table entry
+(`forth-bootstrap/cc/100-cc-expr.fth:2200`):
 ```forth chunk=expr-assign
 \ ===========================================================================
 \ cc-parse-assign: ternary (ASSIGN-OP assign)?
@@ -1777,19 +1806,16 @@ so Stage A never notices.
     [lit] 0
   then, ;
 
+```
+
+Compound assignment reads the old value at the destination’s width, then `cc-apply-compound-op` invokes the corresponding binary emitter
+(`forth-bootstrap/cc/100-cc-expr.fth:2225`):
+```forth chunk=expr-assign
 \ cc-emit-load-via-rdi-or-byte ( byte? -- )  rdi := the byte or the qword
 \ at the address in rdi.
 : cc-emit-load-via-rdi-or-byte
   if, cc-emit-load-byte-via-rdi else, cc-emit-load-via-rdi then, ;
 
-```
-
-`cc-assign-op?` recognises plain `=` and the ten compound forms.  It
-doesn't list the compound forms: each is the `compound` column of a
-row in Ch 27 §5's operator table, and a code that some row names
-there is a compound assignment.
-
-```forth chunk=expr-assign
 \ cc-apply-compound-op ( op -- )  After rdi=LHS-value, rcx=RHS-value: apply
 \ the compound-assign op to rdi with the emitter of its row in the operator
 \ table.  Consumes op.  Plain '=' must be filtered by the caller.
@@ -1802,13 +1828,10 @@ there is a compound assignment.
 
 ```
 
-`cc-apply-compound-op` finds the row whose `compound` is the operator
-and runs that row's emitter, the same one the binary operator uses:
-`+=` emits the `add rdi, rcx` that `+` does.  It runs after `rdi`
-holds the left value and `rcx` the right.  Code 118 would mean the
-table has no row for the operator, which `cc-assign-op?` has already
-ruled out.
+### Native destination snapshots
 
+`cc-parse-native-assign` rejects temporary destinations and converts a local slot to an address, giving locals and pending dereferences a shared store path
+(`forth-bootstrap/cc/100-cc-expr.fth:2240`):
 ```forth chunk=expr-assign
 variable cc-assign-qualified
 variable cc-assign-type
@@ -1837,6 +1860,13 @@ defer cc-aggregate-compound-fwd
     cc-last-expr-type @ ty-ptr 0= and or
     0= if, [lit] 120 cc-die then,
   then,
+```
+
+The `cc-assign-*` globals are scratch cells used after recursion. Qualification, field record, type, descriptor, and operator stay on the return stack until the right side finishes; putting them in those globals earlier would let a nested assignment overwrite them. The aggregate-assignment default does nothing, and the aggregate-compound default consumes its type arguments before the caller rejects the operation.
+
+The generated program saves its destination address and, for compound assignment, its old value; the compiler separately saves metadata across the recursive parse
+(`forth-bootstrap/cc/100-cc-expr.fth:2267`):
+```forth chunk=expr-assign
   cc-last-expr-qualified @ >r
   cc-last-field-rec @ >r
   cc-last-expr-type @ >r cc-last-struct-desc @ >r tok-num @ >r
@@ -1852,6 +1882,11 @@ defer cc-aggregate-compound-fwd
     cc-last-expr-type @ cc-last-struct-desc @
     cc-assign-type @ cc-assign-desc @ cc-value-shape-fwd
   then,
+```
+
+An ordinary record assignment copies the object’s bytes and republishes its destination address as the expression result; aggregate hooks reserve target-specific validation
+(`forth-bootstrap/cc/100-cc-expr.fth:2282`):
+```forth chunk=expr-assign
   cc-assign-type @ ty-base ty-struct = cc-assign-type @ ty-ptr 0= and
   cc-assign-type @ cc-assign-desc @ cc-opaque-scalar-fwd 0= and if,
     cc-assign-op @ [char] = <> if,
@@ -1868,6 +1903,11 @@ defer cc-aggregate-compound-fwd
     cc-assign-type @ cc-assign-desc @ cc-mark-typed-value
     cc-assign-qualified @ cc-last-expr-qualified ! exit,
   then,
+```
+
+Native compound assignment converts operands for the operation, scales pointer changes, and converts the result back to the destination type before the field-aware store
+(`forth-bootstrap/cc/100-cc-expr.fth:2298`):
+```forth chunk=expr-assign
   cc-assign-op @ [char] = <> if,
     cc-assign-type @ cc-assign-field @ cc-field-value-type-fwd cc-assign-desc @
     cc-last-expr-type @ cc-last-struct-desc @ cc-expr-save-types
@@ -1893,6 +1933,13 @@ defer cc-aggregate-compound-fwd
   cc-assign-desc @ cc-mark-typed-value
   cc-assign-qualified @ cc-last-expr-qualified ! ;
 
+```
+
+### Legacy locals and pointer targets
+
+`cc-parse-assign` snapshots kind and slot before looking for an assignment operator; a legacy local saves its old value only when the operator needs it
+(`forth-bootstrap/cc/100-cc-expr.fth:2323`):
+```forth chunk=expr-assign
 : cc-parse-assign
   cc-parse-ternary
   \ Snapshot lvalue state BEFORE the recursive RHS parse can clobber it.
@@ -1919,6 +1966,11 @@ defer cc-aggregate-compound-fwd
       >r                                          \ stash op ( ; R: slot op )
       cc-parse-assign
       cc-emit-materialize                         \ ensure rdi holds a value
+```
+
+The local path folds and stores into its saved slot, while a compound dereference saves both the destination address and its old contents
+(`forth-bootstrap/cc/100-cc-expr.fth:2349`):
+```forth chunk=expr-assign
       r> r>                                       ( op slot )
       swap                                        ( slot op )
       dup [char] = = if,
@@ -1944,6 +1996,11 @@ defer cc-aggregate-compound-fwd
           dup lv-deref-byte = cc-emit-load-via-rdi-or-byte
           cc-emit-push-rdi                        \ save old value
           >r >r                                   ( ; R: kind op )
+```
+
+After recursion, compound assignment combines the saved value with the right side and stores through the saved address; plain assignment needs only that address
+(`forth-bootstrap/cc/100-cc-expr.fth:2374`):
+```forth chunk=expr-assign
           cc-parse-assign
           cc-emit-materialize
           cc-emit-mov-rcx-rdi                     \ rcx := RHS
@@ -1968,6 +2025,11 @@ defer cc-aggregate-compound-fwd
         \    push rdi ; mov rdi, rcx ; pop rcx
         cc-emit-push-rdi                          \ push address
         \ mov rdi, rcx: 48 89 CF (mod=11 reg=rcx=1 rm=rdi=7 -> 11_001_111=0xCF)
+```
+
+The final store puts the value in `rdi` and the address in `rcx`, selecting byte or qword width from the saved kind; a non-assignment token discards the unused snapshot
+(`forth-bootstrap/cc/100-cc-expr.fth:2398`):
+```forth chunk=expr-assign
         [lit]  72 cc-emit-byte
         [lit] 137 cc-emit-byte
         [lit] 207 cc-emit-byte
@@ -1991,69 +2053,12 @@ defer cc-aggregate-compound-fwd
 
 ```
 
-`cc-parse-assign` is where the lvalue tracking from §1 is consumed:
+For `*p += q`, the destination survives even if parsing `q` overwrites every expression global. Runtime storage contains the saved address below the old value; compiler return-stack state contains the kind and operator. The store leaves its result in `rdi`, so an enclosing assignment can consume it. This is snapshot, recurse, store applied to both metadata and generated execution.
 
-1. Parse the left side with `cc-parse-ternary`, which leaves
-   `cc-last-lvalue-kind` and `cc-last-ident-slot` describing it.
-2. Copy both onto the data stack as `( kind slot )`, because the
-   recursive parse of the right side will overwrite the globals.
-3. Read the next token.  If it isn't an assignment operator, put it
-   back and drop the snapshot.
-4. For `lv-local`, the left value is already in `rdi`.  Plain
-   `=` just parses the right side and stores.  A compound operator
-   pushes the left value first, then pops it back and folds with
-   `cc-apply-compound-op` before the store.
-5. For `lv-deref` or `lv-deref-byte`, `rdi` holds the destination
-   address.  The code keeps the kind on the return stack, pushes the
-   address, parses the right side, swaps the registers so `rdi` holds
-   the value and `rcx` the address, and emits a byte store for
-   `lv-deref-byte`, a qword store otherwise.  A compound operator
-   (`g += 5`, `a[i] <<= 2`, `p->n |= 1`) must read before it writes:
-   it pushes the address, loads the old value through it (a byte for
-   `lv-deref-byte`) and pushes that too, parses the right side, folds
-   with `cc-apply-compound-op`, pops the address into `rcx` and stores.
-6. `lv-value` is not an lvalue, as in `1 = 2`, and dies with code 120.
+## The top-level driver
 
-**tri.c at this stage.**  tri.c writes `t.rows` on line 14 and reads
-it on line 15, in the `for` condition.  With tri.c compiled to
-`/tmp/cc-out` (Ch 21), disassemble both:
-
-```sh
-for r in 0x2ed:0x312 0x326:0x33a; do
-  objdump -D -b binary -m i386:x86-64 -M intel \
-      --start-address=${r%:*} --stop-address=${r#*:} /tmp/cc-out | grep '^ '
-done
-```
-
-```
- 2ed:   48 bf c9 04 40 00 00    movabs rdi,0x4004c9
- 2f4:   00 00 00 
- 2f7:   48 81 c7 00 00 00 00    add    rdi,0x0
- 2fe:   57                      push   rdi
- 2ff:   48 c7 c7 04 00 00 00    mov    rdi,0x4
- 306:   48 89 f9                mov    rcx,rdi
- 309:   5f                      pop    rdi
- 30a:   57                      push   rdi
- 30b:   48 89 cf                mov    rdi,rcx
- 30e:   59                      pop    rcx
- 30f:   48 89 39                mov    QWORD PTR [rcx],rdi
- 326:   48 bf c9 04 40 00 00    movabs rdi,0x4004c9
- 32d:   00 00 00 
- 330:   48 81 c7 00 00 00 00    add    rdi,0x0
- 337:   48 8b 3f                mov    rdi,QWORD PTR [rdi]
-```
-
-Both start the same way: the address of `t` (0x4004c9, a placeholder
-until `cc-finalize-globals` patched it; Ch 26 §5) plus the offset of `rows`, 0.  On line 14
-the `=` arrives while `rdi` is still an address, so this is the
-deref path: push the address, evaluate `ROWS` (already the number
-4), swap through the stack, store at 0x30f.  On line 15, `t.rows`
-is the right operand of `<`, whose materialize turns the same
-address into the load at 0x337.  The parser emitted identical code
-for `t.rows` both times and decided afterward what it was for.
-
-## 8. The top-level driver
-
+`cc-parse-comma` sequences native comma operands, and `cc-parse-expr` materializes the final result for its caller
+(`forth-bootstrap/cc/100-cc-expr.fth:2419`):
 ```forth chunk=expr-top
 \ ===========================================================================
 \ cc-parse-expr: top-level entry
@@ -2082,22 +2087,12 @@ for `t.rows` both times and decided afterward what it was for.
 
 ```
 
-`cc-parse-expr` is the only entry point the rest of the compiler
-uses for code.  It calls `cc-parse-assign` and then materializes, so
-every consumer sees a value in `rdi`, never a pending dereference.
+Parentheses call an entry that preserves lvalues; ordinary value consumers use `cc-parse-expr`. That distinction prevents grouping from accidentally turning a destination into a read.
 
-It leaves the caller's data stack as it found it, so a statement
-can keep its fixups there, or a call its `( callee-id arg-count )`,
-across the parse: every parse word above consumes exactly what it
-pushes.
+## Constant expressions
 
-## 9. Constant expressions
-
-Some expressions are needed as numbers while compiling: `int
-table[N * M];`, `case K_B:`, `enum { A = 1 << 3 };`, `int g = -1;`,
-and every `#if` line (Ch 22).  They get a second, much smaller parser
-over the same grammar that computes instead of emitting:
-
+Compile-time expressions return a Forth value instead of emitting a runtime calculation; `cc-cx-pp`, `cc-cx-skip`, and `cc-cx-unsigned` track preprocessing mode, dead arms, and signedness
+(`forth-bootstrap/cc/100-cc-expr.fth:2444`):
 ```forth chunk=expr-top
 \ ===========================================================================
 \ Constant expressions
@@ -2123,6 +2118,13 @@ variable cc-cx-unsigned                          \ signedness of the current val
 : cc-cx-ult ( a b -- flag )
   2dup cc-xor 0< if, swap drop 0< else, < then, ;
 
+```
+
+`cc-cx-typed?` enables signedness tracking for native preprocessor expressions. `cc-cx-lt` and `cc-cx-ult` inspect opposite sign bits before using the ordinary comparison, avoiding subtraction wraparound across that boundary.
+
+`cc-cx-eval` saves the operator and comparison category, suppresses dead-arm evaluation, and chooses signed or unsigned relational comparison
+(`forth-bootstrap/cc/100-cc-expr.fth:2468`):
+```forth chunk=expr-top
 \ cc-cx-eval ( a b row left-unsigned -- v )  The recursive caller
 \ saved the left flag; the right flag is current. Shifts use only the
 \ left type. All other arithmetic uses uintmax_t if either is unsigned.
@@ -2144,6 +2146,11 @@ variable cc-cx-comparison
       cc-cx-op @ pt-ge = if, drop cc-cx-unsigned @ if, cc-cx-ult else, cc-cx-lt then, 0= cc-flag else,
         bo-eval + @ execute
       then, then, then, then,
+```
+
+Unsigned division, remainder, and right shift need separate evaluators; symbolic constant hooks initially bind to `cc-const-unsupported` and fail if used before their later implementations
+(`forth-bootstrap/cc/100-cc-expr.fth:2489`):
+```forth chunk=expr-top
     else,
       cc-cx-unsigned @ if,
         cc-cx-op @ [char] / = if, drop cc-divisor / else,
@@ -2168,6 +2175,15 @@ defer cc-const-string-fwd
 ' cc-const-unsupported is cc-const-address-fwd
 ' cc-const-unsupported is cc-const-string-fwd
 
+```
+
+Chapter 45 builds the typed static evaluator. The `cc-parse-static-const-fwd`, `cc-const-ident-fwd`, `cc-const-address-fwd`, and `cc-const-string-fwd` declarations here reserve its entry and symbolic-leaf contracts.
+
+### Constant operands and folds
+
+`cc-cx-operand` accepts numbers, characters, enums, and grouped constants; preprocessing mode treats remaining names as zero
+(`forth-bootstrap/cc/100-cc-expr.fth:2513`):
+```forth chunk=expr-top
 \ cc-cx-operand ( -- v )  Under LP64 a number's suffix is checked by
 \ the same parser that types runtime literals (060), so #if 1LLL is 240.
 : cc-cx-operand
@@ -2196,6 +2212,11 @@ defer cc-const-string-fwd
   then,
   [lit] 126 cc-die ;
 
+```
+
+Constant unary operators compute directly on the Forth value, with logical negation clearing unsignedness
+(`forth-bootstrap/cc/100-cc-expr.fth:2541`):
+```forth chunk=expr-top
 \ cc-cx-unary ( -- v )  '-' '+' '!' '~' then an operand.
 : cc-cx-unary
   cc-next-token-keep
@@ -2209,6 +2230,11 @@ defer cc-const-string-fwd
   cc-putback-token
   cc-cx-operand ;
 
+```
+
+`cc-cx-binary` recurses by precedence level and executes the operator table’s evaluator column; skipped arms still consume and check their operands
+(`forth-bootstrap/cc/100-cc-expr.fth:2554`):
+```forth chunk=expr-top
 \ cc-cx-binary ( level -- v )  One level of the operator table: operands
 \ from the level below, combined by this level's evaluators.  Level 0 is
 \ the unary operators.
@@ -2231,6 +2257,21 @@ defer cc-const-string-fwd
   repeat,
   drop cc-putback-token nip ;
 
+```
+
+### Unevaluated constant arms
+
+The constant parser must consume dead syntax without performing dead arithmetic. Its logical handlers preserve an outer skip flag so a nested expression cannot accidentally re-enable evaluation:
+
+| Input condition | Handler action |
+|---|---|
+| False left operand of `&&` | `cc-cx-and` skips evaluation of the right operand |
+| True left operand of `\|\|` | `cc-cx-or` skips evaluation of the right operand |
+| Conditional test | `cc-parse-const-default` skips the unselected arm |
+
+Logical conjunction and disjunction restore the enclosing skip state after parsing each right operand
+(`forth-bootstrap/cc/100-cc-expr.fth:2576`):
+```forth chunk=expr-top
 \ cc-cx-and ( -- v )   cc-cx-or ( -- v )   && and ||, answering 1 or 0.
 : cc-cx-and
   level-bit-or cc-cx-binary
@@ -2258,6 +2299,11 @@ defer cc-const-string-fwd
   repeat,
   cc-putback-token ;
 
+```
+
+A constant conditional parses both arms, selects a payload, combines their unsignedness, and installs the default constant parser behind its deferred entry
+(`forth-bootstrap/cc/100-cc-expr.fth:2603`):
+```forth chunk=expr-top
 \ cc-parse-const ( -- v )  cond ? a : b, or just cond.
 : cc-parse-const-default
   cc-cx-or
@@ -2287,40 +2333,10 @@ defer cc-parse-const
 
 ```
 
-`cc-cx-binary` is the whole of the binary grammar in one word: the
-level template of Ch 27 §6, made recursive on the level number and
-reading the operator table's evaluator column instead of its emitter,
-so `1 + 2 * 3` is 7 and `(0-7) / 2` is -3 exactly as the emitted code
-would compute. `&&`, `||` and `?:` parse every arm but mark dead
-arms with `cc-cx-skip`, so their division or remainder by zero does
-not diagnose. An evaluated zero divisor still dies with code 124.
+### Evaluating preprocessor text
 
-For LP64 `#if`, `cc-cx-unsigned` accompanies each value. Recursive
-binary parsing saves the left flag and combines it with the right
-flag for the usual arithmetic conversions. Comparisons handle the
-full 64-bit range, unsigned division and remainder use the seed's
-unsigned `/`, and right shift uses the left operand's signedness.
-Unary minus and complement retain the flag; `!`, comparisons,
-`&&` and `||` clear it because their results are signed 0/1.
-Characters, remaining identifiers and expanded `defined` results
-are signed. A ternary combines both arm flags even when an arm is
-unevaluated, so `(1 ? -1 : 0u) > 0` is true.
-`tests/gcc/if-unsigned-check.py` compares these rules against host
-preprocessing, used only as an oracle.
-An operand is a number, a character, an enum constant (`case K_B:`) or
-a parenthesised expression.  A variable is not a constant: code 125.
-A token that cannot start one is 126, a missing `)` 127 and a `?`
-without its `:` 128 (`tests/cc/die-125-const-not-enum.c` through
-`die-128-const-colon.c`).
-
-`#if` reaches the same evaluator through Ch 22's deferred
-`cc-pp-eval`.  Its text is not in the source buffer: it is the `#if`
-line after macro expansion, in the preprocessor's scratch area.  The
-lexer reads through `cc-src-buf + cc-src-pos`, so pointing
-`cc-src-pos` and `cc-src-len` at the text's offset from `cc-src-buf`
-makes it lex that text, and a lexer mark (Ch 23) puts everything back.
-Text left over after the expression, as in `#if 1 2`, is code 129:
-
+`cc-pp-eval-text` saves lexer state in `cc-cx-save`, redirects source offsets to the expanded expression, requires end-of-input, and restores the caller’s state before the final parser bindings are installed
+(`forth-bootstrap/cc/100-cc-expr.fth:2630`):
 ```forth chunk=expr-top
 \ cc-pp-eval-text ( a u -- n )  #if's evaluator (cc-pp-eval, 040): lex
 \ the expanded line a u by pointing the reader at it. Its source-relative
@@ -2352,133 +2368,51 @@ create cc-cx-save  cc-lex-state-size allot
 ' cc-parse-unary  is cc-parse-unary-fwd
 ```
 
-With `cc-cx-pp` set, a name the preprocessor left is 0, as C
-requires of `#if`.  The last three lines fill in the deferred words
-declared in Ch 27 §4, so `cc-parse-expr-fwd`, `cc-parse-assign-fwd`
-and `cc-parse-unary-fwd` reach the real words.
-
-## 10. Putting the cascade together: full expression flow
-
-A condition like `if (x->next != NULL && x->next->val > 0)` uses
-everything in Chs 27–28:
-
-1. `cc-parse-expr` enters at the if-condition.
-2. `cc-parse-assign` cascades down through ternary, log-or,
-   log-and, bit-or, bit-xor, bit-and, eq, rel, shift, add, mul,
-   unary, primary.
-3. Primary reads `x`, looks it up, sees `sk-local` with type
-   `ty-struct ptr-depth=1`, emits `mov rdi, [rbp - 8]`, marks
-   `cc-mark-local-lvalue 0`, sets `cc-last-struct-desc` to the
-   struct's descriptor.
-4. The postfix loop reads `->`, calls `cc-find-field next`,
-   gets the offset, emits `add rdi, <offset>`, marks
-   `lv-deref` with `cc-mark-deref`, updates `cc-last-struct-desc` to
-   `next`'s pointee descriptor.
-5. We come back up the cascade.  `cc-parse-rel` reads `!=`, which
-   is an `eq` op, so it puts the token back.  `cc-parse-eq`
-   matches, emits the binary-op template, and recurses into
-   `cc-parse-rel` for the right side.
-6. The right side parses `NULL` (a preprocessor macro for 0).
-7. `cc-emit-cmp-ne` produces 0/1 in `rdi`.  Mark not-lvalue.
-8. Back at `cc-parse-log-and`, the next token is `&&`.  Match.
-   Test, jz-fixup, recurse for the right side.
-9. The right side parses `x->next->val > 0`: the same chained
-   arrows, then a `>` and a literal `0`.
-10. `cc-parse-log-and` finishes the short-circuit with three
-    fixups and leaves `1` or `0` in `rdi`.
-11. `cc-parse-expr` materializes, a no-op since `rdi` already holds
-    a value.
-12. The if-statement codegen (Ch 30) emits its own
-    test-and-jump using the value in `rdi`.
-
 ## Try it
 
-**Small check:** choose one focused fixture and trace the lvalue,
-postfix, assignment, or `sizeof` path it exercises: `tests/cc/G7.c`
-(pointer `&`/`*`), `G8.c` (array indexing), `G9a.c` (struct `.`
-access), `G9b.c` (struct field arithmetic), `G10c.c` (`sizeof`), or
-`G11.c` (postfix `++`/`--` and compound assignment in a dense mix).
+Run from the `forth-bootstrap` checkout root with the seed built in Part 1. The driver below loads through `cc/100-cc-expr.fth`, points the lexer at the opening example, emits an ELF image, and runs it from a fresh temporary directory. It uses no declaration, statement, or compiler-entry layer.
 
-**Layer check:** `./test.sh` exercises the expression parser through
-the focused C fixtures.
+The cast hook is declared without a binding at `forth-bootstrap/cc/100-cc-expr.fth:44`. `probe-no-cast` supplies a false result without consuming input, allowing parentheses to mean grouping in this driver. It does not implement casts. Locals and their declarations are outside this checkpoint.
 
 ```sh
-./seed/build.sh
-./test.sh                                   # exercises the expression parser
+probe_dir=$(mktemp -d)
+{
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
+      cc/040-cc-prep.fth cc/050-cc-lex.fth \
+      cc/060-cc-types.fth cc/070-cc-sym.fth \
+      cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth
+  cat <<'FORTH'
+: probe-no-cast [lit] 0 ;
+' probe-no-cast is cc-try-cast-fwd
+cc-src-init
+here dup cc-src-buffer ! s, (-3<0)?7:9 here swap - cc-src-len !
+[lit] 0 cc-src-pos ! [lit] 0 cc-tok-pending !
+cc-out-init [lit] 0 cc-bss-size ! cc-emit-elf-header
+cc-parse-expr cc-emit-exit-shim
+cc-finalize-elf
+[lit] 1 cc-out-buf cc-out-pos @ write drop
+bye
+FORTH
+} | ./seed-forth > "$probe_dir/expression"
+printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
+chmod +x "$probe_dir/expression"
+"$probe_dir/expression"
+printf '(-3 < 0) ? 7 : 9 = %s (exit status)\n' "$?" # prints '(-3 < 0) ? 7 : 9 = 7 (exit status)'
+rm -r "$probe_dir"
 ```
 
-**Bootstrap relevance:** the full Stage-A gate confirms that lvalues,
-postfix forms, assignment, and `sizeof` behave correctly inside the
-M2-Planet compile.  Two byte-width paths that compile never takes
-have their own gates.  `tests/cc/D-charptr-store.c` stores through a
-dereferenced `char*` and fails if that store is a qword `mov` that
-clobbers the seven bytes past the target.
-`tests/cc/E-chained-subscript.c` chains `v[i][j]` on a `char*` array
-and fails if the second subscript uses qword stride.  Stage-A's bytes
-are the same either way, so parity alone can't catch these.
+Observed output:
 
-```sh
-tests/cc/stage-a-check.sh
+```text
+driver exit: 0
+(-3 < 0) ? 7 : 9 = 7 (exit status)
 ```
 
-## Exercises
+This run exercises operand dispatch, grouping, unary negation, comparison, ternary selection, and final materialization. It does not exercise storage mutation or the native target hooks.
 
-1. **★ Trace.** Trace what `cc-parse-primary` emits for the literal `'X'`.
-   Where does the character value end up?
+## Exercise
 
-2. **★★ Trace.** Construct a C expression that chains the postfix
-   operators `.`, `->` and `[]` (say, `s.next->arr[1]` with a
-   local `struct N s`).  Sketch the lvalue-kind transitions as it
-   parses.  Then append `++`: the compile dies with code 98, and
-   so do `b[1]++` and `x++--`.  Which lvalue kind does postfix `++` accept, and why
-   does every one of these operands fail that test?
+**Trace — easy.** Follow `(*p)++` with `p` a character pointer. Identify where the pointer is loaded, where the target remains an address, and why parentheses preserve that address for the postfix handler.
 
-3. **★★★ Extend.** Compound assignment of dereference targets (`*p += 1`) is
-   *not* supported (§7's deref branch errors on anything but
-   plain `=`).  Sketch a patch.  What new state would
-   `cc-parse-assign` need to thread?
-
-4. **★★★ Extend.** `cc-parse-sizeof` accepts `sizeof(struct TAG)` and
-   `sizeof(typedef-name)` but not `sizeof(*p)`.  Add the
-   missing case.  What does the compile-time evaluation look
-   like?
-
-5. **★★ Trace.** The function-name-as-value placeholder in §4 is threaded
-   onto a linked list via `cc-sym-addr-fixups`.  Trace how Ch 31's `cc-parse-function`
-   patches that list when the definition arrives.  How is the
-   list head set to 0 again?
-
-## After this chapter
-
-The compiler can lower the floor and tail of expressions: primary
-(literals, identifiers, calls, postfix `.`/`->`/`[]`/`++`/`--`),
-unary (`*`, `&`, prefix `++`/`--`, `sizeof`, `!`, `-`, `~`), the
-ternary `?:`, and the assignment family, all with lvalue tracking
-that defers each load until the consumer decides between reading
-and writing.
-
-You can read `cc-parse-primary`'s postfix chain, explain the four
-lvalue kinds and when `cc-emit-materialize` fires, and follow how
-`p[i] = c;` reaches the right byte-width store without a separate
-codegen path.
-
-All of it assumes the names are already known: the parser above
-looked up `t`'s address, `rows`'s offset and `w`'s frame slot.
-Something has to put those rows in the symbol table before any
-expression uses them, and that is Ch 29's declaration parser.
-
-## Takeaways
-
-- An expression's value in `rdi` is a temp, a loaded local, or a
-  pending-deref address (qword or byte), and `cc-emit-materialize`
-  turns a pending deref into a load only when a consumer needs the
-  value.
-- Every C expression bottoms out in `cc-parse-primary`, which
-  dispatches on the token kind, resolves the symbol by storage and
-  type, and then loops over postfix `.`, `->`, `[]`, `++`, and `--`.
-- Assignment snapshots `( kind slot )` on the data stack before
-  parsing its right side, so nested assignments can't overwrite the
-  left side's lvalue state.
-
-Next: Chapter 29 — Declarations: Types, Structs, Locals.
+**Verify — easy.** Change the checkpoint’s comparison from `<` to `>`. Run it again and explain which ternary branch executes; update the printed expression to match your input.
 
