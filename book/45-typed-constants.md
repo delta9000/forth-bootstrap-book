@@ -8,7 +8,7 @@ The evaluator has a simple shape: parse operands into records, combine them unde
 
 ```forth file=cc/125-cc-consteval.fth
 \ 125-cc-consteval.fth — typed LP64 constants for the direct System V target.
-\ Loading this layer preserves legacy and native/TinyCC constant semantics.
+\ Loading this layer preserves legacy and native-mode constant semantics.
 \ A private value record carries value, type, descriptor and relocation ID.
 \ The public integer API returns ( value type ); the static API returns all
 \ four cells. No machine code is executed to obtain a constant value.

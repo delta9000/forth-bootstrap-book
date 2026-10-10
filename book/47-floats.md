@@ -14,7 +14,7 @@ The predicates exclude pointers and enable floating values only in System V mode
 \ XMM0/XMM1 are transient arithmetic registers; XMM0 carries ABI results.
 \ Long double uses X87 transport (121, 131) and computations (132).
 \ Static floating initializers are exact compile-time constants (125, 128).
-\ No native/TinyCC mode is changed.
+\ Native mode is not changed.
 
 : cc-f64-type? ( type -- flag )
   dup ty-ptr 0= swap ty-base ty-double = and cc-target-sysv @ and ;

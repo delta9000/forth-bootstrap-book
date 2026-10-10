@@ -8,7 +8,7 @@ A declaration context collects the base and declarator; a descriptor supplies si
 
 LP64 gives `char`, `short`, and `int` storage widths of one, two, and four bytes, while `long` and pointers occupy eight. An expression register can hold a wider value than the object from which it came. Layout therefore uses object size and alignment, not stack-cell width.
 
-Source comments naming TinyCC describe the historical profile. The TinyCC route stayed in the older seed-forth project, as recorded in `forth-bootstrap/HISTORY.md:14`; building it is not a step here. Chapter 41 supplies the System V AMD64 calling convention, and Chapter 43 supplies the later runtime.
+Native mode first served the TinyCC route, which stayed in the older seed-forth project (`forth-bootstrap/HISTORY.md:14`); building TinyCC is not a step here. Chapter 41 supplies the System V AMD64 calling convention, and Chapter 43 supplies the later runtime.
 
 The declaration walker needs deep stack access, maximum selection, and record copying without tying those operations to a particular C type (`forth-bootstrap/cc/115-cc-native.fth:1`):
 
@@ -16,7 +16,7 @@ The declaration walker needs deep stack access, maximum selection, and record co
 \ 115-cc-native.fth — opt-in LP64 bootstrap declaration parser.
 \ The legacy M2-compatible parser remains the default. Native mode uses
 \ LP64 object layout and a private, all-stack call ABI within its image.
-\ TinyCC built by this compiler emits its own standard target ABI.
+\ That ABI is private: it binds only code compiled together into one image.
 
 : cc-npick ( x_n ... x_0 n -- x_n ... x_0 x_n )
   dup 0= if, drop dup exit, then,
@@ -880,7 +880,7 @@ The native program layer’s private all-stack ABI gives each argument a caller-
 Parameter names must address incoming caller slots rather than consume new local storage (`forth-bootstrap/cc/117-cc-native-program.fth:1`):
 
 ```forth file=cc/117-cc-native-program.fth
-\ 117-cc-native-program.fth — program and private stack ABI for direct TinyCC.
+\ 117-cc-native-program.fth — program and private stack ABI for native mode.
 \ All linked code is generated together. No system libc or host object is used.
 variable cc-native-param-count
 variable cc-native-frame-patch
@@ -1597,7 +1597,7 @@ The runtime installer keeps the supported syscall list separate from the conditi
 ' cc-native-runtime is cc-native-runtime-fwd
 ```
 
-`cc-native-runtime` registers the boundary and adds the unavailable bodies only when `cc-bootstrap-floatbits` is enabled. Normal native mode does not define those bodies. This bounded list is not permission to accept arbitrary unresolved names, and it makes no claim about rebuilding TinyCC. Chapter 40 next changes output representation to objects and relocations.
+`cc-native-runtime` registers the boundary and adds the unavailable bodies only when `cc-bootstrap-floatbits` is enabled. Normal native mode does not define those bodies. This bounded list is not permission to accept arbitrary unresolved names. Chapter 40 next changes output representation to objects and relocations.
 
 ## Try it
 
