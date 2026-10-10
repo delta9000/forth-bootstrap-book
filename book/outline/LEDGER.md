@@ -2020,6 +2020,10 @@ switch with deferred dispatch | 36 Statements and control flow | idea; `switch` 
 `top-var` | 37 Functions and translation units | compiler word (constant, `cc/116-cc-prog.fth`); Top-level elision
 Calling convention (six register arguments) | 37 Functions and translation units | idea; The call codegen
 Entry stub | 37 Functions and translation units | idea; The entry stub and the top-level driver
+`cc-main` | 38 Compiler entry and Stage A | load stdin, preprocess, reset output and globals, emit header, parse program, place globals, finalize ELF, write /tmp/cc-out, bye
+`cc-out-path` | 38 Compiler entry and Stage A | the NUL-terminated fixed output path /tmp/cc-out
+Stage-A parity proof | 38 Compiler entry and Stage A | Forth-built and GCC-built M2-Planet emit identical M1 (2,367,260 bytes) on M2-Planet's own sources; not executable equality, not correctness for all C
+Bootstrap chain | 38 Compiler entry and Stage A | tools built from source supply the means to build the next tools; followed in Part 4
 Enums and typedefs | 37 Functions and translation units | idea; Enums and typedefs
 Fixed 256-byte function frame | 37 Functions and translation units | concept (C compiler ideas (Part III)); introduced in old Ch 31
 Function frame (256 bytes, 32 slots) | 37 Functions and translation units | idea; Parameter lists and the spill
