@@ -2229,6 +2229,11 @@ Stage-A parity proof | 38 Compiler entry and Stage A | idea; Stage A: the parity
 `ni-type` | 39 LP64 storage and initializers | compiler word (`cc/118-cc-native-init.fth`); Initializers reuse expression fixups
 Direct TinyCC bootstrap | 39 LP64 storage and initializers | idea; What the bootstrap result proves
 Fail-closed bootstrap runtime | 39 LP64 storage and initializers | idea; A finite Linux boundary
+Section-relative value | 40 Objects and relocations | a symbol's value is its offset within its section until linking
+Stable symbol handle | 40 Objects and relocations | an insertion ID kept independent of the ELF symbol order
+Local-first symbol numbering | 40 Objects and relocations | serialization puts local symbols first and remaps relocation targets
+Explicit relocation addend | 40 Objects and relocations | RELA records carry the adjustment apart from the field being repaired
+Atomic object publication | 40 Objects and relocations | write, close, then rename into place
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
