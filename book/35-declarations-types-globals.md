@@ -1,30 +1,12 @@
-# Chapter 29 — Declarations: Types, Structs, Locals
+# Chapter 35 — Declarations and storage
 
-```text
-Missing capability: declarations cannot create types, structs, locals, or file-scope symbols.
-New pattern: parse base types and declarators into symbol rows, with pre-registration for recursive structs.
-Artifact after this chapter: declaration parsing for scalar types, pointers, arrays, structs, and locals.
-Proof link: Stage-A decls populate the type and symbol database before statements and functions consume it.
-```
+`(char)321 == 65` asks the compiler to interpret a type inside an expression. Recognizing that type requires the declaration grammar: base types, pointer modifiers, and names that denote types. This layer turns declarations into storage reservations and supplies the type parser that makes the cast work.
 
-Before the statement and expression parsers can use a name, something
-has to turn `int x;`, `char* s;`, `int arr[8];`, `int (*fp)(int);`, or
-`struct T* p;` into a symbol-table row with the right type word, frame
-slot, and array length or struct descriptor (Ch 24 §3).  M2-Planet also leans on structs
-that point to their own type, so a struct's tag has to be usable
-before its body has finished parsing.
+## File header and bookkeeping
 
-That machinery is `110-cc-decl.fth` (808 lines), the first of the
-four files that make up the parser.  This chapter reads all of it.
-The other three follow it in load order and each has its own
-chapter: `112-cc-stmt.fth` holds the statements (Ch 30), and
-`114-cc-func.fth` (function definitions) and `116-cc-prog.fth`
-(enums, typedefs, globals, the entry stub, and the top-level
-driver) are Ch 31's.
+The declaration engine starts with a base type, then chooses a declarator grammar. An ordinary declarator adds pointer stars and a name before selecting scalar or array storage; function pointers and records have their own paths. Type names reuse the prefix without allocating an object. The header places this engine before the statement dispatcher in Chapter 36 and the function and file-scope parsers in Chapter 37.
 
----
-
-## 1. File header and bookkeeping
+The source header marks that boundary so declaration parsing can be loaded independently (`forth-bootstrap/cc/110-cc-decl.fth:1`):
 
 ```forth file=cc/110-cc-decl.fth
 \ 110-cc-decl.fth — declaration parser for the C-subset compiler.
@@ -43,6 +25,11 @@ driver) are Ch 31's.
 \ Bookkeeping
 \ ===========================================================================
 
+```
+
+The native interfaces reserve entry points for type recognition, type-name parsing, and declarations. The return type and descriptor describe the current function; `cc-type-name-array` and `cc-type-name-inner` carry array shape. `cc-native-float-types-default` lets the spelling policy consult `cc-bootstrap-floatbits` independently of value support. Chapter 39 supplies native storage parsing (`forth-bootstrap/cc/110-cc-decl.fth:26`):
+
+```forth file=cc/110-cc-decl.fth
 defer cc-native-type-name-fwd
 defer cc-native-decl-fwd
 defer cc-native-type-start-fwd
@@ -58,6 +45,11 @@ defer cc-native-float-types-fwd
 variable cc-native-frame-limit
 [lit] 131072 cc-native-frame-limit !
 
+```
+
+`cc-main-vaddr` and `cc-call-main-patch` reserve bookkeeping for Chapter 37. Local allocation advances `cc-fn-local-count` only after `cc-fn-add-slots` checks the selected limit: `cc-frame-slots` for the core target, `cc-native-frame-limit` for LP64. `cc-pending-struct-desc` carries a parsed record identity to its eventual symbol (`forth-bootstrap/cc/110-cc-decl.fth:42`):
+
+```forth file=cc/110-cc-decl.fth
 variable cc-main-vaddr                            \ vaddr where main starts
 variable cc-call-main-patch                       \ file-offset of rel32 to patch
 variable cc-fn-local-count                        \ # locals in current function
@@ -82,17 +74,17 @@ variable cc-pending-struct-desc
 
 ```
 
-The header names the three files that complete the parser.  The
-bookkeeping variables are shared across
-function definitions.  `cc-fn-local-count` is the next free local
-slot; every declaration parser in this chapter allocates from it
-through `cc-fn-add-slots`, which refuses (code 162) to hand out a
-slot past the frame's 32 (Ch 31 §3).
-`cc-pending-struct-desc` carries a struct descriptor from the
-base-type parser to whichever parser eventually calls `cc-sym-add`,
-so the pointer ends up in the symbol's struct-desc cell.
+## Expectation helpers and ignored specifiers
 
-## 2. Expectation helpers and ignored specifiers
+Call the shared checking pattern **consume-and-check**: advance to a token, reject the wrong kind, then test its payload if needed. The caller must distinguish a token already consumed from one still pending.
+
+| Input → required result | Helper |
+|---|---|
+| Keyword ID → matching keyword consumed | `cc-expect-kw-id` |
+| Character → matching punctuation consumed | `cc-expect-punct-c` |
+| No argument → identifier consumed | `cc-expect-ident` |
+
+The keyword case separates a wrong token kind from a wrong keyword, giving each failure its own diagnostic (`forth-bootstrap/cc/110-cc-decl.fth:54`):
 
 ```forth file=cc/110-cc-decl.fth
 \ ===========================================================================
@@ -114,6 +106,11 @@ so the pointer ends up in the symbol's struct-desc cell.
     [lit] 141 cc-die
   then, ;
 
+```
+
+Grammar delimiters need the payload check too; names need only the identifier-kind check (`forth-bootstrap/cc/110-cc-decl.fth:73`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-expect-punct-c ( char -- )  Consume one token; abort if not that punct.
 : cc-expect-punct-c
   cc-next-token-keep
@@ -134,14 +131,7 @@ so the pointer ends up in the symbol's struct-desc cell.
 
 ```
 
-`cc-expect-kw-id`, `cc-expect-punct-c`, and `cc-expect-ident` are the
-file's "consume one token and check it" idiom.  Each failure has its
-own code: 140/141 for the keyword pair, 142/143 for punctuation,
-144 for an identifier (this file owns 140–169; Ch 30's
-statements, Ch 31's functions and the program driver have 170–179,
-180–189 and 190–219).  When a compile dies, `cc-die` prints
-`cc: line N: error C` on stderr and exits with status C, a number you
-can grep for in those files.
+Qualifiers can appear around pointer stars as well as before a base type, so recognition is separate from recording their bit set (`forth-bootstrap/cc/110-cc-decl.fth:91`):
 
 ```forth file=cc/110-cc-decl.fth
 \ ===========================================================================
@@ -166,6 +156,11 @@ can grep for in those files.
   tok-kw-id @ kw-volatile = if, [lit] 2 exit, then,
   [lit] 4 ;
 
+```
+
+`cc-skip-qualifiers` leaves the first non-qualifier pending. Its `cc-qual-note` hook initially does nothing through `cc-qual-note-noop`; `cc-prefix-qualified` and `cc-type-name-qualified` reserve separate declaration and type-name qualification state (`forth-bootstrap/cc/110-cc-decl.fth:113`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-skip-qualifiers ( -- )  Read past any qualifiers; the first token that
 \ isn't one is left pending.
 : cc-qual-note-noop ;
@@ -181,6 +176,11 @@ variable cc-type-name-qualified
   repeat,
   cc-putback-token ;
 
+```
+
+`cc-count-stars` adds a pointer level for each star and permits qualifiers after it, so `char * const msg` leaves `msg` ready for the name parser (`forth-bootstrap/cc/110-cc-decl.fth:132`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-count-stars ( -- depth )  After consuming a base type (e.g. 'int'), peek
 \ zero or more '*' tokens and return the resulting pointer depth.  A
 \ qualifier may follow each '*' (`char * const msg`).  Leaves the first
@@ -195,6 +195,15 @@ variable cc-type-name-qualified
   repeat,
   cc-putback-token ;
 
+```
+
+## Storage prefixes
+
+Prefix scanning records declaration policy before choosing a declarator. A qualifier set, storage-class flags, and a storage-class count serve different consumers; accepting a spelling does not by itself allocate storage.
+
+The scratch cells distinguish `static`, `extern`, and the number of storage-class keywords, despite the older comment calling the rest no-ops (`forth-bootstrap/cc/110-cc-decl.fth:142`):
+
+```forth file=cc/110-cc-decl.fth
 \ Skip storage-class specifiers (static / extern / auto / register) and
 \ type qualifiers (const / volatile / restrict).  Reads tokens via
 \ cc-next-token-keep; whenever one of these keywords is seen, it's consumed
@@ -209,6 +218,11 @@ variable cc-decl-static
 variable cc-decl-extern
 variable cc-decl-storage
 
+```
+
+Each scan clears the previous declaration’s state before accumulating qualifier bits and storage-class flags (`forth-bootstrap/cc/110-cc-decl.fth:156`):
+
+```forth file=cc/110-cc-decl.fth
 : cc-skip-storage-quals
   [lit] 0 cc-prefix-qualified !
   [lit] 0 cc-decl-static ! [lit] 0 cc-decl-extern ! [lit] 0 cc-decl-storage !
@@ -223,6 +237,11 @@ variable cc-decl-storage
     kw-auto cc-tok-kw? or kw-register cc-tok-kw? or if,
       [lit] 1 cc-decl-storage +!
     then,
+```
+
+The loop consumes recognized prefixes, including `inline`, and returns the first other token to its caller (`forth-bootstrap/cc/110-cc-decl.fth:170`):
+
+```forth file=cc/110-cc-decl.fth
     tok-kind @ tk-kw =
       tok-kw-id @ kw-static    =
       tok-kw-id @ kw-extern    = or
@@ -238,6 +257,11 @@ variable cc-decl-storage
   repeat,
   cc-putback-token ;
 
+```
+
+`cc-skip-enum-tag` consumes an optional identifier after `enum` so the caller can proceed with an integer base type; it does not parse an enum definition (`forth-bootstrap/cc/110-cc-decl.fth:188`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-skip-enum-tag ( -- )  The current token is `enum` used as a type
 \ (`enum BINDING kind`): consume the tag.  An enum's values are ints, so
 \ the type is int.
@@ -247,29 +271,11 @@ variable cc-decl-storage
 
 ```
 
-`cc-count-stars` reads zero or more `*` tokens after a base type,
-returns the count, and puts back the first token that isn't a `*`.
-Every pointer-depth calculation in the file goes through it.  (The
-"Statement parsing" banner above it is a leftover; the statements
-start in Ch 30.)  A qualifier may follow any `*`, as in pnut's
-`char * const msg`, so the loop skips them with `cc-skip-qualifiers`;
-`cc-qualifier?` recognises `const`, `volatile` and `restrict`, and
-every place in the parser that reads a type skips them, since the
-type system has no `const`.
+## Struct definitions
 
-`cc-skip-storage-quals` consumes `static`, `extern`, `auto`,
-`register` and the qualifiers.  Only one of them changes anything:
-`static` sets `cc-decl-static`, and a `static` local gets file-scope
-storage (§4).  `extern` needs no flag: a global declared twice is one
-variable (Ch 31 §7).  `cc-skip-enum-tag` handles `enum TAG` used as a
-type, as in pnut's `enum BINDING kind`: an enum's values are ints, so
-the tag is read and dropped and the type is `int`.
+A definition fills a descriptor (Chapter 30) field by field. The important ordering decision is to register the tag before reading its fields, so a pointer field can name the very record being built.
 
-## 3. Struct definitions
-
-A struct definition builds a descriptor (the layout from Ch 24 §1)
-one field at a time.  The scratch globals hold the field being built,
-and `cc-sd-append-field` copies it into the next field record:
+`cc-sd-build-desc` selects the record under construction; `cc-sd-build-fname-a`, `cc-sd-build-fname-u`, `cc-sd-build-field-ty`, and `cc-sd-build-field-desc` hold the pending field. This single scratch set excludes nested definitions (`forth-bootstrap/cc/110-cc-decl.fth:192`):
 
 ```forth file=cc/110-cc-decl.fth
 \ ===========================================================================
@@ -286,6 +292,11 @@ variable cc-sd-build-fname-u
 variable cc-sd-build-field-ty
 variable cc-sd-build-field-desc                   \ pointee desc for struct-ptr fields (0 if none)
 
+```
+
+`cc-sd-append-field` assigns the old total size as the field offset, copies its name and type, then advances the count and size. Every field occupies an eight-byte slot in this core layout (`forth-bootstrap/cc/110-cc-decl.fth:211`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-sd-append-field ( -- )  Append the field whose name is in cc-sd-build-
 \ fname-{a,u}, type in cc-sd-build-field-ty, pointee descriptor in
 \ cc-sd-build-field-desc, to the descriptor in cc-sd-build-desc.  Assigns
@@ -307,12 +318,7 @@ variable cc-sd-build-field-desc                   \ pointee desc for struct-ptr 
 
 ```
 
-The new field's offset is the descriptor's current `total-size`;
-then `field-count` goes up by one and `total-size` by 8.  Every field
-gets an 8-byte slot whatever its declared type.
-
-Field types and struct locals both need to turn a tag name into a
-descriptor.  There are two lookups:
+A by-value declaration needs a known layout, so `cc-lookup-struct-tag` rejects a missing name or a symbol of the wrong kind (`forth-bootstrap/cc/110-cc-decl.fth:235`):
 
 ```forth file=cc/110-cc-decl.fth
 \ cc-parse-struct-def ( -- )  Called with the 'struct' keyword ALREADY consumed
@@ -341,6 +347,11 @@ descriptor.  There are two lookups:
   then,
   cc-sym-val-of ;                                  \ descriptor pointer
 
+```
+
+An opaque pointer can survive without a layout: `cc-lookup-struct-tag-soft` still requires an identifier but returns zero for an unknown or non-struct tag. It creates no placeholder to repair later (`forth-bootstrap/cc/110-cc-decl.fth:255`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-lookup-struct-tag-soft ( -- desc-or-0 )  Like cc-lookup-struct-tag, but
 \ returns 0 if the tag isn't found or isn't registered as a struct.  Lets the
 \ parser tolerate opaque/incomplete struct references in headers that declare
@@ -363,11 +374,9 @@ descriptor.  There are two lookups:
 
 ```
 
-(The comment for `cc-parse-struct-def` sits at the top of this block,
-merged into the comment for `cc-lookup-struct-tag`.)  The strict
-lookup dies with code 145–147 on a missing or non-struct tag.  The
-soft lookup returns 0 instead, which lets a header mention
-`struct type*` without defining it.
+## Register the tag before its fields
+
+`cc-parse-struct-def` reads the tag and opening brace, allocates an empty descriptor, and registers that address immediately. A self-reference therefore finds the same descriptor the field loop will finish; the comment mentioning `2>r` is stale, since the code duplicates the tag slice with `over over` (`forth-bootstrap/cc/110-cc-decl.fth:271`):
 
 ```forth file=cc/110-cc-decl.fth
 : cc-parse-struct-def                             ( -- )
@@ -394,6 +403,11 @@ soft lookup returns 0 instead, which lets a header mention
   cc-sd-build-desc @
   cc-sym-add drop                                 ( tag-a tag-u )
 
+```
+
+The field loop stops at the closing brace and resets the pending pointee descriptor before selecting each field’s base type (`forth-bootstrap/cc/110-cc-decl.fth:295`):
+
+```forth file=cc/110-cc-decl.fth
   \ Field-parsing loop.  Each iteration parses `T '*'* IDENT ;` where T is
   \ one of: int / char / void / struct TAG / IDENT (typedef-name).  All
   \ fields are 8 bytes in our codegen, so the *type* is mostly cosmetic;
@@ -415,6 +429,11 @@ soft lookup returns 0 instead, which lets a header mention
       tok-kw-id @ kw-enum    = if,
         cc-skip-enum-tag ty-int cc-sd-build-field-ty !
       else,
+```
+
+A struct field preserves its pointee descriptor for later member access. An identifier in this core field grammar is merely accepted as a typedef spelling and reduced to `ty-int`; it is not resolved through the typedef table (`forth-bootstrap/cc/110-cc-decl.fth:316`):
+
+```forth file=cc/110-cc-decl.fth
       tok-kw-id @ kw-struct  = if,
         \ Look up the tag's descriptor (soft — self-referential `struct T*
         \ next` inside `struct T {...}` works because cc-parse-struct-def
@@ -435,6 +454,11 @@ soft lookup returns 0 instead, which lets a header mention
       ty-int cc-sd-build-field-ty !
     then,
 
+```
+
+After the base, pointer stars complete the field type and an identifier supplies its name. The semicolon commits the field; the closing brace ends the loop and requires the definition’s final semicolon (`forth-bootstrap/cc/110-cc-decl.fth:336`):
+
+```forth file=cc/110-cc-decl.fth
     cc-count-stars                                ( ... ptr-depth )
     \ Re-pack the type word with the ptr-depth.
     cc-sd-build-field-ty @ swap ty-make cc-sd-build-field-ty !
@@ -457,28 +481,11 @@ soft lookup returns 0 instead, which lets a header mention
 
 ```
 
-`cc-parse-struct-def` handles `struct TAG { … };`.  It allocates a
-descriptor header (Ch 24 §1), then calls `cc-sym-add` for the tag *before*
-reading any field.  When a field later declares `struct T* next;`,
-`cc-lookup-struct-tag-soft` finds the tag and returns the
-still-empty descriptor pointer, which goes into the field record.
-The field loop fills that same descriptor in place, so by the closing
-`}` every `next` field points at a complete descriptor.
+## Function pointers and the declaration engine
 
-The field loop dispatches on the base type, after skipping any
-qualifiers.  `int`, `char`, and `void` set a plain type word, and so
-does `enum TAG` (an int); `struct` looks up the tag's descriptor
-and records it as the field's pointee; an identifier is taken as a
-typedef name and recorded as `ty-int`, since only the 8-byte slot
-matters.  `cc-count-stars` supplies the pointer depth, and `ty-make`
-packs it into the type word.
+`int (*fp)(int);` shares its base type with an ordinary integer declaration. The following `(*` selects a different declarator grammar; neither token alone is enough. Function pointers here retain a callable type marker, not a checked parameter signature.
 
-## 4. Function pointers and the declaration engine
-
-`int (*fp)(int);` reads like `int x;` for one token and then turns
-into something else.  The parser needs to see both `(` and `*` before
-committing, which is one token more than the putback layer from
-Ch 27 can give back.  So this code snapshots the entire lexer state:
+`cc-peek-fnptr?` tests for the opening parenthesis and star, restoring the lexer on either outcome so the chosen parser sees the original input (`forth-bootstrap/cc/110-cc-decl.fth:372`):
 
 ```forth file=cc/110-cc-decl.fth
 \ ===========================================================================
@@ -511,16 +518,7 @@ Ch 27 can give back.  So this code snapshots the entire lexer state:
 
 ```
 
-`cc-peek-fnptr?` marks the lexer state in `cc-peek-mark` (Ch 23 §7),
-reads up to two tokens, tests for `(` then `*`, and resets to the mark
-on both paths.  The caller gets a flag and a lexer that hasn't moved.
-It reads with `cc-next-token-keep`, so the first of the two may be a
-token that was put back: after `unsigned long`, `cc-more-type-kws`
-has read one token too many and put it back, and the mark saves the
-putback flag with everything else.
-`cc-peek-mark` is the only mark buffer in the parser: every look-ahead
-that uses it reads only tokens between marking and resetting, so no
-second look-ahead can start while one is in progress.
+Balanced parentheses let `cc-skip-fnptr-params` pass nested parameter spellings without interpreting signatures. End-of-input is an error; the native spelling policy can also reject floating types (`forth-bootstrap/cc/110-cc-decl.fth:388`):
 
 ```forth file=cc/110-cc-decl.fth
 \ cc-skip-fnptr-params ( -- )  Skip everything from the current position
@@ -544,6 +542,11 @@ second look-ahead can start while one is in progress.
   repeat,
   drop ;
 
+```
+
+Once the lookahead succeeds, `cc-parse-fnptr-decl` checks the punctuation, saves the name, and skips the parameter list (`forth-bootstrap/cc/110-cc-decl.fth:412`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-parse-fnptr-decl ( -- )  The base type has been consumed by the caller;
 \ the next two tokens are '(' and '*'.  Parses
 \
@@ -568,6 +571,11 @@ second look-ahead can start while one is in progress.
   lparen cc-expect-punct-c
   cc-skip-fnptr-params
 
+```
+
+The name receives an `sk-local` row with a pointer-to-function type and a frame slot. An optional initializer emits a store into that slot; consume-and-check enforces its final semicolon (`forth-bootstrap/cc/110-cc-decl.fth:429`):
+
+```forth file=cc/110-cc-decl.fth
   \ Register as an sk-local function pointer: ty-func + ptr-depth=1.
   sk-local
   ty-func [lit] 1 ty-make                         ( a u kind type )
@@ -587,6 +595,15 @@ second look-ahead can start while one is in progress.
     then,
   then, ;
 
+```
+
+## Local declarators and storage
+
+A declaration’s base type is shared across its comma-separated names, but each name supplies its own pointer stars and array suffix. Storage follows the resulting declarator: automatic objects claim frame slots, while static locals use the global storage machinery (Chapter 32) under a locally scoped name.
+
+`cc-decl-base` holds the shared base. `cc-parse-local-declarator` adds explicit stars to the depth inherited from a typedef, saves the name, and reads the suffix that decides between array and scalar storage (`forth-bootstrap/cc/110-cc-decl.fth:462`):
+
+```forth file=cc/110-cc-decl.fth
 variable cc-decl-base                              \ base type kind
 
 \ cc-parse-local-declarator ( init-ptr -- )  One declarator of a local
@@ -607,6 +624,11 @@ variable cc-decl-base                              \ base type kind
   tok-str-addr @ tok-str-len @ rot                 ( a u ptr-depth )
   cc-decl-base @ swap ty-make                      ( a u type )
   cc-next-token-keep
+```
+
+An array requires a positive constant bound. Its symbol records the deepest reserved frame slot so indexing proceeds toward higher addresses; a static array instead reserves BSS storage. Both paths record the array length and leave the next token current (`forth-bootstrap/cc/110-cc-decl.fth:468`):
+
+```forth file=cc/110-cc-decl.fth
   [char] [ cc-tok-punct? if,
     \ -------- Array: T name [ N ] --------
     cc-parse-const                                 ( a u type N )
@@ -625,6 +647,11 @@ variable cc-decl-base                              \ base type kind
     r> drop
     cc-next-token-keep exit,
   then,
+```
+
+A static scalar writes its constant initializer into the data area during compilation. An automatic scalar reserves a frame slot and emits an optional expression-and-store sequence to run on entry to the declaration (`forth-bootstrap/cc/110-cc-decl.fth:486`):
+
+```forth file=cc/110-cc-decl.fth
   \ -------- Scalar: T name ('=' expr)? --------
   cc-decl-static @ if,
     sk-global swap  [lit] 8 cc-globals-alloc       ( a u kind type slot )
@@ -646,12 +673,9 @@ variable cc-decl-base                              \ base type kind
 
 ```
 
-Once the peek says yes, `cc-parse-fnptr-decl` consumes `(`, `*`, the
-name, `)`, and `(`, then `cc-skip-fnptr-params` counts parentheses
-until the parameter list closes.  The name becomes an `sk-local`
-whose type is `ty-func` with pointer depth 1.  Parameter types are
-skipped, not checked.  That type is what Ch 28's `cc-parse-primary`
-tests to accept an indirect call.
+## Sharing the base across names
+
+`cc-parse-decl-with-base` keeps the inherited pointer depth across the comma loop. Each declarator consumes its own stars, so a star attached to one name cannot leak into the next. The function-pointer special case requires no inherited pointer depth (`forth-bootstrap/cc/110-cc-decl.fth:513`):
 
 ```forth file=cc/110-cc-decl.fth
 \ cc-parse-decl-with-base ( base initial-ptr -- )
@@ -672,34 +696,6 @@ tests to accept an indirect call.
   then,
   begin,
     dup cc-parse-local-declarator                  ( init-ptr )
-```
-
-`cc-parse-decl-with-base` takes the base type and an initial pointer
-depth (non-zero only for a pointer typedef).  With no leading stars
-it tries the function-pointer peek first.  Otherwise it parses
-declarators separated by commas, `int a = 1, *b, c[4];`, until the
-`;` (code 159 if something else ends them).  `cc-parse-local-declarator`
-does one: it counts stars, reads the name, and looks at the next token:
-
-- `[` starts an array.  The size is a constant expression (Ch 28 §9),
-  `int buf[N * 2]`, and must be positive (code 156).  The symbol's
-  slot is the *last* of the N slots it reserves, and N goes in as the
-  array length (`cc-sym-set-array-len`) so Ch 28 can tell an array
-  from a scalar.
-- Anything else is a scalar: one slot, and an optional `= expr`
-  whose value is stored with `cc-emit-store-local`.
-
-A `static` local is different: its value must outlive the call, so it
-cannot live in the frame.  It gets file-scope storage instead, a data
-slot (Ch 26 §5) for a scalar, whose initializer must then be a
-constant and is written into the data area once, or the bss for an
-array.  Its symbol is an `sk-global` added in the block's scope, so
-only the block can name it; when the scope ends the name goes, the
-storage stays.  `tests/cc/K-static-local.c` counts calls with one,
-with other calls in between that reuse the stack; when `static` was
-ignored, the count came out as whatever the stack held.
-
-```forth file=cc/110-cc-decl.fth
     [char] , cc-tok-punct?
   while,
   repeat,
@@ -708,6 +704,11 @@ ignored, the count came out as whatever the stack held.
     [lit] 159 cc-die
   then, ;
 
+```
+
+The basic-type predicate recognizes keyword spellings, while `cc-more-type-kws` folds a keyword sequence into the core base type. A `char` changes that base; spellings such as `unsigned long` do not introduce distinct core widths (`forth-bootstrap/cc/110-cc-decl.fth:548`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-tok-is-basic-type-kw? ( -- f )  -1 iff current token is a basic-type
 \ keyword that introduces a local declaration: int / char / void / long /
 \ short / unsigned / signed.  All are treated as 8-byte slot in codegen.
@@ -733,6 +734,11 @@ ignored, the count came out as whatever the stack held.
   repeat,
   cc-putback-token ;
 
+```
+
+`cc-parse-decl` enters with the first keyword already consumed, chooses the initial base, and delegates the remaining keywords and names. The preserved `char` distinction controls character-pointer access even though local storage uses slots (`forth-bootstrap/cc/110-cc-decl.fth:564`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-parse-decl ( -- )  Entry from cc-parse-stmt.  The basic-type kw is
 \ the current token (still in tok-*); pick ty-char for `char`, ty-int for the
 \ rest (int / long / short / unsigned / signed), then read any further type
@@ -752,23 +758,11 @@ ignored, the count came out as whatever the stack held.
 
 ```
 
-`cc-parse-decl` is the entry from the statement parser.  It maps
-`char` to `ty-char` and every other basic type to `ty-int`.  The
-distinction matters: Ch 28's subscript code uses base `char` with
-pointer depth 1 to choose byte-wide loads and stores for `s[i]`.
-`cc-tok-is-basic-type-kw?` is the test the statement dispatcher uses
-to decide that a statement is a declaration, and `cc-more-type-kws`
-reads the keywords that may follow the first (`unsigned long x`,
-`long long n`, `unsigned char c`): they all name the one 8-byte
-integer, except that a `char` among them makes a `char`.
+## Type names and casts
 
-## 5. Type names and casts
+A cast names a type without adding a symbol. After an opening parenthesis, the parser must choose between a type name and an ordinary grouped expression. `cc-try-cast` supplies this choice to the expression parser through its existing hook.
 
-A cast, `(char*) p`, names a type without declaring anything.  Ch 28's
-`cc-parse-operand` meets a `(` and cannot tell a cast from a
-parenthesised expression without knowing whether the next token
-starts a type, and type names are this file's business, so the whole
-cast is parsed here and reached through `cc-try-cast-fwd` (Ch 27 §4):
+`cc-type-start?` accepts qualifiers, basic types, record and enum keywords, and known typedef names. `cc-cast-desc` accompanies the type word when the destination names a record (`forth-bootstrap/cc/110-cc-decl.fth:585`):
 
 ```forth file=cc/110-cc-decl.fth
 \ ===========================================================================
@@ -792,6 +786,11 @@ variable cc-cast-desc                              \ struct TAG's descriptor, or
     dup 0< if, drop else, cc-sym-kind-of sk-typedef = or then,
   then, ;
 
+```
+
+`cc-parse-type-name` removes leading qualifiers, retrieves a record descriptor or typedef type, and treats an enum as integer-valued. The LP64 branch delegates before entering this core grammar (`forth-bootstrap/cc/110-cc-decl.fth:596`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-parse-type-name ( -- ty )  The current token begins a type name; read
 \ it, stars and all, and leave the token after it pending.
 : cc-parse-type-name
@@ -809,6 +808,11 @@ variable cc-cast-desc                              \ struct TAG's descriptor, or
     tok-str-addr @ tok-str-len @ cc-sym-find cc-sym-val-of
     dup ty-base swap ty-ptr
   else,
+```
+
+Keyword combinations establish the base before trailing qualifiers and stars complete the type. Unlike a declaration, this parser leaves the following token pending and allocates no storage (`forth-bootstrap/cc/110-cc-decl.fth:611`):
+
+```forth file=cc/110-cc-decl.fth
     \ Keywords: int, char, void, and combinations such as `unsigned int`
     \ or `long long`; any char makes it char.
     ty-int
@@ -824,6 +828,21 @@ variable cc-cast-desc                              \ struct TAG's descriptor, or
   cc-skip-qualifiers
   cc-count-stars + ty-make ;
 
+```
+
+## Cast policy and conversion
+
+Keep the decisions separate: whether a cast is allowed, which instructions convert its value, and whether it retains null-constant provenance. The defaults below make those boundaries explicit.
+
+| Input → result | Default and hook |
+|---|---|
+| Source and destination types → no rejection | `cc-cast-types-default`, `cc-cast-types-fwd` |
+| Source and destination types → conversion emission | `cc-cast-value-default`, `cc-cast-value-fwd` |
+| Types, null flag, qualification → cleared null flag | `cc-cast-null-default`, `cc-cast-null-fwd` |
+
+The default bindings let target layers replace policy without merging it into the cast parser (`forth-bootstrap/cc/110-cc-decl.fth:626`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-try-cast ( -- f )  The current token is '('.  If a type name follows,
 \ compile the whole cast — type, ')', then the operand, a unary
 \ expression — and answer true.  Otherwise answer false with the token
@@ -840,6 +859,11 @@ defer cc-cast-value-fwd
 defer cc-cast-null-fwd
 ' cc-cast-null-default is cc-cast-null-fwd
 
+```
+
+A non-type token sends `cc-try-cast` back to grouping. Otherwise it saves the destination type, qualification, and descriptor across unary-operand parsing, because an inner cast can overwrite the same scratch state (`forth-bootstrap/cc/110-cc-decl.fth:642`):
+
+```forth file=cc/110-cc-decl.fth
 : cc-try-cast
   cc-next-token-keep
   cc-type-start? 0= if,
@@ -854,6 +878,11 @@ defer cc-cast-null-fwd
   cc-emit-materialize
   r> r> r> swap >r                                 ( desc ty ; R: qualification )
   over cc-cast-desc !                              \ the operand may hold casts
+```
+
+The core conversion keeps the low byte for a non-pointer `char` destination; native mode calls the policy and value hooks instead. The result receives the saved destination metadata and loses lvalue status. Binding `cc-try-cast-fwd` makes this path available to expressions (`forth-bootstrap/cc/110-cc-decl.fth:656`):
+
+```forth file=cc/110-cc-decl.fth
   cc-target-lp64 @ if,
     cc-last-expr-type @ over cc-cast-types-fwd
     cc-last-expr-type @ over cc-cast-value-fwd
@@ -872,25 +901,9 @@ defer cc-cast-null-fwd
 
 ```
 
-`cc-type-start?` accepts a type keyword, a qualifier, `struct`,
-`enum`, or a name the symbol table knows as a typedef; anything else
-means the `(` groups an expression.  `cc-parse-type-name` reads the
-type into one type word (Ch 24), keeping a struct's descriptor aside
-in `cc-cast-desc`.  `cc-try-cast` then parses the operand as a unary
-expression, since a cast binds tighter than any binary operator
-(`(char) x + 1` is `((char) x) + 1`), and materializes it.
+## Struct-local declarations
 
-A cast changes no bits, except `(char)`, which keeps the low byte
-(`movzx edi, dil`, Ch 25), so `(char) 321` is 65.  What it changes is
-what the parser believes about the value: its type goes into
-`cc-last-expr-type`, so `*(char*) p` loads one byte, and a struct
-pointer's descriptor into `cc-last-struct-desc`, so
-`((struct pt*) raw)->y` finds `y`.  `(void) 0` evaluates and discards,
-as everywhere.  `tests/cc/P3-casts.c` checks each of these.  pnut casts
-a lot: `(intptr_t) fd` into its include stack and `(char*)` back out,
-and `((void) 0)` as an empty statement.
-
-## 6. Struct-local declarations
+A record object needs its whole layout; a record pointer needs only pointer storage. `cc-sld-desc`, `cc-sld-ptr-depth`, `cc-sld-name-a`, and `cc-sld-name-u` preserve that decision and the name while the symbol is assembled (`forth-bootstrap/cc/110-cc-decl.fth:672`):
 
 ```forth file=cc/110-cc-decl.fth
 \ ===========================================================================
@@ -916,6 +929,11 @@ variable cc-sld-ptr-depth
 variable cc-sld-name-a
 variable cc-sld-name-u
 
+```
+
+`cc-parse-struct-local-decl` requires a known tag even for pointers. For a by-value object it divides the descriptor size into slots, records the deepest slot as the object base, and rejects an initializer by demanding a semicolon immediately (`forth-bootstrap/cc/110-cc-decl.fth:695`):
+
+```forth file=cc/110-cc-decl.fth
 : cc-parse-struct-local-decl                      ( -- )
   cc-lookup-struct-tag cc-sld-desc !
   cc-count-stars cc-sld-ptr-depth !
@@ -938,6 +956,11 @@ variable cc-sld-name-u
     cc-sld-desc @ swap cc-sym-set-struct-desc
     \ Reserve slots.
     cc-sld-desc @ cc-sd-total-size [lit] 8 / cc-fn-add-slots
+```
+
+The pointer branch reserves a single slot but retains the pointee descriptor for member access. It also accepts an expression initializer and stores the result into the newly allocated slot (`forth-bootstrap/cc/110-cc-decl.fth:717`):
+
+```forth file=cc/110-cc-decl.fth
   else,
     \ struct TAG* p ('=' expr)? ; — one slot for the pointer.
     cc-sld-name-a @ cc-sld-name-u @
@@ -963,26 +986,11 @@ variable cc-sld-name-u
 
 ```
 
-`cc-parse-struct-local-decl` handles `struct TAG x;` and
-`struct TAG* p;` inside a function body.
+## `cc-parse-return`
 
-For the value form, it reserves `total-size/8` slots.  Field 0 lives
-at the lowest address, the deepest slot in the frame, and that slot
-is the symbol's value.  `cc-sym-set-struct-desc` records the
-descriptor pointer.
-The value form takes no initializer.
+Return handling uses the current function’s type and frame state. The statement dispatcher and the control-flow constructs that maintain switch depth belong to Chapter 36; here only their unwind contract is needed.
 
-The pointer form reserves one slot and stores the pointee's
-descriptor the same way, which is what Ch 28's postfix `->`
-reads to resolve field offsets.  It accepts `= expr`, because
-M2-Planet writes `struct T* i = expr;` constantly.
-
-## 7. `cc-parse-return`
-
-`cc-parse-switch` (Ch 30) saves the outer `rbx` with a `push` whose
-matching `pop` sits at the switch's end label.  A statement that
-leaves the switch body some other way has to emit its own `pop rbx`
-for each switch it crosses:
+`cc-switch-depth` counts open saved switch values; `cc-loop-switch-depth` records the enclosing loop’s boundary. The source comment specifies how an early exit must compensate for saved state it bypasses (`forth-bootstrap/cc/110-cc-decl.fth:740`):
 
 ```forth file=cc/110-cc-decl.fth
 \ ===========================================================================
@@ -1007,6 +1015,11 @@ for each switch it crosses:
 variable cc-switch-depth
 variable cc-loop-switch-depth
 
+```
+
+`cc-emit-switch-unwind` emits a restoring `pop rbx` for each depth passed by its caller, without changing the parser’s lexical depth counters (`forth-bootstrap/cc/110-cc-decl.fth:763`):
+
+```forth file=cc/110-cc-decl.fth
 \ cc-emit-switch-unwind ( n -- )  Emit n `pop rbx` instructions.
 : cc-emit-switch-unwind                           ( n -- )
   begin,
@@ -1019,12 +1032,7 @@ variable cc-loop-switch-depth
 
 ```
 
-`cc-switch-depth` counts open switches; `cc-loop-switch-depth`
-records that count at the innermost loop.  `return` pops them all,
-`continue` pops the ones opened inside the loop, and `goto` pops them
-all (so a `goto` into a switch is unsupported).  `break` needs
-nothing, because its target is the innermost loop's or switch's own
-end label.
+`cc-value-return-fwd` initially moves the result to `rax`. The separate `cc-return-shape-fwd` hook defaults to `cc-return-shape-default`, which accepts the source and destination shapes without a check (`forth-bootstrap/cc/110-cc-decl.fth:781`):
 
 ```forth file=cc/110-cc-decl.fth
 \ cc-parse-return ( -- )  "return" already consumed; parse [expr] ';'.
@@ -1040,6 +1048,11 @@ defer cc-value-return-fwd
 defer cc-return-shape-fwd
 ' cc-return-shape-default is cc-return-shape-fwd
 
+```
+
+A bare return consumes its semicolon during the peek and emits a zero result. A value return parses the expression, applies native shape and conversion policy when enabled, and requires its trailing semicolon. Both paths unwind saved switch values before the epilogue (`forth-bootstrap/cc/110-cc-decl.fth:785`):
+
+```forth file=cc/110-cc-decl.fth
 : cc-parse-return
   cc-next-token-keep
   tok-kind @ tk-punct = tok-num @ [char] ; = and if,
@@ -1061,152 +1074,7 @@ defer cc-return-shape-fwd
   then, ;
 ```
 
-`cc-parse-return` has two forms.  A bare `return;` emits
-`xor rax, rax`, so the caller sees 0.  `return expr;` parses the
-expression and moves `rdi` into `rax` with `cc-emit-mov-rax-rdi`.
-Both then unwind open switches, which restores the caller's `rbx`,
-and emit the `mov rsp, rbp ; pop rbp ; ret` epilogue (5 bytes;
-Ch 25 §5).
-
-The peek reads the `;` only when it is there; otherwise the token
-goes back and the trailing `cc-expect-punct-c` catches a missing
-semicolon after the expression.
-
-Ch 31's `cc-parse-function` also emits a zero and an epilogue when
-the body closes, so a function that ends with an explicit `return`
-carries 8 unreachable bytes (the 3-byte zero plus the 5-byte
-epilogue).  They cost space, not correctness.
-
-**tri.c at this stage.**  tri.c declares a struct type, a struct
-global and two locals, and none of them emits an instruction.
-With tri.c compiled to `/tmp/cc-out` (Ch 21), look at the start of
-`main` and the end of the file's code:
-
-```sh
-for r in 0x2e2:0x2fe 0x4b2:0x4c9; do
-  objdump -D -b binary -m i386:x86-64 -M intel \
-      --start-address=${r%:*} --stop-address=${r#*:} /tmp/cc-out | grep '^ '
-done
-```
-
-```
- 2e2:   55                      push   rbp
- 2e3:   48 89 e5                mov    rbp,rsp
- 2e6:   48 81 ec 00 01 00 00    sub    rsp,0x100
- 2ed:   48 bf c9 04 40 00 00    movabs rdi,0x4004c9
- 2f4:   00 00 00 
- 2f7:   48 81 c7 00 00 00 00    add    rdi,0x0
- 4b2:   48 c7 c7 01 00 00 00    mov    rdi,0x1
- 4b9:   48 89 f8                mov    rax,rdi
- 4bc:   48 89 ec                mov    rsp,rbp
- 4bf:   5d                      pop    rbp
- 4c0:   c3                      ret
- 4c1:   48 31 c0                xor    rax,rax
- 4c4:   48 89 ec                mov    rsp,rbp
- 4c7:   5d                      pop    rbp
- 4c8:   c3                      ret
-```
-
-Right after the prologue, at 0x2ed, is line 14's `t.rows`: `int
-w[ROWS];` and `int r;` emitted no bytes.  What they left is
-bookkeeping that later code reads.  The `struct tri` descriptor puts
-`rows` at offset 0 (the `add rdi,0x0`) and `stars` at 8, and `w`
-reserves slots 0–3 with its symbol on the last, so its base is
-`[rbp-0x20]` and `r` gets `[rbp-0x28]`.  At the other end, `return
-1;` is `mov rax,rdi` plus the 5-byte epilogue, and the 8 bytes at
-0x4c1 are the unreachable zero-and-epilogue described above.
-
-## Try it
-
-**Small check:** start with one fixture below and map each
-declaration to the symbol table row it creates.
-
-**Layer check:** run the root unit suite and the focused C fixtures.
-
-```sh
-./seed/build.sh
-./test.sh
-```
-
-**Bootstrap relevance:** Stage-A covers declarations at M2-Planet
-scale, including structs, typedefs, locals, and file-scope data.
-
-```sh
-tests/cc/stage-a-check.sh
-```
-
-The fixtures for the small check:
-`tests/cc/G3.c` exercises basic local declarations inside function
-bodies; `G9b.c` exercises struct declarations and field arithmetic;
-`G14d.c` exercises global variables (`g_counter`) and global arrays
-(`g_array[5]`).  `G10b.c` tests `typedef`.  `P3-casts.c` casts to
-every kind of type, `P4-declarations.c` puts `const` everywhere it
-may go and declares several names per declaration, and
-`K-static-local.c` keeps a count in a `static` local.
-
-## Exercises
-
-1. **★★ Trace.** Pre-registration of struct tags makes `struct T { struct T*
-   next; }` work.  What about `struct A { struct B* b; };
-   struct B { struct A* a; };` — mutual recursion?  Trace what
-   `cc-lookup-struct-tag-soft` returns for `struct B*` inside
-   `struct A`, then explain why `b->a->y` compiles but `a->b->x`
-   dies with code 100.
-
-2. **★★ Verify.** A `static` local is an `sk-global` in the block's scope.
-   Declare `static int n;` in two different functions: do they share
-   storage?  Now declare a global `n` *after* both functions.  Which
-   variable does each `n` name, and why does Ch 31's "a global
-   declared twice is one variable" rule not merge them?
-
-3. **★★★ Modify.** Function-pointer decls use 2-token lookahead.  How could you
-   reduce this to 1?  Hint: `(*` is two ASCII bytes; you could
-   peek the next byte after `(` via the lexer's `cc-peek-char-2`.
-
-4. **★★★ Extend.** `cc-parse-decl-with-base` accepts at most one initializer
-   expression.  Could you extend it to handle `int arr[N] =
-   {a, b, c};`?  What new vocabulary in the codegen would
-   that need?
-
-5. **★★★ Extend.** Every field is 8 bytes regardless of `char` vs `int`.  This
-   wastes memory on a struct full of `char` fields.  What
-   would change in `cc-sd-append-field` to support packed
-   layouts?
-
-## After this chapter
-
-The compiler can parse declarations: base types with pointer and
-array modifiers, several declarators at once, `static` locals, struct
-definitions (including self-referential ones), function pointers,
-struct locals, and the type names inside casts.  Typedefs, enum constants, and
-file-scope globals reuse this engine but are wired up in Ch 31.
-
-You can trace how `int x;`, `int* p;`, `int arr[N];`, and
-`struct T s;` each become a symbol-table row, and explain why
-`struct T { struct T *next; };` works.
-
-With names declared and expressions compiled, what is missing is
-order.  tri.c's `for` must emit a jump out of the loop before it has
-seen the loop's body, so the jump's target does not exist yet.
-Ch 30 is about jumps to places that don't exist yet.
-
-## Takeaways
-
-- Most declarations need only the one-token putback from Ch 27, but
-  spotting `int (*fp)(int)` takes a full save, two-token read, and
-  restore of the lexer state.
-- Registering a struct's tag before parsing its body makes
-  `struct T { struct T* next; }` work, but a field naming a struct
-  not yet defined gets descriptor 0, so mutually recursive structs
-  fail (Exercise 1).
-- `cc-parse-return` and the switch-unwind counters close
-  `110-cc-decl.fth`, and so this chapter, only because source order
-  puts them there; the statement dispatcher that calls them is in
-  `112-cc-stmt.fth` (Ch 30).
-
-Next: Chapter 30 — Statements: if, while, for, switch, break,
-continue, goto.
-
+The final adapter, `cc-native-sizeof-type`, returns a parsed type together with `cc-cast-desc`, allowing the expression parser’s type-form `sizeof` queries to use this grammar (`forth-bootstrap/cc/110-cc-decl.fth:806`):
 
 ```forth file=cc/110-cc-decl.fth
 
@@ -1215,3 +1083,49 @@ continue, goto.
 ' cc-type-start? is cc-sizeof-type-start-fwd
 ' cc-native-sizeof-type is cc-sizeof-type-fwd
 ```
+
+## Try it
+
+Run from the `forth-bootstrap` checkout root with the seed built in Part 1. This driver loads through `cc/110-cc-decl.fth`, compiles the opening expression into an ELF image, and executes it from a fresh temporary directory. The comparison happens inside the generated program: returning the cast value alone would hide a missing conversion because process exit status keeps only its low byte.
+
+```sh
+probe_dir=$(mktemp -d)
+{
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
+      cc/040-cc-prep.fth cc/050-cc-lex.fth \
+      cc/060-cc-types.fth cc/070-cc-sym.fth \
+      cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth \
+      cc/110-cc-decl.fth
+  cat <<'FORTH'
+cc-src-init
+here dup cc-src-buffer ! s, (char)321==65 here swap - cc-src-len !
+[lit] 0 cc-src-pos ! [lit] 0 cc-tok-pending !
+cc-out-init [lit] 0 cc-bss-size ! cc-emit-elf-header
+cc-parse-expr cc-emit-exit-shim
+cc-finalize-elf
+[lit] 1 cc-out-buf cc-out-pos @ write drop
+bye
+FORTH
+} | ./seed-forth > "$probe_dir/cast"
+printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
+chmod +x "$probe_dir/cast"
+"$probe_dir/cast"
+printf '(char)321 == 65: %s (exit status)\n' "$?" # prints '(char)321 == 65: 1 (exit status)'
+rm -r "$probe_dir"
+```
+
+Observed output:
+
+```text
+driver exit: 0
+(char)321 == 65: 1 (exit status)
+```
+
+This exercises type recognition, type-name parsing, the cast hook, and the core character conversion. It does not exercise local storage allocation, function bodies, returns, or native-target policies. No statement or function layer is loaded.
+
+## Exercise
+
+**Trace — easy.** Follow `struct T { struct T *next; };` through tag registration and field append. Explain why the field keeps a descriptor that becomes complete, while a pointer to an unknown tag keeps zero.
+
+**Verify — easy.** Change the checkpoint expression to `(char)321 == 321` and update its printed label. Run it and explain why testing equality exposes the cast’s effect while returning the cast value directly would not.
+

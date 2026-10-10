@@ -10,7 +10,7 @@ Prerequisites: [34 — Expressions: operands and assignment](34-expressions-part
 
 Checkpoint: TODO — the cumulative core checkpoint is Stage A at the end of the core compiler sequence.
 
-Reuses: [29-declarations-types-globals.md](../29-declarations-types-globals.md) — Reuse the source walkthrough: Parse declarations, local objects, arrays, pointers, and records.
+Reuses: [29-declarations-types-globals.md](../35-declarations-types-globals.md) — Reuse the source walkthrough: Parse declarations, local objects, arrays, pointers, and records.
 
 TODO:
 

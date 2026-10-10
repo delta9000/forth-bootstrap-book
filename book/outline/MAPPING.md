@@ -33,7 +33,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [26-codegen-part-2.md](../32-codegen-part-2.md) | Chapter 26 — Codegen, Part 2: Calls, Shims, and Globals | 3 | [Calls, shims, and globals](32-codegen-part-2.md) | keep |
 | [27-expressions-part-1.md](../33-expressions-part-1.md) | Chapter 27 — Expressions, Part 1: The Precedence Cascade | 3 | [Expressions: precedence](33-expressions-part-1.md) | keep |
 | [28-expressions-part-2.md](../34-expressions-part-2.md) | Chapter 28 — Expressions, Part 2: Primary, Unary, Assignment | 3 | [Expressions: operands and assignment](34-expressions-part-2.md) | keep |
-| [29-declarations-types-globals.md](../29-declarations-types-globals.md) | Chapter 29 — Declarations: Types, Structs, Locals | 3 | [Declarations and storage](35-declarations-types-globals.md) | keep |
+| [29-declarations-types-globals.md](../35-declarations-types-globals.md) | Chapter 29 — Declarations: Types, Structs, Locals | 3 | [Declarations and storage](35-declarations-types-globals.md) | keep |
 | [30-statements-if-while-for-return.md](../30-statements-if-while-for-return.md) | Chapter 30 — Statements: `if`, `while`, `for`, `switch`, `break`, `continue`, `goto` | 3 | [Statements and control flow](36-statements-if-while-for-return.md) | keep |
 | [31-functions-and-scope.md](../31-functions-and-scope.md) | Chapter 31 — Functions: Parameters, Calls, Globals, Entry Stub | 3 | [Functions and translation units](37-functions-and-scope.md) | keep |
 | [32-main-and-bootstrap-chain.md](../32-main-and-bootstrap-chain.md) | Chapter 32 — End to End: Main and the Bootstrap Chain | 3 | [Compiler entry and Stage A](38-main-and-bootstrap-chain.md) | keep |
