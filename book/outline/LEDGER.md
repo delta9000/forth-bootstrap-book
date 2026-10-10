@@ -2267,6 +2267,11 @@ Array-based va_list | 46 System V varargs | va_list is an array of one record, s
 Variadic register-save area | 46 System V varargs | each variadic call saves its incoming argument registers in its own frame
 Independent argument cursors | 46 System V varargs | GP and XMM offsets advance separately; overflow arguments share one stack cursor
 Variadic cursor copying | 46 System V varargs | va_copy copies the cursor fields, so two traversals share the saved arguments
+Floating payload transport | 47 Floating values and exact literals | floating bits ride in expression cells and move into SSE registers only to compute
+Sticky-half unsigned conversion | 47 Floating values and exact literals | large unsigned integers convert through signed SSE instructions without losing the rounding decision
+Exact floating ratio | 47 Floating values and exact literals | a decimal literal is kept as an exact integer numerator and denominator
+Remainder-based rounding | 47 Floating values and exact literals | twice the exact remainder is compared with the divisor to round to nearest, ties to even
+Direct destination rounding | 47 Floating values and exact literals | the destination format is chosen before a literal or constant operation is rounded
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
