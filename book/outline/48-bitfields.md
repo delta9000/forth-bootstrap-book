@@ -10,7 +10,7 @@ Prerequisites: [47 — Floating values and exact literals](47-floats.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [47-direct-gcc-bitfields.md](../47-direct-gcc-bitfields.md) — Reuse the source walkthrough: Explain bit allocation, extraction, promotion, and preserving stores.
+Reuses: [47-direct-gcc-bitfields.md](../48-bitfields.md) — Reuse the source walkthrough: Explain bit allocation, extraction, promotion, and preserving stores.
 
 TODO:
 

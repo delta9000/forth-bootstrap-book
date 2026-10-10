@@ -58,8 +58,7 @@
 - [Typed constants](45-typed-constants.md)
 - [System V varargs](46-varargs.md)
 - [Floating values and exact literals](47-floats.md)
-- [Record bitfields](outline/48-bitfields.md)
-  - [Chapter 47 — Integer record bitfields](47-direct-gcc-bitfields.md)
+- [Record bitfields](48-bitfields.md)
 - [Aggregates and extended floating values](outline/49-aggregate-abi.md)
   - [48. Record values at the System V boundary](48-direct-gcc-aggregate-abi.md)
 
