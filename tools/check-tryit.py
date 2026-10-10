@@ -294,6 +294,10 @@ def run_block(md, blk, timeout, private_tmp, verbose):
                 dst = os.path.join(work, f)
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 shutil.copy2(src, dst)
+        for tree in ("chain/runtime/gcc-seed",):
+            src = os.path.join(ROOT, tree)
+            if os.path.isdir(src):
+                shutil.copytree(src, os.path.join(work, tree))
         before = snapshot(work)
         script = os.path.join(root, "block.sh")
         open(script, "w").write(build_script(chunks, "../out"))

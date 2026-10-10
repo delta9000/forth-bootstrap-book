@@ -651,6 +651,7 @@ The full formatting checkpoint is deferred. The current `stdio.c` uses the argum
 All generated files live in a `mktemp -d` directory. The demo checks initial errno and process arguments, allocates a buffer, copies a string, writes its measured length, and frees it. No host C compiler or linker supplies an object.
 
 ```sh
+(
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 runtime=chain/runtime/gcc-seed
@@ -721,6 +722,7 @@ done
     'entry-name [lit] 6 lnk-entry output-path lnk-link lnk-release bye'
 } | ./seed-forth || exit "$?"
 "$work/demo" || exit "$?"
+)
 ```
 
 Observed output:

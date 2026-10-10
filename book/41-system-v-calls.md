@@ -2326,6 +2326,7 @@ Absolute address fields make this a static executable path rather than position-
 Run from the `forth-bootstrap` checkout root with the seed already built. This block loads the Forth library, the compiler layers before `cc/120-cc-main.fth`, and this chapter’s target and adapter. Each seed process compiles one C unit. All generated files live in a `mktemp -d` directory. `gcc` is used only as a linker, adding host startup and library support; it compiles neither C file.
 
 ```sh
+(
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cat > "$work/add.c" <<'C'
@@ -2362,6 +2363,7 @@ gcc -no-pie -Wl,-z,noexecstack "$work/caller.o" "$work/add.o" -o "$work/call" ||
 result=$?
 printf 'separate call returned %s\n' "$result"
 test "$result" -eq 42
+)
 ```
 
 Observed output:

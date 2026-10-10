@@ -819,6 +819,7 @@ The object writer accepts bytes and records; selecting C object mode belongs to 
 From the `forth-bootstrap` checkout root, compile the following C source in a fresh temporary directory. The load-order helper puts the executing main last (`forth-bootstrap/cc/compiler-layers.sh:6`); the loop excludes it and supplies an object-writing entry instead. This sends output directly to `example.o` inside the temporary directory. It never invokes the fixed-path main or writes `/tmp/cc-out`, so no shared output needs saving or restoring.
 
 ```sh
+(
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cat > "$work/example.c" <<'C'
@@ -844,6 +845,7 @@ FORTH
 } | ./seed-forth
 readelf -h -S -s -r -W "$work/example.o" > "$work/inspection"
 sed -n '/Type:/p; /Machine:/p; /Entry point/p; /Number of program headers/p; /\[ *[1457]\]/p; /^Relocation section/,$p' "$work/inspection"
+)
 ```
 
 Observed output, trimmed by the same filter used in the checkpoint:
@@ -878,6 +880,7 @@ Run from the `forth-bootstrap` checkout root with the seed already built. This c
 The output path is inside a fresh temporary directory, so the writer does not touch the compiler's usual `/tmp/cc-out`. `readelf` inspects the header, sections, symbols, and relocations. The final filter trims the report to selected header fields and sections, followed by all relocations and symbols.
 
 ```sh
+(
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 {
@@ -901,6 +904,7 @@ FORTH
 } | ./seed-forth
 readelf -h -S -s -r -W "$work/writer.o" > "$work/inspection"
 sed -n '/Type:/p; /Machine:/p; /Entry point/p; /Number of program headers/p; /\[ *[1457]\]/p; /^Relocation section/,$p' "$work/inspection"
+)
 ```
 
 Observed output:

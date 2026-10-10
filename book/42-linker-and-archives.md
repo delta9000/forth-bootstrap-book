@@ -1414,6 +1414,7 @@ Run from the `forth-bootstrap` checkout root with the seed already built. The co
 All generated files use a `mktemp -d` directory. The archive deliberately contains `add.o` twice. After adding the entry and caller, the archive path asserts that only one member joined them; extracting both would cause a duplicate strong definition.
 
 ```sh
+(
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cat > "$work/add.c" <<'C'
@@ -1489,6 +1490,7 @@ for mode in direct archive; do
   printf '%s link returned %s\n' "$mode" "$result"
   test "$result" -eq 42 || exit 1
 done
+)
 ```
 
 Observed output:
