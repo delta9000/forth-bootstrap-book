@@ -1316,6 +1316,12 @@ Inline allocator state | 32 Calls, shims, and globals | the calloc shim keeps he
 libc shims | 32 Calls, shims, and globals | small emitted runtime routines (putchar, getchar, fopen, calloc, memcpy...) with narrower behaviour than libc
 Global-address fixups | 32 Calls, shims, and globals | parallel columns pair an output patch position with a data or BSS slot until placement
 Typed integer emission | 32 Calls, shims, and globals | storage width, value conversion and unsigned operations kept separate
+Precedence cascade | 33 Expressions: precedence | one parser per precedence level; each asks the next tighter level for complete operands
+Binary fold | 33 Expressions: precedence | save the left operand, parse the right, restore the left, emit the operation
+Operator table | 33 Expressions: precedence | rows tie punctuation and compound forms to grammar level, emitter and evaluator
+Left associativity | 33 Expressions: precedence | each loop iteration's result becomes the next iteration's left operand
+Short-circuit logical AND/OR | 33 Expressions: precedence | conditional branches skip the right operand when the left decides the result
+Operand snapshot | 33 Expressions: precedence | saved left-operand metadata survives recursive parsing of the right operand
 Scope stack (push/pop count) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
 Struct descriptor | 30 Types and symbols | idea; How types and symbols connect
 Struct descriptor (16 + 40·N legacy, 32 + 48·N LP64 bytes) | 30 Types and symbols | concept (C compiler ideas (Part III)); introduced in old Ch 24
