@@ -2292,6 +2292,11 @@ Libgcc | 52 GCC 4.0.4: stages C and D | target support routines that generated c
 Compiler fixed point | 52 GCC 4.0.4: stages C and D | stage 2 = 3 = 4: successive GCC generations install the same files
 Archive member comparison | 52 GCC 4.0.4: stages C and D | archives that differ as wholes still match when member names, order and bytes agree
 Late tools | 52 GCC 4.0.4: stages C and D | make 4.4.1, bash 5.2, coreutils 9.5 and the rest, built by the fixed-point GCC with their own configure
+Sealed executable boundary | 53 The sealed host run | the prepared root starts with hex0-seed as its only executable file
+Executable publication | 53 The sealed host run | the host grants seed-forth's execute bit between entries; it supplies no program bytes
+Execve trace audit | 53 The sealed host run | every successful execve path must resolve to hex0-seed, the host's bwrap, or a program the chain built
+Interrupted execve join | 53 The sealed host run | strace's unfinished and resumed lines are joined by pid before counting
+Archive pin agreement | 53 The sealed host run | each stage's pin file agrees with MANIFEST.sha256 (tools/check-pins.py)
 LP64 native object storage | 39 LP64 storage and initializers | idea; Two profiles, one compiler
 Private all-stack ABI | 39 LP64 storage and initializers | idea; Private stack calls and whole programs
 Static initializer lowering | 39 LP64 storage and initializers | idea; Initializers reuse expression fixups
