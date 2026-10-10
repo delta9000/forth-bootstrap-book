@@ -14,7 +14,7 @@ site-url = "/forth-bootstrap-book/"
 default-theme = "light"
 preferred-dark-theme = "coal"
 mathjax-support = false
-no-section-label = false
+no-section-label = true
 git-repository-url = "https://github.com/delta9000/forth-bootstrap-book"
 
 [output.html.fold]
