@@ -237,8 +237,6 @@ def snapshot(d):
         for f in files + [x for x in dirs if os.path.islink(os.path.join(base, x))]:
             p = os.path.join(base, f)
             rel = os.path.relpath(p, d)
-            if rel.split(os.sep)[0] == "build-out":
-                continue   # the project's own build-output tree, not a stray write
             try:
                 snap[rel] = hashlib.sha256(open(p, "rb").read()).hexdigest()
             except OSError:
@@ -296,7 +294,7 @@ def run_block(md, blk, timeout, private_tmp, verbose):
                 dst = os.path.join(work, f)
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 shutil.copy2(src, dst)
-        for tree in ("chain/runtime/gcc-seed", "cc/driver"):
+        for tree in ("chain/runtime/gcc-seed",):
             src = os.path.join(ROOT, tree)
             if os.path.isdir(src):
                 shutil.copytree(src, os.path.join(work, tree))

@@ -1,8 +1,7 @@
 # Chapter 50 — Building seed-cc and seed-ar
 
-`seed-cc` turns a C source file into a runnable program by driving the Forth compiler. The seed constructs that driver itself, by reading a build controller as Forth source. The result is `seed-cc` and its companion `seed-ar`, built without Python.
+`seed-cc` turns a C source file into a runnable program by driving the Forth compiler. The seed constructs that driver itself, by reading a build controller as Forth source. The result is `seed-cc` and its companion `seed-ar`, built without Python; the project's fixed points come later, in Chapter 52 (GCC stage D) and Chapter 55 (the bzImage identities).
 
-Part 4 follows these tools outward. Chapter 51 builds the utilities needed for GCC; Chapter 52 reaches GCC's repeated-build fixed point; Chapter 53 audits the sealed host run. Chapter 54 builds K0 and K1, Chapter 55 carries the route to Linux under K1, and Chapter 56 considers the continuation to newer GCC. The project's fixed points come in Chapter 52 (GCC stage D) and Chapter 55 (the bzImage identities).
 
 ## Build a driver without running a driver
 
@@ -55,7 +54,7 @@ The child reads that assembled input through standard input, so no shell or comp
  status @ if, [lit] 114 die then, ;
 ```
 
-The parent waits for the child and stops on a failing status. Every child executes `./seed-forth`; neither `seed-cc`, `seed-ar`, nor Python is executed during construction. This claim covers the controller and its children. The shell used to launch the checkpoint and the commands used to inspect its artifacts are outside that construction.
+The parent waits for the child and stops on a failing status. Every child executes `./seed-forth`; neither `seed-cc`, `seed-ar`, nor Python runs during construction (the shell that launches the checkpoint is outside that claim).
 
 ## Put startup before the archive
 
@@ -191,8 +190,9 @@ The C driver preserves the bootstrap's eager startup and trailing runtime archiv
 
 ## Try it
 
-Run from the `forth-bootstrap` checkout root, using the seed built in Part 1. The construction writes `seed-cc` and `seed-ar` into `build-out/seed-cc/` and takes a few seconds. The book's automatic Try it runner cannot run this block: it hides its scratch checkout behind a private `/tmp`, where the built driver cannot find its source tree, so this block is run directly. The new driver then compiles a small program; the working directory stays at the checkout root so the driver can locate its source tree, while the test source and executable live in a temporary directory.
+Run from the `forth-bootstrap` checkout root, using the seed built in Part 1. The construction writes `seed-cc` and `seed-ar` into `build-out/seed-cc/` and takes a few seconds. The new driver then compiles a small program; the working directory stays at the checkout root so the driver can locate its source tree, while the test source and executable live in a temporary directory.
 
+<!-- check-tryit: its private /tmp hides the scratch checkout from the built driver; run directly. -->
 <!-- tryit: skip -->
 ```sh
 (
