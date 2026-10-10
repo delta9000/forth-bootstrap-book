@@ -16,3 +16,5 @@ TODO:
 
 - TODO Specify the GCC 15.2 route, dependencies, and success criteria as future work.
 - TODO Inventory any implementation before presenting the extension as executable.
+- NOTE (checked against the code 2026-10-10): the gcc64 climb to GCC 15.2.0 was carried out in the older seed-forth project (forth-bootstrap/HISTORY.md:23-25) and stayed there; it is not unexplored future work. Frame this epilogue as a route that exists elsewhere and what bringing it into forth-bootstrap would take.
+- NOTE: link seed-forth's gcc64 as https://github.com/delta9000/seed-forth, never a local path. The GCC 15.2.0 diverse-double-compiling result (1,043 files) is not recorded in forth-bootstrap's HISTORY.md or README.md (checked 2026-10-10), so leave it out; if it is ever cited, binutils and the musl sysroot were shared and are not covered.

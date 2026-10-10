@@ -63,7 +63,7 @@
 
 # Part 4 — bootstrap
 
-- [The seed-cc fixed point](outline/50-seed-cc-fixed-point.md)
+- [Building seed-cc and seed-ar](50-seed-cc-fixed-point.md)
 - [Owning the tools](outline/51-owning-the-tools.md)
 - [GCC 4.0.4: stages C and D](outline/52-gcc-4-fixed-point.md)
   - [Chapter 49 — Building GCC's compiler proper](49-direct-gcc-cc1.md)

@@ -6,7 +6,7 @@ Scope: Follow seed-cc as it builds every tool the GCC build needs, in the order 
 
 Sources taught: `chain/plumbing/chain.kaem`; `chain/plumbing/stage1.kaem`; `chain/plumbing/stage2.kaem`; `chain/plumbing/lexers.kaem`; `chain/plumbing/bash.kaem`; `chain/plumbing/*/` (each package's Makefile and config.h); `chain/gcc-direct/configure.sh` — TODO: these sources have no line ranges in INVENTORY.md; inventory them before drafting.
 
-Prerequisites: [50 — The seed-cc fixed point](50-seed-cc-fixed-point.md)
+Prerequisites: [50 — Building seed-cc and seed-ar](50-seed-cc-fixed-point.md)
 
 Checkpoint: `sh chain/plumbing-root.sh` runs the plumbing stages first, in the sealed root, and leaves the tools in `build-out/plumbing-root/build-out/plumbing/bin/` (bash 2.05b among them); under K1, `kernel/k1/run-chain.sh --direct` stops at bash 2.05b. TODO — a host option to stop after the plumbing stages.
 

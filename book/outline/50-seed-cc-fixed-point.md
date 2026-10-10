@@ -1,4 +1,4 @@
-# The seed-cc fixed point
+# Building seed-cc and seed-ar
 
 Part: 4
 
@@ -16,3 +16,4 @@ TODO:
 
 - TODO Inventory the driver and Forth-only construction sources.
 - TODO Document the seed-cc rebuild inputs and exact byte-comparison procedure; the construction command alone is not a fixed-point proof.
+- NOTE (checked against the code 2026-10-10): forth-bootstrap has no seed-cc rebuild-and-compare; cc/driver/seed-cc-start.fth builds seed-cc and seed-ar once. The project's fixed points are GCC stage D (Chapter 52) and the bzImage identities (Chapter 55). Chapter retitled "Building seed-cc and seed-ar"; a seed-cc self-rebuild check is a possible forth-bootstrap follow-up.
