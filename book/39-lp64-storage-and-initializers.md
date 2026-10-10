@@ -1601,15 +1601,44 @@ The runtime installer keeps the supported syscall list separate from the conditi
 
 ## Try it
 
-Run this from the `forth-bootstrap` checkout root at `./forth-bootstrap`, with the seed already built. The full loader includes the later extension layers. Its final line invokes the core entry, so `sed` removes that invocation while keeping its definitions; the small `storage-main` below selects the native program path. The load order and final-entry placement are specified in `forth-bootstrap/cc/compiler-layers.sh:2`. Compilation artifacts live in a `mktemp -d` directory, and the resulting program runs there. An existing `/tmp/cc-out` is saved and restored.
+Run this from the `forth-bootstrap` checkout root at `./forth-bootstrap`, with the seed already built. The full loader includes the later extension layers. Its final line invokes the core entry, so `sed` removes that invocation while keeping its definitions; the small `storage-main` below selects the native program path. The load order and final-entry placement are specified in `forth-bootstrap/cc/compiler-layers.sh:2`. Compilation artifacts live in a `mktemp -d` directory, and the resulting program runs there. Do not run concurrently with another user of `/tmp/cc-out`. A checked move saves any existing output before compilation; cleanup restores it or reports the retained backup path if restoration fails.
 
+<!-- tryit: expect "compiler exit: 0\nLP64\nprogram exit: 40" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+saved_output=0
 if [ -e /tmp/cc-out ] || [ -L /tmp/cc-out ]; then
-  mv /tmp/cc-out "$probe_dir/saved-cc-out"
+  if mv -T -- /tmp/cc-out "$probe_dir/saved-cc-out"; then
+    saved_output=1
+  else
+    printf 'Backup failed; inspect /tmp/cc-out and %s\n' "$probe_dir" >&2
+    exit 1
+  fi
 fi
-cat forth/010-lib.fth $(cc/compiler-layers.sh) | sed '$d' > "$probe_dir/compiler.fth"
-cat >> "$probe_dir/compiler.fth" <<'FORTH'
+cleanup() {
+  status=$?
+  trap - EXIT HUP INT TERM
+  if ! rm -f -- /tmp/cc-out; then
+    printf 'Cleanup failed; inspect /tmp/cc-out and %s\n' "$probe_dir" >&2
+    exit 1
+  fi
+  if [ "$saved_output" -eq 1 ] &&
+      ! mv -T -- "$probe_dir/saved-cc-out" /tmp/cc-out; then
+    printf 'Restore failed; saved output retained at %s\n' "$probe_dir/saved-cc-out" >&2
+    exit 1
+  fi
+  rm -rf -- "$probe_dir" || status=1
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+layers=$(cc/compiler-layers.sh) || exit "$?"
+cat forth/010-lib.fth $layers | sed '$d' > "$probe_dir/compiler.fth" || exit "$?"
+cat >> "$probe_dir/compiler.fth" <<'FORTH' || exit "$?"
 true cc-target-lp64 !
 : storage-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
@@ -1617,7 +1646,7 @@ true cc-target-lp64 !
   cc-finalize-elf cc-out-path cc-write-output bye ;
 storage-main
 FORTH
-cat > "$probe_dir/storage.c" <<'C'
+cat > "$probe_dir/storage.c" <<'C' || exit "$?"
 long write(int fd, char *buf, long count);
 struct Item { char tag; long value; } item = { 3, 7 };
 char label[] = "LP64\n";
@@ -1627,18 +1656,17 @@ int main(void) {
        + item.tag + item.value;
 }
 C
-(cat "$probe_dir/compiler.fth" "$probe_dir/storage.c" | ./seed-forth)
-printf 'compiler exit: %s\n' "$?"
-if [ -f /tmp/cc-out ]; then
-  mv /tmp/cc-out "$probe_dir/storage"
-  chmod +x "$probe_dir/storage"
-  (cd "$probe_dir" && ./storage)
-  printf 'program exit: %s\n' "$?"
-fi
-if [ -e "$probe_dir/saved-cc-out" ] || [ -L "$probe_dir/saved-cc-out" ]; then
-  mv "$probe_dir/saved-cc-out" /tmp/cc-out
-fi
-rm -r "$probe_dir"
+compiler_status=0
+cat "$probe_dir/compiler.fth" "$probe_dir/storage.c" | ./seed-forth || compiler_status=$?
+printf 'compiler exit: %s\n' "$compiler_status"
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+mv -T -- /tmp/cc-out "$probe_dir/storage" || exit "$?"
+chmod +x "$probe_dir/storage" || exit "$?"
+program_status=0
+(cd "$probe_dir" && ./storage) || program_status=$?
+printf 'program exit: %s\n' "$program_status"
+test "$program_status" -eq 40
+)
 ```
 
 Observed output:
@@ -1652,6 +1680,8 @@ program exit: 40
 The printed bytes come from the initialized character array. The exit sum combines `sizeof(long)` = 8, `sizeof(label)` = 6, `sizeof(item)` = 16, and initialized fields 3 and 7. The record size includes the alignment gap before its `long` field. This exercises native declarations, inferred array extent, aligned record storage, queued static initialization, private entry, and the emitted `write` boundary.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-39-object-layout-and-initializer-timing).
 
 **Trace — easy.** Follow `cc-nadd-field` for `struct Item` in the checkpoint. Explain why the `long` member does not immediately follow the `char`, and where the final record extent is rounded.
 

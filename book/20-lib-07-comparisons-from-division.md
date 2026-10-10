@@ -172,6 +172,7 @@ using the seed built in Part 1. `head -n 138` loads the library through
 `show-flag` uses Chapter 19's display convention: `1` for true, `0` for
 false, with `49` as the ASCII digit code and `10` as the newline.
 
+<!-- tryit: expect "100011\n1001\n1010\n1010\n11\n1" -->
 ```sh
 { head -n 138 forth/010-lib.fth
   printf '%s\n' \
@@ -211,3 +212,24 @@ above: it demonstrates the boundary of this implementation's contract.
 
 **Trace — moderate.** Find two operands of opposite sign for which `>`
 gives the wrong answer, and say which subtraction overflowed.
+
+<details>
+<summary>Hint: expand greater-than before choosing the operands</summary>
+
+`>` is `swap <`, so for original operands `a b` the sign test uses
+`b-a`. Choose positive `a` near the largest signed cell and negative
+`b` so that this mathematical difference falls below `-2^63`.
+
+</details>
+
+<details>
+<summary>Check a counterexample</summary>
+
+Choose `a=2^63-1` and `b=-2`. Although `a>b`, `b-a=-2^63-1` wraps to
+`2^63-1`, whose sign bit is clear; `>` returns false. The overflowing
+subtraction is `b-a`, not `a-b`. Dialect-valid input for these operands is
+`[lit] 9223372036854775807 [lit] 0 [lit] 2 - >`; `[lit] -2` is not a
+negative-number literal in this seed. Now replace `b` with `-1` and
+predict why this particular comparison becomes correct at the boundary.
+
+</details>

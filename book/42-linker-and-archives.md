@@ -1413,17 +1413,19 @@ Run from the `forth-bootstrap` checkout root with the seed already built. The co
 
 All generated files use a `mktemp -d` directory. The archive deliberately contains `add.o` twice. After adding the entry and caller, the archive path asserts that only one member joined them; extracting both would cause a duplicate strong definition.
 
+<!-- tryit: expect "direct link returned 42\narchive link returned 42" -->
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
-cat > "$work/add.c" <<'C'
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
+cat > "$work/add.c" <<'C' || exit "$?"
 long add(long *base, long a, long b, long c, long d,
          long e, long f, long g) {
     return *base + a + b + c + d + e + f + g;
 }
 C
-cat > "$work/caller.c" <<'C'
+cat > "$work/caller.c" <<'C' || exit "$?"
 extern long add(long *, long, long, long, long, long, long, long);
 int main(void) {
     long base;
@@ -1434,22 +1436,22 @@ C
 for unit in add caller; do
   {
     cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
-        cc/121-cc-sysv.fth cc/123-cc-object-program.fth
+        cc/121-cc-sysv.fth cc/123-cc-object-program.fth || exit "$?"
     printf 'create output-path s, %s/%s.o [lit] 0 c,\n' "$work" "$unit"
-    cat <<'FORTH'
+    cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 : object-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-    cat "$work/$unit.c"
+    cat "$work/$unit.c" || exit "$?"
   } | ./seed-forth || exit "$?"
 done
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth || exit "$?"
   printf 'create output-path s, %s/start.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-obj-init
 [lit] 232 cc-obj-byte [lit] 0 cc-obj-4le
 [lit] 137 cc-obj-byte [lit] 199 cc-obj-byte
@@ -1466,7 +1468,7 @@ FORTH
 for mode in direct archive; do
   {
     cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
-        cc/140-cc-link.fth cc/141-archive.fth
+        cc/140-cc-link.fth cc/141-archive.fth || exit "$?"
     for name in start.o caller.o add.o libadd.a "$mode"; do
       printf 'create p-%s s, %s/%s [lit] 0 c,\n' "$name" "$work" "$name"
     done
@@ -1485,8 +1487,8 @@ for mode in direct archive; do
     fi
     printf 'entry-name [lit] 6 lnk-entry p-%s lnk-link lnk-release bye\n' "$mode"
   } | ./seed-forth || exit "$?"
-  "$work/$mode"
-  result=$?
+  result=0
+  "$work/$mode" || result=$?
   printf '%s link returned %s\n' "$mode" "$result"
   test "$result" -eq 42 || exit 1
 done
@@ -1501,6 +1503,8 @@ archive link returned 42
 ```
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-42-archive-demand-is-time-dependent).
 
 **Trace — easy.** Reverse the caller and archive additions. Explain which name is unresolved and why a second archive occurrence would repair the link.
 

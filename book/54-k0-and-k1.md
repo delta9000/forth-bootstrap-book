@@ -4,7 +4,7 @@ K0 and K1 supply the kernel services needed to build and run the bootstrap tools
 
 ## Prepare the handoffs
 
-The route has this shape: hex0-seed assembles K0 on the host; QEMU boots K0; seed Forth builds K1 under K0; K1 imports a new starting tree and runs its recipe. The wrapper keeps image preparation on the host and compilation in the guest (`forth-bootstrap/kernel/k1/run-chain.sh:2`).
+The route has this shape: hex0-seed assembles K0 on the host; the host-built seed-forth from Chapter 1 is copied into K0's memory image; QEMU boots K0; that seed and its newly built recipe runner construct K1 under K0; K1 imports a new starting tree and runs its recipe. The wrapper keeps image preparation on the host and compilation in the guest (`forth-bootstrap/kernel/k1/run-chain.sh:2`).
 
 The host prepares separate images because K0 needs a memory image to start, while K1 reads a disk archive. These lines in `run-chain.sh` assemble K0, prepare the boot image and select the input-image arguments (`forth-bootstrap/kernel/k1/run-chain.sh:31`):
 
@@ -16,7 +16,7 @@ python3 kernel/k1/mkboot.py build-out/k1/boot.img
 set -- "$D/in.img" "$mode"
 ```
 
-The following image-writing steps create the input disk and an empty output disk (`forth-bootstrap/kernel/k1/run-chain.sh:37`). `mkboot.py` supplies the Forth and C sources needed to build K1, with seed-forth reading `k1-direct-start.fth`. It appends the boot recipe to the build recipe so that construction and entry happen in order (`forth-bootstrap/kernel/k1/mkboot.py:4`). The host Python steps copy raw pinned inputs into images; unpacking, patching and compilation belong to the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
+The following image-writing steps create the input disk and an empty output disk (`forth-bootstrap/kernel/k1/run-chain.sh:37`). `mkboot.py` supplies the Forth and C sources needed to build K1, with seed-forth reading `k1-direct-start.fth`. It appends the boot recipe to the build recipe so that construction and entry happen in order (`forth-bootstrap/kernel/k1/mkboot.py:4`). The host Python steps construct the images and initial kernel state, including descriptors, page tables and argv, and copy source bytes plus the existing `seed-forth` binary (`forth-bootstrap/kernel/k0/mkfs.py:27`, `forth-bootstrap/kernel/k0/mkfs.py:64–72`). They compile no guest C or Forth program. The wrapper neither builds nor verifies that first seed: build it from the pinned hex0 source as in Chapter 1 before preparing these images. K1 later builds a separate fresh seed from hex0-seed; the serial line `seed-forth built by hex0-seed` refers to that later step. Unpacking, patching and compiler construction then belong to the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
 
 QEMU receives K0 as its kernel, K0's file image through the loader, and the input and output images as IDE drives. Keeping the serial log on the host preserves evidence across the kernel handoff (`forth-bootstrap/kernel/k1/run-chain.sh:50`):
 
@@ -101,7 +101,9 @@ K0's appended boot recipe then runs that executable. K1 takes over the machine a
 
 K1 divides responsibilities among `main.c` for boot and traps, `mm.c` for memory, `fs.c` for files, `proc.c` for processes, `sys.c` for syscall dispatch and `ata.c` for disks. Assembly routines handle privileged machine operations (`forth-bootstrap/kernel/k1/README.md:215`). The useful unit of study is the boundary these files provide to static executables.
 
-The physical-memory direct map lets kernel code address a physical page through a shared virtual address. Its translation and page size are explicit in `k1.h` (`forth-bootstrap/kernel/k1/k1.h:20`):
+### Two virtual addresses, one physical byte
+
+An instruction uses a **virtual address**; paging translates it to a **physical address** and checks whether the access is allowed. K1 needs both an identity map, where the two addresses are equal, and a direct map, where adding a fixed base gives the kernel another address for the same physical memory. The direct-map arithmetic and allocation page size are explicit in `k1.h` (`forth-bootstrap/kernel/k1/k1.h:20`):
 
 ```c
 #define NULL ((void *)0)
@@ -113,7 +115,20 @@ The physical-memory direct map lets kernel code address a physical page through 
 #define ALIGNDN(x, a) ((x) & ~((a) - 1))
 ```
 
-K1's low image mapping is supervisor-only and ends at the boundary checked by the host build test. User processes receive their own page tables, while the upper direct map remains shared (`forth-bootstrap/kernel/k1/README.md:134`). `struct mm` tracks the break and the next downward mmap placement separately, so heap growth and mapped regions can be checked for overlap (`forth-bootstrap/kernel/k1/k1.h:161`).
+`P2V(0x201234)` gives `0xFFFF800000201234`; `V2P` subtracts `KBASE` to recover `0x201234`. These macros only calculate addresses. The page tables must make both this high address and the low identity address `0x201234` reach the same physical byte.
+
+For the listing below, read **PML4** (page-map level 4) as the root table, **PDPT** (page-directory-pointer table) as the next table, and **PD** as a page directory. An entry either stores the physical address of the next table or ends the walk at a **leaf**, giving the physical base of a mapped region. In these entries, `3` sets present and writable; `0x83` also sets the large-page bit. A large leaf at PDPT level covers 1 GiB; at PD level it covers 2 MiB. Thus the allocator's `PAGE = 4096` does not make every mapping 4 KiB. The hardware formats are specified in [Intel's system programming manual, §4.5](https://cdrdv2-public.intel.com/819714/253668-sdm-vol-3a.pdf); K1 names these flag bits in `mm.c` (`forth-bootstrap/kernel/k1/mm.c:195`).
+
+Here is a manual translation trace through the tables this code constructs, not an executed memory read (`forth-bootstrap/kernel/k1/main.c:314`):
+
+| Virtual byte address | Selected entries | Leaf base + byte offset → physical address |
+|---|---|---|
+| `0x201234` | `pml4[0]` → `pdpt_low[0]` → `pd_low[1]` | `0x200000 + 0x1234 = 0x201234` |
+| `0xFFFF800000201234` | `pml4[256]` → `pdpt_dm[0]` | `0 + 0x201234 = 0x201234` |
+
+Both flag values leave the user-access bit (`4`) clear. These mappings are **supervisor-only**: K1's privileged kernel code can use them; a restricted user process cannot read or write them merely by choosing the same address. Sharing the upper map therefore does not grant user access ([Intel, §4.6](https://cdrdv2-public.intel.com/819714/253668-sdm-vol-3a.pdf)).
+
+`load_cr3` selects the root by loading its **physical** address into the CPU's CR3 register, an operation reserved for privileged code (`forth-bootstrap/kernel/k1/k1-asm.fth:87`). Here the table pointers still use K0's identity mapping, so their numeric values already are physical addresses. Loading CR3 changes translation, not the addresses held in registers or the bytes in RAM. This small model omits translation caches, detailed address-bit selection and fault handling; it is enough to follow which addresses survive a handoff.
 
 The low mapping reserves space for K1 itself rather than user images (`forth-bootstrap/kernel/k1/main.c:314`):
 
@@ -131,7 +146,7 @@ The low mapping reserves space for K1 itself rather than user images (`forth-boo
     kpd_low = (u64 *)P2V(pd_low);
 ```
 
-The build check rejects a K1 image extending beyond that mapping (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:59`). Physical memory comes from QEMU's e820 map; mapped user regions acquire zeroed pages on demand. Fork copies present pages. Guest RAM must accommodate both the file system and process memory (`forth-bootstrap/kernel/k1/README.md:130`).
+The build check rejects a K1 image extending beyond that mapping (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:59`). User processes receive their own page tables, while the upper direct map remains shared (`forth-bootstrap/kernel/k1/mm.c:202`). `struct mm` tracks the break and the next downward mmap placement separately, so heap growth and mapped regions can be checked for overlap (`forth-bootstrap/kernel/k1/k1.h:161`). Physical memory comes from QEMU's e820 map; mapped user regions acquire zeroed pages on demand. Fork copies present pages. Guest RAM must accommodate both the file system and process memory (`forth-bootstrap/kernel/k1/README.md:130`).
 
 Unlike K0's serial execution, K1 runs user processes through SYSCALL/SYSRET, blocks them on waits and pipes, and preempts user code on timer ticks (`forth-bootstrap/kernel/k1/README.md:145`). Its tool-facing services include file and directory operations, fork/exec/wait, pipes, memory mapping, clocks and signals. Console, null, zero and random devices support the runtime; `/proc/self/exe` lets seed-cc locate its source tree (`forth-bootstrap/kernel/k1/README.md:154`).
 
@@ -187,7 +202,7 @@ The resulting program tests the runtime's operating-system calls, then the recip
 
 ## Try it
 
-Run both checkpoints from the forth-bootstrap checkout root. The build check needs GNU as for the assembly comparison and strace for the execution audit. It replaces `build-out/k1-direct`, writes the trace at `build-out/k1-direct.trace`, and compares the C objects with seed-cc output (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:26`). On the recorded host it took about nine seconds.
+Run both checkpoints from the forth-bootstrap checkout root, after Chapter 1's seed build. The guest-image preparation needs Python 3 and an existing, current `seed-forth`; it does not refresh that binary for you. The build check needs GNU as for the assembly comparison and strace for the execution audit. It replaces `build-out/k1-direct`, writes the trace at `build-out/k1-direct.trace`, and compares the C objects with seed-cc output (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:26`). On the recorded host it took about nine seconds.
 
 <!-- check-tryit: the runner selects seed-forth pipe blocks and omits kernel/ and vendor/; this host audit also needs strace and GNU as. -->
 <!-- tryit: skip -->
@@ -241,6 +256,8 @@ k1: init exited with status 0
 The host audit proves the build's executable boundary and object comparisons; the guest run proves the handoff and smoke workload. QEMU's successful exit is encoded through its debug-exit device, so the wrapper also checks the guest markers (`forth-bootstrap/kernel/k1/run-chain.sh:59`).
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-54-carrying-a-generated-runner-into-k1).
 
 **Trace (easy).** Follow `/k0/build-out/amd64-runner` from the Forth launcher's output path through K1's imports to `/k1.args`. Identify which image supplies the runner, which supplies its recipe, and why importing only hda would leave the initial executable unavailable.
 

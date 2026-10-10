@@ -9,8 +9,7 @@ Every entry links to the chapter section where the name is defined or
 explained, using mdBook's heading-anchor rules.  Two sources feed it:
 
   * Definitions, derived from the book's literate source.  Every
-    ```lang file=F / chunk=C fence is scanned (chapters are globbed, so a new
-    chapter is picked up automatically):
+    ```lang file=F / chunk=C fence in a published chapter is scanned:
       - seed/000-seed.hex0 chunks: each header's `; name  = "X"` is a seed
         primitive, each `;; ----- label @ 0xADDR` is a seed label;
       - Forth fences: `: X`, `variable X`, `create X`, `constant X` and
@@ -25,14 +24,12 @@ explained, using mdBook's heading-anchor rules.  Two sources feed it:
     prefix, heading substring), ...]).  The heading is looked for first in the
     chapter whose file name has that prefix, then in every chapter in reading
     order, since chapters move and are renumbered as the book is rewritten.
-    A heading no chapter has any more is dropped (and named on stderr), and a
-    concept left with no heading is dropped.
+    A missing concept target is an error; no incomplete index is written.
 
-Chapters are taken in reading order: the order book/SUMMARY.md links them,
-then any other chapter file by name.
+Chapters are taken in book/SUMMARY.md reading order. Unpublished and retired
+chapters cannot supply definitions or concept targets.
 """
 import difflib
-import glob
 import os
 import re
 import sys
@@ -98,7 +95,7 @@ CONCEPTS = [
     ("Consumed-slot property", [("19-", "The consumed-slot property")]),
     ("push rax; ret (indirect jump)", [("11-branches", "`branch_code`: replace the return address")]),
     ("Token reader and comment skipping", [("17-", "the token reader")]),
-    ("Loud token errors (token?, exit 2)", [("17-", "failing out loud"), ("61-error-codes", "The seed's own code")]),
+    ("Token errors: lookup recovery and fatal literal conversion", [("17-", "failing out loud"), ("61-error-codes", "The seed's own code")]),
     ("Linear dictionary search", [("09-dictionary", "`find_code`")]),
     ("Number parser", [("20-", "parse_decimal_code")]),
     ("REPL (interpret/compile loop)", [("20-", "The REPL loop")]),
@@ -181,7 +178,8 @@ class Chapter:
     def __init__(self, path):
         self.path = path
         self.file = os.path.basename(path)
-        self.lines = open(path, encoding="utf-8").read().split("\n")
+        with open(path, encoding="utf-8") as source:
+            self.lines = source.read().split("\n")
         stem = self.file.split("-", 1)[0]
         if stem.startswith("A"):
             self.label = "App. " + chr(ord("A") + int(stem[1:]) - 1)
@@ -240,18 +238,18 @@ class Chapter:
 
 
 def reading_order():
-    """Top-level chapter files in book/SUMMARY.md link order, then the rest by name."""
+    """Published top-level chapters only, in book/SUMMARY.md link order."""
     names, seen = [], set()
     summary = os.path.join(BOOK, "SUMMARY.md")
-    if os.path.exists(summary):
-        for name in re.findall(r"\]\(([^)#/]+\.md)\)", open(summary, encoding="utf-8").read()):
-            if name not in seen and CHAPTER_RE.match(name) and os.path.exists(os.path.join(BOOK, name)):
+    with open(summary, encoding="utf-8") as source:
+        for name in re.findall(r"\]\(([^)#/]+\.md)(?:#[^)]*)?\)", source.read()):
+            if not os.path.isfile(os.path.join(BOOK, name)):
+                raise ValueError(f"published page {name!r} is missing")
+            if name not in seen and CHAPTER_RE.match(name):
                 seen.add(name)
                 names.append(name)
-    for p in sorted(glob.glob(os.path.join(BOOK, "*.md"))):
-        name = os.path.basename(p)
-        if name not in seen and CHAPTER_RE.match(name):
-            names.append(name)
+    if not names:
+        raise ValueError("SUMMARY.md contains no published chapters")
     return names
 
 
@@ -435,6 +433,8 @@ def render(chapters):
     concept_rows = []
     errors = []
     for term, targets in CONCEPTS:
+        if not targets:
+            errors.append(f"concept {term!r}: no target headings configured")
         links = []
         for prefix, needle in targets:
             preferred = [c for c in chapters if c.file.startswith(prefix)]
@@ -445,14 +445,16 @@ def render(chapters):
                     found = (ch, h)
                     break
             if found is None:
-                print("gen-index: concept %r: no chapter has a heading containing %r; dropped"
-                      % (term, needle), file=sys.stderr)
+                errors.append("concept %r: no published chapter has a heading containing %r"
+                              % (term, needle))
                 continue
             l = link(*found)
             if l not in links:
                 links.append(l)
         if links:
             concept_rows.append((term, links))
+    if errors:
+        raise ValueError("\n".join(errors))
 
     items = []   # (sort key, markdown line)
     for name, lst in defs.items():
@@ -481,25 +483,25 @@ def render(chapters):
         "# Index",
         "",
         "<!-- Generated by tools/gen-index.py; do not edit by hand.  Run",
-        "     tools/gen-index.py after changing a chapter; check-all.sh runs",
+        "     tools/gen-index.py after changing a chapter; check.sh runs",
         "     tools/gen-index.py --check. -->",
         "",
-        "Every word the book defines, the seed's primitives and code labels,",
-        "and the book's key ideas, with the chapter section that defines or",
+        "Seed primitives and code labels, Forth names from canonical source fences,",
+        "and the book's curated key ideas, with the chapter section that defines or",
         "explains each.  Names are in `code`; ideas are in **bold**.  A word's",
         "entry says what kind it is and which source file holds it:",
         "",
         "- *seed primitive* / *seed label*: a dictionary entry or a code label",
-        "  in `seed/000-seed.hex0` (Part II; the primitives are also tabled in",
-        "  Appendix A);",
-        "- *Forth word*: `forth/010-lib.fth` (Part I);",
+        "  in `seed/000-seed.hex0` (Part 1; the primitives are also tabled in",
+        "  Chapter 13);",
+        "- *Forth word*: `forth/010-lib.fth` (Part 2);",
         "- *compiler word*: the C compiler, `cc/020-cc-arena.fth` to",
-        "  `cc/120-cc-main.fth` (Part III);",
+        "  `cc/141-archive.fth` (Part 3);",
         "- *assembler word*: `forth/130-asm.fth`.",
         "",
         "A kind in parentheses other than the file is the defining word used",
         "(`variable`, `constant`, `create`, `defer`); plain colon definitions",
-        "carry none.  %d names and %d ideas." % (nwords, len(CONCEPTS)),
+        "carry none.  %d names and %d ideas." % (nwords, len(concept_rows)),
         "",
         "For a one-line definition of a term, see the [Glossary](62-glossary.md);",
         "for which chapter depends on which, the",
@@ -516,7 +518,11 @@ def render(chapters):
 
 def main():
     args = sys.argv[1:]
-    text = render(load_chapters())
+    try:
+        text = render(load_chapters())
+    except (OSError, ValueError) as error:
+        print(f"gen-index: {error}", file=sys.stderr)
+        return 1
     if "--stdout" in args:
         sys.stdout.write(text)
         return 0

@@ -147,6 +147,7 @@ The first output line checks `and` in the truth table's row order;
 the next checks `or`. The last line checks bit masks: the intersection
 of 12 and 10 prints as `8`, and their union plus 51 prints as `A`.
 
+<!-- tryit: expect "0001\n0111\n8A" -->
 ```sh
 { head -n 33 forth/010-lib.fth
   printf '%s\n' \
@@ -179,4 +180,27 @@ Observed output:
 
 **Trace — easy.** Trace `or` with false beneath true, writing the
 stack after every word. Then remove `swap` on paper and trace the
-same inputs. Explain the difference using self-NAND.
+same inputs. Explain the difference using self-NAND. Why do both versions
+still return true here? Find a second input pair that distinguishes their
+final results.
+
+<details>
+<summary>Hint: keep the operands symbolic</summary>
+
+After the first `dup nand`, the stack is `a ~b`. In the original, which
+operand does the next self-NAND complement? What happens if `swap` is
+missing? Here `~` means bitwise complement.
+
+</details>
+
+<details>
+<summary>Check the masking case</summary>
+
+The original finishes `~(~b & ~a)`, which is OR. Without `swap`, the
+second self-NAND restores `b`, so the result is `~(a & b)`, NAND. For
+`a=0, b=-1`, the omitted swap would exchange two zeroes; even the numeric
+states hide the mistake, and both results are `-1`. With `0 0`, OR gives
+`0` and the altered body gives `-1`; with `-1 -1`, they give `-1` and `0`.
+Use one of those pairs to recheck your symbolic derivation.
+
+</details>

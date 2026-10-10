@@ -797,33 +797,37 @@ The API uses shared scratch cells throughout, so calls are sequential, not reent
 
 From the `forth-bootstrap` checkout root, compile the following C source in a fresh temporary directory. The load-order helper puts the executing main last (`forth-bootstrap/cc/compiler-layers.sh:6`); the loop excludes it and supplies an object-writing entry instead. Output goes to `example.o` there, avoiding the fixed-path main and shared `/tmp/cc-out`.
 
+The fixed, short `/tmp/book-probe.XXXXXXXXXX` template keeps generated paths within the one-token, 255-byte limit of Forth's `s,`; shell quoting alone would not make a whitespace-containing `TMPDIR` safe. Creation is checked before any cleanup trap is installed.
+
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
-cat > "$work/example.c" <<'C'
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
+cat > "$work/example.c" <<'C' || exit "$?"
 extern int external(void);
 int caller(void) { return external(); }
 int value(void) { return 7; }
 C
+bash cc/compiler-layers.sh > "$work/layers" || exit "$?"
 {
-  cat forth/010-lib.fth
+  cat forth/010-lib.fth || exit "$?"
   while IFS= read -r layer; do
     case "$layer" in */120-cc-main.fth) continue ;; esac
-    cat "$layer"
-  done < <(bash cc/compiler-layers.sh)
+    cat "$layer" || exit "$?"
+  done < "$work/layers"
   printf 'create output-path s, %s/example.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 : object-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-  cat "$work/example.c"
-} | ./seed-forth
-readelf -h -S -s -r -W "$work/example.o" > "$work/inspection"
-sed -n '/Type:/p; /Machine:/p; /Entry point/p; /Number of program headers/p; /\[ *[1457]\]/p; /^Relocation section/,$p' "$work/inspection"
+  cat "$work/example.c" || exit "$?"
+} | ./seed-forth || exit "$?"
+readelf -h -S -s -r -W "$work/example.o" > "$work/inspection" || exit "$?"
+sed -n '/Type:/p; /Machine:/p; /Entry point/p; /Number of program headers/p; /\[ *[1457]\]/p; /^Relocation section/,$p' "$work/inspection" || exit "$?"
 )
 ```
 
@@ -860,12 +864,13 @@ The output path is inside a fresh temporary directory, so the writer does not to
 
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/081-cc-object.fth || exit "$?"
   printf 'create output-path s, %s/writer.o [lit] 0 c,\n' "$work"
-  cat <<'FORTH'
+  cat <<'FORTH' || exit "$?"
 cc-obj-init
 cc-obj-text cc-obj-use
 [lit] 232 cc-obj-byte [lit] 0 cc-obj-4le [lit] 195 cc-obj-byte
@@ -880,9 +885,9 @@ value-name [lit] 5 cc-obj-local cc-obj-func cc-obj-default cc-obj-text [lit] 6 [
 output-path cc-obj-write
 bye
 FORTH
-} | ./seed-forth
-readelf -h -S -s -r -W "$work/writer.o" > "$work/inspection"
-sed -n '/Type:/p; /Machine:/p; /Entry point/p; /Number of program headers/p; /\[ *[1457]\]/p; /^Relocation section/,$p' "$work/inspection"
+} | ./seed-forth || exit "$?"
+readelf -h -S -s -r -W "$work/writer.o" > "$work/inspection" || exit "$?"
+sed -n '/Type:/p; /Machine:/p; /Entry point/p; /Number of program headers/p; /\[ *[1457]\]/p; /^Relocation section/,$p' "$work/inspection" || exit "$?"
 )
 ```
 
@@ -912,6 +917,8 @@ Symbol table '.symtab' contains 4 entries:
 `value` precedes `caller` in the symbol table despite being inserted later. The relocation names `external`, which remains undefined. Its field offset lies in `.text`; the relocation section's link and info columns identify the symbol table and target section.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-40-identity-versus-serialization).
 
 **Trace — easy.** In the writer checkpoint, follow the handle returned for `external` through `cc-obj-reloc`, both symbol passes, and `cc-obj-emit-relocs`. Explain why inserting `value` last does not change the relocation target, even though it changes the target's ELF index.
 

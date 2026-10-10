@@ -31,17 +31,17 @@ Object width and expression storage are different questions. In the core, intege
 
 ## Operators
 
-The shared precedence ladder covers the following operators. The table runs from weakest binding to strongest; target hooks change operand semantics, not this order (`forth-bootstrap/cc/100-cc-expr.fth:5`).
+The shared precedence ladder covers the following operators. The table runs from weakest binding to strongest (grouped rows list weaker families before stronger ones; comma is weakest); target hooks change operand semantics, not this order (`forth-bootstrap/cc/100-cc-expr.fth:5`).
 
 | Family | Accepted forms | Boundary and teaching chapter |
 |---|---|---|
+| Comma expression | `a, b` | Enabled under LP64; not a core expression operator (`forth-bootstrap/cc/100-cc-expr.fth:2427`). [Chapter 34](34-expressions-part-2.md) |
 | Assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `<<=`, `>>=`, `&=`, `\|=`, `^=` | Requires an lvalue; LP64 dispatches to typed assignment (`forth-bootstrap/cc/100-cc-expr.fth:2330`). [Chapter 34 — Expressions: operands and assignment](34-expressions-part-2.md) |
 | Conditional and logical | `?:`, `\|\|`, `&&` | Selected conditional arm and short-circuit logical evaluation (`forth-bootstrap/cc/100-cc-expr.fth:2056`). [Chapter 33 — Expressions: precedence](33-expressions-part-1.md); [Chapter 34](34-expressions-part-2.md) |
 | Bitwise, comparison and shifts | `\|`, `^`, `&`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `<<`, `>>` | Core comparisons and right shift use signed emitters; LP64 selects unsigned operations from operand types (`forth-bootstrap/cc/100-cc-expr.fth:1669`; `forth-bootstrap/cc/100-cc-expr.fth:1793`). [Chapter 33](33-expressions-part-1.md) |
 | Arithmetic | `+`, `-`, `*`, `/`, `%` | Core pointer addition is unscaled. LP64 scales pointer arithmetic and divides pointer differences by element size (`forth-bootstrap/cc/100-cc-expr.fth:1818`; `forth-bootstrap/cc/100-cc-expr.fth:1898`). [Chapter 33](33-expressions-part-1.md) |
 | Unary and casts | `*`, `&`, `-`, `!`, `~`, prefix `++`/`--`, `(T)`, `sizeof` | Unary plus requires LP64. Core casts chiefly change tracked type, with byte masking for char; LP64 converts values (`forth-bootstrap/cc/110-cc-decl.fth:642`; `forth-bootstrap/cc/100-cc-expr.fth:1567`). [Chapter 34](34-expressions-part-2.md); [Chapter 35](35-declarations-types-globals.md); [Chapter 32](32-codegen-part-2.md) |
 | Postfix | Calls, subscripts, `.`, `->`, postfix `++`/`--` | Subscripts and members carry lvalue information; signatures and record calls require later target hooks (`forth-bootstrap/cc/100-cc-expr.fth:1030`). [Chapter 34](34-expressions-part-2.md); [Chapter 41](41-system-v-calls.md); [Chapter 49](49-aggregate-abi.md) |
-| Comma expression | `a, b` | Enabled under LP64; not a core expression operator (`forth-bootstrap/cc/100-cc-expr.fth:2427`). [Chapter 34](34-expressions-part-2.md) |
 
 ## Statements
 
@@ -107,6 +107,20 @@ These are boundaries of the implemented subset, not an exhaustive conformance in
 | Complete hosted libc | Core shims are a bounded built-in set; called but undefined functions fail. The System V route supplies a separate seed runtime, selected by its bootstrap driver (`forth-bootstrap/cc/116-cc-prog.fth:848`; `forth-bootstrap/cc/driver/seed-cc-boot/tools-unit.fth:13`). | [Chapter 32 — Calls, shims, and globals](32-codegen-part-2.md); [Chapter 43 — Runtime, libc, streams, and formatting](43-runtime-and-libc.md) |
 | General ISO conformance inferred from `__STDC__` | The target's predefines describe an explicit C90-oriented freestanding mode; they do not certify every language or library facility (`forth-bootstrap/cc/124-cc-target.fth:1`). | [Chapter 44](44-target-headers.md) |
 
+## Observed profile boundaries
+
+These are known behaviors of the compiler at this book's source pin, found
+with small test programs. Each one marks the edge of what a program can
+rely on; none is part of the dialect's contract.
+
+| Profile | Behavior | What to rely on |
+|---|---|---|
+| Core, Chapter 37 | A truncated `typedef int (*F)(int` at end of input never finishes; the balanced declaration compiles normally | Give the compiler complete declarations. The declarator loop has no end-of-input exit. |
+| Core literal emitter | `2147483648 > 0` returns 1, but `0x8000000100000000 != 0` returns 0: the emitter's signed 32-bit test truncates that constant to 0 | Treat 64-bit constants in the core emitter as restricted to values the threshold test handles correctly. |
+| Native LP64 | Both `(x)=1` and `(0,x)=1` compile and set x to 1 | ISO C does not allow assignment to a comma result; do not write it. |
+| Chapter 47 object layers | An unused `(int)2147483648.0` in a dead arm raises error 242, while dead integer division and an in-range float cast compile | Out-of-range float-to-integer casts are rejected even where they would never run. |
+| Chapter 47 object layers | Comparing two identical NaNs resized from extended precision gives 1 in a static initializer and 0 at runtime | IEEE 754 and C require 0 (a NaN equals nothing, itself included), so the runtime result is correct and the constant fold is wrong. Nonfinite values are outside the finite scalar-arithmetic contract. |
+
 ## Coverage in practice
 
 The compiler's demonstrated scope is the source chain it builds. Each row cites where the route builds that workload and what its check compares.
@@ -122,10 +136,12 @@ The compiler's demonstrated scope is the source chain it builds. Each row cites 
 
 Run from the `forth-bootstrap` checkout root with the seed built in Part 1. The layer list keeps the executing main last (`forth-bootstrap/cc/compiler-layers.sh:6`). No target-enable word is invoked, so this probes the core array limitation. The diagnostic and status are printed; the final test checks that the rejection was the one listed here.
 
+<!-- tryit: expect "cc: line 1: error 159\ncompiler status: 159" -->
 ```sh
 (
-{ cat forth/010-lib.fth $(cc/compiler-layers.sh); printf '%s\n' 'int main(void) { int a[2][3]; return 0; }'; } | ./seed-forth 2>&1
-status=$?
+set -o pipefail
+status=0
+{ cat forth/010-lib.fth $(cc/compiler-layers.sh); printf '%s\n' 'int main(void) { int a[2][3]; return 0; }'; } | ./seed-forth 2>&1 || status=$?
 printf 'compiler status: %s\n' "$status"
 test "$status" -eq 159
 )

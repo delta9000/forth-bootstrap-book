@@ -254,6 +254,7 @@ Run this checkpoint from the same checkout. It compiles `letter`, compiles
 calls to it inside `twice`, then executes `twice`. The final `[lit]`
 runs in interpretation mode and supplies the newline to `emit`.
 
+<!-- tryit: expect "AA" -->
 ```sh
 printf '%s\n' ': letter [lit] 65 emit ; : twice letter letter ; twice [lit] 10 emit bye' | ./seed-forth
 # prints "AA\n"
@@ -271,3 +272,26 @@ AA
 in the checkpoint above. Which return address does `lit_code` adjust?
 Which return instruction brings execution back into `twice`? Explain why
 the inline cell is never executed as an instruction.
+
+<details>
+<summary>Hint: name continuations by their callers</summary>
+
+Keep separate the REPL's return address, the continuation in `twice`,
+and the inline-cell address saved by `letter`'s call to `lit_code`.
+Only the last is on top when `lit_code` begins.
+
+</details>
+
+<details>
+<summary>Check the nested returns</summary>
+
+`lit_code` changes its own return address from the inline cell to eight
+bytes beyond it. Its `ret` therefore reaches `letter`'s following call to
+`emit`; it changes neither older continuation. After `emit` returns,
+`letter`'s appended `ret` resumes `twice`. The second call repeats this
+sequence, and `twice`'s final `ret` resumes the REPL. The cell is read as
+data and skipped by the adjusted continuation. As a recheck, insert a
+second literal/emit pair into `letter`: each literal must skip only its
+own cell, while the saved continuation in `twice` stays unchanged.
+
+</details>

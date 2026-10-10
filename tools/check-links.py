@@ -19,13 +19,14 @@ code spans are ignored):
   * a rendered chapter must not link outside book/: mdBook copies only
     book/ into the site, so `../seed/000-seed.hex0` 404s there (use a full
     https://github.com/... URL instead);
-  * a `#fragment` must match a heading anchor of the target page, computed
-    with mdBook 0.4's rules (utils::unique_id_from_content): strip the
+  * a `#fragment` must match an anchor of the target page, approximated
+    from mdBook's heading rules: strip the
     heading's inline markup, keep alphanumerics, `_` and `-`, map
     whitespace to `-`, lowercase ASCII, and suffix repeats with -1, -2, ...
     Explicit `{#id}` heading attributes and raw-HTML id="..."/name="..."
-    anchors count too;
-  * every SUMMARY.md entry exists.
+    anchors count too. --html checks these expected anchors against the
+    configured renderer's actual output rather than trusting the approximation;
+  * every SUMMARY.md entry exists, and with --html every published page exists.
 
 External (scheme:) links are not fetched.  Exit 0 iff no problem is found.
 """
@@ -34,6 +35,7 @@ import os
 import re
 import sys
 from collections import defaultdict
+from html.parser import HTMLParser
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BOOK = os.path.join(ROOT, "book")
@@ -46,6 +48,20 @@ HTML_ID = re.compile(r"""\b(?:id|name)\s*=\s*["']([^"']+)["']""")
 HREF = re.compile(r"""\bhref\s*=\s*["']([^"']+)["']""")
 REFDEF = re.compile(r"^ {0,3}\[([^\]]+)\]:\s*<?(\S+?)>?(?:\s+.*)?$")
 SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+
+
+class RenderedAnchors(HTMLParser):
+    """Collect anchors on every element, including explicit non-heading IDs."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.ids = set()
+
+    def handle_starttag(self, tag, attrs):
+        for name, value in attrs:
+            if value is not None and (name == "id" or (tag == "a" and name == "name")):
+                self.ids.add(value)
+
+    handle_startendtag = handle_starttag
 
 
 def strip_code_spans(text, keep=False):
@@ -178,6 +194,9 @@ def main():
     verbose = "--verbose" in args
     html_dir = None
     if "--html" in args:
+        if args.index("--html") + 1 == len(args):
+            print("check-links: --html requires a rendered output directory", file=sys.stderr)
+            return 2
         html_dir = args[args.index("--html") + 1]
 
     mds = sorted(f for f in os.listdir(BOOK) if f.endswith(".md"))
@@ -229,18 +248,26 @@ def main():
                     problems.append(f"{where}: anchor #{frag} not found in book/{target}")
 
     if html_dir:
-        for f in mds:
+        for f in sorted(rendered):
             page = os.path.join(html_dir, f[:-3] + ".html")
             if f == "README.md":
                 page = os.path.join(html_dir, "index.html")
-            if f not in rendered or not os.path.exists(page):
+            if not os.path.isfile(page):
+                problems.append(f"book/{f}: missing rendered page {page!r}")
                 continue
+            parser = RenderedAnchors()
             with open(page, encoding="utf-8") as fh:
-                ids = set(re.findall(r'<h[1-6] id="([^"]+)"', fh.read()))
-            heads = {a for a in info[f][0]}
-            for a in sorted(ids - heads):
-                problems.append(f"book/{f}: rendered heading id #{a} not derived "
-                                "by check-links (slug rule mismatch)")
+                parser.feed(fh.read())
+            # The rendered document is the oracle: every expected source
+            # anchor (therefore every validated source link fragment) must
+            # survive rendering. Extra renderer/navigation IDs are harmless.
+            source = os.path.join(BOOK, f)
+            if not os.path.isfile(source):
+                continue  # already reported as a missing SUMMARY entry
+            expected = info[f][0] if f in info else scan(source)[0]
+            for a in sorted(expected - parser.ids):
+                problems.append(f"book/{f}: expected anchor #{a} missing from rendered page "
+                                "(missing anchor or slug rule mismatch)")
 
     for p in problems:
         print(p)

@@ -17,8 +17,11 @@ Start at the code label to follow the operation.
 
 The cached-top pattern governs the register work (Chapter 4). In the following traces, `p` names the incoming
 `rbp`, and letters name arbitrary cell values. Read stack-effect notation
-with the top of stack at the right
-(Chapter 14).
+with the top of stack at the right. In `( a b -- b a )`, the left side
+of `--` is the input and the right side is the result; `b` is initially
+on top. Older values below those shown remain untouched. `R:` introduces
+a separate return-stack effect, also written with its top at the right;
+Chapter 14 develops the notation further.
 
 ### `dup`: preserve the old top
 
@@ -338,7 +341,10 @@ The smoke test prints nothing; the shell reports exit status 0. The test checks
 that the balanced sequence runs. It does not inspect the resulting values or
 exercise the memory-access words. Use the disassembly to verify the
 distinct-operand trace of `swap`. End-of-input terminates the seed; Chapter 12
-explains that loop.
+explains that loop. Once literals and output have been introduced,
+[Chapter 17's checkpoint](17-lib-04-return-stack-over-subtract.md#try-it)
+uses distinct character values to expose stack order rather than relying
+on clean exit alone.
 
 Observed output:
 
@@ -367,3 +373,27 @@ exit status 0
   Explain why replacing the balancing `r>` with `r@` fails.
 - **Verify — easy.** Match each operand in the checkpoint disassembly to the
   `swap` trace above. Identify the instruction that preserves `a`.
+
+<details>
+<summary>Hint for the return-stack trace</summary>
+
+Use three distinct names: `C` for the enclosing word's return address,
+`P` for the return address of the call to `>r`, and `n` for saved data.
+Start with `R C P`, top at the right. Track each `pop` and `push` before
+considering the final `ret`.
+
+</details>
+
+<details>
+<summary>Check the trace</summary>
+
+The return-stack states are `R C P` → `R C` → `R C n` → `R C n P`.
+The data-stack reload does not change those return-stack entries.
+`>r`'s `ret` consumes `P`, leaving `R C n`. A later `r>` removes `n`
+while returning it to the data stack. `r@` only copies `n`: unless another
+operation removes it, the enclosing word's `ret` takes `n` as an address.
+A correct copied value therefore does not establish a balanced return
+stack. For the first exercise, `swap drop` leaves `b` on top and
+`rbp=p+8`.
+
+</details>

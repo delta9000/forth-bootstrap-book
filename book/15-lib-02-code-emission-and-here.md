@@ -109,6 +109,7 @@ with `c@`. Finally, save the destination obtained through `here-addr @`,
 emit another byte, and read it back there. The character literals make
 these reads visible through `emit`.
 
+<!-- tryit: expect "ABCD" -->
 ```sh
 { head -n 24 forth/010-lib.fth
   printf '%s\n' \

@@ -7,7 +7,7 @@
 
 The construction has this shape: compile the runtime C sources and the tool C sources → emit the Forth runtime objects → archive the runtime → link each tool. The controller runs inside the existing seed. Its newly written executables are outputs, not builders used by this construction.
 
-Directory traversal supplies the inputs rather than a handwritten list. `layer?` accepts numbered compiler layers, excluding `120-cc-main.fth` and `140-cc-link.fth`; `source?` accepts runtime C sources except `math.c`. The controller sorts both lists by filename before using them. The linker has its own smaller layer list (`forth-bootstrap/cc/driver/seed-cc-start.fth:209`, `forth-bootstrap/cc/driver/seed-cc-start.fth:252`, `forth-bootstrap/cc/driver/seed-cc-start.fth:267`).
+Directory traversal supplies the inputs rather than a handwritten list. `layer?` accepts numbered compiler layers, excluding `120-cc-main.fth` and `140-cc-link.fth`; `source?` accepts runtime C sources except `math.c`. The controller sorts both lists by filename before using them. The linker has its own smaller layer list (`forth-bootstrap/cc/driver/seed-cc-start.fth:188–199`, `forth-bootstrap/cc/driver/seed-cc-start.fth:220–247`, `forth-bootstrap/cc/driver/seed-cc-start.fth:272–279`).
 
 Each translation unit gets a fresh input file so compiler state cannot leak from the preceding unit (`forth-bootstrap/cc/driver/seed-cc-start.fth:309`):
 ```forth
@@ -190,7 +190,7 @@ The C driver preserves the bootstrap's eager startup and trailing runtime archiv
 
 ## Rebuild the driver with itself
 
-The construction above runs no C compiler. Once it has written `seed-cc`, that driver can compile its own source and the archiver's, and the results can be compared with the bootstrap's. The check compiles both tools with the first generation's `seed-cc`, into a directory at the same depth so the driver still finds its source tree from its own path (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:15`):
+The construction above invokes no pre-existing C compiler executable or driver: its C compiler runs as Forth inside seed-forth. Once it has written `seed-cc`, that driver can compile its own source and the archiver's, and the results can be compared with the bootstrap's. The check compiles both tools with the first generation's `seed-cc`, into a directory at the same depth so the driver still finds its source tree from its own path (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:15`):
 ```sh
 ./seed-forth < cc/driver/seed-cc-start.fth
 G1=build-out/seed-cc
@@ -211,11 +211,12 @@ Run from the `forth-bootstrap` checkout root, using the seed built in Part 1. Th
 <!-- tryit: skip -->
 ```sh
 (
-work=$(mktemp -d) || exit
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit
 trap 'rm -rf "$work"' EXIT
 cat cc/driver/seed-cc-start.fth | ./seed-forth > "$work/build.log" 2>&1 || exit
-wc -c build-out/seed-cc/seed-cc build-out/seed-cc/seed-ar
-cat > "$work/hello.c" <<'C'
+wc -c build-out/seed-cc/seed-cc build-out/seed-cc/seed-ar || exit
+cat > "$work/hello.c" <<'C' || exit
 #include <stdio.h>
 int main(void) {
     printf("hello from seed-cc\n");
@@ -253,5 +254,7 @@ seed-cc-rebuild-check: PASS (generation 2 seed-cc and seed-ar equal generation 1
 ```
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-50-which-stream-contains-c).
 
 **Trace (easy).** Follow `compile-unit`, `make-archive` and `link-program`. Identify which child input streams contain C source and which contain only Forth. Explain why placing `start.o` inside `libseed.a` would change the linker's initial unresolved symbols.

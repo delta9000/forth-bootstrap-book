@@ -70,19 +70,46 @@ A build that needs a particular function or extension must still test that facil
 
 Run from the `forth-bootstrap` checkout root at `./forth-bootstrap`, with the seed already built. The full loader includes later extension definitions; this probe uses only preprocessing, integer sizes, and the System V program entry taught so far. The loader places the executing main last (`forth-bootstrap/cc/compiler-layers.sh:2`), so `sed` removes that invocation before appending `target-main`.
 
-`cc-sysv-enable` selects the target before preprocessing; `cc-sysv-program` emits the executable's entry and translation unit (`forth-bootstrap/cc/121-cc-sysv.fth:1339`). The temporary directory holds the generated inputs and executable, and the exit trap restores any saved `/tmp/cc-out`.
+`cc-sysv-enable` selects the target before preprocessing; `cc-sysv-program` emits the executable's entry and translation unit (`forth-bootstrap/cc/121-cc-sysv.fth:1339`). The temporary directory holds the generated inputs and executable, and the exit trap restores any saved `/tmp/cc-out`. Do not run concurrently with another user of that fixed path. Backup failure stops the checkpoint before compilation; restoration failure retains and reports the saved output instead of deleting it.
 
 The C program rejects missing or incorrect target macros and unexpected GCC or language-version identities. It also checks that the advertised data model agrees with `sizeof`. A successful return means all checks passed.
 
+<!-- tryit: expect "compiler exit: 0\ntarget contract exit: 0" -->
 ```sh
 (
-probe_dir=$(mktemp -d)
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+saved_output=0
 if [ -e /tmp/cc-out ] || [ -L /tmp/cc-out ]; then
-  mv /tmp/cc-out "$probe_dir/saved-cc-out"
+  if mv -T -- /tmp/cc-out "$probe_dir/saved-cc-out"; then
+    saved_output=1
+  else
+    printf 'Backup failed; inspect /tmp/cc-out and %s\n' "$probe_dir" >&2
+    exit 1
+  fi
 fi
-trap 'rm -f /tmp/cc-out; if [ -e "$probe_dir/saved-cc-out" ] || [ -L "$probe_dir/saved-cc-out" ]; then mv "$probe_dir/saved-cc-out" /tmp/cc-out; fi; rm -r "$probe_dir"' EXIT
-cat forth/010-lib.fth $(cc/compiler-layers.sh) | sed '$d' > "$probe_dir/compiler.fth"
-cat >> "$probe_dir/compiler.fth" <<'FORTH'
+cleanup() {
+  status=$?
+  trap - EXIT HUP INT TERM
+  if ! rm -f -- /tmp/cc-out; then
+    printf 'Cleanup failed; inspect /tmp/cc-out and %s\n' "$probe_dir" >&2
+    exit 1
+  fi
+  if [ "$saved_output" -eq 1 ] &&
+      ! mv -T -- "$probe_dir/saved-cc-out" /tmp/cc-out; then
+    printf 'Restore failed; saved output retained at %s\n' "$probe_dir/saved-cc-out" >&2
+    exit 1
+  fi
+  rm -rf -- "$probe_dir" || status=1
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+layers=$(cc/compiler-layers.sh) || exit "$?"
+cat forth/010-lib.fth $layers | sed '$d' > "$probe_dir/compiler.fth" || exit "$?"
+cat >> "$probe_dir/compiler.fth" <<'FORTH' || exit "$?"
 cc-sysv-enable
 : target-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
@@ -90,7 +117,7 @@ cc-sysv-enable
   cc-finalize-elf cc-out-path cc-write-output bye ;
 target-main
 FORTH
-cat > "$probe_dir/target.c" <<'C'
+cat > "$probe_dir/target.c" <<'C' || exit "$?"
 int main(void) {
 #if !defined(__STDC__) || !defined(__STDC_HOSTED__) || !defined(__SEED_FORTH__)
   return 1;
@@ -113,16 +140,16 @@ int main(void) {
   return sizeof(int) != 4 || sizeof(long) != 8 || sizeof(void *) != 8;
 }
 C
-(cat "$probe_dir/compiler.fth" "$probe_dir/target.c" | ./seed-forth)
-compiler_status=$?
+compiler_status=0
+cat "$probe_dir/compiler.fth" "$probe_dir/target.c" | ./seed-forth || compiler_status=$?
 printf 'compiler exit: %s\n' "$compiler_status"
-if [ "$compiler_status" != 0 ]; then exit "$compiler_status"; fi
-mv /tmp/cc-out "$probe_dir/target"
-chmod +x "$probe_dir/target"
-(cd "$probe_dir" && ./target)
-program_status=$?
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+mv -T -- /tmp/cc-out "$probe_dir/target" || exit "$?"
+chmod +x "$probe_dir/target" || exit "$?"
+program_status=0
+(cd "$probe_dir" && ./target) || program_status=$?
 printf 'target contract exit: %s\n' "$program_status"
-exit "$program_status"
+test "$program_status" -eq 0
 )
 ```
 
@@ -134,5 +161,7 @@ target contract exit: 0
 ```
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-44-defined-is-different-from-true).
 
 **Trace — easy.** Follow `cc-target-name-hosted` from its stored spelling to its `cc-macro-add` call. Why would replacing `#if __STDC_HOSTED__` with `#ifdef __STDC_HOSTED__` select a different branch? Identify the checkpoint condition that distinguishes absence from a false value.

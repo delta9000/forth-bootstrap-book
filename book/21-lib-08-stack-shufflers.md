@@ -112,6 +112,7 @@ the seed built in Part 1. `head -n 154` loads the library through `2drop`,
 stopping before the memory updates. The command supplies character codes
 and prints the results from the top down:
 
+<!-- tryit: expect "B\nACB\nBABA\nBA" -->
 ```sh
 { head -n 154 forth/010-lib.fth
   printf '%s\n' \

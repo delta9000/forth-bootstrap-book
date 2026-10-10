@@ -2,6 +2,13 @@
 
 `2 + 3 * 4` needs the multiplication to finish before the addition can use its result. A precedence cascade makes that order emerge from parser calls, without building an expression tree. The resulting binary-expression compiler connects tokens to arithmetic, comparison, bitwise operations, and short-circuit branches.
 
+First recover the lexer's one-token putback rule and the emitter's
+`rdi`/`rcx` convention. Then follow [the cascade in motion](#the-cascade-in-motion)
+and the multiplication/addition loops before returning to the typed-operand
+helpers. The core checkpoint needs the ordinary fold. The LP64 snapshots,
+pointer scaling and hooks explain later target behavior; retain their
+interfaces now and revisit their details with Chapters 39 and 41.
+
 ## The shape of the cascade
 
 Each level asks the next-tighter level for an operand, then consumes its own operators in a loop. Call order determines binding; the operator table selects the operation within a level. The root block places these levels between operand parsing and assignment (`forth-bootstrap/cc/100-cc-expr.fth:1`):
@@ -30,6 +37,17 @@ Each level asks the next-tighter level for an operand, then consumes its own ope
 ```
 
 This is the assembly recipe for the file, not its literal header. The operand and assignment chunks belong to Chapter 34; `expr-call` belongs to Chapter 37. Their names here establish placement, not ownership.
+
+The grammar in the next listing describes token sequences, not C or Forth code.
+`:=` means "is defined as"; an unquoted `|` separates alternatives;
+parentheses group a description. A trailing `?` permits zero or one
+occurrence, and a trailing `*` permits zero or more. Quoted punctuation is
+an actual C token, so `'*'` means a star token (multiplication in the
+`mul` rule, dereference in `unary`), while the unquoted repetition `*`
+does not. For example,
+`add := mul (('+'|'-') mul)*` means one `mul`, followed by any number of
+pairs consisting of a `+` or `-` token and another `mul`. The parser loop
+below implements precisely that repetition.
 
 The grammar makes each binary operand a call to a tighter production (`forth-bootstrap/cc/100-cc-expr.fth:1`):
 
@@ -973,14 +991,19 @@ Run from the `forth-bootstrap` checkout root. This driver loads through the expr
 
 The driver points the lexer at the expression text, emits the cascade into an ELF image, and appends the exit shim. The shell runs that image from a fresh temporary directory and prints its exit status:
 
+<!-- tryit: expect "driver exit: 0\n2 + 3 * 4 = 14 (exit status)" -->
 ```sh
-probe_dir=$(mktemp -d)
+(
+set -o pipefail
+probe_dir=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$probe_dir" || status=1; exit "$status"' EXIT
+compiler_status=0
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
       cc/040-cc-prep.fth cc/050-cc-lex.fth \
       cc/060-cc-types.fth cc/070-cc-sym.fth \
-      cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth
-  cat <<'FORTH'
+      cc/080-cc-elf.fth cc/090-cc-emit.fth cc/100-cc-expr.fth || exit "$?"
+  cat <<'FORTH' || exit "$?"
 cc-src-init
 here dup cc-src-buffer ! s, 2+3*4 here swap - cc-src-len !
 [lit] 0 cc-src-pos ! [lit] 0 cc-tok-pending !
@@ -990,12 +1013,15 @@ cc-finalize-elf
 [lit] 1 cc-out-buf cc-out-pos @ write drop
 bye
 FORTH
-} | ./seed-forth > "$probe_dir/expression"
-printf 'driver exit: %s\n' "$?" # prints 'driver exit: 0'
-chmod +x "$probe_dir/expression"
-"$probe_dir/expression"
-printf '2 + 3 * 4 = %s (exit status)\n' "$?" # prints '2 + 3 * 4 = 14 (exit status)'
-rm -r "$probe_dir"
+} | ./seed-forth > "$probe_dir/expression" || compiler_status=$?
+printf 'driver exit: %s\n' "$compiler_status" # prints 'driver exit: 0'
+test "$compiler_status" -eq 0 || exit "$compiler_status"
+chmod +x "$probe_dir/expression" || exit "$?"
+program_status=0
+"$probe_dir/expression" || program_status=$?
+printf '2 + 3 * 4 = %s (exit status)\n' "$program_status" # prints '2 + 3 * 4 = 14 (exit status)'
+test "$program_status" -eq 14
+)
 ```
 
 Observed output:
@@ -1008,6 +1034,8 @@ driver exit: 0
 This run exercises token handoff, the operator lookup, and nested multiplication/addition folds. It does not verify native pointer arithmetic, constant evaluation, or short-circuit execution.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-33-folds-and-short-circuit-joins).
 
 **Trace — easy.** Follow `a - b - c` through `cc-parse-add`. Identify when each subtraction emits and which value becomes the next iteration’s left operand.
 

@@ -1,6 +1,11 @@
 # Concept index and dependencies
 
-Find a topic below, then follow its link to the source walkthrough. Use the dependency table to choose the background for a chapter; the reading orders collect those choices into paths. Definitions are in the [Glossary](62-glossary.md), and individual words are in the [word index](WORD-INDEX.md).
+Find a topic below, then follow its link to the source walkthrough. The
+[capability checks](#capability-checks-at-the-transitions) help you choose
+what to recover when entering a new part. The dependency table records
+the outline's chapter order; it does not measure what you can already do.
+Definitions are in the [Glossary](62-glossary.md), and individual words are
+in the [word index](WORD-INDEX.md).
 
 ## Topic → chapter quick reference
 
@@ -46,6 +51,7 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Return-address shelter — [Chapter 6](06-stack-primitives.md)
 - REX — [Chapter 4](04-x86-64-and-two-stacks.md)
 - Second on stack — [Chapter 4](04-x86-64-and-two-stacks.md)
+- Signed displacement decoding — [Chapter 4](04-x86-64-and-two-stacks.md#reading-a-negative-displacement)
 - Seed memory map — [Chapter 5](05-elf-and-entry.md)
 - SIB — [Chapter 4](04-x86-64-and-two-stacks.md)
 - stage0-posix — [Chapter 3](03-where-this-fits.md)
@@ -93,12 +99,13 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Stack trace — [Chapter 14](14-lib-01-stacks-and-words.md)
 - Stack-effect notation — [Chapter 14](14-lib-01-stacks-and-words.md#stack-effect-comments)
 - Store-and-advance — [Chapter 15](15-lib-02-code-emission-and-here.md)
-- Two's complement — [Chapter 17](17-lib-04-return-stack-over-subtract.md#--from--and-nand)
+- Two's complement — [Chapter 4: decode signed fields](04-x86-64-and-two-stacks.md#reading-a-negative-displacement); [Chapter 17: derive negation](17-lib-04-return-stack-over-subtract.md#--from--and-nand)
 - Two-pass assembly — [Chapter 26](26-m1-and-hex2.md)
 - Word — [Chapter 14](14-lib-01-stacks-and-words.md)
 
 ### Part 3: Compiler
 
+- C declaration reading — [Part 3 bridge](part-3-compiler.md#reading-the-c-input)
 - ABI — See System V AMD64 calling convention. [Chapter 41](41-system-v-calls.md)
 - Aggregate classification — [Chapter 49](49-aggregate-abi.md)
 - Aligned outgoing argument block — [Chapter 41](41-system-v-calls.md)
@@ -139,6 +146,7 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Fail-closed bootstrap runtime — [Chapter 39](39-lp64-storage-and-initializers.md#a-finite-linux-boundary)
 - Failure-preserving realloc — [Chapter 43](43-runtime-and-libc.md)
 - Floating payload transport — [Chapter 47](47-floats.md)
+- Floating representation — [Chapter 47](47-floats.md)
 - for-step rewind — [Chapter 36](36-statements-if-while-for-return.md#for-with-step-rewind)
 - Forward-call fixup list — [Chapter 32](32-codegen-part-2.md#movabs-rdi-imm64-and-the-forward-call-fixup-list)
 - Frame pointer — [Chapter 31](31-elf-and-codegen-part-1.md)
@@ -149,6 +157,7 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Global definition selection — [Chapter 42](42-linker-and-archives.md)
 - Global redeclaration reuse — [Chapter 37](37-functions-and-scope.md)
 - Global-address fixups — [Chapter 32](32-codegen-part-2.md#file-scope-globals-and-deferred-vaddr-fixups)
+- Grammar notation — [Chapter 33](33-expressions-part-1.md#the-shape-of-the-cascade)
 - GNU archive index — [Chapter 42](42-linker-and-archives.md)
 - Include pool — [Chapter 28](28-the-preprocessor.md)
 - Independent argument cursors — [Chapter 46](46-varargs.md)
@@ -231,6 +240,7 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 
 ### Part 4: Bootstrap and kernels
 
+- Address translation and privilege — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 - AMD64 recipe runner — [Chapter 54](54-k0-and-k1.md)
 - Archive member comparison — [Chapter 52](52-gcc-4-fixed-point.md)
 - Archive pin agreement — [Chapter 53](53-sealed-run.md)
@@ -273,10 +283,68 @@ Find a topic below, then follow its link to the source walkthrough. Use the depe
 - Forth, compiler, and bootstrap reading — [Chapter 59](59-further-reading.md).
 - Supported C language and ABI boundaries — [Chapter 60](60-c-subset.md).
 - Compiler diagnostics and exit codes — [Chapter 61](61-error-codes.md).
+- Exercise hints and feedback — [Appendix H](66-exercise-feedback.md).
+
+## Capability checks at the transitions
+
+The useful prerequisite is an action you can carry out, not a chapter you
+have visited. These short checks sample the skills needed at the main
+transitions. Try one before opening its feedback; if its notation is new,
+read the linked explanation first. If a check comes easily, move on
+without rereading the walkthrough behind it.
+
+| Next task | Try before continuing | Explanation or repair route |
+|---|---|---|
+| Read the Forth library (Part 2) | With top at the right, trace `[lit] 2 [lit] 3 swap +` above an untouched `x`. Which final value is cached in `rdi`? | [The two-stack representation](04-x86-64-and-two-stacks.md#the-machine-before-the-instructions), then [stack-effect notation and tracing](14-lib-01-stacks-and-words.md#stack-effect-comments) |
+| Read compiler helpers (Part 3) | If HERE starts at address `H`, trace `here [lit] 0 ,`. Separate the stack result, bytes written, and new HERE. | [Code emission and HERE](15-lib-02-code-emission-and-here.md), then [compile-time fixups](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair) |
+| Give the type records a C meaning (Part 3) | Use the [C-input check](part-3-compiler.md#reading-the-c-input) to distinguish a pointer's stored address, its pointed-to value, an array element, and a record field. | The bridge teaches this notation locally; [Chapter 30](30-types-and-symbols.md) then encodes it. [Chapters 31](31-elf-and-codegen-part-1.md) and [34](34-expressions-part-2.md#lvalue-tracking) teach how the compiler emits address/value operations. |
+| Follow a multi-file build (Part 4) | One object defines `helper`; another contains a call whose final address is unknown. Which stage places the objects and resolves that call? Would producing one runnable executable establish a compiler fixed point? | [Object relocations](40-objects-and-relocations.md), [linker placement](42-linker-and-archives.md), and [the generation comparison](50-seed-cc-fixed-point.md) |
+
+<details>
+<summary>Compare the three short traces</summary>
+
+- The stack goes `x 2`, `x 2 3`, `x 3 2`, `x 5`. The final cached
+  top in `rdi` is 5; `x` remains below it. If the value is right but you
+  removed `x`, recover the call-boundary meaning of a stack effect.
+- `here` leaves `H`; the literal adds 0; comma consumes that 0 and writes
+  an eight-byte cell there. The final stack retains `H`, memory at `H`
+  through `H+7` contains zero bytes, and HERE is `H+8`. Confusing `H` with
+  those bytes is the address/value distinction to recover before reading
+  arena and code-output helpers.
+- The linker places sections and applies the relocation using the
+  resolved symbol address. A working executable is only one build result.
+  A fixed-point claim also needs specified generations, matched inputs,
+  and a stated comparison of the outputs; Chapter 50 supplies that
+  procedure for the two seed tools.
+
+The C-input check has its own hidden feedback beside the bridge. If one
+step was uncertain, compare its intermediate state with the explanation,
+then retry with different values rather than memorizing this answer.
+
+</details>
+
+Some later transitions need a new representation even if the earlier
+part went well. Before following exact rounding, use
+[Chapter 47's floating representation bridge](47-floats.md). Before
+following K1's page tables and Linux handover, use
+[Chapter 54's address-translation bridge](54-k0-and-k1.md).
+
+Come back after intervening work: for example, after Chapter 36, explain
+which state belongs to the running Forth compiler and which stack changes
+will occur only when its emitted C program executes. Reuse the
+[Chapter 34 trace](34-expressions-part-2.md) if those two timelines have
+merged in your account.
 
 ## Dependency graph
 
-The prerequisite column transcribes the `Prerequisites:` line in each chapter’s matching `book/outline/NN-*.md` file. These are direct edges: follow each prerequisite’s row to recover its own background. The last column records earlier chapters named by `Chapter N` in the chapter’s prose, excluding code fences and its title. It checks the outline against the written cross-references; a reference can be a comparison or optional consultation rather than a prerequisite. Forward references do not add edges.
+The prerequisite column transcribes the `Prerequisites:` line in each
+chapter's matching `book/outline/NN-*.md` file. Most of these are editorial
+reading-order edges: following the chain recovers the recommended first
+pass, not a demonstrated minimum set of skills for every later task. Use
+the capability checks above to select a repair or a familiar entry point.
+The last column is an inventory of earlier chapter references, not an
+additional set of requirements. A reference can be a comparison or an
+optional consultation; a forward pointer alone does not add a dependency.
 
 | Chapter | Prerequisites from outline | Earlier chapters named in prose |
 |---|---|---|
@@ -334,7 +402,7 @@ The prerequisite column transcribes the `Prerequisites:` line in each chapter’
 | [55 — Linux 7.2.8 and kexec under QEMU](55-linux-and-kexec.md) | [54](54-k0-and-k1.md) | [52](52-gcc-4-fixed-point.md), [54](54-k0-and-k1.md) |
 | [56 — Epilogue: onward to GCC 15.2](56-gcc-15-epilogue.md) | [55](55-linux-and-kexec.md) | [55](55-linux-and-kexec.md) |
 | [57 — Appendix C: historical reproducibility routes](57-historical-reproducibility.md) | [55](55-linux-and-kexec.md) | [38](38-main-and-bootstrap-chain.md), [50](50-seed-cc-fixed-point.md), [52](52-gcc-4-fixed-point.md), [53](53-sealed-run.md), [54](54-k0-and-k1.md), [55](55-linux-and-kexec.md), [56](56-gcc-15-epilogue.md) |
-| [58 — Appendix D: worked exercises](58-worked-exercises.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [10](10-colon-compiler.md), [12](12-repl.md), [24](24-lib-11-control-flow-combinators.md), [33](33-expressions-part-1.md) |
+| [58 — Appendix D: worked exercises](58-worked-exercises.md) | D.1: [24](24-lib-11-control-flow-combinators.md); D.2: [10](10-colon-compiler.md) and [12](12-repl.md); D.3: [33](33-expressions-part-1.md) for the trace, [38](38-main-and-bootstrap-chain.md) for the full compiler run | [10](10-colon-compiler.md), [12](12-repl.md), [24](24-lib-11-control-flow-combinators.md), [33](33-expressions-part-1.md) |
 | [59 — Appendix E: further reading](59-further-reading.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [33](33-expressions-part-1.md) |
 | [60 — Appendix F: the C subset](60-c-subset.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [38](38-main-and-bootstrap-chain.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [43](43-runtime-and-libc.md), [44](44-target-headers.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md), [51](51-owning-the-tools.md), [52](52-gcc-4-fixed-point.md) |
 | [61 — Appendix G: compiler error codes](61-error-codes.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [9](09-dictionary.md), [26](26-m1-and-hex2.md), [27](27-arena-and-io-buffers.md), [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md) |
@@ -345,14 +413,31 @@ The prose references often reach past the immediately preceding chapter: the out
 
 ### First pass
 
-Read [Chapters 1–3](01-reading-the-book.md) for orientation, then Chapters 4–56 in sidebar order. Consult the appendices when a topic calls for them. This order satisfies every outline prerequisite before its dependent chapter.
+Read [Chapters 1–3](01-reading-the-book.md) for orientation, then Chapters 4–56 in sidebar order. Consult the appendices when a topic calls for them. This respects the main route's outline order. Appendix D can be used one exercise at a time at the points shown above; it does not require finishing Part 3 first.
 
 ### Compiler-only path
 
-Begin with [Part 3](part-3-compiler.md), Chapters 27–49, if the seed and library are already familiar. The graph requires Chapters 4–26 as background, with Chapters 1–3 providing the entry context. For a first encounter, read that background first; the compiler-only path saves Part 4, rather than removing compiler dependencies. Stop at [Chapter 38](38-main-and-bootstrap-chain.md) for the core compiler and Stage A, or continue through [Chapter 49](49-aggregate-abi.md) for the extended compiler. Keep [Appendix F](60-c-subset.md) and [Appendix G](61-error-codes.md) nearby as references.
+Begin with [Part 3](part-3-compiler.md), Chapters 27–49, if you can trace
+Forth stack effects, distinguish compilation from execution, and follow
+memory stores and emitted bytes. The transition checks above help locate
+the specific earlier explanation if one of those is rusty; Chapter 26
+explains the M1 format compared at Stage A. Use the local
+C-input bridge before type and parser records. Stop at
+[Chapter 38](38-main-and-bootstrap-chain.md) for the core compiler and
+Stage A, or continue through [Chapter 49](49-aggregate-abi.md) for the
+extended compiler. Keep [Appendix F](60-c-subset.md) and
+[Appendix G](61-error-codes.md) nearby as references.
 
 ### Bootstrap-only path
 
-Start at [Part 4](part-4-bootstrap.md), then read Chapters 50–56 in order. Its first chapter assumes Chapter 49; following the outline edges backward reaches every chapter from 4 through 49, and then Chapters 1–3. That is the minimum earlier set under this graph. Readers who already know that material can enter Part 4 directly; readers learning it here must complete the background before treating this as an execution path. Use the last column to return to a specific mechanism, such as the object compilation and archive linking named by Chapter 50.
-
-The outline chain does not justify a shorter prerequisite-free bootstrap route. A smaller path would require revised prerequisite contracts that distinguish conceptual background from the detailed source walkthroughs.
+Start at [Part 4](part-4-bootstrap.md), then read Chapters 50–56 in order.
+To explain its build route, distinguish source, builder executables,
+objects, archives, linking, and generation comparisons. Chapter 50's
+controller additionally needs the Forth and object-format skills above.
+Return to Chapters 40–42 for the object/linker mechanics rather than
+assuming that every detail of Chapters 4–49 must be recalled first.
+Reading the provenance argument and tracing every compiler helper are
+different goals. Running the route has separate archive, platform, tool,
+and resource requirements named by each checkpoint; the reading checks
+do not replace those requirements. The local floating-point and paging
+bridges remain available when you reach those mechanisms.

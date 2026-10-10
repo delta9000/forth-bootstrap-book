@@ -648,15 +648,17 @@ Run from the `forth-bootstrap` checkout root with the seed already built. This i
 
 The full formatting checkpoint is deferred. The current `stdio.c` uses the argument machinery of Chapter 46 and floating types covered in Chapters 47 and 49. Even the runtime-aware entry's `startup.c` failed this restricted build with `cc: line 103: error 240`; the raw entry needs no such initializer. This checkpoint therefore verifies heap-backed string output through the raw bridge, not `printf`, buffering, or normal library exit. Chapter 50 builds the complete runtime through the driver.
 
-All generated files live in a `mktemp -d` directory. The demo checks initial errno and process arguments, allocates a buffer, copies a string, writes its measured length, and frees it. No host C compiler or linker supplies an object.
+All generated files live in a `mktemp -d` directory. The demo checks initial errno and process arguments, allocates `sizeof` the string literal (33 bytes, including its terminator), copies the string, writes its measured length, and frees it. No host C compiler or linker supplies an object.
 
+<!-- tryit: expect "runtime: heap and strings ready" -->
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
 runtime=chain/runtime/gcc-seed
 includes=$runtime/include
-cat > "$work/demo.c" <<'C'
+cat > "$work/demo.c" <<'C' || exit "$?"
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -666,7 +668,7 @@ int main(int argc, char **argv) {
     long length;
     long written;
     if (argc < 1 || argv[0] == NULL || errno != 0) return 1;
-    text = malloc(32);
+    text = malloc(sizeof "runtime: heap and strings ready\n");
     if (text == NULL) return 2;
     strcpy(text, "runtime: heap and strings ready\n");
     length = strlen(text);
@@ -680,11 +682,11 @@ for unit in memory string alloc demo; do
   if [ "$unit" = demo ]; then source="$work/demo.c"; fi
   {
     cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
-        cc/121-cc-sysv.fth cc/123-cc-object-program.fth
+        cc/121-cc-sysv.fth cc/123-cc-object-program.fth || exit "$?"
     printf 'create output-path s, %s/%s.o [lit] 0 c,\n' "$work" "$unit"
     printf 'create include-path s, %s/include [lit] 0 c,\n' "$runtime"
     printf 'include-path [lit] %s cc-prep-add-include\n' "${#includes}"
-    cat <<'FORTH'
+    cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 [lit] 22020096 cc-arena-map
 cc-io-direct-workspace cc-prep-direct-workspace
@@ -695,12 +697,12 @@ cc-obj-direct-workspace cc-gfixup-direct-workspace
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-    cat "$source"
+    cat "$source" || exit "$?"
   } | ./seed-forth || exit "$?"
 done
 {
   cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \
-      cc/081-cc-object.fth cc/122-cc-sysv-runtime.fth
+      cc/081-cc-object.fth cc/122-cc-sysv-runtime.fth || exit "$?"
   for pair in syscall:cc-sysrt-object errno:cc-sysrt-errno-object \
               start:cc-sysrt-start-object; do
     name=${pair%%:*}
@@ -711,7 +713,7 @@ done
   printf '%s\n' bye
 } | ./seed-forth || exit "$?"
 {
-  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth
+  cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth cc/140-cc-link.fth || exit "$?"
   printf '%s\n' 'lnk-init'
   for unit in start demo syscall errno memory string alloc; do
     printf 'create p-%s s, %s/%s.o [lit] 0 c, p-%s lnk-add-object\n' \
@@ -734,5 +736,7 @@ runtime: heap and strings ready
 The executable returned success. No GCC is involved: `gcc-seed` is only the runtime directory's name.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-43-realloc-and-ownership).
 
 **Trace — easy.** Follow a failed growing `realloc` from the replacement allocation back to its caller. Which pointer still owns the old bytes, and which statement would become unsafe if moved before the failure check?

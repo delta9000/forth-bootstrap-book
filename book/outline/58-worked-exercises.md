@@ -6,7 +6,7 @@ Scope: Retain worked exercises that help readers practice source reading. Reassi
 
 Sources taught: None — this chapter organizes reading rather than teaching a source span.
 
-Prerequisites: [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md); [38 — Compiler entry and Stage A](38-main-and-bootstrap-chain.md)
+Prerequisites: per exercise — D.1: [24 — Control-flow combinators](24-lib-11-control-flow-combinators.md); D.2: [10 — The colon compiler](10-colon-compiler.md) and [12 — Decimal parsing and the REPL](12-repl.md); D.3: [33 — Expressions: precedence](33-expressions-part-1.md) for the trace, [38 — Compiler entry and Stage A](38-main-and-bootstrap-chain.md) for the full compiler run.
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 

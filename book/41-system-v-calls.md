@@ -2,6 +2,37 @@
 
 A call to `add(&base, 1, 2, 3, 4, 5, 6, 7)` can cross from one C object into another and return `42`. Separate compilation requires the caller and callee to agree without seeing each other’s bodies. The System V target gives the compiler that agreement for integer and pointer values, then carries unresolved calls into relocatable objects.
 
+## Trace the call before tracing its parser
+
+Prerequisites are the eight-byte stack cells, `call`'s pushed return address,
+and the `push rbp; mov rbp,rsp` frame setup. This trace uses the explicit
+scalar System V target. The core six-register path of Chapter 37 and the
+private LP64 all-stack path of Chapter 39 are different contracts; merely
+loading this file selects neither the new layout nor its alignment rule.
+
+| Source argument | Caller location immediately before `call` | Callee location after frame setup |
+|---|---|---|
+| `&base` | RDI | Spilled from RDI into its local parameter slot |
+| `1, 2, 3, 4, 5` | RSI, RDX, RCX, R8, R9 | Spilled into their corresponding parameter slots |
+| `6` | `[rsp + 0]` | `[rbp + 16]` |
+| `7` | `[rsp + 8]` | `[rbp + 24]` |
+
+Argument evaluation first uses temporary staging cells. The emitter then
+allocates and aligns a separate outgoing block, copies the two stack
+arguments into its first 16 bytes, and loads the six registers. Padding
+lies beyond those arguments; it cannot precede argument 6 and shift its
+ABI position. At this moment `rsp mod 16 = 0`. `call` pushes eight bytes,
+so argument 6 is now at entry `rsp + 8`; pushing the old RBP and adopting
+the new frame pointer puts saved RBP at +0, return address at +8, and that
+argument at +16. These offsets follow from the two pushes, not from the
+callee's local-frame size.
+
+If the final argument itself is a call, earlier outer arguments remain
+live. The call record saves that surviving span in fixed-frame storage
+before preparing the inner outgoing block, then restores it afterward.
+The detailed [live-value machinery](#keep-expression-temporaries-alive)
+implements this lifetime boundary.
+
 ## One signature, two places to use it
 
 The implementation has three parts: retain a signature, lower both sides of a call from it, and export code with unresolved references. `cc-sysv-enable` selects this target explicitly; loading its definitions preserves the private all-stack target (Chapter 39). The signature describes C types, while the call emitter decides where their values travel.
@@ -2327,15 +2358,16 @@ Run from the `forth-bootstrap` checkout root with the seed already built. This b
 
 ```sh
 (
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
-cat > "$work/add.c" <<'C'
+set -o pipefail
+work=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$work" || status=1; exit "$status"' EXIT
+cat > "$work/add.c" <<'C' || exit "$?"
 long add(long *base, long a, long b, long c, long d,
          long e, long f, long g) {
     return *base + a + b + c + d + e + f + g;
 }
 C
-cat > "$work/caller.c" <<'C'
+cat > "$work/caller.c" <<'C' || exit "$?"
 extern long add(long *, long, long, long, long, long, long, long);
 int main(void) {
     long base;
@@ -2346,21 +2378,21 @@ C
 for unit in add caller; do
   {
     cat forth/010-lib.fth cc/0[2-9]*-cc-*.fth cc/1[01]*-cc-*.fth \
-        cc/121-cc-sysv.fth cc/123-cc-object-program.fth
+        cc/121-cc-sysv.fth cc/123-cc-object-program.fth || exit "$?"
     printf 'create output-path s, %s/%s.o [lit] 0 c,\n' "$work" "$unit"
-    cat <<'FORTH'
+    cat <<'FORTH' || exit "$?"
 cc-sysv-object-enable
 : object-main
   cc-load-stdin cc-preprocess cc-out-init cc-globals-init
   cc-sysv-object-program output-path cc-obj-write bye ;
 object-main
 FORTH
-    cat "$work/$unit.c"
+    cat "$work/$unit.c" || exit "$?"
   } | ./seed-forth || exit "$?"
 done
 gcc -no-pie -Wl,-z,noexecstack "$work/caller.o" "$work/add.o" -o "$work/call" || exit "$?"
-"$work/call"
-result=$?
+result=0
+"$work/call" || result=$?
 printf 'separate call returned %s\n' "$result"
 test "$result" -eq 42
 )
@@ -2375,6 +2407,8 @@ separate call returned 42
 The pointer and the first integer arguments travel in registers; `f` and `g` travel on the stack. The callee dereferences the pointer, adds the arguments, and returns the result through `rax`. The shell prints the program’s exit status.
 
 ## Exercise
+
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-41-stack-arguments-and-nested-lifetimes).
 
 **Trace — easy.** Follow `f` and `g` from `cc-sysv-parse-args` through `cc-sysv-prepare-call` into `cc-sysv-store-params-default`. Draw the caller’s outgoing block and the callee’s frame, including the return address and saved `rbp`. Explain why alignment padding cannot move either argument’s expected location.
 

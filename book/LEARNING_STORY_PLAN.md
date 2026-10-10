@@ -1,3 +1,5 @@
+> Retired edition material (labelled 2026-10-10). This file is not in the published book. Use [65-editorial-notes.md](65-editorial-notes.md) for the current route. Its chapter numbers and commands do not describe or validate the current edition.
+
 # Learning Story Plan — third version (post-rollout)
 
 An editorial plan for the book's learning arc. This version replaces two

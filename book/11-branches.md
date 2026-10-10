@@ -152,6 +152,7 @@ Run the following from the `forth-bootstrap` checkout at
 (`forth-bootstrap/seed/build.sh:27`); the input then exercises the branch
 bodies decoded above.
 
+<!-- tryit: expect "YANBYC" -->
 ```sh
 ./seed/build.sh > /dev/null
 cat <<'EOF' | ./seed-forth

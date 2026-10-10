@@ -364,4 +364,6 @@ The recorded run likewise reports stage 2 = 3 = 4, with 54 files in each install
 
 ## Exercise
 
+Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-52-the-comparison-relation).
+
 **Trace (easy).** Follow `compare` and `same_archive` in Stage D. Predict the verdict for each change: an installed header disappears, an archive timestamp changes, an archive member changes position, or a member's object bytes change. Identify the condition that accepts or rejects each case.

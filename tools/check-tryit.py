@@ -1,29 +1,41 @@
 #!/usr/bin/env python3
-"""tools/check-tryit.py — run the book's "Try it" shell examples.
+"""tools/check-tryit.py — check selected pipe-to-seed shell examples.
 
 tangle.sh proves the book's `file=` code blocks are byte-identical to
-source, and check-numbers.py proves its prose numbers — but the ```sh
+source, and check-numbers.py checks supported prose claims — but the ```sh
 blocks a reader is told to paste into a terminal had no oracle.  Two real
 bugs slipped through that way: a comment written as `echo '...' \\ true ->
 '1'` (the shell turned `-> '1'` into a redirect and littered the reader's
 directory with stray files), and an exercise whose hex literals `[lit]`
-silently parsed as 0.  This script executes those blocks.
+silently parsed as 0.  This script checks the limited selection below;
+it does not validate every checkpoint, build instruction, or transcript.
 
 What is run
-  Every ```sh / ```bash / untagged fenced block in book/*.md whose commands
-  pipe into `./seed-forth` (`| ./seed-forth`, `| timeout N ./seed-forth`).
+  Selected ```sh / ```bash / ```shell / untagged fences in the published
+  chapters listed by book/SUMMARY.md (or explicit filename arguments),
+  containing a textual pipe into `./seed-forth`
+  (`| ./seed-forth`, `| timeout N ./seed-forth`). Direct invocations,
+  input redirections and other shell fences are reported as OMIT, not
+  passes or skips. This is a text inventory, not a shell parser; untagged
+  transcripts and illustrative listings can also appear in that inventory.
   Each block runs under `bash` in a fresh temporary directory holding
   *copies* (never symlinks — a stray `>` must not reach the repo) of
   `seed-forth`, `seed/000-seed.hex0`, every top-level `*.fth`, and the compiler
   load-order helper used by full-compiler examples. `./seed/build.sh`
-  is a no-op (the tool never rebuilds or overwrites ./seed-forth).  When
+  is a no-op (the tool never rebuilds or overwrites ./seed-forth). The
+  working basename is `work`, not the checkout's basename. Thus build
+  messages and checkout-dependent transcripts are not reproduced. When
   `unshare -rm` works, the block also gets a private /tmp, so examples that
   write /tmp/cc-out neither see nor clobber the real one; without it, such
   blocks are SKIPped.
 
 A block FAILs if
-  * any command writes to stderr, a command is not found / not executable
-    (rc 126/127), or a command that runs ./seed-forth exits non-zero;
+  * a chunk writes to stderr, an unhandled command fails, a pipeline
+    producer fails (pipefail), or the block exits non-zero. Bash's ERR
+    rules preserve explicit conditionals and `||` handling. Intentional
+    nonzero exits must be guarded, for example `status=0; command ||
+    status=$?`, followed by a shell assertion or output expectation.
+    An unguarded failure is an error even when later code reads `$?`;
   * the temp dir gains, loses or changes a file (stray redirects);
   * it exceeds the timeout (--timeout, default 30 s) — unless the block or
     the paragraph after it says it loops ("Ctrl-C", "forever", "infinite
@@ -31,6 +43,9 @@ A block FAILs if
     sits right above the fence; then a timeout is a pass;
   * an unambiguous expected output does not match.  Only these shapes are
     asserted (anything else just has to run cleanly):
+      - `<!-- tryit: expect "X" -->` immediately above the fence (a JSON
+        string, including escaped newlines; whole block's stdout == X).
+        Multiple adjacent tryit markers are allowed;
       - after the block, in the next paragraph: "Expected output: `X`",
         "Expected: `X`", "The expected output is `X`", "The seed prints
         `X`", "The seed should print `X`" (whole block's stdout == X), and
@@ -43,7 +58,9 @@ A block FAILs if
         (e.g. several `echo`s in `{ ...; } | ./seed-forth`) are concatenated
         only when every line of it that contains `emit` carries one.
     Comparison ignores trailing newlines; `\\n` in an expectation is a
-    newline.
+    newline. Fenced "Observed output" transcripts are not inferred as
+    assertions; use explicit metadata when those bytes are to be checked.
+    An OK with zero output checks certifies execution checks only.
 
 A block is SKIPped (with the reason) if it needs gforth, gcc, make, git,
 vendor/ or tests/ checkouts, a missing host tool (objdump, readelf, xxd,
@@ -57,8 +74,10 @@ Exit status is non-zero iff any block FAILs.
 
 import glob
 import hashlib
+import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -74,10 +93,9 @@ BOOK = os.path.join(BOOK_ROOT, "book")
 FENCE_RE = re.compile(r"^\s*(```+|~~~+)\s*([A-Za-z0-9_+-]*)")
 SHELL_TAGS = {"sh", "bash", "shell", ""}
 PIPE_SEED_RE = re.compile(r"\|\s*(?:timeout\s+\S+\s+)?\./seed-forth\b")
-SEED_RUN_RE = re.compile(r"\./seed-forth\b")
 BUILD_RE = re.compile(r"(^|[\s;&|(])\./seed/build\.sh\b")
 LOOP_RE = re.compile(r"Ctrl-C|\bforever\b|infinite loop|no way out|\bkills it\b", re.I)
-MARK_RE = re.compile(r"<!--\s*tryit:\s*(skip|loops)\s*-->")
+MARK_RE = re.compile(r"\s*<!--\s*tryit:\s*(.*?)\s*-->\s*$")
 
 NEEDS = [
     (re.compile(r"\bgforth\b"), "needs gforth"),
@@ -200,8 +218,9 @@ def chunk_block(body):
     return chunks
 
 
-def find_blocks(md):
-    lines = open(md, encoding="utf-8").read().split("\n")
+def find_blocks(md, include_omitted=False):
+    with open(md, encoding="utf-8") as f:
+        lines = f.read().split("\n")
     out, i = [], 0
     while i < len(lines):
         m = FENCE_RE.match(lines[i])
@@ -213,7 +232,8 @@ def find_blocks(md):
         while j < len(lines) and not lines[j].strip().startswith(fence[:3]):
             j += 1
         body = lines[i + 1:j]
-        if tag in SHELL_TAGS and PIPE_SEED_RE.search("\n".join(body)):
+        selected = bool(PIPE_SEED_RE.search("\n".join(body)))
+        if tag in SHELL_TAGS and (selected or include_omitted):
             k = j + 1
             while k < len(lines) and not lines[k].strip():
                 k += 1
@@ -222,13 +242,54 @@ def find_blocks(md):
                 para.append(lines[k].strip())
                 k += 1
             p = i - 1
-            while p >= 0 and not lines[p].strip():
+            markers, expected, metadata_error = [], None, None
+            while p >= 0:
+                if not lines[p].strip():
+                    p -= 1
+                    continue
+                marker = MARK_RE.fullmatch(lines[p])
+                if not marker:
+                    break
+                directive = marker.group(1)
+                if directive in ("skip", "loops"):
+                    markers.append(directive)
+                elif directive.startswith("expect "):
+                    try:
+                        value = json.loads(directive[7:])
+                        if not isinstance(value, str) or expected is not None:
+                            raise ValueError("expect requires one JSON string")
+                        expected = value
+                    except ValueError as e:
+                        metadata_error = f"invalid tryit expectation: {e}"
+                else:
+                    metadata_error = f"unknown tryit marker: {directive}"
                 p -= 1
-            marker = MARK_RE.search(lines[p]) if p >= 0 else None
             out.append(dict(line=i + 1, body=body, para=" ".join(para),
-                            marker=marker.group(1) if marker else None))
+                            marker="skip" if "skip" in markers else "loops" if "loops" in markers else None,
+                            expected=expected, metadata_error=metadata_error,
+                            selected=selected))
         i = j + 1
     return out
+
+
+def published_files():
+    """Use mdBook's chapter inventory; unlisted/retired pages are opt-in only."""
+    summary = os.path.join(BOOK, "SUMMARY.md")
+    files = []
+    with open(summary, encoding="utf-8") as f:
+        for number, line in enumerate(f, 1):
+            for target in re.findall(r"\]\(<?([^\s)>]+)>?(?:\s+[^)]*)?\)", line):
+                path = target.split("#", 1)[0]
+                if not path or re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", path):
+                    continue
+                full = os.path.normpath(os.path.join(BOOK, path))
+                if not os.path.isfile(full):
+                    raise ValueError(f"{summary}:{number}: missing published chapter {path!r}")
+                if full not in files:
+                    files.append(full)
+    if not files:
+        raise ValueError(f"{summary}: no published chapters found")
+    return files
 
 
 def snapshot(d):
@@ -238,7 +299,8 @@ def snapshot(d):
             p = os.path.join(base, f)
             rel = os.path.relpath(p, d)
             try:
-                snap[rel] = hashlib.sha256(open(p, "rb").read()).hexdigest()
+                with open(p, "rb") as contents:
+                    snap[rel] = hashlib.sha256(contents.read()).hexdigest()
             except OSError:
                 snap[rel] = "?"
     return snap
@@ -254,18 +316,34 @@ def can_unshare():
 
 
 def build_script(chunks, outdir_rel):
-    parts = []   # cwd is already the work dir (set by the caller)
+    # Record failures without errexit, preserving the example's status and
+    # cleanup flow. -E also observes failures inside functions, subshells and
+    # substitutions; intentional nonzero statuses need explicit shell guards.
+    # An inherited descriptor keeps the error log reachable after an example
+    # changes directory, including when unshare hides the host's /tmp path.
+    parts = ["set -E -o pipefail",
+             "exec {__tryit_error_fd}>" + shlex.quote(os.path.join(outdir_rel, "failures")),
+             "__tryit_error() { printf '%s\\t%s\\t%s\\n' \"$1\" \"$2\" \"$3\" >&\"$__tryit_error_fd\"; }",
+             "trap '__tryit_error \"$?\" \"$LINENO\" \"${PIPESTATUS[*]}\"' ERR"]
+    source_lines = {}
     for n, c in enumerate(chunks):
         code = BUILD_RE.sub(lambda m: m.group(1) + "true", c.text)
-        parts.append("{\n" + code + "\n} > %s/%d.out 2> %s/%d.err" % (outdir_rel, n, outdir_rel, n))
-        parts.append("__rc=$?; echo $__rc > %s/%d.rc; (exit $__rc)" % (outdir_rel, n))
-    return "\n".join(parts) + "\n"
+        parts.append("{")
+        for line in code.split("\n"):
+            parts.append(line)
+            source_lines[len(parts)] = line
+        prefix = shlex.quote(os.path.join(outdir_rel, str(n)))
+        parts.append("} > %s.out 2> %s.err" % (prefix, prefix))
+        parts.append("__rc=$?; echo $__rc > %s.rc; (exit $__rc)" % prefix)
+    return "\n".join(parts) + "\n", source_lines
 
 
 def run_block(md, blk, timeout, private_tmp, verbose):
     shown = os.path.relpath(md, BOOK_ROOT) if md.startswith(BOOK_ROOT + os.sep) else md
     rel = f"{shown}:{blk['line']}"
     text = "\n".join(blk["body"])
+    if blk.get("metadata_error"):
+        return "FAIL", rel, blk["metadata_error"], ""
     if blk["marker"] == "skip":
         return "SKIP", rel, "tryit: skip marker", ""
     code_only = "\n".join(split_comment(ln)[0] for ln in blk["body"])
@@ -300,7 +378,9 @@ def run_block(md, blk, timeout, private_tmp, verbose):
                 shutil.copytree(src, os.path.join(work, tree))
         before = snapshot(work)
         script = os.path.join(root, "block.sh")
-        open(script, "w").write(build_script(chunks, "../out"))
+        shell, source_lines = build_script(chunks, "../out")
+        with open(script, "w") as f:
+            f.write(shell)
         env = dict(os.environ, TRYIT_WORK=work, LC_ALL="C")
         if private_tmp:
             cmd = ["unshare", "-rm", "bash", "-c",
@@ -320,11 +400,14 @@ def run_block(md, blk, timeout, private_tmp, verbose):
             top_out, top_err = proc.communicate()
 
         problems, detail = [], []
-        outs = []
+        outs, completed = [], 0
         for n, c in enumerate(chunks):
             def rd(ext):
                 p = os.path.join(outd, f"{n}.{ext}")
-                return open(p, "rb").read().decode("latin-1") if os.path.exists(p) else None
+                if os.path.exists(p):
+                    with open(p, "rb") as f:
+                        return f.read().decode("latin-1")
+                return None
             out, err, rc = rd("out"), rd("err"), rd("rc")
             if out is None:
                 break
@@ -332,24 +415,43 @@ def run_block(md, blk, timeout, private_tmp, verbose):
             first = c.lines[0].strip()
             detail.append(f"  $ {first}{' ...' if len(c.lines) > 1 else ''}\n"
                           f"    rc={rc.strip() if rc else '?'} stdout={out!r} stderr={err!r}")
-            if rc is None:
-                break           # still running when the timeout hit
-            rcv = int(rc.strip() or 0)
             if err.strip():
                 problems.append(f"stderr from `{first}`: {err.strip().splitlines()[0]}")
+            if rc is None:
+                break           # still running when the timeout hit
+            completed += 1
+            rcv = int(rc.strip() or 0)
             if rcv in (126, 127):
                 problems.append(f"`{first}`: command not found/not executable (rc {rcv})")
-            elif rcv != 0 and SEED_RUN_RE.search(c.text):
+            elif rcv != 0:
                 problems.append(f"`{first}` exited {rcv}")
             if c.expect is not None and out.rstrip("\n") != c.expect.rstrip("\n"):
                 problems.append(f"`{first}`: expected {c.expect!r}, got {out!r}")
+        failure_log = os.path.join(outd, "failures")
+        if os.path.exists(failure_log):
+            with open(failure_log) as f:
+                failures = set(f.read().splitlines())
+            for failure in sorted(failures):
+                rc, line, pipeline = failure.split("\t")
+                rc, line = int(rc), int(line)
+                if line not in source_lines:
+                    continue  # harness status-restoration command
+                upstream_failed = any(int(s) for s in pipeline.split()[:-1])
+                problems.append(f"shell command `{source_lines[line].strip()}` exited {rc}"
+                                + (f" (pipeline statuses: {pipeline})" if upstream_failed else ""))
         if top_err.strip():
             problems.append("harness stderr: " + top_err.decode("latin-1").strip().splitlines()[0])
         if timed_out:
             if not loops:
                 problems.append(f"timed out after {timeout}s")
         else:
+            if proc.returncode:
+                problems.append(f"block shell exited {proc.returncode}")
+            if completed != len(chunks):
+                problems.append(f"only {completed}/{len(chunks)} command chunks completed")
             whole = "".join(outs)
+            if blk.get("expected") is not None and whole.rstrip("\n") != blk["expected"].rstrip("\n"):
+                problems.append(f"tryit metadata expects {blk['expected']!r}; got {whole!r}")
             for x in para_eq:
                 if whole.rstrip("\n") != unesc(x):
                     problems.append(f"paragraph says output is {x!r}; got {whole!r}")
@@ -365,7 +467,8 @@ def run_block(md, blk, timeout, private_tmp, verbose):
             elif before[f] != after[f]:
                 problems.append(f"file modified: {f!r}")
 
-        nexp = sum(c.expect is not None for c in chunks) + len(para_eq) + len(para_end)
+        nexp = (sum(c.expect is not None for c in chunks) + len(para_eq) + len(para_end)
+                + (blk.get("expected") is not None))
         if problems:
             return "FAIL", rel, "; ".join(problems), "\n".join(detail)
         note = f"{nexp} output check{'s' if nexp != 1 else ''}"
@@ -391,20 +494,33 @@ def main(argv):
             return 0
         else:
             files.append(os.path.abspath(a))
+    if not files:
+        try:
+            files = published_files()
+        except (OSError, ValueError) as e:
+            print(f"check-tryit: FAIL {e}")
+            return 1
     if not os.path.exists(os.path.join(ROOT, "seed-forth")):
         print("check-tryit: ./seed-forth not built — run ./seed/build.sh first")
         return 1
     private_tmp = can_unshare()
-    counts = {"OK": 0, "SKIP": 0, "FAIL": 0}
-    for md in files or sorted(glob.glob(os.path.join(BOOK, "*.md"))):
-        for blk in find_blocks(md):
+    counts = {"OK": 0, "SKIP": 0, "FAIL": 0, "OMIT": 0}
+    for md in files:
+        for blk in find_blocks(md, include_omitted=True):
+            if not blk["selected"]:
+                counts["OMIT"] += 1
+                shown = os.path.relpath(md, BOOK_ROOT) if md.startswith(BOOK_ROOT + os.sep) else md
+                print(f"OMIT  {shown}:{blk['line']}  outside pipe-to-seed selection")
+                continue
             status, rel, note, detail = run_block(md, blk, timeout, private_tmp, verbose)
             counts[status] += 1
             print(f"{status:<5} {rel}  {note}")
             if status == "FAIL" and verbose and detail:
                 print(detail)
     tmpnote = "" if private_tmp else " (no private /tmp: /tmp-writing blocks skipped)"
-    print(f"check-tryit: {counts['OK']} OK, {counts['SKIP']} SKIP, {counts['FAIL']} FAIL{tmpnote}")
+    selected = counts['OK'] + counts['SKIP'] + counts['FAIL']
+    print(f"check-tryit: {selected} selected; {counts['OK']} OK, {counts['SKIP']} SKIP, "
+          f"{counts['FAIL']} FAIL; {counts['OMIT']} OMIT (other shell/untagged fences){tmpnote}")
     return 1 if counts["FAIL"] else 0
 
 

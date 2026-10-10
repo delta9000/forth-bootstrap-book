@@ -12,9 +12,9 @@ Writes book/bundles/NN/ (gitignored), everything a chapter writer reads:
   replaces.txt the old chapter files this chapter replaces: those it
                reuses that no earlier stub reuses (each old file is
                replaced by exactly one new chapter, the first that mines it)
-  prereqs.md   for each prerequisite chapter: the closing paragraph of its
-               written chapter if one exists (book/NN-*.md under the new
-               numbering is not used yet), else of its stub's Scope
+  prereqs.md   for each prerequisite chapter: the final paragraph of its
+               outline stub's Scope. Written chapter takeaways are not read;
+               a writer must reconcile these outline prerequisites with them.
   old/         the existing chapters the stub reuses (its Reuses links)
   source/      the forth-bootstrap files the stub names (from the pinned
                submodule), and source/chunks/NAME.md: each chunk the

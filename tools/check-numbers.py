@@ -54,6 +54,10 @@ book's claims against it:
                      line(s) for that error code in the cited file
       - symbol ref   "`cc-skip-storage-quals` (`cc/110-cc-decl.fth:98`)" vs the
                      word's `:` definition line
+  * every explicit `forth-bootstrap/PATH:N`, `:A-B`, or `:A,B-C` citation
+    in published chapters, regardless of source-file type: file existence,
+    positive/in-bounds line numbers, and non-reversed ranges. This proves
+    location validity, not that a citation supports its surrounding claim.
 
 Body sizes come from the `@ 0xADDR` comments in seed/000-seed.hex0: a label's size
 is the distance to the next labelled offset (each primitive is a header label
@@ -83,6 +87,7 @@ Usage:
     tools/check-numbers.py            # check the book, print a report
     tools/check-numbers.py --fix      # rewrite drifted source-line citations
     tools/check-numbers.py --dump     # print the derived size/offset table
+    tools/check-numbers.py --citations-only  # location checks; no seed binary needed
 """
 
 import os
@@ -103,10 +108,7 @@ FTH_GLOBS = [os.path.join(ROOT, d, "*.fth") for d in ("forth", "cc")]
 
 def fth_paths():
     return [p for g in FTH_GLOBS for p in glob.glob(g)]
-if not os.path.exists(SEED_BIN):
-    sys.exit("check-numbers: seed-forth not found; run ./seed/build.sh first "
-             "(the seed's size is derived from the built binary)")
-SEED_SIZE = os.path.getsize(SEED_BIN)
+SEED_SIZE = os.path.getsize(SEED_BIN) if os.path.exists(SEED_BIN) else None
 
 # Word / dictionary name -> the `_code` body label whose size & body-offset the
 # book quotes.  A bare word like `+` also has a *dictionary entry* at its own
@@ -172,7 +174,14 @@ FTH_SEMI_RE = re.compile(r"(^|\s)(?<!char\s)(?<!\[char\]\s);(\s|$)")
 # assembler's four, `asm-check-cap`, `asm-tok-err`, `asm-do-ref` and
 # `asm-fit`.
 DIE_RE = re.compile(r"\[lit\]\s+(\d+)\s+(?:die|cc-die|cc-check-cap|cc-read-all|asm-check-cap|asm-tok-err|asm-do-ref|asm-fit)(?=\s|$)")
-CITE_RE = re.compile(r"([0-9]\d\d-[a-z0-9-]+\.fth):(\d+(?:,\d+)*)")
+CITE_RE = re.compile(r"([0-9]\d\d-[a-z0-9-]+\.fth):(\d+(?:,\d+)*)(?![\d,–-])")
+# Source-relative numbered Forth references are also accepted for older
+# citation syntax. The explicit checkout prefix removes ambiguity with
+# example diagnostics such as a.c:11 and supports every source-file type.
+SOURCE_CITE_RE = re.compile(
+    r"(?<![\w/.-])(?P<path>forth-bootstrap/[\w./+-]+|"
+    r"(?:cc/|forth/)?[0-9]{3}-[a-z0-9-]+\.fth):"
+    r"(?P<lines>-?\d+(?:[–-]-?\d+)?(?:,\s*-?\d+(?:[–-]-?\d+)?)*)")
 ROW_CODE_RE = re.compile(r"^\s*\|\s*(\d+)\s*\|")
 NAME_TOKEN_RE = re.compile(r"`([a-z][a-z0-9?*<>=!+./-]+)`")
 
@@ -876,6 +885,58 @@ def citation_pass(fix):
     return findings, total_edits
 
 
+def source_citation_pass():
+    """Check existence and complete line ranges for all published source citations."""
+    findings, counts = [], {}
+    summary = os.path.join(BOOK, "SUMMARY.md")
+    if not os.path.isfile(summary):
+        return [("MISMATCH", "book/SUMMARY.md", 0, "publication list is missing")]
+    with open(summary, encoding="utf-8") as source:
+        names = list(dict.fromkeys(re.findall(r"\]\(([^)#]+\.md)(?:#[^)]*)?\)", source.read())))
+    if not names:
+        return [("MISMATCH", "book/SUMMARY.md", 0, "publication list contains no chapters")]
+    basenames = source_files()
+    for name in names:
+        md = os.path.join(BOOK, name)
+        rel = os.path.relpath(md, BOOK_ROOT)
+        if not os.path.isfile(md):
+            findings.append(("MISMATCH", rel, 0, "published chapter is missing"))
+            continue
+        with open(md, encoding="utf-8") as chapter:
+            for no, line in enumerate(chapter, 1):
+                for m in SOURCE_CITE_RE.finditer(line):
+                    cited, spec = m.group("path", "lines")
+                    path = cited.removeprefix("forth-bootstrap/")
+                    full = os.path.join(ROOT, path)
+                    if "/" not in path and not cited.startswith("forth-bootstrap/"):
+                        full = basenames.get(path, full)
+                    if os.path.commonpath((os.path.abspath(ROOT), os.path.abspath(full))) != os.path.abspath(ROOT):
+                        findings.append(("MISMATCH", rel, no, f"{cited}:{spec} escapes the source checkout"))
+                        continue
+                    if not os.path.isfile(full):
+                        findings.append(("MISMATCH", rel, no, f"{cited}:{spec}: source file does not exist"))
+                        continue
+                    if full not in counts:
+                        # Count physical lines without assuming the cited source's encoding.
+                        with open(full, "rb") as source:
+                            counts[full] = sum(1 for _ in source)
+                    nlines = counts[full]
+                    invalid = []
+                    for part in spec.split(","):
+                        endpoints = re.fullmatch(r"(-?\d+)(?:[–-](-?\d+))?", part.strip())
+                        first = int(endpoints.group(1))
+                        last = int(endpoints.group(2)) if endpoints.group(2) is not None else first
+                        if not 1 <= first <= last <= nlines:
+                            invalid.append(part.strip())
+                    if invalid:
+                        findings.append(("MISMATCH", rel, no,
+                                         f"{cited}:{spec}: invalid line range {', '.join(invalid)} "
+                                         f"(file has {nlines} lines; require 1 <= start <= end <= {nlines})"))
+                    else:
+                        findings.append(("OK", rel, no, f"{cited}:{spec}: citation in bounds"))
+    return findings
+
+
 # --- Part II running byte counts ---------------------------------------------
 #
 # Every chapter that defines `hex0 chunk=` fences owns those bytes of the seed,
@@ -977,6 +1038,18 @@ def running_pass():
 
 
 def main():
+    if "--citations-only" in sys.argv:
+        findings = source_citation_pass()
+        mism = [f for f in findings if f[0] == "MISMATCH"]
+        for sev, fpath, ln, msg in mism:
+            print(f"{sev}: {fpath}:{ln}  {msg}")
+        print(f"check-citations: {len(findings) - len(mism)} OK, {len(mism)} MISMATCH "
+              "(published source locations; claim support not checked)")
+        return 1 if mism else 0
+    if SEED_SIZE is None:
+        print("check-numbers: seed-forth not found; run ./seed/build.sh first "
+              "(the seed's size is derived from the built binary)", file=sys.stderr)
+        return 1
     if "--dump" in sys.argv:
         dump()
         return 0
@@ -984,13 +1057,17 @@ def main():
     findings = check()
     span_findings, sedits = span_pass(fix)
     cite_findings, cedits = citation_pass(fix)
-    findings += span_findings + cite_findings + running_pass() + corpus_pass()
+    findings += span_findings + cite_findings + running_pass() + corpus_pass() + source_citation_pass()
     edits = sedits + cedits
     if fix:
-        # after rewriting, the mismatches that were fixed are gone
+        # Re-read every check after edits. Unfixable errors must remain fatal,
+        # and edits can expose a second mismatch in the same claim.
         fixable = span_findings + cite_findings
-        findings = [f for f in findings if f[0] != "MISMATCH"] + \
-                   [("FIXED", f[1], f[2], f[3]) for f in fixable if f[0] == "MISMATCH"]
+        findings = (check() + span_pass(False)[0] + citation_pass(False)[0] +
+                    running_pass() + corpus_pass() + source_citation_pass())
+        remaining = {(f[1], f[2], f[3]) for f in findings if f[0] == "MISMATCH"}
+        findings += [("FIXED", f[1], f[2], f[3]) for f in fixable
+                     if f[0] == "MISMATCH" and (f[1], f[2], f[3]) not in remaining]
     mism = [f for f in findings if f[0] == "MISMATCH"]
     warn = [f for f in findings if f[0] == "WARN"]
     fixed = [f for f in findings if f[0] == "FIXED"]
@@ -999,7 +1076,7 @@ def main():
         print(f"{sev}: {fpath}:{ln}  {msg}")
     tail = f", {edits} FIXED" if fix else ""
     print(f"check-numbers: {len(ok)} OK, {len(warn)} WARN, {len(mism)} MISMATCH{tail} "
-          f"(numeric claims verified against source)")
+          f"(recognized numeric forms and published citation bounds only)")
     return 1 if mism else 0
 
 

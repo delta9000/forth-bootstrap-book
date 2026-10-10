@@ -1,0 +1,37 @@
+# Required canonical sources. Every file must tangle byte-for-byte from published chapters.
+# Update deliberately when the numbered seed, Forth, or compiler inventory changes.
+cc/020-cc-arena.fth
+cc/030-cc-io.fth
+cc/040-cc-prep.fth
+cc/050-cc-lex.fth
+cc/060-cc-types.fth
+cc/070-cc-sym.fth
+cc/080-cc-elf.fth
+cc/081-cc-object.fth
+cc/090-cc-emit.fth
+cc/100-cc-expr.fth
+cc/110-cc-decl.fth
+cc/112-cc-stmt.fth
+cc/114-cc-func.fth
+cc/115-cc-native.fth
+cc/116-cc-prog.fth
+cc/117-cc-native-program.fth
+cc/118-cc-native-init.fth
+cc/119-cc-native-runtime.fth
+cc/120-cc-main.fth
+cc/121-cc-sysv.fth
+cc/122-cc-sysv-runtime.fth
+cc/123-cc-object-program.fth
+cc/124-cc-target.fth
+cc/125-cc-consteval.fth
+cc/126-cc-varargs.fth
+cc/127-cc-binary64.fth
+cc/128-cc-float-literal.fth
+cc/129-cc-bitfield.fth
+cc/131-cc-aggregate-abi.fth
+cc/132-cc-long-double.fth
+cc/140-cc-link.fth
+cc/141-archive.fth
+forth/010-lib.fth
+forth/130-asm.fth
+seed/000-seed.hex0

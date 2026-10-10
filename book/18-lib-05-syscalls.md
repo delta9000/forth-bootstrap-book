@@ -135,6 +135,7 @@ magnitude and testing for zero prints `0` for a match or `1` for a
 mismatch. Subtraction (Chapter 17) builds that invalid descriptor
 without a signed literal.
 
+<!-- tryit: expect "OK\n3\n000\nexit status: 0" -->
 ```sh
 { head -n 70 forth/010-lib.fth
   printf '%s\n' \

@@ -240,6 +240,7 @@ Exercise decimal conversion first through interpretation, then through a
 compiled definition. Recall `emit` from Chapter 8 (The seed’s Linux
 boundary); the final literal supplies a newline.
 
+<!-- tryit: expect "*\n*" -->
 ```sh
 echo '[lit] 42 emit [lit] 10 emit bye' | ./seed-forth # prints "*"
 echo ': star [lit] 42 emit ; star [lit] 10 emit bye' | ./seed-forth # prints "*"
@@ -255,6 +256,7 @@ Observed output:
 Finally, compare a lookup miss with a rejected decimal argument. Capture
 the failing status in the shell so the final command can report it.
 
+<!-- tryit: expect "42?\nexit status: 0\n12a?\nexit status: 2" -->
 ```sh
 echo '42 bye' | ./seed-forth # prints "42?"
 printf 'exit status: %s\n' "$?"
