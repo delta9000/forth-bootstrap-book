@@ -60,7 +60,7 @@ Every existing top-level book Markdown file except SUMMARY.md has one row. The d
 | [A4-worked-exercises.md](../58-worked-exercises.md) | Appendix D — Three worked exercises, one each from Parts I–III | back matter | [Appendix D: worked exercises](58-worked-exercises.md) | keep |
 | [A5-further-reading.md](../A5-further-reading.md) | Appendix E — Further reading | back matter | [Appendix E: further reading](59-further-reading.md) | keep |
 | [A6-c-subset.md](../60-c-subset.md) | Appendix F — The C subset | back matter | [Appendix F: the C subset](60-c-subset.md) | keep |
-| [A7-error-codes.md](../A7-error-codes.md) | Appendix G — Compiler error codes | back matter | [Appendix G: compiler exit codes](61-error-codes.md) | keep |
+| [A7-error-codes.md](../61-error-codes.md) | Appendix G — Compiler error codes | back matter | [Appendix G: compiler exit codes](61-error-codes.md) | keep |
 | [CONCEPTS.md](../CONCEPTS.md) | Concept index, rung map, and dependency graph | back matter | [Concept index and dependencies](63-concepts.md) | regroup |
 | [GLOSSARY.md](../GLOSSARY.md) | Glossary | back matter | [Glossary](62-glossary.md) | keep |
 | [LEARNING_STORY_PLAN.md](../LEARNING_STORY_PLAN.md) | Learning Story Plan — third version (post-rollout) | back matter | [Editorial notes](65-editorial-notes.md) | regroup |

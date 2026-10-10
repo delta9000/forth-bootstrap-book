@@ -10,7 +10,7 @@ Prerequisites: [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md); [38
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 
-Reuses: [A7-error-codes.md](../A7-error-codes.md) — Reuse the exit-code catalog and diagnostic source references.
+Reuses: [A7-error-codes.md](../61-error-codes.md) — Reuse the exit-code catalog and diagnostic source references.
 
 TODO:
 
