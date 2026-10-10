@@ -54,11 +54,11 @@ GENERIC_HEADINGS = {"canonical source", "try it", "exercises", "takeaways",
 # The heading substring is matched against the heading's plain text.
 # ---------------------------------------------------------------------------
 CONCEPTS = [
-    ("LP64 native object storage", [("34-", "Two profiles, one compiler")]),
-    ("Private all-stack ABI", [("34-", "Private stack calls and whole programs")]),
-    ("Static initializer lowering", [("34-", "Initializers reuse expression fixups")]),
-    ("Fail-closed bootstrap runtime", [("34-", "A finite Linux boundary")]),
-    ("Direct TinyCC bootstrap", [("34-", "What the bootstrap result proves")]),
+    ("LP64 native object storage", [("39-lp64", "Native declarations and aligned storage")]),
+    ("Private all-stack ABI", [("39-lp64", "Private stack calls and whole programs")]),
+    ("Static initializer lowering", [("39-lp64", "Initializers reuse expression fixups")]),
+    ("Fail-closed bootstrap runtime", [("39-lp64", "A finite Linux boundary")]),
+    ("Direct TinyCC bootstrap", [("34-direct", "What the bootstrap result proves")]),
     ("Stack-effect notation", [("14-lib-01", "Stack-effect comments")]),
     ("Reverse Polish notation", [("14-lib-01", "Postfix evaluation")]),
     ("Data stack", [("14-lib-01", "Postfix evaluation"), ("06-stack", "The push and pop shapes")]),

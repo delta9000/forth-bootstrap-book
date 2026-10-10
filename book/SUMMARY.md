@@ -49,7 +49,7 @@
 - [Statements and control flow](36-statements-if-while-for-return.md)
 - [Functions and translation units](37-functions-and-scope.md)
 - [Compiler entry and Stage A](38-main-and-bootstrap-chain.md)
-- [LP64 storage and initializers](outline/39-lp64-storage-and-initializers.md)
+- [LP64 storage and initializers](39-lp64-storage-and-initializers.md)
 - [Objects and relocations](outline/40-objects-and-relocations.md)
   - [Chapter 35 — Forth-written relocatable objects](35-direct-gcc-objects.md)
 - [System V calls and separate compilation](outline/41-system-v-calls.md)

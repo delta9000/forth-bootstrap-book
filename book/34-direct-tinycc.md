@@ -136,7 +136,7 @@ or move a definition into initialized storage. Existing global
 fixup slots are updated with that move, so earlier references do
 not keep pointing at the obsolete allocation.
 
-```forth file=cc/115-cc-native.fth
+```forth
 \ 115-cc-native.fth — opt-in LP64 bootstrap declaration parser.
 \ The legacy M2-compatible parser remains the default. Native mode uses
 \ LP64 object layout and a private, all-stack call ABI within its image.
@@ -817,7 +817,7 @@ and exits through the Linux syscall with `main`'s result.
 file-scope declarations, closes the initializer dispatcher, and
 checks that every referenced function was defined.
 
-```forth file=cc/117-cc-native-program.fth
+```forth
 \ 117-cc-native-program.fth — program and private stack ABI for direct TinyCC.
 \ All linked code is generated together. No system libc or host object is used.
 variable cc-native-param-count
@@ -953,7 +953,7 @@ increments are rejected. Address constants, scalar constants, and
 their supported combinations can be lowered. Runtime execution of
 the emitted stores does not expand the C initializer language.
 
-```forth file=cc/118-cc-native-init.fth
+```forth
 \ 118-cc-native-init.fth — bounded C initializers for the native bootstrap.
 \ Scalar stores, brace lists, nested arrays/aggregates and character strings
 \ are lowered by the Forth compiler. Static expressions use the expression
@@ -1311,7 +1311,7 @@ function is rejected in either mode. The fuller
 reasoning and tests are in
 [`tests/tcc/native-runtime.md`](https://github.com/delta9000/seed-forth/blob/master/tests/tcc/native-runtime.md).
 
-```forth file=cc/119-cc-native-runtime.fth
+```forth
 \ 119-cc-native-runtime.fth — Linux AMD64 primitives for the native ABI.
 \ Every argument occupies an eight-byte caller-owned stack slot. These
 \ leaf functions have no frame: argument one is at rsp+8, not in rdi.
