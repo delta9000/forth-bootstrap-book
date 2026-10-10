@@ -19,7 +19,7 @@ entry says what kind it is and which source file holds it:
 
 A kind in parentheses other than the file is the defining word used
 (`variable`, `constant`, `create`, `defer`); plain colon definitions
-carry none.  2911 names and 97 ideas.
+carry none.  2912 names and 97 ideas.
 
 For a one-line definition of a term, see the [Glossary](62-glossary.md);
 for which chapter depends on which, the
@@ -243,6 +243,7 @@ for which chapter depends on which, the
 - `asm-out-buf` — *assembler word (create, `forth/130-asm.fth`)* — [Ch 26, The output side](26-m1-and-hex2.md#the-output-side)
 - `asm-out-cap` — *assembler word (constant, `forth/130-asm.fth`)* — [Ch 26, The output side](26-m1-and-hex2.md#the-output-side)
 - `asm-out-init` — *assembler word (`forth/130-asm.fth`)* — [Ch 26, The output side](26-m1-and-hex2.md#the-output-side)
+- `asm-out-name` — *assembler word (variable, `forth/130-asm.fth`)* — [Ch 26, `asm-main`](26-m1-and-hex2.md#asm-main)
 - `asm-out-path` — *assembler word (create, `forth/130-asm.fth`)* — [Ch 26, `asm-main`](26-m1-and-hex2.md#asm-main)
 - `asm-out-pos` — *assembler word (variable, `forth/130-asm.fth`)* — [Ch 26, The output side](26-m1-and-hex2.md#the-output-side)
 - `asm-parse-number` — *assembler word (`forth/130-asm.fth`)* — [Ch 26, Numbers](26-m1-and-hex2.md#numbers)

@@ -1010,7 +1010,7 @@ Observed output:
 
 Kind 6 is `tk-kw` with `kw-int` (0); kind 1 is an identifier of length 1; kind 5 is punctuation carrying its byte; kind 2 is a number with value 4. `tk-eof` (0) ends the loop.
 
-Then run the lexer layer test selected by `forth-bootstrap/test.sh:124`, the coverage check for this layer:
+Then run the lexer layer test selected by `forth-bootstrap/test.sh:118`, the coverage check for this layer:
 
 ```sh
 cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \

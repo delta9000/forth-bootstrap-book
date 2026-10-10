@@ -13,7 +13,7 @@ The implementation has this shape:
 stdin → asm-src-buf → macro expansion → asm-exp-buf
                                       → count bytes and record labels
                                       → rewind, resolve labels, emit bytes
-                                      → asm-out-buf → /tmp/asm-out
+                                      → asm-out-buf → the asm-out-name file
 ```
 
 M1 gives byte sequences names: `DEFINE syscall 0F05` makes a later
@@ -1298,8 +1298,10 @@ The entry point makes the pass order explicit. Read the resets between
 walks in `forth-bootstrap/forth/130-asm.fth:764`:
 
 ```forth file=forth/130-asm.fth
-\ Pre-baked output path: "/tmp/asm-out\0"
+\ The output path: asm-out-name holds the address of a NUL-terminated path,
+\ "/tmp/asm-out" unless the caller stores its own there before asm-main.
 create asm-out-path  s, /tmp/asm-out  [lit] 0 c,
+variable asm-out-name  asm-out-path asm-out-name !
 
 : asm-main
   asm-load-stdin
@@ -1314,15 +1316,17 @@ create asm-out-path  s, /tmp/asm-out  [lit] 0 c,
   asm-out-init
   [lit] 2 asm-pass !
   asm-pass-loop
-  asm-out-path asm-write-output
+  asm-out-name @ asm-write-output
   bye ;
 
-\ The caller invokes 'asm-main' (after optionally setting 'asm-base').
+\ The caller invokes 'asm-main' (after optionally setting 'asm-base' and
+\ 'asm-out-name').
 \ Existing pipelines append it on stdin between the Forth prelude and the M1
 \ source; see tests/asm/*.sh.
 ```
 
-`asm-out-path` names the fixed output file. `asm-main` first drains the
+`asm-out-name` holds the output path, `/tmp/asm-out` unless the caller
+stores another NUL-terminated path there first. `asm-main` first drains the
 remaining stdin into source storage, expands it, and selects the expanded
 buffer. It initializes the label table only before counting. Between
 assembly walks it rewinds the cursor, restores IP from the base, and
@@ -1330,9 +1334,8 @@ clears the output position while retaining labels.
 
 Loading the file defines `asm-main` without calling it. The checkpoint
 sends the invocation after the Forth definitions and before M1 text, so
-the assembler owns the remaining input. The trailing source comment's
-`tests/asm/` reference does not name a test directory available in this
-checkout; it is preserved as source, not used as a checkpoint.
+the assembler owns the remaining input. `tests/asm/hi-check.sh` is the
+repository's own check of the program in Try it.
 
 ## Capacity and failure
 
@@ -1369,12 +1372,11 @@ in its header. The runnable example exercises the supported subset.
 Run from the `forth-bootstrap` checkout at `./forth-bootstrap`, with the
 seed built in Part 1. The pipeline loads the complete library and assembler,
 then gives `asm-main` a hand-written program including its ELF header.
-The temporary directory holds the input and executable; the commands
-preserve any existing assembler output and clean up afterward.
+The temporary directory holds the input and executable: one line before
+`asm-main` points `asm-out-name` at it.
 
 ```sh
 d=$(mktemp -d)
-if [ -e /tmp/asm-out ]; then mv /tmp/asm-out "$d/saved-asm-out"; fi
 cat > "$d/hi.M1" <<'M1'
 DEFINE mov_eax, B8
 DEFINE mov_edi, BF
@@ -1408,12 +1410,13 @@ DEFINE syscall 0F05
     mov_eax, %60  mov_edi, %42  syscall     # exit(42)
 :ELF_end
 M1
-{ cat forth/010-lib.fth forth/130-asm.fth; echo asm-main; cat "$d/hi.M1"; } | ./seed-forth
-mv /tmp/asm-out "$d/hi"
+{ cat forth/010-lib.fth forth/130-asm.fth
+  echo "create out s, $d/hi [lit] 0 c,  out asm-out-name !"
+  echo asm-main; cat "$d/hi.M1"; } | ./seed-forth
+chmod +x "$d/hi"
 "$d/hi"                         # prints "hi"
 echo "exit: $?"                  # prints "exit: 42"
 wc -c < "$d/hi"             # prints: 160
-if [ -e "$d/saved-asm-out" ]; then mv "$d/saved-asm-out" /tmp/asm-out; fi
 rm -rf "$d"
 ```
 

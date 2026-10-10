@@ -1323,8 +1323,8 @@ interface still has a caller contract.
 ## Try it
 
 Run these commands from the `forth-bootstrap` checkout root. They use the
-layer inputs selected in `forth-bootstrap/test.sh:114` and
-`forth-bootstrap/test.sh:119`, without loading later compiler layers.
+layer inputs selected in `forth-bootstrap/test.sh:108` and
+`forth-bootstrap/test.sh:113`, without loading later compiler layers.
 
 The arena assertions in `forth-bootstrap/cc/test-020-cc-arena.fth:9` check
 distinct allocations at the requested spacing, preservation of a stored

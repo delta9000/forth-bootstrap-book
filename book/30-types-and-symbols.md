@@ -860,7 +860,7 @@ driver exit: 0
 
 The first line is pointer size, base kind (`ty-int`) and depth. The second is the found symbol's kind (`sk-enum`) and value. The shell reports the driver's exit status afterward.
 
-For the coverage check, run just the layer-test pipelines selected by `forth-bootstrap/test.sh:129` and `forth-bootstrap/test.sh:134`:
+For the coverage check, run just the layer-test pipelines selected by `forth-bootstrap/test.sh:123` and `forth-bootstrap/test.sh:128`:
 
 ```sh
 cat forth/010-lib.fth cc/020-cc-arena.fth cc/030-cc-io.fth \

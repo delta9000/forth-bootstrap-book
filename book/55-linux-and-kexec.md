@@ -178,7 +178,7 @@ echo "finish: K1 hands the machine to the Linux kernel it built"
 exec /build-out/kexec
 ```
 
-The hdb tar preserves the image, configuration, pin report and build logs for inspection from the host. It does not export the whole RAM root or all installed compilers. The result marker follows a successful tar command; it is evidence of export, not an independent readback or integrity comparison (`forth-bootstrap/chain/ladder/finish.sh:4`). The host wrapper attaches this disk as `out.img` and preserves the serial stream in `serial.log` (`forth-bootstrap/kernel/k1/run-chain.sh:49`).
+The hdb tar preserves the image, configuration, pin report and build logs for inspection from the host. It does not export the whole RAM root or all installed compilers. The result marker follows a successful tar command; it is evidence of export, not an independent readback or integrity comparison (`forth-bootstrap/chain/ladder/finish.sh:4`). The host wrapper attaches this disk as `out.img` and preserves the serial stream in `serial.log` (`forth-bootstrap/kernel/k1/run-chain.sh:50`).
 
 The small `kexec` program issues the reboot syscall with the KEXEC command. K1 dispatches that command directly to `boot_linux`, naming `/boot/bzImage`, an optional external initrd and the command-line file (`forth-bootstrap/chain/ladder/kexec.c:7`, `forth-bootstrap/kernel/k1/sys.c:1139`). This is a kexec-style handover: the running kernel loads its successor and transfers control without returning through firmware.
 
@@ -243,13 +243,13 @@ The greeting is produced by the statically built init. It mounts proc and reads 
     }
 ```
 
-Init then flushes output and uses QEMU's debug-exit device. The wrapper requires the corresponding exit status and searches the serial log for the direct-route, compiler, handover and init markers (`forth-bootstrap/chain/ladder/init.c:30`, `forth-bootstrap/kernel/k1/run-chain.sh:58`). A Linux version banner alone shows kernel execution. The init lines additionally show that the kernel loaded and ran the chain-built userspace program. Neither is a substitute for archive verification or output pins.
+Init then flushes output and uses QEMU's debug-exit device. The wrapper requires the corresponding exit status and searches the serial log for the direct-route, compiler, handover and init markers (`forth-bootstrap/chain/ladder/init.c:30`, `forth-bootstrap/kernel/k1/run-chain.sh:59`). A Linux version banner alone shows kernel execution. The init lines additionally show that the kernel loaded and ran the chain-built userspace program. Neither is a substitute for archive verification or output pins.
 
 ## Try it
 
-Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and 24 GiB of free host RAM for the guest. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:185`, `forth-bootstrap/README.md:242`). The wrapper defaults to that memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:27`).
+Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and 24 GiB of free host RAM for the guest. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:185`, `forth-bootstrap/README.md:242`). The wrapper defaults to that memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
 
-The command recreates the input and output images under `build-out/k1-direct-linux` and writes `serial.log` there. Preserve earlier results before starting; the output disk is replaced (`forth-bootstrap/kernel/k1/run-chain.sh:27`, `forth-bootstrap/kernel/k1/run-chain.sh:37`).
+The command recreates the input and output images under `build-out/k1-direct-linux` and writes `serial.log` there. Preserve earlier results before starting; the output disk is replaced (`forth-bootstrap/kernel/k1/run-chain.sh:28`, `forth-bootstrap/kernel/k1/run-chain.sh:38`).
 
 <!-- check-tryit: the runner only executes selected seed-forth pipe examples in a scratch tree; this guest needs pinned archives, kernel/ and vendor/, QEMU with KVM, 24 GiB guest RAM and over an hour. -->
 <!-- tryit: skip -->
