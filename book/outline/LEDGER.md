@@ -1159,6 +1159,13 @@ Preprocessor | 28 The preprocessor | idea; The built-in macros and the pass driv
 `tk-str` | 29 The lexer | compiler word (constant, `cc/050-cc-lex.fth`); Token kinds and punctuation IDs
 Keyword table | 29 The lexer | idea; The keyword table
 Putback, mark and reset | 29 The lexer | idea; The parser's interface: putback, mark and reset
+Compact type encoding | 30 Types and symbols | base kind and pointer depth packed into one type word
+Array node | 30 Types and symbols | element type, dimensions, size, alignment and qualifiers kept beside the type
+Integer literal classification | 30 Types and symbols | suffix, spelling and magnitude select an integer literal's type
+Struct descriptor | 30 Types and symbols | a stable 56-byte header pointing to a separately allocated, growable field table
+Symbol table | 30 Types and symbols | parallel columns of name, kind, type and payload for each live declaration
+Field qualification | 30 Types and symbols | the newest matching list entry supplies a field's qualifiers
+Scope stack | 30 Types and symbols | saved symbol counts mark the rows removed and unlinked on scope exit
 Token kinds | 29 The lexer | idea; Token kinds and punctuation IDs
 Token kinds (`KW_*`, `ID`, `PUNCT`, `NUM`, `STR`, `CHR`) | 29 The lexer | concept (C compiler ideas (Part III)); introduced in old Ch 23
 `cc-ad-align` | 30 Types and symbols | compiler word (`cc/060-cc-types.fth`); The one-word type encoding
