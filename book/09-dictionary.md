@@ -1,6 +1,14 @@
 # Chapter 9 — The dictionary and token reader
 
-When the seed reads the name `dup`, it walks a linked list of word headers until a name matches, then runs the code behind it. The dictionary puts a linked header before each word's instructions, and the token reader supplies the names to search for. Together they let you trace that search, execute its result, and use the allocation cursor to store a cell.
+`dup` arrives as three bytes of input, but the processor needs an
+instruction address. The token reader supplies the name; dictionary
+lookup follows a chain of headers until it finds a match. The match
+yields the address of the word's code, which `execute` can run.
+
+The header and code are different places in memory. We will follow that
+distinction through lookup and execution, then use the allocation cursor
+to append a cell. Appending data and adding a searchable word are different
+operations; the checkpoint will let us see why.
 
 ## The header layout
 
@@ -31,7 +39,7 @@ That address is the **execution token**, abbreviated **xt**. For a header at add
 <div><code>h + 10</code><strong>Name · 4 bytes</strong><span>66 69 6E 64 = “find”</span></div>
 <div class="diagram-accent"><code>0x400303 · xt</code><strong>Machine instructions begin</strong><span>h + 10 + 4: enter here to execute find.</span></div>
 </div>
-<figcaption id="header-caption">Addresses increase downward. A successful name comparison advances across the four name bytes and arrives at xt. Lookup follows the link to an older header on a mismatch; execution enters the instructions after the name. There is no code-pointer field.</figcaption>
+<figcaption id="header-caption">Addresses increase downward; row heights do not represent byte counts. A successful name comparison advances across the four name bytes and arrives at xt. Lookup follows the link to an older header on a mismatch; execution enters the instructions after the name. There is no code-pointer field.</figcaption>
 </figure>
 
 ## `find_code`: compare, follow, return

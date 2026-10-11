@@ -77,7 +77,21 @@ The integer-only API needs a value free of a relocation symbol. `cc-const-int-ty
 
 ```
 
-Full-range comparisons need `cc-const-slt` and `cc-const-ult`: when sign bits differ, their order is known without subtraction. `cc-const-format` returns the storage size; `cc-const-signed-min` constructs the signed lower bound from that size (`forth-bootstrap/cc/125-cc-consteval.fth:36`):
+These helpers compute with the Forth machine's 64-bit cells. The library's
+`<` tests the sign of a wrapping subtraction. That is not enough for
+full-range constants: the smallest signed cell, −2^63, is less than 1,
+but subtracting 1 wraps to the largest positive cell.
+
+`cc-const-slt` and `cc-const-ult` first ask whether the operands' high bits
+differ. If they do, signed comparison treats the operand with its high bit
+set as smaller; unsigned comparison treats it as larger. If the high bits
+match, their difference fits the signed cell range, so the existing
+subtraction-based comparison is safe. This is why the two helpers select
+opposite operands in their differing-high-bit branches.
+
+`cc-const-format` returns the storage size; `cc-const-signed-min`
+constructs the signed lower bound from that size
+(`forth-bootstrap/cc/125-cc-consteval.fth:36`):
 
 ```forth file=cc/125-cc-consteval.fth
 \ 010's subtraction comparison is sufficient for compiler offsets, but

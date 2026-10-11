@@ -158,20 +158,21 @@ main details > :last-child { margin-bottom: 0.6rem; }
 
 /* Mechanism diagrams: native text stays selectable and reflows on phones. */
 main .mechanism {
+    container: mechanism / inline-size;
     margin: 2.6rem 0; padding: 2rem;
     border: 1px solid var(--book-rule); border-radius: 6px;
     font-family: var(--book-ui); font-size: 1.4rem; line-height: 1.55;
     background: var(--bg);
 }
 .mechanism-title { font-size: 1.65rem; font-weight: 700; margin-bottom: 1.6rem; }
-.diagram-label { display: block; color: var(--book-muted); font-size: 1.15rem; font-weight: 600; margin-bottom: .6rem; }
+.diagram-label { display: block; color: var(--book-muted); font-size: 1.3rem; font-weight: 600; margin-bottom: .6rem; }
 main .diagram-flow { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 2.4rem; }
 .diagram-flow li { position: relative; padding: 1.3rem; border: 1px solid var(--book-rule); border-radius: 4px; }
 .diagram-flow li > strong, .diagram-flow li > span { display: block; }
 .diagram-flow li > strong { margin-bottom: .6rem; }
 .diagram-flow li:not(:last-child)::after { content: '↓'; position: absolute; left: calc(50% - .5rem); bottom: -2.4rem; color: var(--links); font-size: 1.8rem; }
 /* Keep each causal sequence unambiguous: one column, no serpentine reading. */
-main .diagram-flow { grid-template-columns: 1fr; max-width: 48rem; margin-inline: auto; }
+main .diagram-flow { max-width: 48rem; margin-inline: auto; }
 .diagram-accent { background: var(--quote-bg); border-color: var(--quote-border) !important; }
 .diagram-result { padding: 1.2rem 1.4rem; margin-top: 1.6rem; border-left: 3px solid var(--quote-border); background: var(--book-panel); }
 .byte-track { display: grid; grid-template-columns: 1fr 1.5fr 1.5fr 1fr; gap: .4rem; }
@@ -182,23 +183,29 @@ main .diagram-flow { grid-template-columns: 1fr; max-width: 48rem; margin-inline
 .diagram-routes > div { border: 1px solid var(--book-rule); border-radius: 4px; padding: 1.3rem; }
 .diagram-routes strong, .diagram-routes span { display: block; }
 .diagram-route { margin: 1rem 0; font-size: 1.25rem; overflow-wrap: anywhere; }
-.diagram-merge { text-align: center; color: var(--links); font-size: 2.4rem; }
-.diagram-merge + .diagram-result { margin-top: 0; text-align: center; }
+/* Each alias keeps its destination inside its own route, even when stacked. */
+.diagram-aliases > div { display: flex; flex-direction: column; }
+.diagram-endpoint { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--book-rule); }
 main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top: 1px solid var(--book-rule); font-size: 1.25rem; color: var(--book-muted); }
 @media (max-width: 600px) {
     main .mechanism { padding: 1.4rem; }
     .byte-track, .diagram-routes { grid-template-columns: 1fr; }
-    .diagram-routes > div::after { content: '↓ same physical byte'; display: block; margin-top: 1rem; color: var(--links); }
-    .diagram-merge { display: none; }
-    .diagram-merge + .diagram-result { margin-top: 1rem; }
 }
 @media print {
-    main .mechanism { font-size: 9pt; background: white; padding: 12pt; }
+    main .mechanism { font-size: 9pt; background: white; color: #111; padding: 12pt; border-color: #aaa; break-inside: avoid; }
+    .mechanism .diagram-accent, .mechanism .diagram-result { border-color: #777 !important; }
+    .mechanism .diagram-flow li::after { color: #111; }
+    .mechanism-title { break-after: avoid; }
+    .mechanism figcaption { break-before: avoid; }
     .mechanism-title { font-size: 12pt; }
     .diagram-label, main .mechanism figcaption { color: black; font-size: 8pt; }
     .diagram-flow li, .diagram-routes > div, .byte-track > div { break-inside: avoid; }
     .diagram-accent, .diagram-result { background: white; }
 }
+/* A cached register is deliberately outside the memory-row grid. */
+.stack-register { border: 2px solid var(--quote-border); border-radius: 6px; padding: 1rem; margin: .7rem 0 1.8rem; }
+.stack-register > code { display: block; }
+.stack-memory { border-top: 1px solid var(--book-rule); padding-top: 1rem; }
 .memory-cell { display: grid; grid-template-columns: minmax(8rem, 1fr) 2fr; gap: 1rem; border: 1px solid var(--book-rule); padding: .8rem; margin: .7rem 0; }
 .memory-map { border: 1px solid var(--book-rule); }
 .memory-map > div { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem 1.2rem; padding: 1.2rem; border-bottom: 1px solid var(--book-rule); }
@@ -207,7 +214,23 @@ main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top
 @media (max-width: 600px) {
     .memory-map > div { grid-template-columns: 1fr; }
     .memory-map > div > span { grid-column: 1; }
-    /* Parallel stack panels describe storage, not converging address routes. */
-    .diagram-routes:has(.memory-cell) > div::after { display: none; }
 }
-@media print { .memory-map > div, .memory-cell { break-inside: avoid; } }
+@media print { .memory-map > div, .memory-cell, .stack-register, .stack-memory { break-inside: avoid; } }
+
+/* Field positions stay aligned across argument and return registers. */
+.diagram-registers { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin: .5rem 0 1rem; }
+.diagram-registers > span { padding: .7rem; border-left: 2px solid var(--quote-border); }
+.diagram-registers code, .diagram-registers strong { display: block; }
+.diagram-registers strong { margin-top: .4rem; }
+.diagram-comparisons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.8rem; border-top: 1px solid var(--book-rule); padding-top: 1.4rem; }
+.diagram-comparisons > div { padding: 1rem; border-left: 3px solid var(--quote-border); background: var(--book-panel); }
+@container mechanism (min-width: 640px) {
+    main .diagram-generations { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2rem; max-width: none; }
+    .diagram-generations li { padding: 1rem; }
+    .diagram-generations li:not(:last-child)::after { content: '→'; left: auto; right: -1.8rem; bottom: auto; top: calc(50% - 1.4rem); }
+}
+@media (max-width: 600px) { .diagram-comparisons { grid-template-columns: 1fr; } }
+@media print {
+    .diagram-comparisons > div { background: white; border-color: #777; break-inside: avoid; }
+    .diagram-registers > span { border-color: #777; }
+}

@@ -181,25 +181,19 @@ An instruction uses a **virtual address**; paging translates it to a **physical 
 
 `P2V(0x201234)` gives `0xFFFF800000201234`; `V2P` subtracts `KBASE` to recover `0x201234`. These macros only calculate addresses. The page tables must make both this high address and the low identity address `0x201234` reach the same physical byte.
 
-<figure class="mechanism" aria-labelledby="alias-caption">
-<div class="mechanism-title">Two routes to the same physical byte</div>
-<div class="diagram-routes">
-<div><span class="diagram-label">Low identity address</span><strong><code>0x201234</code></strong><span class="diagram-route">pml4[0] → pdpt_low[0] → pd_low[1]</span><span>2 MiB leaf: base 0x200000 + offset 0x1234</span></div>
-<div><span class="diagram-label">High direct-map address</span><strong><code>0xFFFF800000201234</code></strong><span class="diagram-route">pml4[256] → pdpt_dm[0]</span><span>1 GiB leaf: base 0 + offset 0x201234</span></div>
-</div>
-<div class="diagram-merge" aria-hidden="true">↓ &nbsp; ↓</div>
-<div class="diagram-result diagram-accent"><strong>Physical byte 0x201234</strong><br>One location in RAM, accessible through either virtual address.</div>
-<figcaption id="alias-caption">These are two distinct page-table walks. P2V and V2P only perform address arithmetic; the mappings make the aliases work. The different leaf sizes explain why the high route stops one level earlier.</figcaption>
-</figure>
-
 For the listing below, read **PML4** (page-map level 4) as the root table, **PDPT** (page-directory-pointer table) as the next table, and **PD** as a page directory. An entry either stores the physical address of the next table or ends the walk at a **leaf**, giving the physical base of a mapped region. In these entries, `3` sets present and writable; `0x83` also sets the large-page bit. A large leaf at PDPT level covers 1 GiB; at PD level it covers 2 MiB. Thus the allocator's `PAGE = 4096` does not make every mapping 4 KiB. The hardware formats are specified in [Intel's system programming manual, §4.5](https://cdrdv2-public.intel.com/819714/253668-sdm-vol-3a.pdf); K1 names these flag bits in `mm.c` (`forth-bootstrap/kernel/k1/mm.c:195`).
 
 Here is a manual translation trace through the tables this code constructs, not an executed memory read (`forth-bootstrap/kernel/k1/main.c:314`):
 
-| Virtual byte address | Selected entries | Leaf base + byte offset → physical address |
-|---|---|---|
-| `0x201234` | `pml4[0]` → `pdpt_low[0]` → `pd_low[1]` | `0x200000 + 0x1234 = 0x201234` |
-| `0xFFFF800000201234` | `pml4[256]` → `pdpt_dm[0]` | `0 + 0x201234 = 0x201234` |
+<figure class="mechanism" aria-labelledby="alias-caption">
+<div class="mechanism-title">Two routes to the same physical byte</div>
+<div class="diagram-routes diagram-aliases">
+<div><span class="diagram-label">Low identity address</span><strong><code>0x201234</code></strong><span class="diagram-route">pml4[0] → pdpt_low[0] → pd_low[1]</span><span>2 MiB leaf: base 0x200000 + offset 0x1234</span><div class="diagram-endpoint"><span class="diagram-label">Translates to</span><strong>Physical byte <code>0x201234</code></strong></div></div>
+<div><span class="diagram-label">High direct-map address</span><strong><code>0xFFFF800000201234</code></strong><span class="diagram-route">pml4[256] → pdpt_dm[0]</span><span>1 GiB leaf: base 0 + offset 0x201234</span><div class="diagram-endpoint"><span class="diagram-label">Translates to</span><strong>Physical byte <code>0x201234</code></strong></div></div>
+</div>
+<div class="diagram-result diagram-accent"><strong>Same RAM location · supervisor-only access</strong><br>The two endpoints name one physical byte, not two copies.</div>
+<figcaption id="alias-caption">These are two distinct page-table walks. P2V and V2P only perform address arithmetic; the mappings make the aliases work. The different leaf sizes explain why the high route stops one level earlier.</figcaption>
+</figure>
 
 Both flag values leave the user-access bit (`4`) clear. These mappings are **supervisor-only**: K1's privileged kernel code can use them; a restricted user process cannot read or write them merely by choosing the same address. Sharing the upper map therefore does not grant user access ([Intel, §4.6](https://cdrdv2-public.intel.com/819714/253668-sdm-vol-3a.pdf)).
 

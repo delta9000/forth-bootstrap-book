@@ -12,25 +12,18 @@ The first GCC executable is already useful: it can compile C programs.
 But its bytes reflect the Forth compiler that built it. Rebuilding the
 same source with GCC gives us a different construction path. Repeating
 that path lets us compare generations that share a compiler implementation.
-Keep these four roles separate while reading the recipes:
-
-| Generation being built | Compiler that builds it | Comparison role |
-|---|---|---|
-| Stage C GCC | `seed-cc` driving the Forth compiler | First GCC executable |
-| Stage 2 | Stage C GCC | First generation produced by GCC |
-| Stage 3 | Stage 2 GCC | Compared with Stage 2 and Stage 4 |
-| Stage 4 | Stage 3 GCC | Tests whether Stage 3 reproduces its installation |
+Follow the builder named above each generation; the two comparison pairs are shown below the chain:
 
 <figure class="mechanism" aria-labelledby="generation-caption">
 <div class="mechanism-title">Who builds each generation?</div>
-<ol class="diagram-flow">
+<ol class="diagram-flow diagram-generations">
 <li><span class="diagram-label">Built by seed-cc / Forth</span><strong>Stage C GCC</strong><span>The first GCC executable.</span></li>
 <li class="diagram-accent"><span class="diagram-label">Built by Stage C GCC</span><strong>Stage 2 GCC</strong><span>First GCC-built generation.</span></li>
-<li class="diagram-accent"><span class="diagram-label">Built by Stage 2 GCC</span><strong>Stage 3 GCC</strong><span>Compare its installation with Stage 2.</span></li>
-<li class="diagram-accent"><span class="diagram-label">Built by Stage 3 GCC</span><strong>Stage 4 GCC</strong><span>Compare its installation with Stage 3.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Built by Stage 2 GCC</span><strong>Stage 3 GCC</strong><span>Another GCC-built generation.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Built by Stage 3 GCC</span><strong>Stage 4 GCC</strong><span>Tests reproduction by Stage 3.</span></li>
 </ol>
-<div class="diagram-result"><strong>Two comparisons must pass:</strong> Stage 2 ↔ Stage 3 and Stage 3 ↔ Stage 4.</div>
-<figcaption id="generation-caption">Arrows mean “builds the next generation,” not “has identical bytes.” The comparison checks the installed files selected by Stage D; the archive qualifications below still apply. A fixed point establishes reproduction, not correctness.</figcaption>
+<div class="diagram-comparisons"><div><span class="diagram-label">Comparison A · stability appears</span><strong>Stage 2 ↔ Stage 3</strong></div><div><span class="diagram-label">Comparison B · stability persists</span><strong>Stage 3 ↔ Stage 4</strong></div></div>
+<figcaption id="generation-caption">Read the build chain left to right, or downward on a phone. Its arrows mean “builds the next generation.” Both comparison pairs must pass. They check the installed files selected by Stage D, with the archive qualifications described below. A fixed point establishes reproduction, not correctness.</figcaption>
 </figure>
 
 Stage 3 versus Stage 4 tests reproduction by GCC-built GCC. Stage 2 versus
@@ -134,7 +127,16 @@ come later.
 
 ## Let the Makefile select cc1
 
-A compiler census asks the configured Makefile which objects belong to the compiler, rather than maintaining a second source list. First the census builds libiberty. Then it adds a tiny print target to the existing Makefile, preserving the upstream selection and dependencies (`forth-bootstrap/chain/gcc-direct/census.sh:59`):
+Which object files must we build to obtain `cc1`? The answer depends on
+GCC's configuration. A handwritten list would duplicate a decision already
+recorded in the configured Makefile and could drift away from it. The
+build therefore asks that Makefile for the object list used by the
+**compiler census**.
+
+The census first builds libiberty, then supplies a small additional make
+target that prints the selected object names. The upstream Makefile still
+determines the objects and their dependencies
+(`forth-bootstrap/chain/gcc-direct/census.sh:59`):
 
 ```sh
 started=$(date +%s)

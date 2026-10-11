@@ -102,14 +102,16 @@ of finitely many inputs can be expressed using NAND, with inputs
 copied and reused as needed. Self-NAND supplies NOT; canceling a NAND's
 complement supplies AND; De Morgan's law supplies OR.
 
-To see why those operations suffice, start with any truth table. For
-each row whose result is true, form an AND of its input conditions:
-use an input directly where that row requires true, and its complement
-where the row requires false. That term is true only for that row.
-OR all such terms together to reproduce the table. An always-false
-result can be written as an input AND its complement. Replacing each
-NOT, AND, and OR with its NAND construction leaves NAND alone as the
-logical operation.
+Start with one row of a truth table. If that row requires `a` to be true
+and `b` to be false, the Boolean expression `a AND NOT b` is true only for
+that combination. With more inputs, AND together each required input or
+its complement to recognize exactly one row.
+
+Now build one such term for every row whose result should be true, and
+OR those terms together. The result matches the whole table. If no row
+should be true, use an input AND its complement, which is always false.
+Finally, replace every NOT, AND and OR with the NAND constructions above.
+NAND is the only logical operation left.
 
 This is a statement about expressive power. It does not promise that
 every construction is equally short or equally fast.

@@ -1949,7 +1949,18 @@ A tail token already marked unavailable must stay unexpanded even after its defi
 
 ```
 
-Normal identifier lookup also preserves unavailable tokens. For `#define gen_lowpart rtl_hooks.gen_lowpart`, the copied member name must retain its suppression mark across an enclosing macro's rescan (`forth-bootstrap/cc/040-cc-prep.fth:1431`):
+The busy flag and an unavailable-token mark have different lifetimes.
+Consider `#define gen_lowpart rtl_hooks.gen_lowpart` in direct mode.
+While expanding `gen_lowpart`, the walker reaches the same name after
+`rtl_hooks.`. The busy flag stops that inner occurrence from expanding,
+so the walker copies it and marks it unavailable.
+
+When this expansion finishes, the macro's busy flag clears. An enclosing
+macro can still rescan the copied text. Without the retained mark, that
+rescan could expand the member name again: its spelling alone does not
+record why it was copied. `cc-pp-ident-work` checks the mark before macro
+lookup, preserving that decision while leaving the C text unchanged
+(`forth-bootstrap/cc/040-cc-prep.fth:1431`):
 
 ```forth file=cc/040-cc-prep.fth
 \ cc-pp-ident ( -- )  pos is at an identifier.  Replace it if it names a
