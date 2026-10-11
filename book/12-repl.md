@@ -293,3 +293,16 @@ exit status: 2
 - **Trace (moderate).** Move the stack reload in the miss path before
   `report_token` on paper. Explain why the reordered path fails to preserve
   the prior stack top.
+
+<details>
+<summary>Self-check: the reordered miss path</summary>
+
+The miss leaves `0` in `rdi` and the older top at `[rbp]`. Reloading it
+before the call is too early: `report_token` sets `edi` to `1` for
+stdout, overwriting the whole cached top. Advancing `rbp` restores the
+stack depth, but cannot recover that value. The original order reports
+first, then reloads `[rbp]` and advances `rbp`, preserving the older top
+(`forth-bootstrap/seed/000-seed.hex0:468–476`,
+`forth-bootstrap/seed/000-seed.hex0:672–676`).
+
+</details>

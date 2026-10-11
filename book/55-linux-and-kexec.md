@@ -291,6 +291,11 @@ The small `kexec` program issues the reboot syscall with the KEXEC command. K1 d
 
 ## Prepare the Linux entry state
 
+The external contract is documented in the
+[Linux/x86 boot protocol](https://docs.kernel.org/arch/x86/boot.html),
+including the setup header and the 64-bit entry requirements. The next
+steps show how K1 prepares that handoff.
+
 A bzImage is not an ELF program for K1's process loader. `boot_linux` reads the setup header, checks its signature and accepts only a protocol with the required long-mode entry. It finds the protected-mode payload after the setup area, in `linux.c` (`forth-bootstrap/kernel/k1/linux.c:41`):
 
 ```c

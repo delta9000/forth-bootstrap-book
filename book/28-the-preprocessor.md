@@ -1507,6 +1507,40 @@ variable cc-pp-sub-n
 
 ```
 
+Before following the direct-profile branches, give each operation a C
+input. In a preprocessing driver, set `true cc-prep-direct !` before
+`cc-preprocess` to select this policy. The legacy checkpoint at the end
+of this chapter keeps its existing policy and does not test these operators.
+
+```c
+#define ROWS 4
+#define ID(x) x
+#define STR(x) #x
+#define JOIN(a,b) a##b
+ID(ROWS)
+STR(ROWS)
+JOIN(RO,WS)
+JOIN(ROWS,ROWS)
+```
+
+`#x` turns an argument's raw spelling into one string-literal token;
+`a##b` joins the neighboring raw spellings before the replacement is
+rescanned. Ordinary `x` uses its expanded argument instead:
+
+| Invocation | Spelling selected for substitution | Replacement and rescan | Final token |
+|---|---|---|---|
+| `ID(ROWS)` | Expanded `4`, from raw `ROWS` | `4` needs no further expansion | `4` |
+| `STR(ROWS)` | Raw `ROWS`; no argument prescan | Stringification makes `"ROWS"`, whose contents are not macro-expanded | `"ROWS"` |
+| `JOIN(RO,WS)` | Raw `RO` and `WS` | Pasting makes `ROWS`; rescanning finds its definition | `4` |
+| `JOIN(ROWS,ROWS)` | Raw `ROWS` and `ROWS` | Pasting makes the undefined identifier `ROWSROWS` | `ROWSROWS` |
+
+These are the token results observed with the direct-profile driver, not
+an exact whitespace transcript. The emitted stream also contains blank
+lines for the directives and separator spaces around replacements. Those
+spaces separate tokens; they are not part of the string token's contents.
+The last two calls expose the order: a pasted name can expand afterward,
+but its operands do not first become `4`, so the last result is not `44`.
+
 ### Stringification
 
 Our legacy `SQUARE` uses the expanded record at both parameter positions.

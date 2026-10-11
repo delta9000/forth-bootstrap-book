@@ -365,7 +365,7 @@ Each row gives the numbered call sites and the containing words. Read the meanin
 | 227 | `forth-bootstrap/cc/129-cc-bitfield.fth:189` | `cc-bf-initializer` → `cc-die` | Braced scalar initializer lacks `}`. | [Chapter 48](48-bitfields.md) |
 | 238 | `forth-bootstrap/cc/129-cc-bitfield.fth:91` | `cc-bf-member` → `cc-die` | Nested array member has no positive outer bound. | [Chapter 48](48-bitfields.md) |
 | 245 | `forth-bootstrap/cc/129-cc-bitfield.fth:86` | `cc-bf-layout-check` → `cc-die` | Record object size limit exceeded. | [Chapter 48](48-bitfields.md) |
-| 248 | `forth-bootstrap/cc/129-cc-bitfield.fth:9` | `cc-bf-die` → `cc-die` | Unsupported bitfield type, width, or named zero-width field. | [Chapter 48](48-bitfields.md) |
+| 248 | `forth-bootstrap/cc/129-cc-bitfield.fth:9` | `cc-bf-die` → `cc-die` | Unsupported bitfield type, width, or named zero-width field; also taking a bitfield's address or applying `sizeof` to a bitfield expression. | [Chapter 48](48-bitfields.md) |
 
 ### 131-cc-aggregate-abi.fth
 

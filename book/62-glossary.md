@@ -446,7 +446,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Compiler climb** — Successive chain-built compilers supply the language and target support needed to build Linux. The C-only predecessor builds a C/C++ compiler, providing the C++ builder for the next GCC. [Chapter 55](55-linux-and-kexec.md#climb-to-the-linux-compiler).
 
-**Compiler driver stream** — Each compilation's input is the compiler layers, a fixed driver and one C source. [Chapter 50](50-seed-cc-fixed-point.md).
+**Compiler driver stream** — A compilation's input stream combines the compiler layers, a Forth driver prepared for that invocation, and one C source. [Chapter 50](50-seed-cc-fixed-point.md).
 
 **Compiler fixed point** — Successive generations agree under the stated installed-output comparator. This route compares bytes first, then permits archive-container differences under the bounded **Archive member comparison** above. [Chapter 52](52-gcc-4-fixed-point.md).
 

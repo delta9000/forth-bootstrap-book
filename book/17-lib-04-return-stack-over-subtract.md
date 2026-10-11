@@ -153,3 +153,12 @@ Observed output:
 its final `swap` omitted. Give the altered stack effect and explain
 why restoring the borrowed return-stack slot alone does not establish
 `over`'s contract.
+
+<details>
+<summary>Self-check: omit the final swap</summary>
+
+After `>r dup r>`, the effect is `( a b -- a a b )`: the borrowed
+return-stack slot is restored, but the copied `a` is below `b` rather
+than on top. Return-stack balance and operand order are separate checks.
+
+</details>
