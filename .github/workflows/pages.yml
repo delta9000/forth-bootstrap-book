@@ -25,6 +25,9 @@ jobs:
         run: |
           git -C forth-bootstrap submodule update --init vendor/stage0-posix
           git -C forth-bootstrap/vendor/stage0-posix submodule update --init bootstrap-seeds
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Validate source, regressions and selected checkpoints
         run: |
           set -o pipefail
@@ -40,6 +43,8 @@ jobs:
         run: mdbook build
       - name: Validate rendered links and anchors
         run: python3 tools/check-links.py --html docs
+      - name: Validate rendered Forth highlighting
+        run: python3 tools/check-highlighting.py --html docs
       - name: Package the offline reading edition
         run: python3 tools/package-book.py
       - uses: actions/upload-artifact@v4

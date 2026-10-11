@@ -65,12 +65,14 @@ that source check:
 ./check.sh --static
 mdbook build                            # mdBook 0.5.4; writes docs/
 python3 tools/check-links.py --html docs
+python3 tools/check-highlighting.py --html docs
 python3 tools/package-book.py            # Python 3.11+; writes the offline ZIP
 ```
 
 `./check.sh` checks against the `forth-bootstrap` submodule, or against
 another checkout named by `FORTH_BOOTSTRAP=/path/to/forth-bootstrap`. It
-needs Bash, Python 3.11 or newer, coreutils and awk; selected seed-pipeline examples
+needs Bash, Python 3.11 or newer, Node.js 22 or newer, coreutils and awk;
+selected seed-pipeline examples
 run `seed-forth`, which `check.sh` builds first using its pinned vendored
 hex0-seed. The checker reports executed, skipped and unselected blocks;
 it does not run every shell checkpoint or verify every displayed
@@ -82,6 +84,16 @@ without executing the seed. Use the full check and the affected chapter's
 checkpoint when changing examples. The
 [editorial notes](book/65-editorial-notes.md) explain source fidelity,
 chapter conventions, and evidence to retain.
+
+Forth listings use the pinned seed's own token rules: definition names,
+comma-suffixed control words, `[lit]` decimal operands, character/string
+operands, and comments have distinct styles. The local highlighter preserves
+copied source, supports all five reading themes, and needs no network. Its
+contrast and DOM tests run in `./check.sh`; the rendered-asset check above
+also executes mdBook's bundled highlighting setup before testing the Forth
+extension. These automated checks do not replace browser or screen-reader QA.
+The [highlighter notes](theme/README.md) describe the supported dialect and
+excerpt-context limits.
 
 The offline edition is `dist/forth-bootstrap-book.zip`. Extract it and
 open `forth-bootstrap-book/index.html`; fonts, search, and reading assets

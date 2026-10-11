@@ -16,8 +16,8 @@ preferred-dark-theme = "coal"
 mathjax-support = false
 no-section-label = true
 git-repository-url = "https://github.com/delta9000/forth-bootstrap-book"
-additional-css = ["theme/reader.css"]
-additional-js = ["theme/reader.js"]
+additional-css = ["theme/reader.css", "theme/forth-highlight.css"]
+additional-js = ["theme/forth-highlight.js", "theme/reader.js"]
 
 [output.html.fold]
 enable = true
