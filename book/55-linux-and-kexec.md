@@ -108,7 +108,18 @@ def k1_tree(smoke, linux=False):
 
 `_files` rejects absent files and symlinks; it checks availability and file type, not their digests (`forth-bootstrap/kernel/k1/direct_inputs.py:404`). The host image writer copies this inventory onto hda, marking hex0-seed as the initial tree's only executable (`forth-bootstrap/kernel/k1/mkdisk.py:23`).
 
-Archive integrity is a separate check. The host prerequisite `tools/fetch-archives.py` accepts cached archives only when their SHA-256 matches the manifest and rejects downloaded bytes with the wrong digest (`forth-bootstrap/tools/fetch-archives.py:146`, `forth-bootstrap/tools/fetch-archives.py:181`). Within the compiler climb, `need` checks cached inputs against `chain/gcc64/SOURCES` before use (`forth-bootstrap/chain/gcc64/run-gcc64.sh:182`). Linux's build script uses `MANIFEST.sha256` instead. Its `unpack` function verifies the archive before extraction (`forth-bootstrap/chain/ladder/stage12.sh:27`):
+An archive can be present on hda and still contain the wrong bytes. The
+inventory checks availability; digest checks establish whether those
+bytes match the pinned input.
+
+On the host, `tools/fetch-archives.py` checks cached and downloaded archives
+against `MANIFEST.sha256` (`forth-bootstrap/tools/fetch-archives.py:146`,
+`forth-bootstrap/tools/fetch-archives.py:181`). Inside the guest, the
+compiler climb's `need` checks cached inputs against `chain/gcc64/SOURCES`
+before using them (`forth-bootstrap/chain/gcc64/run-gcc64.sh:182`). The
+Linux recipe checks against `MANIFEST.sha256` instead. Its `unpack`
+function puts that check before extraction
+(`forth-bootstrap/chain/ladder/stage12.sh:27`):
 
 ```text
 unpack() {

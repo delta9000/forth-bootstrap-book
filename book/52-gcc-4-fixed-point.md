@@ -127,7 +127,16 @@ come later.
 
 ## Let the Makefile select cc1
 
-A compiler census asks the configured Makefile which objects belong to the compiler, rather than maintaining a second source list. First the census builds libiberty. Then it adds a tiny print target to the existing Makefile, preserving the upstream selection and dependencies (`forth-bootstrap/chain/gcc-direct/census.sh:59`):
+Which object files must we build to obtain `cc1`? The answer depends on
+GCC's configuration. A handwritten list would duplicate a decision already
+recorded in the configured Makefile and could drift away from it. The
+build therefore asks that Makefile for the object list used by the
+**compiler census**.
+
+The census first builds libiberty, then supplies a small additional make
+target that prints the selected object names. The upstream Makefile still
+determines the objects and their dependencies
+(`forth-bootstrap/chain/gcc-direct/census.sh:59`):
 
 ```sh
 started=$(date +%s)
