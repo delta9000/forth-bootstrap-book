@@ -438,7 +438,20 @@ Bitwise-or accepts a complete exclusive-or operand (`forth-bootstrap/cc/100-cc-e
 
 ## Short-circuit `&&` and `||`
 
-A logical operator must sometimes skip its right operand at runtime. Both sides are still parsed and emitted. Conditional branches determine whether the resulting program executes the right side.
+The ordinary binary fold obtains both operand values before combining
+them. That works for addition, but consider `n != 0 && 9 / n > 1`.
+With `n` equal to zero, the left comparison already determines a false
+result; applying the same eager fold would nevertheless divide by zero.
+The right operand must therefore sit behind a branch that the left
+operand controls.
+
+Both sides are still parsed and emitted. After emitting the left test,
+the parser reserves a jump to the false-result path, then compiles the
+right operand. Once that path's position is known, it patches the jump.
+At runtime, zero `n` skips the division and produces 0; with `n` equal
+to 3, execution reaches the division and the whole expression produces 1.
+These are predictions from the branch layout below. Skipping runtime
+execution does not let the compiler ignore malformed right-hand syntax.
 
 The conjunction sketch directs either false operand to a shared false-result path (`forth-bootstrap/cc/100-cc-expr.fth:2052`):
 

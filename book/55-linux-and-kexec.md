@@ -83,7 +83,22 @@ mkdir -p /usr
 [ -e /usr/bin ] || ln -s ../build-out/plumbing/bin /usr/bin
 ```
 
-That script checks the stage-D report before building the late tools, then removes source and build trees that the remaining route does not read (`forth-bootstrap/kernel/k1/direct-full.sh:29`). `stage10-direct.sh` replaces the plumbing links with directories containing the late tools and makes `/bin/sh` point to their bash (`forth-bootstrap/chain/ladder/stage10-direct.sh:11`). Thus later scripts' system paths still name programs built inside K1.
+That script checks the stage-D report before building the late tools,
+then removes source and build trees that the remaining route does not
+read (`forth-bootstrap/kernel/k1/direct-full.sh:29`). This cleanup has a
+resource purpose: K1 holds regular-file contents in RAM, where they
+compete with the next compiler's process memory
+(`forth-bootstrap/kernel/k1/README.md:130–160`). The script keeps Stage D's
+compiler prefix, Stage C's toolchain and sysroot, the installed late tools,
+and the route's reports and logs (`forth-bootstrap/kernel/k1/direct-full.sh:35`).
+The next compiler climb still uses that GCC and copies that sysroot
+(`forth-bootstrap/chain/gcc64/run-gcc64.sh:267–292`). Space is recovered
+after the temporary trees' last use, while the next build's inputs survive.
+
+`stage10-direct.sh` replaces the plumbing links with directories containing
+the late tools and makes `/bin/sh` point to their bash
+(`forth-bootstrap/chain/ladder/stage10-direct.sh:11`). Thus later scripts'
+system paths still name programs built inside K1.
 
 ## Carry inputs, check bytes
 
@@ -329,6 +344,13 @@ state, and from that state to a running system.
 ## Try it
 
 Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and room on the host for a 24 GiB guest plus QEMU's own overhead. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:182`, `forth-bootstrap/README.md:239`). The wrapper defaults to that guest memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
+
+The 24 GiB figure is a recorded successful configuration, not a measured
+peak or a demonstrated minimum. Budget for retained file pages, running
+programs and kernel allocations together. The separate 4 GiB output disk
+stores the exported results; it does not enlarge K1's RAM filesystem
+(`forth-bootstrap/kernel/k1/run-chain.sh:38–39`,
+`forth-bootstrap/kernel/k1/README.md:154–164`).
 
 The command recreates the input and output images under `build-out/k1-direct-linux` and writes `serial.log` there. Preserve earlier results before starting; the output disk is replaced (`forth-bootstrap/kernel/k1/run-chain.sh:28`, `forth-bootstrap/kernel/k1/run-chain.sh:38`).
 

@@ -1,5 +1,13 @@
 # Chapter 40 — Objects and relocations
 
+Chapter 37's forward-call list works because `add`'s body appears later
+in the same compilation. Now suppose we compile the caller separately,
+leaving only `add`'s prototype beside `main` and its body in another file.
+Reading to the caller's end cannot discover that address; the core
+undefined-function check rejects the remaining reference
+(`forth-bootstrap/cc/116-cc-prog.fth:848–884`). We need to preserve the
+unfinished patch beyond the compiler's own lifetime.
+
 A relocatable object can name a function whose address is still unknown. The writer stores section bytes, symbol definitions, and instructions for repairing address fields, leaving final placement to a linker. The result is an ELF object that a host inspection tool can read before any executable exists.
 
 ## The interface between compiler and linker
