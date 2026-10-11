@@ -164,14 +164,14 @@ main .mechanism {
     background: var(--bg);
 }
 .mechanism-title { font-size: 1.65rem; font-weight: 700; margin-bottom: 1.6rem; }
-.diagram-label { display: block; color: var(--book-muted); font-size: 1.15rem; font-weight: 600; margin-bottom: .6rem; }
+.diagram-label { display: block; color: var(--book-muted); font-size: 1.3rem; font-weight: 600; margin-bottom: .6rem; }
 main .diagram-flow { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 2.4rem; }
 .diagram-flow li { position: relative; padding: 1.3rem; border: 1px solid var(--book-rule); border-radius: 4px; }
 .diagram-flow li > strong, .diagram-flow li > span { display: block; }
 .diagram-flow li > strong { margin-bottom: .6rem; }
 .diagram-flow li:not(:last-child)::after { content: '↓'; position: absolute; left: calc(50% - .5rem); bottom: -2.4rem; color: var(--links); font-size: 1.8rem; }
 /* Keep each causal sequence unambiguous: one column, no serpentine reading. */
-main .diagram-flow { grid-template-columns: 1fr; max-width: 48rem; margin-inline: auto; }
+main .diagram-flow { max-width: 48rem; margin-inline: auto; }
 .diagram-accent { background: var(--quote-bg); border-color: var(--quote-border) !important; }
 .diagram-result { padding: 1.2rem 1.4rem; margin-top: 1.6rem; border-left: 3px solid var(--quote-border); background: var(--book-panel); }
 .byte-track { display: grid; grid-template-columns: 1fr 1.5fr 1.5fr 1fr; gap: .4rem; }
@@ -188,12 +188,16 @@ main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top
 @media (max-width: 600px) {
     main .mechanism { padding: 1.4rem; }
     .byte-track, .diagram-routes { grid-template-columns: 1fr; }
-    .diagram-routes > div::after { content: '↓ same physical byte'; display: block; margin-top: 1rem; color: var(--links); }
+    .diagram-aliases > div::after { content: '↓ same physical byte'; display: block; margin-top: 1rem; color: var(--links); }
     .diagram-merge { display: none; }
     .diagram-merge + .diagram-result { margin-top: 1rem; }
 }
 @media print {
-    main .mechanism { font-size: 9pt; background: white; padding: 12pt; }
+    main .mechanism { font-size: 9pt; background: white; color: #111; padding: 12pt; border-color: #aaa; }
+    .mechanism .diagram-accent, .mechanism .diagram-result { border-color: #777 !important; }
+    .mechanism .diagram-merge, .mechanism .diagram-flow li::after, .mechanism .diagram-aliases > div::after { color: #111; }
+    .mechanism-title { break-after: avoid; }
+    .mechanism figcaption { break-before: avoid; }
     .mechanism-title { font-size: 12pt; }
     .diagram-label, main .mechanism figcaption { color: black; font-size: 8pt; }
     .diagram-flow li, .diagram-routes > div, .byte-track > div { break-inside: avoid; }
@@ -207,7 +211,5 @@ main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top
 @media (max-width: 600px) {
     .memory-map > div { grid-template-columns: 1fr; }
     .memory-map > div > span { grid-column: 1; }
-    /* Parallel stack panels describe storage, not converging address routes. */
-    .diagram-routes:has(.memory-cell) > div::after { display: none; }
 }
 @media print { .memory-map > div, .memory-cell { break-inside: avoid; } }

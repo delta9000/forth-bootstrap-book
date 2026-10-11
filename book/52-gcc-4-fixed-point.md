@@ -12,14 +12,7 @@ The first GCC executable is already useful: it can compile C programs.
 But its bytes reflect the Forth compiler that built it. Rebuilding the
 same source with GCC gives us a different construction path. Repeating
 that path lets us compare generations that share a compiler implementation.
-Keep these four roles separate while reading the recipes:
-
-| Generation being built | Compiler that builds it | Comparison role |
-|---|---|---|
-| Stage C GCC | `seed-cc` driving the Forth compiler | First GCC executable |
-| Stage 2 | Stage C GCC | First generation produced by GCC |
-| Stage 3 | Stage 2 GCC | Compared with Stage 2 and Stage 4 |
-| Stage 4 | Stage 3 GCC | Tests whether Stage 3 reproduces its installation |
+Follow the builder named above each generation; the two comparison pairs are shown below the chain:
 
 <figure class="mechanism" aria-labelledby="generation-caption">
 <div class="mechanism-title">Who builds each generation?</div>

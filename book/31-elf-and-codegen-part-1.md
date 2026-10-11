@@ -872,8 +872,8 @@ the subtraction base would land one byte too late.
 <div><span class="diagram-label">142–148 · skipped load</span><code>mov rdi, 99</code></div>
 <div class="diagram-accent"><span class="diagram-label">149 · target</span><strong>Continue here</strong></div>
 </div>
-<div class="diagram-equation"><span>Next instruction: <strong>142</strong></span><span aria-hidden="true">＋</span><span>Displacement: <strong>7</strong></span><span aria-hidden="true">＝</span><span>Target: <strong>149</strong></span></div>
-<figcaption id="branch-caption">File offsets in the checkpoint. The patch is stored at 138, but the processor measures the jump from 142, after the complete displacement field. Read the byte sequence from left to right; on narrow screens it continues downward.</figcaption>
+<div class="diagram-equation"><span>End of jump: <strong>142</strong></span><span>+</span><span>Displacement: <strong>7</strong></span><span>=</span><span>Target: <strong>149</strong></span></div>
+<figcaption id="branch-caption">File offsets in the checkpoint; box widths are not to scale. The patch is stored at 138, but the processor measures the jump from 142, after the complete displacement field. Read the byte sequence from left to right; on narrow screens it continues downward.</figcaption>
 </figure>
 
 ## Try it
