@@ -424,6 +424,8 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Unavailable tokens** — Shadow marks keep a macro from re-expanding across rescans. [Chapter 28](28-the-preprocessor.md).
 
+**Unordered comparison** — A floating comparison involving NaN. Neither operand is less than, equal to, or greater than the other; only `!=` is true. The runtime uses PF to distinguish this from ordinary equality. [Chapter 47](47-floats.md#compute-at-the-common-precision).
+
 **Variadic cursor copying** — Copying cursor fields permits independent traversals of the same saved arguments. [Chapter 46](46-varargs.md).
 
 **Variadic register-save area** — Each variadic function invocation saves incoming argument registers in its own frame. [Chapter 46](46-varargs.md).
@@ -442,7 +444,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Compiler census** — A build that asks the configured Makefile which objects belong to `cc1`, compiles those objects with seed-cc, and optionally links them into `cc1`. [Chapter 52](52-gcc-4-fixed-point.md).
 
-**Compiler climb** — Successive chain-built compilers supply the language and target support needed to build Linux. [Chapter 55](55-linux-and-kexec.md).
+**Compiler climb** — Successive chain-built compilers supply the language and target support needed to build Linux. The C-only predecessor builds a C/C++ compiler, providing the C++ builder for the next GCC. [Chapter 55](55-linux-and-kexec.md#climb-to-the-linux-compiler).
 
 **Compiler driver stream** — Each compilation's input is the compiler layers, a fixed driver and one C source. [Chapter 50](50-seed-cc-fixed-point.md).
 

@@ -548,6 +548,9 @@ check cursor independence internally and keep return 36.
 **Hint.** At a tie both adjacent values are equally near; inspect the low
 bit of the retained significand, not the decimal spelling's last digit.
 
+**Comparison hint.** Start from the unordered row. ZF alone cannot
+distinguish it from equality; PF supplies the missing distinction.
+
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
 
@@ -563,6 +566,17 @@ decimal 4607182418800017408. Change the C bit comparison
 and printed/expected bit-pattern labels to that encoding. The comparison
 still returns Boolean 1, so its numeric shell guard remains 1. The addition,
 comparison and unsigned-rounding probes remain 30, 1 and 1 respectively.
+
+**47.3.** With the quiet NaN, `q <= x` yields 0 but `!(q > x)` yields 1.
+Unordered gives ZF=1, PF=1, CF=1. The raw less-or-equal test sees CF-or-ZF
+and produces 1, but the PF-clear mask removes it. Greater-than requires
+CF and ZF both clear, so it produces 0; logical negation then produces 1.
+For 1.0 and 2.0, ZF=0, PF=0, CF=1: less-or-equal survives the orderedness
+mask, and greater-than is false, so both expressions yield 1.
+The finite example alone would miss the bad rewrite. Unorderedness is a
+fourth comparison outcome, so “not greater” need not mean “less or equal.”
+This is runtime reasoning; the chapter's separate constant-operation
+boundary still applies.
 
 </details>
 
@@ -795,6 +809,8 @@ these answer descriptions are not a substitute for them.
 
 **Hint.** Mark each step as production, copying, machine-state preparation,
 or control transfer. Then bound what each success message can establish.
+For the compiler question, separate the incoming `CC`/`CXX` settings
+from the requested output languages.
 
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
@@ -832,6 +848,15 @@ not remove the embedded init.
 A root-scoped pin needs the corresponding root. A skipped check is not a
 match, one pin is not all pins, and an export marker is not a readback.
 Accept other accurate failure pairs if they respect the same evidence boundary.
+
+**55.3.** Stage 8 invokes `$W/g47/bin/g++` on `cxx-test.cc`; the proposed
+C-only output cannot supply that compiler. Stage 10 also passes
+`$W/g47/bin/g++` as the second argument to `build-gcc10.sh`, which uses
+it as the incoming `CXX`. In the actual intermediate build, `CXX=false`
+concerns the incoming configuration environment, while
+`--enable-languages=c,c++` selects the produced front ends. Confusing
+those roles would make the language bridge appear circular. This is a
+source-derived prediction, not an observed failed build.
 
 </details>
 

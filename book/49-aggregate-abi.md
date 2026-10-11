@@ -958,7 +958,7 @@ Conversion out stores directly at the destination floating precision, compares w
   then, cc-sysv-array-binop ;
 ' cc-x87-binop-check is cc-array-binop-fwd
 ```
-`cc-x87-binop` loads right then left so subtraction and division preserve operand order. Arithmetic pops into private storage; comparisons pop both operands and reuse unordered flag handling (`forth-bootstrap/cc/132-cc-long-double.fth:124`):
+`cc-x87-binop` loads right then left so subtraction and division preserve operand order. Arithmetic pops into private storage; comparisons pop both operands and reuse [the unordered flag handling from Chapter 47](47-floats.md#compute-at-the-common-precision) (`forth-bootstrap/cc/132-cc-long-double.fth:124`):
 ```forth file=cc/132-cc-long-double.fth
 : cc-x87-binop
   cc-expr-common @ cc-x87-type? 0= if, cc-fp-binop exit, then,

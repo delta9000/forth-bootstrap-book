@@ -178,6 +178,24 @@ The stage names belong to gcc64's script; they are distinct from the ladder scri
 | `stage9` | GCC 4.7.4 → binutils 2.41 | `forth-bootstrap/chain/gcc64/run-gcc64.sh:387` |
 | `stage10` | GCC 4.7.4 with binutils 2.41 → GCC 10.5.0 | `forth-bootstrap/chain/gcc64/run-gcc64.sh:404` |
 
+C and C++ in that table name the languages the resulting compiler accepts.
+The language needed to build that compiler is a separate question. gcc-B
+is C-only (`forth-bootstrap/chain/gcc64/build-gcc4.sh:41`). The GCC 4.7.4
+recipe takes that C compiler, sets `CXX=false` in its incoming build
+environment, and requests `--enable-languages=c,c++` for its output
+(`forth-bootstrap/chain/gcc64/build-gcc47.sh:20–31`). An existing C++
+compiler is not required for this intermediate construction.
+
+That new C++ capability supplies a builder for the next GCC. Stage 8
+exercises the installed `g++` on `cxx-test.cc`; stage 10 passes both its
+`gcc` and `g++` to `build-gcc10.sh`
+(`forth-bootstrap/chain/gcc64/run-gcc64.sh:375–377`,
+`forth-bootstrap/chain/gcc64/run-gcc64.sh:409`). The latter script uses
+its second argument as `CXX` (`forth-bootstrap/chain/gcc64/build-gcc10.sh:6`,
+`forth-bootstrap/chain/gcc64/build-gcc10.sh:21`). This dependency is why
+producing a C++ front end matters: GCC's own implementation uses C++
+starting with [GCC 4.8](https://gcc.gnu.org/gcc-4.8/changes.html).
+
 The final step explicitly selects the newer assembler and linker before invoking `build-gcc10.sh`; it also compiles and runs C and C++ test programs (`forth-bootstrap/chain/gcc64/run-gcc64.sh:409`). Those tests check behavior on their workloads. The B/C comparison checks repeatability of the selected rebuilt artifacts, rather than general compiler correctness (`forth-bootstrap/chain/gcc64/run-gcc64.sh:312`).
 
 Output pins ask another question: did this run produce the recorded bytes? `chain/gcc64/HASHES` gives each artifact a digest and a scope. `any` applies regardless of the build root; `root` applies at its declared `/build-out/g64` because configured paths are embedded in the files (`forth-bootstrap/chain/gcc64/HASHES:2`).
@@ -413,3 +431,9 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-55-produc
 **Trace (moderate).** Follow bzImage from `stage12.sh` through `finish.sh`, the reboot handler and `boot_linux`. Identify which step copies file bytes, which reserves decompression space, which constructs boot parameters and which transfers control. Explain why an embedded initramfs can coexist with no external initrd.
 
 **Verify (easy).** Classify these observations: an archive passes SHA-256 checking; a gcc64 artifact matches a pin; `finish` reports an export; Linux prints its version; init prints the greeting. For each, name one failure it rules out and one failure it leaves possible. Use the cited sources and recorded excerpts without starting a build.
+
+**Trace (moderate).** Suppose stage 8 were changed to produce only a C
+compiler. Name the stage-8 test invocation that could no longer compile
+its input and the stage-10 compiler argument that would be missing.
+Why does `CXX=false` in the actual GCC 4.7.4 recipe not mean its installed
+compiler is C-only? Answer from the sources without starting a build.
