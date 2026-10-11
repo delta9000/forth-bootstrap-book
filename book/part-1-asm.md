@@ -1,15 +1,21 @@
 # Part 1 — asm
 
-The whole starting program is a 1,772-byte x86-64 executable, written as
-commented hexadecimal in `seed/000-seed.hex0` and assembled by the 229-byte
-`hex0-seed`. Part 1 reads those bytes until every one of them is accounted
-for. When it ends, you can build the seed, trace a line of input through it,
-and say which instructions run.
+When we called `hello`, the seed had to remember its name, find its
+instructions, and send three bytes to Linux. Part 1 follows those actions
+inside the program we have already built. By the end, you can trace a line
+of input through the seed and say which instructions run.
 
-No new code is written here. The seed is a Forth with two stacks, a
-dictionary of 32 primitives, a token reader, a colon compiler and a REPL.
-Each chapter decodes one layer of it against the machine and the Linux
-interface.
+We begin with the values a word works on: where are they kept, and how
+does one instruction change them? Chapter 4 builds that model before
+teaching the byte encodings. Chapter 5 then shows how Linux loads the
+file and prepares its starting state. With those pieces in place, the
+individual Forth words have somewhere to run.
+
+The source is the commented hexadecimal in `seed/000-seed.hex0`. We will
+read the existing seed rather than implement a second one. Its 32
+**primitives** are built-in words; a **dictionary** associates names with
+code; and its read–evaluate–print loop, or **REPL**, repeatedly reads and
+handles input. Each gets a worked explanation when we reach it.
 
 - [Chapter 4](04-x86-64-and-two-stacks.md) teaches how to decode x86-64
   instructions by hand, and sets out the seed's register and stack

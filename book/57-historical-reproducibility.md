@@ -2,6 +2,64 @@
 
 A reproducibility result belongs to a particular route, input set and comparison. Forth-bootstrap keeps the direct route to Linux; the earlier project's other routes remain historical evidence (`forth-bootstrap/HISTORY.md:8`). This appendix separates the checks available here from the results retained elsewhere, so a matching artifact has a precise meaning.
 
+## The projects around the seed
+
+The bootstrappable-builds community supplies much of the surrounding work.
+The project's credits name Jeremiah Orians' stage0-posix, mescc-tools,
+M2-Planet and M2libc, alongside live-bootstrap
+(`forth-bootstrap/CREDITS.md:42`). Their connections to this checkout are
+concrete:
+
+| Project | Connection to forth-bootstrap | Source |
+| --- | --- | --- |
+| stage0-posix | Supplies the starting `hex0-seed` binary and the mescc-tools-extra utility sources. | `forth-bootstrap/CREDITS.md:12–13` |
+| mescc-tools | Supplies kaem, the shell source used by the route. | `forth-bootstrap/CREDITS.md:14` |
+| M2-Planet | Supplies the C compiler source used for the Stage A comparison. | `forth-bootstrap/CREDITS.md:15` |
+| live-bootstrap | Supplies patches and much of the ordering followed by the GCC climb. | `forth-bootstrap/CREDITS.md:16–17`, `forth-bootstrap/CREDITS.md:44` |
+
+These are different kinds of dependency. An inherited executable is already
+machine code when the route begins. Inherited source requires a builder.
+A borrowed patch or build order carries knowledge about how to make
+upstream packages work together. Keep those distinctions when reading a claim
+that a project builds “from source.”
+
+## How the route changed
+
+forth-bootstrap began as route D of the older **seed-forth project**, then
+moved into its own repository (`forth-bootstrap/HISTORY.md:3`). Distinguish
+that project name from the executable named `seed-forth`, which remains in
+this checkout (`forth-bootstrap/README.md:16`).
+
+The older project explored several onward routes. Its history records a
+route to self-hosted M2-Planet and a handoff into stage0-posix's recipes;
+it also records direct TinyCC and pnut routes. Those routes stayed in the
+older project when forth-bootstrap split off
+(`forth-bootstrap/HISTORY.md:19–34`). Their reproducibility accounts below are historical records, rather than
+the operating instructions for this checkout.
+
+The current route has a different center: the Forth C compiler leads to
+`seed-cc`, the tools it builds, and GCC. That is the route identified as D
+in the project history (`forth-bootstrap/HISTORY.md:7–10`). The plumbing
+recipe orders the tool-building stages before invoking the GCC chain
+(`forth-bootstrap/chain/plumbing/chain.kaem:12–16`). Chapter 50 follows
+`seed-cc`; Chapter 51 follows those tools; Chapter 52 follows the GCC rebuilds.
+
+What sets this route apart is its middle. After the 229-byte `hex0-seed`
+assembles the Forth seed, a C compiler written in that Forth builds the
+driver, shell and first Unix tools, and those build GCC 4.0.4, then GCC
+10.5.0, then Linux 7.2.8, with no compiler brought in from outside
+(`forth-bootstrap/README.md:3–7`). The project history calls it the route
+that reaches Linux with no other compiler at all
+(`forth-bootstrap/HISTORY.md:7–8`).
+
+M2-Planet still has a role here as a comparison target. Stage A compares
+assembly emitted by a Forth-built M2-Planet with assembly emitted by a
+GCC-built reference on the same M2-Planet source. The script compares those
+outputs, not the compiler executables themselves
+(`forth-bootstrap/tests/cc/stage-a-check.sh:57–76`). Chapter 38 returns to
+that check. Agreement on this input is a bounded result, not a claim about
+every C program.
+
 ## What forth-bootstrap checks today
 
 The quick-check entry point is `check-all.sh`. Its header names the checks,

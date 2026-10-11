@@ -56,7 +56,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Interpret mode** — The compilation state in which ordinary parsed words execute immediately. [Chapter 10](10-colon-compiler.md).
 
-**Linux syscall register convention** — Number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11. [Chapter 4](04-x86-64-and-two-stacks.md).
+**Linux syscall register convention** — Number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11. [Chapter 8](08-seed-io.md#the-linux-register-boundary).
 
 **Little-endian** — Multi-byte values are stored least significant byte first. [Chapter 4](04-x86-64-and-two-stacks.md).
 

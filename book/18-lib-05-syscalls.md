@@ -8,7 +8,7 @@ the kernel's result directly on the caller's stack.
 
 ## A sidebar on the syscall ABI
 
-Recall Chapter 4's Linux syscall register convention and Chapter 8's
+Recall Chapter 8's Linux syscall register convention and its
 `syscall6` operand order, padding, and raw result; the contract is collected
 in [Chapter 13](13-primitive-reference.md#the-table).
 The wrapper skeleton is **caller arguments → padding → syscall number →

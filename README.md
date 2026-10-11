@@ -10,13 +10,13 @@ book connects the actual source to worked traces, runnable checkpoints,
 and exercises with feedback.
 
 [Read the book](https://delta9000.github.io/forth-bootstrap-book/) ·
-[Start with the reader's guide](book/01-reading-the-book.md) ·
+[Start with your first word](book/01-reading-the-book.md) ·
 [Open the workshop](book/labs.md)
 
 The four parts cover the seed's machine code, the Forth library, the C
 compiler, and the bootstrap through GCC and the K0/K1 guest kernels.
-Start in order to understand the whole construction, or use Chapter 1's
-focused routes for compiler mechanisms and bootstrap evidence. Basic
+Start in order to understand the whole construction, or use the
+[focused reading routes](book/63-concepts.md#focused-reading-routes) for compiler mechanisms and bootstrap evidence. Basic
 shell use and the ability to follow a short function are enough to begin;
 the book introduces Forth and assembly notation as they become necessary.
 
@@ -45,18 +45,9 @@ The build reports 1,772 bytes; the new word prints `Hi`. Chapter 1
 explains the command, and Chapters 8–12 explain how the seed reads,
 compiles, and executes it.
 
-With Python 3 installed, the workshop companion can show and run selected
-short checkpoints directly from the book's current text:
-
-```sh
-python3 tools/book-lab.py list 26
-python3 tools/book-lab.py show 26.1
-python3 tools/book-lab.py run 26.1
-```
-
-Chapter 26 assembles an executable that prints `hi`, exits with status 42,
-and occupies 160 bytes. The runner reports its comparison and any missing
-prerequisites. Use the [workshop](book/labs.md) for the next milestones.
+The [optional lab companion](book/labs.md) uses Python 3 to show and run
+short checkpoints directly from the chapters. Begin with `hello`; return
+to the companion when you want another milestone.
 
 ## Build and check the book
 

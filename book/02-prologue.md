@@ -31,6 +31,13 @@ For now, put the first artifact in front of you. The checkpoint measures
 the seed and exposes its opening bytes. In Chapter 5, those same bytes
 become a loading recipe rather than a string of hexadecimal digits.
 
+A byte is eight binary digits, or **bits**. We will usually display one
+byte with two hexadecimal digits: `0` through `9`, then `A` through `F`
+for ten through fifteen. Thus `10` in hexadecimal is decimal 16, and
+`FF` is 255. A prefix such as `0x10` makes the number base explicit in
+prose; byte listings omit that prefix. You can compare the four pairs
+below without yet knowing what they mean to Linux.
+
 ## Try it: inspect the seed
 
 Recall the checkpoint working directory from Chapter 1: the `forth-bootstrap` checkout, located at `./forth-bootstrap` within the book checkout. Run the commands below there. The build script writes `seed-forth` and reports its size (`forth-bootstrap/seed/build.sh:27`). `wc -c` counts the file's bytes. `od` displays its first four bytes: `-An` suppresses addresses, `-tx1` prints individual bytes in hexadecimal, and `-N4` limits the read to four bytes.

@@ -331,7 +331,7 @@ C3                                        ; ret
 
 ```
 
-Use the Linux syscall register convention (Chapter 4) and output calls (Chapter 8). This helper writes to stdout and clobbers `rdi`; it does not restore the Forth stack top. Its caller must account for that before continuing.
+Use the Linux syscall register convention and output calls from Chapter 8. This helper writes to stdout and clobbers `rdi`; it does not restore the Forth stack top. Its caller must account for that before continuing.
 
 An overlong token cannot be returned as a name. `fatal_token` reports the retained bytes and exits (`forth-bootstrap/seed/000-seed.hex0:478`).
 

@@ -1,17 +1,13 @@
-# Reading the book
+# Your first word
 
 Part: front matter
 
-Scope: Introduce the four-part route and the distinction between reading source and running checkpoints. Establish that checkpoint commands use the forth-bootstrap repository root as their working directory.
+Scope: Build the seed, define and call hello, then connect that small extension to the four-part route. Keep setup self-contained and put the first result before the reading map. Distinguish the book root from the source working directory.
 
-Sources taught: None — this chapter organizes reading rather than teaching a source span.
+Sources taught: seed/build.sh and the first use of the built seed. Detailed mechanisms follow in Chapters 4–12.
 
-Prerequisites: None.
+Prerequisites: Follow a short function; edit a text file; use a shell. Execution requires Linux x86-64, Git, Bash, and ordinary shell utilities.
 
-Checkpoint: TODO — no chapter-specific checkpoint exists.
+Checkpoint: Initialize the source and vendor checkouts, build seed-forth, and run hello. Preserve hello's lab selector, 1.2.
 
-Reuses: [README.md](../01-reading-the-book.md) — Reuse the reader orientation and setup overview.
-
-TODO:
-
-- TODO Replace the old reading order and checkpoint overview with the four-part route.
+Companions: Optional lab runner in back matter; focused routes in the concept index.

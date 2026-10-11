@@ -6,8 +6,16 @@ for standard output. Simply assigning the descriptor would lose the
 character. The boundary word must first put the byte somewhere Linux
 can read it, then arrange the call, then recover the Forth stack.
 
-Recall the syscall register convention from Chapter 4. Follow each word
-through its preparation, kernel request, and final effect:
+## The Linux register boundary
+
+A **system call**, or **syscall**, asks the Linux kernel to perform an
+operation such as writing bytes or ending the process. The processor's
+`syscall` instruction enters the kernel; this is a different boundary
+from calling a Forth word and returning with `ret`.
+
+The Linux syscall register convention temporarily gives registers a different job. The syscall number goes in `rax` and arguments go, in order, in `rdi`, `rsi`, `rdx`, `r10`, `r8`, and `r9`. The result comes back in `rax`; `syscall` clobbers `rcx` and `r11`. The argument register after `rdx` is `r10`, not the C function-call convention's `rcx`.
+
+Follow each word through its preparation, kernel request, and final effect:
 
 | Word | Prepare | Ask Linux | Finish |
 |---|---|---|---|
@@ -143,7 +151,7 @@ At entry, the syscall number `n` occupies `rdi`. Saving it in `rax` must precede
 | `b` | `[rbp+32]` | `rsi` |
 | `a` | `[rbp+40]` | `rdi` |
 
-The deepest argument is loaded last. These loads leave the memory slots untouched, and `rbp` remains available throughout the call. The syscall’s clobbers, recalled from Chapter 4, do not destroy any state this primitive needs for recovery.
+The deepest argument is loaded last. These loads leave the memory slots untouched, and `rbp` remains available throughout the call. The syscall’s clobbers, listed above, do not destroy any state this primitive needs for recovery.
 
 On return, `add rbp, 48` releases the six argument cells. Moving `rax` into `rdi` replaces the syscall number with the kernel’s result. This is prepare–call–recover again, but the result is passed through without interpretation. Every call supplies all six argument cells because the primitive loads and removes them unconditionally. Supply zero in unused positions.
 

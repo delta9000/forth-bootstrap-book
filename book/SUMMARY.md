@@ -2,10 +2,9 @@
 
 # Front matter
 
-- [Reading the book](01-reading-the-book.md)
-- [The lab companion](labs.md)
+- [Your first word](01-reading-the-book.md)
 - [Prologue: Seventeen hundred and seventy-two bytes](02-prologue.md)
-- [Where this fits: routes and history](03-where-this-fits.md)
+- [What builds the seed?](03-where-this-fits.md)
 
 # Part 1 — asm
 
@@ -78,6 +77,7 @@
 
 # Back matter
 
+- [The lab companion](labs.md)
 - [Appendix C: historical reproducibility routes](57-historical-reproducibility.md)
 - [Appendix D: worked exercises](58-worked-exercises.md)
 - [Appendix E: further reading](59-further-reading.md)

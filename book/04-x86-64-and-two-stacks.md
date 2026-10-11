@@ -1,20 +1,54 @@
 # Chapter 4 — x86-64 encoding and the two-stack machine
 
-The bytes `48 83 ED 08` mean `sub rbp, 8`: they make room for one more cell on the seed's data stack. Reading the seed means decoding bytes like these against its register and stack conventions. This chapter gives a register map and a repeatable method for checking instructions by hand; Chapter 5 applies it to the executable headers and entry code.
+When `hello` runs, it supplies a number to `emit`. Where does that number
+wait, and how does `emit` get it? Forth words pass values through a
+**data stack**. We will first follow that stack, then see where the seed
+stores it, and finally read the bytes of instructions that change it.
+
+By the end, you can explain the seed's two stacks, decode a small load or
+store, and calculate where a relative jump lands. These are the tools we
+need to open the executable in Chapter 5.
+
+## Values before storage
+
+A stack keeps values in order and gives access to the most recently added
+one, called the **top**. Adding a value is a **push**; removing the top is
+a **pop**. In our written traces, the top is on the right. Thus `72 105`
+means that 72 was added first and 105 is now on top.
+
+During `hello`, the first literal supplies 72 to the data stack, and
+`emit` consumes it to print `H`. Then the next literal supplies 105 for
+`emit` to print `i`. Any values beneath those characters remain in place.
+A different word, `dup`, duplicates the top without changing its value:
+
+| Before `dup` | After `dup` | What changed |
+|---|---|---|
+| `72 105` | `72 105 105` | A second copy of 105 is now on top |
+
+This is the word's effect, independent of where the values are stored.
+We can also write the values as `a b c` when their particular numbers do
+not matter. The rightmost value, `c`, is still the top.
 
 ## The machine before the instructions
 
-The seed's data stack and the processor's call stack occupy separate storage and use different registers. The register convention appears in `forth-bootstrap/seed/000-seed.hex0:53–61`:
+The processor has a small set of named storage locations called
+**registers**, such as `rdi` and `rbp`. These registers each hold 64 bits.
+Memory is addressed by byte: an **address** is the number used to locate
+a byte, and a **pointer** is a value used as an address. A register can
+hold a number we are calculating with, or an address of data in memory.
 
-| Register | Seed role | Named chunks that use it |
-| --- | --- | --- |
-| `rdi` | Cached top of stack | `dup`, `drop`, `plus` |
-| `rbp` | Points at the second item on the stack | `entry-point`, `dup`, `drop` |
-| `rsp` | Pointer to the return stack, also used by hardware calls | `to-r`, `r-from`, `r-at` |
-| `rbx` | Length of the last token read | `read-word` |
-| `rax`, `rcx`, `rdx`, `rsi` | Working registers whose meanings depend on the routine | `find`, `read-word`, `syscall6` |
+The seed keeps the current top in register `rdi`. Older stack values live
+in memory, and `rbp` holds the address of the next one down. In assembly
+notation, `rdi` means the value in that register; `[rbp]` means memory at
+the address held in `rbp`. The brackets make a different operation: look
+through the pointer rather than use the pointer's own numeric value.
 
-The source labels sometimes differ from chunk names: `to_r_code` is in `to-r`, for example. Chapter 6 walks through the stack transfers; Chapter 9 explains token handling.
+A hardware `call` instead saves the address of the following instruction on the stack addressed by `rsp`; `ret` takes an address from there and resumes execution at it. Neither instruction performs a data-stack push or pop. The return stack can also hold explicitly saved Forth data, so a routine must distinguish its own return address from that data. Chapter 6 explains how the transfer words preserve that distinction.
+
+The data stack answers “which values is this word working on?” The
+return stack answers “where should execution resume when this call
+finishes?” Keeping those questions separate will matter whenever a word
+calls another word.
 
 A *cell* is an eight-byte, 64-bit value. If the logical data stack holds `a`, then `b`, then `c` with `c` on top, the live values are arranged like this; the separate return-stack panel shows the state while a called routine is running.
 
@@ -29,7 +63,28 @@ A *cell* is an eight-byte, 64-bit value. If the logical data stack holds `a`, th
 
 `rbp` points to the second item on the stack; it does not point to `rdi`. A data-stack push preserves the old `rdi` by moving `rbp` downward and storing there. It then installs a new top in `rdi`. Call this the **cached-top pattern**. A data-stack pop reverses that movement by loading the next value into `rdi` and moving `rbp` upward.
 
-A hardware `call` instead saves the address of the following instruction on the stack addressed by `rsp`; `ret` takes an address from there and resumes execution at it. Neither instruction performs a data-stack push or pop. The return stack can also hold explicitly saved Forth data, so a routine must distinguish its own return address from that data. Chapter 6 explains how the transfer words preserve that distinction.
+The source records the register assignments in `forth-bootstrap/seed/000-seed.hex0:53–61`:
+
+| Register | Seed role | Named chunks that use it |
+| --- | --- | --- |
+| `rdi` | Cached top of stack | `dup`, `drop`, `plus` |
+| `rbp` | Points at the second item on the stack | `entry-point`, `dup`, `drop` |
+| `rsp` | Pointer to the return stack, also used by hardware calls | `to-r`, `r-from`, `r-at` |
+| `rbx` | Length of the last token read | `read-word` |
+| `rax`, `rcx`, `rdx`, `rsi` | Working registers whose meanings depend on the routine | `find`, `read-word`, `syscall6` |
+
+The source labels sometimes differ from chunk names: `to_r_code` is in `to-r`, for example. Chapter 6 walks through the stack transfers; Chapter 9 explains token handling.
+
+## Reading hexadecimal bytes
+
+A byte has eight bits. Each hexadecimal digit represents four of them,
+so an instruction written `48 83 ED 08` occupies four bytes. The prefix
+`0x` marks a hexadecimal number in prose: `0x10` is decimal 16.
+
+A multi-byte number here is **little-endian**: its least significant
+byte comes first. For example, the bytes `34 12` encode `0x1234`, because
+`0x34 + 256 × 0x12 = 0x1234`. This orders the bytes of a field, not all
+the bytes of an instruction. First identify the field; then read its value.
 
 ## A skeleton for reading bytes
 
@@ -45,11 +100,22 @@ displacement / immediate   address adjustment / literal operand
 
 Follow **prefix → opcode → operands → next address**. That last step matters because the next instruction does not begin at a fixed distance from the current one.
 
-The source uses Intel operand order: `mov destination, source`; brackets mean memory at an address. A displacement adjusts a memory address, whereas an immediate operand supplies a value directly. Multi-byte values in these examples are little-endian: the least significant byte comes first. Chapter 5 applies that byte order to the executable's fields.
+The source uses Intel operand order: `mov destination, source`. Thus
+`mov [rbp], rdi` stores the value from `rdi` into memory at `rbp`; it does
+not change `rbp`. A **displacement** adjusts a memory address, whereas an
+**immediate operand** supplies a value directly. For example,
+`sub rbp, 8` subtracts the immediate value 8 from the pointer itself.
 
 ## ModRM: where do the operands live?
 
-The store in `dup` shows the cached-top pattern (`forth-bootstrap/seed/000-seed.hex0:83`). The byte line is copied verbatim; the following comments annotate its encoding.
+Return to `dup`. Suppose `rdi` holds the top value 105 and `rbp` points
+to the older value 72. To keep two copies of 105, the seed first subtracts
+8 from `rbp`, making room for an eight-byte cell. Then it stores 105 at
+the new address, leaving 105 in `rdi` as well. The logical stack is now
+`72 105 105`: the old 72 did not move, but the pointer did.
+
+Here is that store (`forth-bootstrap/seed/000-seed.hex0:83`). The byte
+line is copied verbatim; the following comments annotate its encoding.
 
 ```text
 48 89 7D 00                               ; mov [rbp], rdi
@@ -59,7 +125,11 @@ The store in `dup` shows the cached-top pattern (`forth-bootstrap/seed/000-seed.
 ; 00       signed displacement: zero
 ```
 
-`48` selects a 64-bit operand for this instruction. Opcode `89` takes its source from the ModRM register field and its destination from the register-or-memory field. The ModRM byte divides into a two-bit `mod` field, a three-bit `reg` field, and a three-bit `r/m` field:
+`48` selects a 64-bit operand for this instruction. Opcode `89` takes its source from the ModRM register field and its destination from the register-or-memory field. The ModRM byte divides into a two-bit `mod` field, a three-bit `reg`
+field, and a three-bit `r/m` field. To see the split, hexadecimal `7` is
+binary `0111`, and hexadecimal `D` (decimal 13) is binary `1101`.
+Together `7D` is `01111101`; grouping those eight bits gives
+`01 | 111 | 101`:
 
 | Part of `7D` | Decoded meaning here |
 | --- | --- |
@@ -155,32 +225,21 @@ you added at the wrong base.
 
 </details>
 
-## The Linux register boundary
-
-The Linux syscall register convention temporarily gives registers a different job. The syscall number goes in `rax` and arguments go, in order, in `rdi`, `rsi`, `rdx`, `r10`, `r8`, and `r9`. The result comes back in `rax`; `syscall` clobbers `rcx` and `r11`. The argument register after `rdx` is `r10`, not the C function-call convention's `rcx`.
-
-The setup and transition in `emit` show how to read a request from its registers (`forth-bootstrap/seed/000-seed.hex0:269–273`). Chapter 8 covers the scratch-buffer store immediately before it.
-
-```text
-B8 01 00 00 00                            ; mov eax, 1         ; SYS_write
-BF 01 00 00 00                            ; mov edi, 1         ; fd 1 (stdout)
-48 BE 00 20 41 00 00 00 00 00             ; mov rsi, 0x412000  ; buf (movabs)
-BA 01 00 00 00                            ; mov edx, 1         ; count 1
-0F 05                                     ; syscall            ; clobbers rcx, r11
-```
-
-The request is `write(stdout, buffer, count)`: `eax=1` chooses Linux `write`, `edi=1` selects standard output, `rsi` holds the buffer address, and `edx=1` asks for one byte. The narrower register writes also establish the corresponding full-width values. `0F 05` then enters the kernel. This is a syscall transition, not a Forth `call` followed by `ret`.
-
-The syscall conflicts with the cached-top pattern: `rdi` cannot simultaneously hold the Forth top and the syscall's first argument. A boundary routine must arrange the data before assigning the Linux roles. Chapter 8 follows that arrangement and the handling of the result through the complete `emit`, `key`, `bye`, and `syscall6` chunks. Chapter 18 later gives those calls library wrappers.
+The same registers will later carry requests into Linux. We will learn
+that separate convention in [Chapter 8](08-seed-io.md#the-linux-register-boundary),
+when `emit` needs it. For now, keep the data stack, return address, and
+next-instruction address distinct while checking the entry jump.
 
 ## Try it: read the entry jump
 
 Check the entry jump’s bytes in the built executable, then compare your hand-decoded destination with the disassembler’s result. This uses the host's `objdump` from GNU binutils; Chapter 5 uses its companion `readelf` to inspect ELF headers.
 
-From the book checkout, build with `forth-bootstrap/seed/build.sh:12–29`, which selects the assembler and writes `seed-forth` in the source checkout:
+From the `forth-bootstrap` source directory, build the seed. The script
+selects the assembler and writes `seed-forth` there
+(`forth-bootstrap/seed/build.sh:12–29`):
 
 ```sh
-cd forth-bootstrap && seed/build.sh
+./seed/build.sh
 ```
 
 Observed output:

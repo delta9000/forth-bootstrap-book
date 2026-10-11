@@ -7,6 +7,34 @@ the outline's chapter order; it does not measure what you can already do.
 Definitions are in the [Glossary](62-glossary.md), and individual words are
 in the [word index](WORD-INDEX.md).
 
+## Focused reading routes
+
+Start with [Chapter 1](01-reading-the-book.md) to establish the source
+checkout and run your first word. For the full construction, continue in
+sidebar order. For a specific question, use one of these routes.
+
+Choose a route according to the question you brought:
+
+- **Understand the whole construction.** Read in sidebar order. At each
+  part boundary, use its map to name the artifact you have gained and
+  the next thing it must build.
+- **See a compiler work, then open it up.** Establish the [Chapter 1 setup](01-reading-the-book.md#try-it-establish-the-setup),
+  read the [Forth notation](14-lib-01-stacks-and-words.md), then follow
+  the [expression checkpoint](34-expressions-part-2.md#try-it) and the
+  first [compiler-entry checkpoint](38-main-and-bootstrap-chain.md#try-it).
+  Return to Chapters 27–37 to explain each layer those commands load.
+- **Audit the bootstrap claim.** Read Chapters 2–3, the
+  [Stage A comparison](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof),
+  and Chapters 50–55. Track who builds each artifact, what gets compared,
+  and which host or guest runs it. The long runs have their own resource
+  requirements; reading their evidence does not require launching them.
+
+Part 3's [C-reading bridge](part-3-compiler.md#reading-the-c-input)
+introduces the pointer, array, and record notation used by the compiler's
+inputs. No prior course in C implementation or calling conventions is
+needed. The capability checks below help you recover earlier mechanisms
+when returning after a break.
+
 ## Topic → chapter quick reference
 
 ### Part 1: Machine and seed
@@ -37,7 +65,7 @@ in the [word index](WORD-INDEX.md).
 - Inherited source — [Chapter 3](03-where-this-fits.md)
 - Inline-cell convention — [Chapter 10](10-colon-compiler.md)
 - Interpret mode — [Chapter 10](10-colon-compiler.md)
-- Linux syscall register convention — [Chapter 4](04-x86-64-and-two-stacks.md)
+- Linux syscall register convention — [Chapter 8](08-seed-io.md#the-linux-register-boundary)
 - Little-endian — [Chapter 4](04-x86-64-and-two-stacks.md)
 - Loadable segment — [Chapter 5](05-elf-and-entry.md)
 - ModR/M — See ModRM. [Chapter 4](04-x86-64-and-two-stacks.md)

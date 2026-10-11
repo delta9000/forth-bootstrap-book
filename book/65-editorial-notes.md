@@ -23,6 +23,10 @@ When the source changes, move the submodule pin, then update every quoted
 fence and citation that the change touches. Commit the book side
 separately.
 
+Appendix lettering starts at C to preserve references in the quoted
+source. The former primitive-reference and memory-map appendices are now
+Chapters 13 and 5.
+
 ## Shape of a chapter
 
 - The opening paragraph starts from something concrete: a byte sequence,

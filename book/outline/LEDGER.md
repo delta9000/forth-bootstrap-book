@@ -4,8 +4,8 @@ One line per concept: `term | chapter | definition`, chapter as the new stub num
 
 term | chapter | definition
 --- | --- | ---
-Checkpoint | 01 Reading the book | a command and its observed result that test one specific operation
-Checkpoint working directory | 01 Reading the book | the forth-bootstrap checkout root, where checkpoint commands run
+Checkpoint | 01 Your first word | a command and its observed result that test one specific operation
+Checkpoint working directory | 01 Your first word | the forth-bootstrap checkout root, where checkpoint commands run
 Inherited executable | 03 Where this fits: routes and history | machine code already present when a bootstrap route begins (here, the 229-byte hex0-seed)
 Inherited source | 03 Where this fits: routes and history | upstream source that still needs a builder inside the route
 Cached-top pattern | 04 x86-64 encoding and the two-stack machine | `rdi` holds the top of the data stack; `rbp` points at the next value in memory, so a push stores the old top and moves `rbp` down
@@ -16,7 +16,7 @@ ModRM | 04 x86-64 encoding and the two-stack machine | the byte whose mod, reg a
 SIB | 04 x86-64 encoding and the two-stack machine | the scale/index/base byte that some memory-addressing forms add after ModRM
 REX | 04 x86-64 encoding and the two-stack machine | the 0100WRXB prefix: W selects a 64-bit operand; R, X and B extend the reg, index and base fields
 rel32 | 04 x86-64 encoding and the two-stack machine | a signed 32-bit displacement added to the address of the next instruction
-Linux syscall register convention | 04 x86-64 encoding and the two-stack machine | number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11
+Linux syscall register convention | 08 The seed’s Linux boundary | number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11
 `_start` | 05 ELF, entry, and the memory map | seed label; `_start` at `0x400078`
 `jmp_repl` | 05 ELF, entry, and the memory map | seed label; `JMP repl` at `0x0B5`
 `sysvar_init` | 05 ELF, entry, and the memory map | seed label; The sysvar init at `0x085`

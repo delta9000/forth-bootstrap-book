@@ -1,22 +1,26 @@
 # Chapter 5 — ELF, entry, and the memory map
 
-Linux learns where to load the seed, and where to start running it, from the first bytes of the file. ELF headers establish a fixed address map, and entry
-code prepares the state that uses it. Together they define the complete
-seed's loading and startup contract: Chapter 6 uses this initialized
-machine, and Chapter 31 builds an ELF emitter for compiled programs.
+The first bytes we inspected were `7F 45 4C 46`, not the instructions
+that run `hello`. They identify an **ELF** file, short for Executable and
+Linkable Format. Linux reads its headers to learn where to place the
+program in memory and which instruction to run first.
 
-Recall the instruction-reading method and register conventions from
-Chapter 4. Before the seed can enter its main loop, storage must exist,
-pointers must be initialized, and control must reach the intended code.
+This chapter follows that loading recipe. A **loadable segment** is a
+region of memory described by a program header: it says which bytes come
+from the file, how much additional storage to supply, and what access is
+allowed. Once that storage exists, the seed's entry code gives the
+registers and working variables their starting values.
 
-The route through the file is:
+Keep the register and memory distinction from Chapter 4 in view. We will
+first locate the entry instruction, then make the data-stack storage
+exist, initialize its pointer, and finally jump to the input loop. Chapter
+6 can then trace words running on this initialized machine.
 
-**ELF header → loadable segment → entry registers → system-variable cells → REPL**.
-
-The **fixed-base contract** relates a file offset to its loaded address:
-for a byte in this seed image, its address is `0x400000 + file offset`.
-The program header establishes that contract; the entry address and initial
-pointers rely on it.
+One relation ties the file to memory throughout this seed: a file byte's
+loaded address is `0x400000 + file offset`. We will call it the
+**fixed-base contract**. The program header below establishes why it
+holds; it is a choice made by this executable, not a rule for every ELF
+file.
 
 ## The source skeleton
 

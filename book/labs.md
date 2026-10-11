@@ -1,38 +1,35 @@
 # The lab companion
 
-Use the book as a small workshop: choose a result, inspect the command,
-run it, and then change one thing. The lab runner reads the published
-shell blocks directly, so the command you run is the one the chapter
-explains. You can also copy every checkpoint into a shell yourself.
+This optional companion runs the same short checkpoints you can copy
+from the chapters. On a first reading, begin with
+[Chapter 1](01-reading-the-book.md), then continue to the
+[prologue](02-prologue.md). Return here when you want to revisit a result
+or choose another milestone.
 
 ## Start with one result
 
 Complete the [setup in Chapter 1](01-reading-the-book.md#try-it-establish-the-setup)
 first. The examples execute AMD64 Linux programs and need the built
-`forth-bootstrap/seed-forth`. Run the companion from the **book repository
-root**, the directory containing `book.toml` and `tools/`:
+`forth-bootstrap/seed-forth`. With Python 3 installed, run the companion
+from the **book repository root**, the directory containing `book.toml`
+and `tools/`. If you are still in the source checkout after Chapter 1,
+`cd ..` returns to that book root.
 
 ```sh
-python3 tools/book-lab.py list 26
-python3 tools/book-lab.py show 26.1
-python3 tools/book-lab.py run 26.1
+python3 tools/book-lab.py list 1
+python3 tools/book-lab.py show 1.2
+python3 tools/book-lab.py run 1.2
 ```
 
-`26.1` means the first shell block in Chapter 26. `show` prints its
-commands; `run` starts them with `forth-bootstrap` as the working directory
-and checks this block's expected-output metadata. The assembled program
-prints `hi`, exits with status 42, and occupies 160 bytes. Its shell wrapper
-checks that intentional status and succeeds only when the check passes.
+`1.2` means the second shell block in Chapter 1, the definition and call
+of `hello`. `show` prints its commands; `run` starts them in the source
+checkout and compares the output with the chapter's expected `Hi`.
+It supplies the definition afresh on each run.
 
-Selectors count shell blocks, including ones that cannot run independently.
-Use `list` to see their locations, prerequisites, and reasons for exclusion.
-The runner is a convenience for short, explicit checkpoints; each chapter
-remains the explanation of what its result establishes.
-
-Each run checks the shell's exit status. Where the chapter supplies
-explicit expected-output metadata, it also compares standard output.
-Otherwise the result says that output remains for you to compare with
-the chapter; a successful status alone does not certify the transcript.
+Use `list` to see the available blocks and their prerequisites. Some
+blocks are setup or inspection steps that cannot run independently; the
+list explains why they are excluded. The runner is a convenience, and
+each chapter remains the explanation of what its result establishes.
 
 ## Choose a milestone
 
@@ -64,20 +61,40 @@ write down your predicted output or byte change, then save the command
 to a scratch file:
 
 ```sh
-python3 tools/book-lab.py show 26.1 > /tmp/book-lab-26.sh
+python3 tools/book-lab.py show 1.2 > /tmp/book-lab-hello.sh
 ```
 
-Edit that file, then run `(cd forth-bootstrap && bash /tmp/book-lab-26.sh)`.
+For `hello`, change 105 to 111 and predict the new output. Then run
+`(cd forth-bootstrap && bash /tmp/book-lab-hello.sh)`.
 The subshell enters the source checkout and leaves your interactive shell
-in the book root. Update the
-example's comparison when your intended change alters its result. Running
-`book-lab.py run 26.1` again runs the published original, not your edited
-copy.
+in the book root. Compare the output with your prediction. In later checkpoints that
+include assertions, update those comparisons when your intended change
+alters their result. Running `book-lab.py run 1.2` again runs the published
+original, not your edited copy.
 
 For the assembler exercise, keep message bytes, write length, and the
 predicted file size in view together. For compiler exercises, distinguish
 the generated program's status from the compiler's status. An unexpected
 result is useful evidence only when you know which process produced it.
+
+## What the runner checks
+
+Selectors count shell blocks, including ones that cannot run independently.
+Each run checks the shell's exit status. Where the chapter supplies
+explicit expected-output metadata, it also compares standard output.
+Otherwise the result says that output remains for you to compare with
+the chapter; a successful status alone does not certify the transcript.
+
+Some test programs deliberately return a nonzero value. Their checkpoint
+wrappers capture it before asserting it, so an inherited Bash `-e` setting
+does not mistake the expected result for an interrupted test. Run the
+whole wrapper rather than only its generated program.
+
+Generated-path examples use checked, short `/tmp/book-probe.XXXXXXXXXX`
+directories: the Forth `s,` reader accepts a single token, so shell quoting
+cannot make a path with spaces (or more than 255 token bytes) safe inside
+generated Forth source. Follow any fixed-output-path warning and do not
+run those examples concurrently.
 
 ## When a checkpoint does not run
 
