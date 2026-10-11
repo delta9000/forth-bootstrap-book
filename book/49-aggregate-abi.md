@@ -464,6 +464,25 @@ An expression-valued function pointer needs callable and signature checks before
 ```
 ## Reconstruct callee objects and return bytes
 
+Contrast `Pair`'s two-register return with a manual plan for
+`struct Triple { long x; long y; long z; };` and a function declared
+`struct Triple make(long n)`. Its 24-byte result is MEMORY class
+(`forth-bootstrap/cc/131-cc-aggregate-abi.fth:52–62`). Before `make(7L)`,
+the caller reserves its own result object and passes that object's address
+in RDI. The visible `n` argument therefore travels in RSI, not RDI. The
+return type has changed argument placement even though the source call
+still contains only one argument.
+
+On entry, `make` saves the hidden pointer in its frame, so later body
+operations can reuse RDI. When it returns a local `Triple`, the return
+emitter copies all 24 bytes into that saved destination and places the
+destination address in RAX. The caller continues with an expression
+addressing its own result object. Returning only the callee local's address
+would leave the result dependent on storage whose lifetime ended with the
+call. Follow the hidden pointer separately from the visible parameter in
+the entry and return code below; the pointer transports a destination,
+while the copy supplies the C record value.
+
 `cc-ag-parameters` installs each named parameter as an independent local object, so the callee can modify its copy without touching the caller's (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:320`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 variable cc-ag-function-plan

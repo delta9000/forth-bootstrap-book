@@ -54,7 +54,26 @@ The small adapters use a common shape: a `-name` word holds the exported spellin
 | Calling C frame | Saved parent frame through `__seed_parent_frame` |
 | Kernel signal frame | Resume interrupted context through `__seed_sigreturn` |
 
-The raw bridge performs only the register shuffle. It copies each source before overwriting that register and obtains the final syscall argument from the C stack.
+The checkpoint calls `__seed_syscall6(1, 1, (long)text, length, 0, 0, 0)`
+to write its string. Trace the four values that this operation uses across
+the two conventions:
+
+| Value | C function entry | Linux syscall entry |
+|---|---|---|
+| Operation number, 1 | RDI | RAX |
+| Output descriptor, 1 | RSI | RDI |
+| Buffer address, `text` | RDX | RSI |
+| Byte count, `length` | RCX | RDX |
+
+The order of the moves preserves their sources. Moving the count into
+RDX before copying its old value into RSI would lose the buffer address.
+The full bridge also handles the remaining syscall arguments. Its C
+signature has seven parameters because the operation number is one of
+them, so the sixth kernel argument arrives in the first C stack slot,
+at `[rsp + 8]` above the return address. The fourth kernel argument uses
+R10; RCX cannot retain it across the `syscall` instruction, which clobbers
+RCX and R11. This leaf changes argument locations, not the values or the
+raw error convention.
 
 `cc-sysrt-name` and `cc-sysrt-code` give the bridge its symbol and leaf body (`forth-bootstrap/cc/122-cc-sysv-runtime.fth:10`):
 

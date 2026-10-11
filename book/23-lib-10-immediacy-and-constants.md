@@ -121,8 +121,14 @@ emission from naming:
 ```
 
 `push-body,` combines the value emitter and the return emitter.
-`constant` calls `:` to obtain the new header, calls `push-body,` with
-the waiting value, and restores interpret mode with `[lit] 0 state !`.
+The inner `:` is not immediate, so while the library defines `constant`,
+the REPL compiles a call to it rather than executing it (Chapter 12).
+It does not read another name at that moment; the final `;` closes
+`constant`.
+
+When invoked, `constant` calls `:` to obtain the new header, calls
+`push-body,` with the waiting value, and restores interpret mode with
+`[lit] 0 state !`.
 No `here-addr` adjustment is needed: the emitters advance HERE themselves.
 
 Here is the subtle part of the middle row in the opening table. Calling

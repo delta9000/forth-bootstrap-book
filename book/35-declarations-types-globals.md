@@ -688,6 +688,17 @@ An array requires a positive constant bound. Its symbol records the deepest rese
   then,
 ```
 
+For a manual core-layout example, start with no locals and declare
+`int n; int a[3];`. The scalar gets slot 0; the array reserves slots 1–3
+and records slot 3 as its base. A slot's address is `rbp - 8*(slot+1)`,
+so `n` is at `rbp-8` and `a[0]` at `rbp-32`. Indexing adds eight bytes
+per integer element: `a[1]` is at `rbp-24`, and `a[2]` at `rbp-16`
+(`forth-bootstrap/cc/090-cc-emit.fth:88`,
+`forth-bootstrap/cc/100-cc-expr.fth:417`). Slot allocation moves downward
+in memory, while array indexing moves upward. Recording the deepest slot
+reconciles those directions; using slot 1 as the base would make `a[1]`
+overwrite `n`.
+
 A static scalar writes its constant initializer into the data area during compilation. An automatic scalar reserves a frame slot and emits an optional expression-and-store sequence to run on entry to the declaration (`forth-bootstrap/cc/110-cc-decl.fth:486`):
 
 ```forth file=cc/110-cc-decl.fth
