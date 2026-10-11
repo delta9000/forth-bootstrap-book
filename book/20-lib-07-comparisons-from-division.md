@@ -46,8 +46,8 @@ Equality only asks whether subtraction leaves zero, as in
 
 `=` consumes `a b` and tests their difference; `<>` consumes the same
 operands and negates the equality result. Each body has two tokens.
-Neither word needs a signed interpretation: subtraction modulo the cell
-width is zero exactly when the operand bit patterns match. Overflow can
+Neither word needs a signed interpretation: subtraction with cell-width
+wraparound is zero exactly when the operand bit patterns match. Overflow can
 change the sign of a difference, but it cannot make unequal cells equal.
 
 ## The `2^63` trick
@@ -111,7 +111,7 @@ Trace the quotient through both zero tests:
 Call `0= 0=` **canonicalisation**: it preserves zero and converts any
 nonzero cell to `-1`. The intermediate result reverses the truth value;
 the final test restores it in canonical form. Thus `0< ( n -- f )`
-returns true for a signed-negative input and false otherwise, including
+returns true for a negative signed input and false otherwise, including
 zero. Unlike subtraction-based ordering, this sign test has no overflow
 restriction: it inspects the input's existing sign bit.
 
@@ -210,7 +210,7 @@ above: it demonstrates the boundary of this implementation's contract.
 
 ## Exercise
 
-**Trace — moderate.** Find two operands of opposite sign for which `>`
+**Trace (moderate).** Find two operands of opposite sign for which `>`
 gives the wrong answer, and say which subtraction overflowed.
 
 <details>

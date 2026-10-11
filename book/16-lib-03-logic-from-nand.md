@@ -117,13 +117,13 @@ every construction is equally short or equally fast.
 ## What this buys
 
 A **derived word** expresses its behavior through words the seed already
-knows, where a primitive needs machine code in the seed. With subroutine threading (Chapter 10), `and` uses three calls and
-`or` uses six, rather than a
-dedicated machine instruction for each operation.
+knows; a primitive is defined directly in the seed's machine code. With
+subroutine threading (Chapter 10), `and` uses three calls and `or` uses
+six, rather than a dedicated machine instruction for each operation.
 
 The byte trade concerns where those implementations live. Deriving
 `and` and `or` avoids adding their headers and machine-code bodies to
-the inherited seed image. Loading the library still allocates dictionary
+the seed image. Loading the library still allocates dictionary
 entries and compiled bodies for them. The cost moves into code built
 by the seed, and the extra calls remain an execution cost. There is no
 fixed byte saving to claim without specifying alternative primitive
@@ -178,7 +178,7 @@ Observed output:
 
 ## Exercise
 
-**Trace — easy.** Trace `or` with false beneath true, writing the
+**Trace (easy).** Trace `or` with false beneath true, writing the
 stack after every word. Then remove `swap` on paper and trace the
 same inputs. Explain the difference using self-NAND. Why do both versions
 still return true here? Find a second input pair that distinguishes their

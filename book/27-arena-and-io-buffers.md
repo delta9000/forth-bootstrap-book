@@ -1,38 +1,47 @@
 # Chapter 27 — Arena and I/O buffers
 
-The compiler's first data structures are storage regions for source text, unfinished output and records whose sizes emerge during parsing. Giving each responsibility a bounded region makes its lifetime explicit before there is a C parser to use it. The result is an allocator, a source reader and an output buffer that later compiler layers can share.
+Before the compiler can understand a C program, it must keep that program's
+bytes somewhere. It also needs room for the executable it is building and
+for records that connect the two: a name, a type, or a call whose address
+will be filled in later. These objects have different lifetimes. Giving
+each a home makes the rest of the compiler easier to reason about.
 
 ## Part 3: from storage to a C compiler
 
-The code has this shape:
+| Storage | What lives there | When it is needed |
+|---|---|---|
+| Input and source buffers | Raw C text, then preprocessed text | While tokens and names refer to it |
+| Output buffer | Headers, instructions, and data being assembled | Until the completed image is written |
+| Arena | Variable-size compiler records | While compilation can still refer to them |
 
-```text
-020-cc-arena: native Forth replacements → lexer state → diagnostics → arena
-030-cc-io:    raw input → source buffer → character reader
-             output buffer → append or patch → file
-             shared name helpers and workspace selection
-```
+The arena needs no individual `free`. Consider its first allocation by
+hand: with the next free address at `p`, a request for 16 bytes reserves
+`p` through `p + 15`, returns `p`, and advances the cursor to `p + 16`.
+The following request starts there. Before advancing, the allocator checks
+that the new cursor fits. Later type descriptors and fixup lists can keep
+the returned addresses because earlier allocations do not move.
 
-Chapter 27 establishes storage. Chapters 28–30 build preprocessing, lexing,
-types and symbols; Chapters 31–32 supply executable emission. Chapters
-33–37 connect expressions, declarations, statements and functions, and
-Chapter 38 joins the core compiler and checks Stage A. Chapters 39–42
-extend storage and introduce objects, the System V interface and linking.
-Chapters 43–49 add the runtime, target headers, typed constants, varargs,
-floating values, bitfields and aggregate calling rules.
+The output cursor has a different job. It identifies the next byte in a
+future file. A parser can reserve a field there, keep its offset in an
+arena record, and patch it after the destination becomes known. The arena
+record stays with the compiler; the patched bytes go into the executable.
 
-The compiler uses the Forth library from Chapters 14–25. Its storage layer
-also replaces expensive Forth operations before the later layers are read.
+There is also a handoff to get right before the C reader starts. Forth
+definitions and C source arrive through the same input stream. The seed
+may already have buffered some C bytes when the compiler takes over.
+Those bytes must be drained before asking Linux for more input; the
+[input handoff](#handing-buffered-input-to-the-compiler) traces that case.
 
-On a first reading, start with [the lexer's state block](#the-lexers-state-block),
-[the arena](#the-arena), and the input/output buffers, then try their checkpoint.
-You need the two Forth stacks and eight-byte cells from Part 2; you do not
-need to retain every optimization to explain an allocation. Return to the
-native replacements and dictionary index when tracing how the compiler
-runs faster. Their definitions remain in source order because later words
-depend on them.
+The first source file also accelerates the Forth system that will run the
+compiler. Its replacements preserve the library interfaces we already
+know. Their instruction encodings are collected below; the main storage
+walkthrough resumes at the lexer state block.
 
-Variable-size records need a different home from fixed tables (`forth-bootstrap/cc/020-cc-arena.fth:1`):
+<details>
+<summary>Preparing Forth: native replacements, buffered input, and faster lookup</summary>
+
+The file introduces the compiler's storage needs before installing the
+Forth replacements (`forth-bootstrap/cc/020-cc-arena.fth:1`):
 
 ```forth file=cc/020-cc-arena.fth
 \ 020-cc-arena.fth — the compiler's ground floor: the lexer's state block,
@@ -202,6 +211,16 @@ variable kd-n
 This handoff prevents `cc-read-all` from losing C bytes already fetched
 while the Forth definitions were being loaded. A destination too small to
 accept all pending bytes leaves the remaining bytes in `key-buffer`.
+
+For a manual example, suppose the last refill fetched 200 bytes and the
+Forth reader consumed 80 before invoking the compiler entry word. The
+remaining 120 bytes are already outside the kernel's input queue. With
+enough destination capacity, `key-drain` copies them first and advances
+`key-pos` to 200; the next `read` appends later bytes after that prefix.
+Starting with a fresh `read` alone would omit the prefix, even though all
+the source bytes were present in the original pipe. The transition from
+reading Forth to reading C changes who consumes the bytes, so it must
+transfer the unread buffer as well as the file descriptor.
 
 ## Compiling literals and branches directly
 
@@ -640,9 +659,14 @@ The final patch redirects the original `find`. This index accelerates
 Forth dictionary lookup while the compiler is loaded; it is separate from
 the compiler's C name tables introduced below.
 
+</details>
+
 ## The lexer's state block
 
-Look-ahead must restore the current token as well as the character cursor.
+The later lexer will turn source slices into token records. Looking ahead
+changes both its byte cursor and the record describing the current token;
+undoing that lookahead must restore both.
+
 `cc-lex-state-size` bounds a contiguous `cc-lex-state` block whose field
 names are addresses, so existing fetch and store words can access them (`forth-bootstrap/cc/020-cc-arena.fth:362`):
 
@@ -680,9 +704,9 @@ cc-lex-state [lit] 56 +  constant cc-tok-pending \ lexer: -1 = current token put
 
 Copying this block preserves the moving reader and token state together.
 The source bytes stay in their own buffer, so a saved text address remains
-meaningful. Chapter 29 builds the mark/reset operations and token meanings;
-this layout only reserves their state. The line cell also gives failures
-a location before the lexer is present.
+meaningful. Chapter 29 defines the token meanings and builds the mark/reset
+operations; this layout reserves their state. The line cell also lets
+earlier layers report a location when they fail.
 
 ## Failing: `cc-die`
 
@@ -756,7 +780,7 @@ source, not an original include-file location.
 
 Records that survive until compilation ends can share a region with a
 single moving allocation pointer. `cc-arena-cap` and `cc-arena-base`
-describe the default slab; `cc-arena-start` and `cc-arena-limit` select
+describe the default block; `cc-arena-start` and `cc-arena-limit` select
 the active region, and `cc-arena-ptr` marks its unused tail (`forth-bootstrap/cc/020-cc-arena.fth:419`):
 
 ```forth file=cc/020-cc-arena.fth
@@ -786,8 +810,8 @@ cc-arena-cap cc-arena-limit !
 `cc-arena-map` installs an anonymous read/write mapping as the active
 region and resets the pointer to its start. A negative mapping result
 uses the allocation error code. The word does not copy old records, free
-a previous mapping or validate the requested size before the syscall;
-selecting storage belongs before allocating records into it.
+a previous mapping or validate the requested size before the syscall.
+Select the storage before allocating records into it.
 
 `cc-alloc` rounds the requested length, saves the old pointer as its answer,
 and checks the proposed new pointer against the active region before
@@ -814,16 +838,11 @@ committing it (`forth-bootstrap/cc/020-cc-arena.fth:440`):
   cc-arena-ptr ! ;                               ( -- old-top )
 ```
 
-For the checkpoint's initial request of 16 bytes, let the old pointer be
-`p`. Rounding leaves that length unchanged, the prospective pointer is
-`p + 16`, and the checked usage is `p + 16 - cc-arena-start @`. Success
-stores `p + 16` but returns `p`; the following allocation starts at that
-stored pointer.
-
-This is an *arena*: allocation advances a pointer and there is no
-individual release operation. Records remain available as long as the
-region does. Chapter 30 uses this facility for type records, Chapter 32
-for call fixups and Chapter 36 for control-flow records.
+This is the allocation sketched at the start: the word returns the old
+cursor and commits the checked new one. Chapter 30 uses those stable
+addresses for type records, Chapter 32 for call fixups, and Chapter 36 for
+control-flow records. None needs to release a record before compilation
+ends.
 
 The rounded length is a multiple of 8; that preserves the base address's
 alignment rather than independently aligning the returned address. A
@@ -857,7 +876,7 @@ writers. The I/O file states that separation before declaring storage (`forth-bo
 
 ```
 
-Large dictionary allocations must clear the VM's reserved pages.
+Large dictionary allocations must skip the VM's reserved pages.
 `skip-vm-pages` precedes the raw buffer. `cc-in-default-cap` sizes
 `cc-in-default-buf`; `cc-in-buffer` and `cc-in-limit` select its current
 address and capacity, exposed by `cc-in-buf` and `cc-in-cap`.
@@ -924,8 +943,9 @@ text while it appends expanded text elsewhere.
 
 `cc-read-all` accepts a descriptor, destination, capacity and failure code.
 The `cc-ra-fd`, `cc-ra-buf`, `cc-ra-cap` and `cc-ra-code` cells retain those
-arguments; `cc-ra-n` accumulates the length. Stdin first receives the
-pending `key-drain` bytes before the ordinary read loop starts (`forth-bootstrap/cc/030-cc-io.fth:59`):
+arguments; `cc-ra-n` accumulates the length. When reading stdin, the
+destination first receives any bytes pending in the seed's input buffer
+via `key-drain`, before the ordinary read loop starts (`forth-bootstrap/cc/030-cc-io.fth:59`):
 
 ```forth file=cc/030-cc-io.fth
 \ cc-read-all ( fd buf cap code -- n )  Read fd to end of file into buf and
@@ -1322,8 +1342,8 @@ access is explicit: the reader carries a position, and the patchers accept
 offsets. Streaming would need additional machinery to retain text for
 look-ahead and to revisit unfinished output.
 
-The price is a fixed memory budget and whole-input residency. Capacity
-checks bound ordinary appends; they do not turn unchecked patches, invalid
+The price is a fixed memory budget and keeping the whole input in memory.
+Capacity checks bound ordinary appends; they do not turn unchecked patches, invalid
 allocation requests or ignored I/O errors into safe operations. Each
 interface still has a caller contract.
 
@@ -1373,13 +1393,13 @@ accumulated assertion flag into the exit status printed by the shell.
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-27-allocation-and-patching).
 
-**Trace — easy.** Follow the arena test's first allocation through
+**Trace (easy).** Follow the arena test's first allocation through
 `cc-alloc`. Identify the value returned, the pointer stored, and the value
 passed as the prospective size to `cc-check-cap`. Then explain why
 rounding the request preserves the base's alignment without proving that
 the base itself is aligned.
 
-**Verify — moderate.** Extend the I/O test locally to patch a full cell
+**Verify (moderate).** Extend the I/O test locally to patch a full cell
 through `cc-out-patch-8le`. Check every resulting byte and check that
 `cc-out-pos` is unchanged. Use only the library and layers loaded above.
 

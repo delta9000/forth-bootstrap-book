@@ -3,6 +3,7 @@
 # Front matter
 
 - [Reading the book](01-reading-the-book.md)
+- [The lab companion](labs.md)
 - [Prologue: Seventeen hundred and seventy-two bytes](02-prologue.md)
 - [Where this fits: routes and history](03-where-this-fits.md)
 

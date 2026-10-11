@@ -1,8 +1,9 @@
 # Chapter 7 — Arithmetic and logic in machine code
 
 The seed has one logic primitive, `nand`, beside `+`, `0=`, `/` and `*`.
-Their machine code fixes each result and stack effect. Chapter 16 builds logic on these contracts,
-Chapter 17 builds subtraction, and Chapter 20 builds comparisons.
+Their machine code defines how each result is computed and how the stack
+changes. Chapter 16 builds logic on these contracts, Chapter 17 builds
+subtraction, and Chapter 20 builds comparisons.
 
 ## The shape before the instructions
 
@@ -121,7 +122,7 @@ The REX prefix `40` on `sete dil` selects `dil` rather than `bh`
 
 This **canonical flag** convention lets a true result also serve as an
 all-set bit mask. It does not make arbitrary outputs of `nand` canonical:
-only a zero test guarantees this normalization. Chapter 19's predicates
+a zero test provides that normalization. Chapter 19's predicates
 can refer to this [zero-test contract](#zero-equal-contract).
 
 ## Unsigned division contract
@@ -263,12 +264,12 @@ Arithmetic checkpoint: clean exit, no diagnostics.
 
 ## Exercise
 
-**Trace — easy.** Trace `test`, `sete`, `movzx`, and `neg` in `zeq_code`
+**Trace (easy).** Trace `test`, `sete`, `movzx`, and `neg` in `zeq_code`
 for an input with a set bit outside its low byte. Which instruction keeps
 that bit out of the false result? Why does the body need no slot-release
 instruction?
 
-**Trace — moderate.** Trace the checkpoint's stack on paper, using signed
+**Trace (moderate).** Trace the checkpoint's stack on paper, using signed
 notation for the all-set cell. After each arithmetic word, record the
 cached top and whether `rbp` moved. Why does division receive a nonzero
 divisor even though the sequence begins with zero?

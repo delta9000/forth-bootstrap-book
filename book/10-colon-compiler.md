@@ -1,8 +1,9 @@
 # Chapter 10 — The colon compiler
 
-`: double dup + ;` defines a new word that doubles the top of the stack. The colon compiler writes a native call for each ordinary word
-in a definition and a return instruction at its end. With inline literals,
-those definitions can also carry values to use when they run.
+The seed can run `emit`, but a reusable word must remember *what to emit*
+and *what to do with it*. In `: letter [lit] 65 emit ;`, the colon compiler
+writes both into a new machine-code body. Calling `letter` later follows
+that body without reading the definition again.
 
 ## Start with an empty body
 
@@ -16,10 +17,33 @@ the compiler writes instructions at HERE. Later, calling `letter` runs
 those instructions. This arrangement is **subroutine threading**: a
 compiled word calls the native code of its component words.
 
+Follow `letter` through those two phases before opening the compiler.
+During definition:
+
+- `:` reads `letter`, creates its header, and starts its body.
+- `[lit]` reads `65` and emits a call to `lit_code` followed by the value.
+- `emit` contributes a call to the existing primitive.
+- `;` appends a return instruction and leaves compile mode.
+
+The resulting layout is a hand-derived map. Let `B` be the start of the
+new body; the five-byte calls use the encoding from Chapter 4:
+
+```text
+B + 0     CALL lit_code
+B + 5     41 00 00 00 00 00 00 00       the eight-byte value 65
+B + 13    CALL emit_code
+B + 18    RET
+```
+
+At runtime, the first call must load the value and resume at `B+13`.
+A plain return to `B+5` would execute the value as instructions. That
+single requirement explains the literal helper we will build below.
+There is no call to `[lit]` in the finished body: its work is already done.
+
 ## `colon_code`: give the body a name
 
 The new body needs a header before it can receive instructions; recall the
-header layout from Chapter 9 (The dictionary and token reader).
+header layout from Chapter 9.
 The `:` entry and its implementation in
 `forth-bootstrap/seed/000-seed.hex0:515` construct that header at HERE:
 
@@ -49,9 +73,9 @@ C3                                        ; ret
 
 ```
 
-The first call obtains the name through `read_word`, recalled from
-Chapter 9. The code captures the old LATEST in `rcx` and the allocation
-address in `rdx`. It writes the new entry's link, clears its flags, stores
+The first call obtains the name through `read_word`. The code captures
+the old LATEST in `rcx` and the allocation address in `rdx`. It writes
+the new entry's link, clears its flags, stores
 the name length, and makes the entry LATEST.
 
 For the name copy, `rcx` becomes the count, `rsi` the source, and `rdi`
@@ -223,17 +247,11 @@ leaving the value ready to append. Recall `,` from Chapter 9: the final
 jump delegates the cell write to `comma_code`. Its return goes directly
 to the caller of `[lit]`.
 
-For `: letter [lit] 65 emit ;`, compilation proceeds as follows:
-
-- `:` creates the entry named `letter` and starts its body.
-- `[lit]` reads `65` and emits a call to `lit_code` followed by the cell.
-- `emit` contributes a call to the existing primitive.
-- `;` appends the return instruction and leaves compile mode.
-
-No call to `[lit]` appears in that body. When `letter` runs, `lit_code`
-loads the cell and returns past it, `emit` consumes the value, and the
-body's final return finishes the call. Defining `twice` in terms of
-`letter` adds another level of calls without changing this sequence.
+Return to the body map at the start of the chapter. We can now account
+for every part: `compile_call` writes each call, `comma_code` writes the
+value, and `;` writes the return. When `letter` runs, `lit_code` steps
+over the data and `emit` consumes it. Defining `twice` in terms of
+`letter` adds another level of calls without changing that body.
 
 ## Try it
 
@@ -268,7 +286,7 @@ AA
 
 ## Exercise
 
-**Trace — easy.** Follow the return addresses when `twice` calls `letter`
+**Trace (easy).** Follow the return addresses when `twice` calls `letter`
 in the checkpoint above. Which return address does `lit_code` adjust?
 Which return instruction brings execution back into `twice`? Explain why
 the inline cell is never executed as an instruction.

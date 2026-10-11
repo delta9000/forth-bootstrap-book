@@ -28,7 +28,7 @@ jobs:
       - name: Validate source, regressions and selected checkpoints
         run: |
           set -o pipefail
-          ./check.sh 2>&1 | tee check.log
+          ./check.sh 2>&1 | tee "$RUNNER_TEMP/book-check.log"
       - name: Install mdBook
         run: |
           url="https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
@@ -40,15 +40,26 @@ jobs:
         run: mdbook build
       - name: Validate rendered links and anchors
         run: python3 tools/check-links.py --html docs
+      - name: Package the offline reading edition
+        run: python3 tools/package-book.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forth-bootstrap-book
+          path: dist/forth-bootstrap-book.zip
+      - name: Prepare the published pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          python3 -m zipfile -e dist/forth-bootstrap-book.zip dist/site
+          cp docs/404.html dist/site/forth-bootstrap-book/404.html
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: book-check-log
-          path: check.log
+          path: ${{ runner.temp }}/book-check.log
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
-          path: docs
+          path: dist/site/forth-bootstrap-book
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
@@ -60,5 +71,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/configure-pages@v5
       - id: deployment
         uses: actions/deploy-pages@v4

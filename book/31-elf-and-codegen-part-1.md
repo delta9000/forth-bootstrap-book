@@ -2,6 +2,25 @@
 
 An executable that exits with status 42 needs only a header and a short instruction sequence. Emitter words turn operations into instructions in the output buffer. By the checkpoint, you can write and run that executable directly, including a patched jump that skips an unwanted assignment.
 
+## One byte, three coordinates
+
+Before writing bytes, choose what their addresses mean. The output buffer
+is `cc-out-buf`; this ELF layout puts a 120-byte header before the code and
+loads the image at `0x400000` (Chapter 5). The first instruction byte
+therefore has three coordinates:
+
+| Coordinate | Value for that byte | Who uses it? |
+|---|---|---|
+| Compiler memory address | `cc-out-buf + 120` | The running Forth compiler, to write or patch the byte |
+| File offset | `120`, or `0x78` | The output cursor and saved patch positions |
+| Program virtual address | `0x400000 + 0x78 = 0x400078` | The loader and the eventual machine code |
+
+Writing the output copies the bytes into a file; it does not preserve
+`cc-out-buf` as their runtime address. An absolute address in an instruction
+must use the third row. A patch operation uses the second row to locate
+bytes in the first. Relative branches can subtract two file offsets because
+both receive the same load base when the program runs.
+
 ## `080-cc-elf.fth`: the ELF wrapper
 
 The output side has this shape:
@@ -12,7 +31,7 @@ cc-emit-elf-header → instruction emitters → cc-finalize-elf
                          cc-out-buf
 ```
 
-The wrapper uses the single-segment ELF layout (Chapter 5). Its own constants fix the load address and entry address; `cc-here-vaddr` names the next output byte's execution address. The size-field offsets let finalization revisit the header (`forth-bootstrap/cc/080-cc-elf.fth:14`):
+The constants below encode that layout. `cc-here-vaddr` turns the output cursor into the next byte's execution address; the saved size-field offsets let finalization revisit the header (`forth-bootstrap/cc/080-cc-elf.fth:14`):
 
 ```forth file=cc/080-cc-elf.fth
 \ 080-cc-elf.fth — ELF64 header + program header emission for our compiled output.
@@ -125,7 +144,7 @@ Only the low part of each size field is patched. This relies on the output and r
 
 ## `090-cc-emit.fth`: register convention
 
-The instruction helpers use fixed register roles so their callers can compose them without a register allocator (`forth-bootstrap/cc/090-cc-emit.fth:1`):
+The instruction helpers assign fixed roles to registers so their callers can combine operations without a register allocator (`forth-bootstrap/cc/090-cc-emit.fth:1`):
 
 ```forth file=cc/090-cc-emit.fth
 \ 090-cc-emit.fth — code-emission helpers for the C-subset compiler.
@@ -232,6 +251,15 @@ The extended-register pops follow the same tracking policy; the `rbx` pair emits
 
 ```
 
+<details>
+<summary>Operand access: local slots, pointers, and argument registers</summary>
+
+The checkpoint needs immediate loads and a jump. These helpers extend
+the same emitter vocabulary to values stored in memory and passed to
+functions. The declaration parser will choose a slot; these words only
+encode access to it. Keep that division in mind when returning here from
+Chapters 34–37.
+
 ## Local-variable addressing
 
 A local's slot number selects storage below the frame pointer: `[rbp - 8*(slot+1)]`. Slot zero is nearest `rbp`. `cc-disp8-from-slot` computes the low byte of that displacement; it does not decide whether the displacement fits (`forth-bootstrap/cc/090-cc-emit.fth:78`):
@@ -280,7 +308,7 @@ The shared **local-address tail**, `cc-emit-local-ea`, makes that decision for e
 
 The code accepts slots from -16 through 15 in the short form. Ordinary nonnegative locals use zero through 15; slot 16 needs the long displacement. Negative slots can describe addresses above the frame pointer. The comments describe ordinary locals, while the predicate also permits those positive displacements.
 
-A larger displacement changes the encoding, not the amount of stack storage reserved. Chapter 35 owns slot allocation; the prologue below accepts the frame size separately.
+A larger displacement changes the encoding, not the amount of stack storage reserved. Chapter 35 explains slot allocation; the prologue below accepts the frame size separately.
 
 Loads and stores share the local-address tail, so the boundary cannot drift between readers and writers (`forth-bootstrap/cc/090-cc-emit.fth:98`):
 
@@ -489,6 +517,8 @@ An indirect call needs its target without disturbing argument registers. `cc-emi
 
 Chapter 37 connects these primitives to function parameters and call expressions.
 
+</details>
+
 ## Register-to-register moves, ALU, and prologue/epilogue
 
 Register moves connect the accumulator to the roles around it:
@@ -500,7 +530,7 @@ Register moves connect the accumulator to the roles around it:
 | `cc-emit-mov-rdi-rax` | function result → accumulator |
 | `cc-emit-mov-rbx-rdi` | accumulator → saved selection value |
 
-The first transfers preserve a value for an operation or place it where a function result belongs. The historical comment groups IMUL with ADD/SUB too broadly: the ADD/SUB forms here use ModR/M `reg=source, r/m=destination`, but two-operand `0F AF` IMUL uses `reg=destination, r/m=source`. The later IMUL encoder uses that latter direction (`forth-bootstrap/cc/090-cc-emit.fth:232`):
+The first transfers either save a right operand or place a result in the return register. The historical comment groups IMUL with ADD/SUB too broadly: the ADD/SUB forms here use ModR/M `reg=source, r/m=destination`, but two-operand `0F AF` IMUL uses `reg=destination, r/m=source`. The later IMUL encoder uses that latter direction (`forth-bootstrap/cc/090-cc-emit.fth:232`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -736,7 +766,7 @@ The final move delivers zero or one in `rdi`, suitable as a C expression value. 
 
 ## Branches and `rel32` placeholders
 
-A condition used for control flow needs flags rather than a materialized comparison result. `cc-emit-test-rdi` tests the accumulator without changing it (`forth-bootstrap/cc/090-cc-emit.fth:393`):
+A conditional jump reads processor flags, so it needs a test of the expression value. `cc-emit-test-rdi` tests the accumulator without changing it (`forth-bootstrap/cc/090-cc-emit.fth:393`):
 
 ```forth file=cc/090-cc-emit.fth
 \ ===========================================================================
@@ -825,6 +855,15 @@ Calls and nonzero branches expose the same patch-offset interface (`forth-bootst
 
 The checkpoint puts a jump before an unwanted assignment, emits that assignment, then patches the jump to the following instruction. Chapter 32 keeps multiple unresolved call sites in fixup lists; Chapter 36 builds statement-level control flow and backward jumps.
 
+Derive that checkpoint's displacement before running it. The header ends
+at file offset 120. The first immediate load uses seven bytes, the register
+move three, and the load of 42 seven: the jump opcode is therefore at
+offset 137. Its four-byte field starts at 138 and ends just before 142.
+The seven-byte load of 99 follows, so the target is 149. The patch is
+`149 - (138 + 4) = 7`, encoded `07 00 00 00`. At runtime the processor adds
+7 to the address immediately after the jump. Using the opcode's offset as
+the subtraction base would land one byte too late.
+
 ## Try it
 
 Run from the `forth-bootstrap` checkout root. This driver loads the library and compiler layers through the ELF writer, then only the first 445 lines of the emitter file: the helpers just read. It constructs the opening executable, writes the output buffer to standard output, and lets the shell capture it in a fresh temporary directory.
@@ -882,6 +921,6 @@ The `e9 07 00 00 00` jump skips the immediate load containing `63`, the hexadeci
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-31-relative-displacements).
 
-**Trace — easy.** In the checkpoint, identify the displacement's file offset and the target's file offset. Apply `cc-patch-rel32-to-here` by hand and match the result to the displayed jump bytes.
+**Trace (easy).** In the checkpoint, identify the displacement's file offset and the target's file offset. Apply `cc-patch-rel32-to-here` by hand and match the result to the displayed jump bytes.
 
-**Modify — moderate.** Replace the skipped assignment with a local load for slot 15, then slot 16, without executing either load. Predict how the jump displacement changes, rerun the driver, and explain the difference using the local-address tail.
+**Modify (moderate).** Replace the skipped assignment with a local load for slot 15, then slot 16, without executing either load. Predict how the jump displacement changes, rerun the driver, and explain the difference using the local-address tail.

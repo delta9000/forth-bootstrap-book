@@ -1,12 +1,62 @@
 # Chapter 55 — Linux 7.2.8 and kexec under QEMU
 
-A Linux image built under K1 becomes the next kernel on the same QEMU machine. A compiler build alone does not establish that its kernel can boot: K1 must prepare the Linux entry state, and the resulting kernel must run its own init. The route ends with exported build evidence and a Linux greeting (`forth-bootstrap/chain/ladder/finish.sh:14`, `forth-bootstrap/chain/ladder/init.c:19`).
+The recorded guest run ends with a greeting:
+`init: hello from a Linux kernel built from hex0 and seed-forth`.
+By then, K1 has built its successor and handed the same QEMU machine to
+it. Linux has started and loaded the small program that prints the line
+(`forth-bootstrap/results/k1-2026-10-08/serial.log:1330`).
+
+Getting from a kernel *file* to that greeting is the last problem in the
+route. We must build the compiler selected by the Linux recipe, produce
+the kernel and its first program, preserve the build results, and enter
+Linux with the machine state it expects. Once control passes to Linux,
+K1 will no longer be there to finish the work.
+
+## A greeting from the new kernel
+
+The final program is short enough to understand before following the
+build. This statically linked init mounts proc, prints its greeting, and
+reads `/proc/version`. The second message therefore comes from the
+running kernel (`forth-bootstrap/chain/ladder/init.c:19`):
+
+```c
+    mount("proc", "/proc", "proc", 0, 0);
+    printf("init: hello from a Linux kernel built from hex0 and seed-forth\n");
+    fd = open("/proc/version", O_RDONLY);
+    if (fd >= 0) {
+        n = read(fd, buf, sizeof buf - 1);
+        if (n > 0) {
+            buf[n] = 0;
+            printf("init: %s", buf);
+        }
+        close(fd);
+    }
+```
+
+Init then flushes output and uses QEMU's debug-exit device. The wrapper
+checks that exit status and the serial markers for the build, handover
+and init (`forth-bootstrap/chain/ladder/init.c:30`,
+`forth-bootstrap/kernel/k1/run-chain.sh:59`). These give the long build
+an observable destination: a program running under the kernel the guest
+just built. The compiler comparisons and archive checks establish the
+earlier steps; this greeting checks that control reached the new system.
 
 ## Extend the guest recipe
 
-The smoke route established the guest execution boundary (Chapter 54). For `--direct-linux`, the host image writer appends `direct-linux.recipe` to `direct.recipe`; it does not append it to the smoke recipe (`forth-bootstrap/kernel/k1/mkdisk.py:50`). Unpacking, patching and compilation remain in the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
+The smoke route in Chapter 54 showed that K1 can run the compiler,
+archiver and recipe runner. The full route uses those tools to rebuild
+the plumbing and GCC chain under K1. For `--direct-linux`, the host image
+writer appends `direct-linux.recipe` to `direct.recipe`, rather than to
+the shorter smoke recipe (`forth-bootstrap/kernel/k1/mkdisk.py:50`).
+Unpacking, patching and compilation remain in the guest
+(`forth-bootstrap/kernel/k1/run-chain.sh:6`).
 
-The appended recipe has a simple shape: prepare the direct GCC and late tools, install those tools as the guest system, climb to the final compiler, build Linux, then export and hand over. Each invocation uses an explicit executable path because the runner starts it with an empty environment. Here is the complete executable tail, in `direct-linux.recipe` (`forth-bootstrap/kernel/k1/direct-linux.recipe:9`):
+The appended recipe prepares the direct GCC and late tools, installs
+those tools as the guest system, climbs to the final compiler, builds
+Linux, then exports the results and hands over. Each invocation uses an
+explicit executable path because the runner starts it with an empty
+environment. The final commands are in `direct-linux.recipe`
+(`forth-bootstrap/kernel/k1/direct-linux.recipe:9`):
 
 ```text
 run 0 - /dev/console /dev/console /build-out/plumbing/bin/bash kernel/k1/direct-full.sh JOBS=2
@@ -72,7 +122,9 @@ unpack() {
     mv "$S/$1.tmp"/* "$S/$1"
 ```
 
-These checks establish that the build reads the pinned input bytes. They do not establish what the compiler produces, or whether Linux runs.
+At this point the sources are available and identified. The next task is
+to turn the completed GCC 4.0.4 toolchain into the compiler used by the
+Linux recipe.
 
 ## Climb to the Linux compiler
 
@@ -122,7 +174,13 @@ The comparison records actual hashes even when a path-dependent pin cannot be en
     done < "$GCC64/HASHES"
 ```
 
-A missing artifact is skipped, so a partial invocation cannot prove that the entire pin set exists. A mismatched comparable artifact fails unless the explicit repinning mode is enabled (`forth-bootstrap/chain/gcc64/run-gcc64.sh:444`). The recorded full guest run matched all 31 pins, as reported in the project results (`forth-bootstrap/README.md:239`). This proves agreement with that set of output digests. It does not cover every generated file, and it does not prove a boot.
+A missing artifact is skipped, so a partial invocation cannot establish
+that the entire pin set exists. An artifact that differs from an applicable pin fails
+unless explicit repinning mode is enabled
+(`forth-bootstrap/chain/gcc64/run-gcc64.sh:444`). The recorded full guest
+run matched all 31 pins (`forth-bootstrap/README.md:239`). That identifies
+the selected compiler and library outputs. The kernel image is still
+ahead of us.
 
 ## Build a kernel with its own init
 
@@ -165,7 +223,12 @@ The resulting image and configuration live under `/build-out/linux`; the build l
 
 ## Preserve results before handing over
 
-K1's RAM tree will cease to be the operating filesystem after the jump. `finish.sh` selects the Linux output, Linux build logs and gcc64 logs, plus the earlier reports when present (`forth-bootstrap/chain/ladder/finish.sh:8`). The result export happens before the replacement kernel starts, in `finish.sh` (`forth-bootstrap/chain/ladder/finish.sh:14`):
+The kernel image exists in K1's RAM filesystem. Starting Linux will make
+that filesystem unavailable to the new system, so “boot, then save the
+logs” is the wrong order. `finish.sh` first selects the Linux output,
+Linux build logs and gcc64 logs, plus the earlier reports when present
+(`forth-bootstrap/chain/ladder/finish.sh:8`). It writes them to the output
+disk before preparing the handoff (`forth-bootstrap/chain/ladder/finish.sh:14`):
 
 ```text
 tar -cf /dev/hdb "$@"
@@ -206,7 +269,10 @@ The loader reserves enough contiguous physical memory for decompression, respect
 
 Linux boot parameters describe the machine it inherits. K1 allocates and clears `boot_params` and command-line storage, copies the image's setup header, records physical pointers for the command line and any external initrd, and copies the firmware e820 memory map (`forth-bootstrap/kernel/k1/linux.c:71`). The embedded initramfs is already part of the loaded image; absence of an external initrd is consistent with this build.
 
-The last preparation keeps the current K1 stack addressable while adding the identity mapping required by the entry code. The call passes physical addresses for the page tables and boot parameters, in `linux.c` (`forth-bootstrap/kernel/k1/linux.c:97`):
+The final preparation keeps the current K1 stack addressable while adding
+the identity mapping required by the entry code. The call in `linux.c`
+passes physical addresses for the page tables and boot parameters
+(`forth-bootstrap/kernel/k1/linux.c:97`):
 
 ```c
     /* identity map of the first 512 GiB, plus the direct map so this code
@@ -225,7 +291,12 @@ The last preparation keeps the current K1 stack addressable while adding the ide
     linux_jump(V2P(pml4), V2P(bp), load + 0x200);
 ```
 
-`linux_jump` disables interrupts, installs the new page tables and jumps through the entry argument while leaving the boot-parameter argument in `rsi` (`forth-bootstrap/kernel/k1/k1-asm.fth:229`). Linux receives the boot protocol's machine state rather than a K1 user-process state. The preceding `k1: booting Linux` marker proves that preparation reached the jump; only subsequent Linux output proves that the successor executed.
+`linux_jump` disables interrupts, installs the new page tables and jumps
+through the entry argument while leaving the boot-parameter argument in
+`rsi` (`forth-bootstrap/kernel/k1/k1-asm.fth:229`). Linux receives the
+machine state required by its boot protocol. The preceding
+`k1: booting Linux` marker shows that preparation reached the call to
+`linux_jump`; subsequent Linux output shows that the successor executed.
 
 **Predict before continuing.** Suppose the loop copying `pml4[256]` through `pml4[511]` were removed, leaving only the identity map. After CR3 changes, `rsp` still holds a high direct-map address for K1's kernel stack. If the handoff code now needed to read a saved value from that stack, would the identity map make the read safe? Explain which address would be translated.
 
@@ -238,23 +309,11 @@ This is a conditional prediction, not a claim that removing the loop necessarily
 
 </details>
 
-The greeting is produced by the statically built init. It mounts proc and reads `/proc/version`, so its version message comes from the running kernel rather than a copied build report (`forth-bootstrap/chain/ladder/init.c:19`):
-
-```c
-    mount("proc", "/proc", "proc", 0, 0);
-    printf("init: hello from a Linux kernel built from hex0 and seed-forth\n");
-    fd = open("/proc/version", O_RDONLY);
-    if (fd >= 0) {
-        n = read(fd, buf, sizeof buf - 1);
-        if (n > 0) {
-            buf[n] = 0;
-            printf("init: %s", buf);
-        }
-        close(fd);
-    }
-```
-
-Init then flushes output and uses QEMU's debug-exit device. The wrapper requires the corresponding exit status and searches the serial log for the direct-route, compiler, handover and init markers (`forth-bootstrap/chain/ladder/init.c:30`, `forth-bootstrap/kernel/k1/run-chain.sh:59`). A Linux version banner alone shows kernel execution. The init lines additionally show that the kernel loaded and ran the chain-built userspace program. Neither is a substitute for archive verification or output pins.
+After the jump, Linux starts the init we read at the beginning of the
+chapter. A kernel banner shows that Linux executed; the init lines show
+that it also loaded and ran the program carried in its initramfs. We have
+followed the path from source bytes to a file, from that file to machine
+state, and from that state to a running system.
 
 ## Try it
 
@@ -308,7 +367,11 @@ init: hello from a Linux kernel built from hex0 and seed-forth
 init: Linux version 7.2.8 (chain@chain-root) (gcc (GCC) 10.5.0, GNU ld (GNU Binutils) 2.41) #1 PREEMPT @0
 ```
 
-Taken together, the record separates matched compiler outputs, a result export, a prepared handover, kernel execution and init execution. The compiler hashes cannot prove the jump succeeded; the greeting cannot prove the compiler hashes matched.
+The order of those messages now has a reason. The build identifies its
+compiler outputs, preserves its results, prepares the handover, and then
+gives way to Linux and init. Each later line depends on work we can locate
+in the preceding recipes. The greeting finishes the execution story;
+the saved reports let us inspect how the system that printed it was built.
 
 ## Exercise
 

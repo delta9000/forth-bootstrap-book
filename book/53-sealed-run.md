@@ -2,11 +2,35 @@
 
 Which programs actually executed on the way to the fixed point? A compiler report alone cannot answer that question. The sealed run supplies an initial executable inventory and an execution trace, so you can audit the ancestry of the programs behind the report.
 
+## Follow one attempted execution
+
+Suppose an audit finds `/usr/bin/arch` in the trace. That sounds like a
+host utility has entered the build. Read the result of the call before
+drawing that conclusion. This excerpt from the recorded run ends in
+`ENOENT`, meaning that the requested file was not found:
+
+```text
+907338 execve("/usr/bin/arch", ["/usr/bin/arch", "-k"], 0x7885e961f7e0 /* 31 vars */) = -1 ENOENT (No such file or directory)
+```
+
+The process attempted the path, but no `arch` program ran. A successful
+`execve` would return zero in the trace, and would leave us another
+question: who produced the executable at that path? An audit needs both
+answers. The trace distinguishes attempts from execution; the initial
+inventory and build recipes account for the programs that executed.
+
+We will construct that inventory first, then follow the launcher's four
+entries into the root and read their traces. The retained historical record contains
+grouped paths and counts; the raw line above is an excerpt. The limits of
+that record matter when we try to repeat the audit.
+
 ## Establish the executable boundary
 
 The launcher has a simple shape: prepare a root, enter it under tracing, then reduce the traces to successful and failed paths. Its `ROOT` argument defaults to `build-out/plumbing-root`; the companion trace directory is `ROOT.trace/` (`forth-bootstrap/chain/plumbing-root.sh:31`). The sealed executable boundary leaves the host kernel in place.
 
-The host copies tracked files, including submodules, rather than carrying an existing build tree into the root. It then supplies the pinned input archives by hard link, falling back to a copy (`forth-bootstrap/chain/plumbing-root.sh:39`):
+The host copies tracked files, including submodules, into a fresh root.
+It then supplies the pinned input archives by hard link, falling back
+to a copy (`forth-bootstrap/chain/plumbing-root.sh:39`):
 
 ```text
 git ls-files -z --recurse-submodules | tar --null -T - -cf - | tar -xf - -C "$R"
@@ -89,6 +113,20 @@ The final recipe builds the plumbing tools and bash, then uses that bash to run 
 
 A trace line can stop at `<unfinished ...>` when strace switches to another process before reporting the syscall result. The later `<... execve resumed>` line carries that result, but not the path. Joining by process ID prevents a failed interrupted lookup from being counted as an execution (`forth-bootstrap/chain/plumbing-root.sh:80`):
 
+Follow the small synthetic trace used in this chapter's checkpoint. The
+important state is one remembered path for each unfinished process:
+
+| Incoming event | Remembered path for process 102 | Classified result |
+|---|---|---|
+| Process 101 executes `/hex0-seed`, result 0 | none | `ok /hex0-seed` |
+| Process 102 starts an exec of the built bash, unfinished | `/build-out/plumbing/bin/bash` | Wait for its result |
+| Process 103 attempts `/usr/bin/arch`, result `ENOENT` | unchanged | `fail /usr/bin/arch` |
+| Process 102 resumes, result 0 | consume the remembered path | `ok /build-out/plumbing/bin/bash` |
+
+The intervening failure belongs to process 103. It must neither consume
+102's path nor decide whether bash ran. The awk array implements that
+per-process memory:
+
 ```text
 # Summary.  strace -f splits an execve that another process interrupts into
 # an "<unfinished ...>" line holding the path and a "resumed" line holding the
@@ -122,10 +160,10 @@ The pinned `results/host-2026-10-08/` directory preserves the Stage D report,
 summary counts and grouped success/failure paths. It does not contain the
 raw `execveN.txt` streams or the joined event stream (`forth-bootstrap/results/README.md:14–19`).
 You can inspect those summaries and compare their claims, but cannot repeat
-the join or recover every failure's errno from them; the raw line quoted
-below is an excerpt. A new full run creates the raw records.
+the join or recover every failure's errno from them; the raw line at the
+start of this chapter is an excerpt. A new full run creates the raw records.
 
-For a bounded path-resolution exercise, take an explicitly supplied cwd of
+For a path-resolution exercise, take a working directory of
 `/build-out/plumbing/src/bash-2.05b` and an attempted exec of `../../bin/bash`.
 Resolve the path before deciding who built it:
 
@@ -141,15 +179,24 @@ appears in the historical log. The trace records `execve`, not a complete
 history of cwd changes; preserve recipe and entry context when a path
 cannot be resolved from the raw record alone.
 
-Audit every successful path against the entry and construction history. `/hex0-seed` is the permitted starting program. A host bwrap path is the wrapper entering the root. Other successes must resolve to artifacts the chain produced there, or to scripts interpreted by its built shell. Paths such as `/bin/sh`, relative paths, `..`, and the doubled slashes above require resolving their spelling against the root and the invoking process's working directory. The mount and link setup supplies that boundary (`forth-bootstrap/chain/plumbing-root.sh:54`). A name containing `build-out` alone is not evidence of ancestry: check its producer and the raw `execveN.txt` record when its identity is unclear.
+The same reasoning applies to `/bin/sh`: follow the link into the
+plumbing output directory, then find the recipe that installed `sh`
+there. `/hex0-seed` is the permitted starting program; a host bwrap path
+accounts for entry into the root. Other successes must lead to artifacts
+the chain produced or scripts interpreted by its built shell. Relative
+paths and doubled slashes change the spelling, so use the mount and link
+setup and the invoking process's working directory to identify the file
+(`forth-bootstrap/chain/plumbing-root.sh:54`). A path containing
+`build-out` still needs a producer.
 
-Failures are evidence of attempts, not of inherited executables running. The initial search path points into the root's own tool directory, and the root receives no host `/usr/bin` tree (`forth-bootstrap/chain/plumbing-root.sh:65`). Programs searching for an unavailable command can therefore leave failed paths. For example, the recorded raw trace contains this unsuccessful lookup:
-
-```text
-907338 execve("/usr/bin/arch", ["/usr/bin/arch", "-k"], 0x7885e961f7e0 /* 31 vars */) = -1 ENOENT (No such file or directory)
-```
-
-The recorded `execve-failed.txt` also lists `/usr/convex/getsysinfo` and `/bin/universe`. A failed probe of an absent system utility is expected in this sparse root; it does not show that utility executing. Consult the raw result before treating every failure as absence: the summary classifies all nonzero results as `fail`, even though its final message calls them “failed lookups of absent programs.” Permission and format errors need separate investigation.
+The root receives no host `/usr/bin` tree
+(`forth-bootstrap/chain/plumbing-root.sh:65`). That explains how the
+`arch` probe at the start can fail without borrowing a host program. The
+recorded failure list also includes `/usr/convex/getsysinfo` and
+`/bin/universe`. Its rows group all nonzero results together, however:
+only the raw syscall result distinguishes a missing file from a permission
+or executable-format error. The final message calls these “failed lookups
+of absent programs”; establishing absence requires the raw result.
 
 The final count line reports successful calls, host entries, distinct successful spellings, and failed attempts (`forth-bootstrap/chain/plumbing-root.sh:90`):
 
@@ -161,11 +208,21 @@ echo "plumbing-root: $ok successful execve calls ($hosts of them the host's bwra
 
 The host-entry counter recognizes the literal `/usr/bin/bwrap`. If bwrap is installed elsewhere, its successful path still appears in the trace, but this counter will miss it. Inspect the successful list rather than treating that count alone as the audit verdict.
 
-README records one run taking 18 minutes, with about 63,000 programs run and 2,581 distinct paths (`forth-bootstrap/README.md:237`). Those are recorded observations, not a duration or count promised for another machine. The launcher also returns the final entry's exit status after writing the summaries (`forth-bootstrap/chain/plumbing-root.sh:94`); trace completeness and build success both matter.
+The README records an 18-minute run with about 63,000 successful
+executions and 2,581 distinct paths (`forth-bootstrap/README.md:237`).
+Those observations describe that run; time and counts can differ on
+another machine. The launcher returns the final entry's exit status
+after writing the summaries (`forth-bootstrap/chain/plumbing-root.sh:94`).
+A complete trace and a successful build are both needed to assess the run.
 
 ## Bind the archive names to bytes
 
-The trace answers which paths ran. Source pins answer which archive bytes were supplied. The manifest's header distinguishes whole-cache checking from agreement with each stage's pin file (`forth-bootstrap/MANIFEST.sha256:1`):
+We can now follow a successful program back to its build recipe. The last
+step is to identify that recipe's source bytes: an archive filename alone
+can name different contents. A digest pin supplies the missing identity.
+The manifest's header distinguishes checking the whole archive cache
+from checking agreement between the pin declarations
+(`forth-bootstrap/MANIFEST.sha256:1`):
 
 ```text
 # MANIFEST.sha256 -- every archive the route reads, with its sha256.
@@ -179,7 +236,10 @@ The trace answers which paths ran. Source pins answer which archive bytes were s
 # others are the release archives as published (see each SOURCES file).
 ```
 
-A digest pin fixes content independently of a download location. It does not establish that the upstream source is correct. The plain binutils tar has its own pin because decompression changes the archive bytes being checked.
+A digest pin fixes content independently of the download location.
+The plain binutils tar has its own pin because decompression changes the
+archive bytes being checked. We can identify the source precisely while
+still needing to study whether that source is correct.
 
 The fetcher reads every non-comment manifest row as a digest and destination path. Without path arguments it fetches all manifest entries, including archives for later layers; with path arguments it rejects names absent from the manifest (`forth-bootstrap/tools/fetch-archives.py:124`). Its release URL map and `chain/gcc64/SOURCES` supply locations, including git exports and members extracted from downloaded archives (`forth-bootstrap/tools/fetch-archives.py:79`). For a git export it checks the fetched commit before creating the tar (`forth-bootstrap/tools/fetch-archives.py:90`).
 
@@ -229,7 +289,9 @@ Downloads and derived files stay in a temporary directory until their final dige
     print(f"check-pins: {len(pins)} stage pins agree with the {len(manifest)} entries of MANIFEST.sha256")
 ```
 
-Thus this check works before fetching archives. Checking archive pin agreement and checking archive contents are separate operations.
+This check can therefore run before fetching archives. It verifies that
+the pin declarations agree; hashing the downloaded files verifies their
+contents.
 
 ## Try it
 
@@ -285,7 +347,12 @@ sha256sum -c MANIFEST.sha256
 sh chain/plumbing-root.sh
 ```
 
-Allow a sustained build: 18 minutes on a 24-thread host (`forth-bootstrap/check-all.sh:24`), longer with fewer. Inspect `build-out/plumbing-root.trace/execve-programs.txt` and `execve-failed.txt`, then resolve each unexplained success using the raw traces and its producing recipe. The report from Chapter 52 establishes the build result; the audit establishes which executable paths participated.
+The recorded build took 18 minutes on a 24-thread host
+(`forth-bootstrap/check-all.sh:24`); allow longer on a smaller machine.
+Inspect `build-out/plumbing-root.trace/execve-programs.txt` and
+`execve-failed.txt`, then resolve each unexplained success using the raw
+traces and its producing recipe. The report from Chapter 52 establishes
+the build result; the audit identifies the executable paths that participated.
 
 ## Exercise
 

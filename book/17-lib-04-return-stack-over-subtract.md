@@ -149,7 +149,7 @@ Observed output:
 
 ## Exercise
 
-**Trace — easy.** Trace `over` on `a b`, then repeat the trace with
+**Trace (easy).** Trace `over` on `a b`, then repeat the trace with
 its final `swap` omitted. Give the altered stack effect and explain
 why restoring the borrowed return-stack slot alone does not establish
 `over`'s contract.

@@ -1,10 +1,31 @@
 # Chapter 43 — Runtime, libc, streams, and formatting
 
-A C runtime joins process entry, memory ownership, and output into a callable library. Process entry initializes library state, and normal termination flushes pending streams. The artifact here is a set of Forth-built runtime objects, with the C library contracts that let an ordinary program allocate, copy, and print.
+The checkpoint allocates a string, copies text into it, writes the text,
+and frees the allocation. Those operations need working code behind the
+C declarations. This chapter connects the Forth-built runtime adapters
+to the C library, then follows the ownership rules that let larger
+programs allocate memory, use streams, and format output.
 
 ## From process entry to a C call
 
-The shape is `_start` → initialize → `main` → `exit`, with library operations reaching Linux through `__seed_syscall6`. The C library is surveyed, not quoted in full. These excerpts are source readings; the checkpoint exercises only the allocation, memory, and string subset. Its source-range inventory TODO remains open: the bundle assigns no C line spans, so the excerpts below illustrate shared contracts without claiming those files as tangle inputs.
+There are two entry builders. Each exports `_start`, so a program selects
+one according to the services it needs:
+
+| Builder | Generated path | Used here for |
+|---|---|---|
+| `cc-sysrt-start-object` | `_start` → `main` → Linux exit syscall | The restricted allocation, memory, and string checkpoint |
+| `cc-sysrt-runtime-start-object` | `_start` → runtime initialization → `main` → library `exit` | The complete runtime built by the driver in Chapter 50 |
+
+The second path establishes the environment and program name, then lets
+normal termination run exit handlers and flush pending streams. The
+minimal path supplies neither that initialization nor library cleanup.
+Both reach the kernel through generated machine code. The C library uses
+the raw `__seed_syscall6` bridge below to request kernel services.
+
+The Forth listings define the adapters; the C excerpts show how the
+library uses them. Follow entry and the raw bridge first, then allocation
+and copying to reach the checkpoint. Streams and formatting extend that
+same ownership story to bytes waiting for delivery.
 
 The runtime file stores instruction templates and names in the Forth dictionary. Calling a builder packages a template as an object; merely loading the file writes no target object.
 
@@ -65,7 +86,13 @@ create cc-sysrt-code
 
 ```
 
-An error remains a negative kernel result; this leaf never changes errno. A public wrapper chooses its failure return and stores the positive error number. Keeping storage in a separate object lets a raw caller use the bridge without importing an errno provider.
+Consider a raw result of -9. The bridge returns exactly -9 and leaves
+`errno` alone. A public wrapper can recognize it inside the error interval,
+store positive 9 in `errno`, and return the failure value promised by its
+own C interface. The wrapper owns that translation; the register shuffle
+cannot choose it for every library function. Keeping error storage in a
+separate object also lets a raw caller use the bridge without importing an
+`errno` provider.
 
 `cc-sysrt-errno-name` names the accessor, while `cc-sysrt-errno-storage` names its private storage symbol (`forth-bootstrap/cc/122-cc-sysv-runtime.fth:30`):
 
@@ -250,6 +277,14 @@ void __seed_init_runtime(int count, char **arguments)
 
 The initializer also derives `__progname` from the basename of `argv[0]`, without allocating. `forth-bootstrap/chain/runtime/gcc-seed/STARTUP.md` describes this entry contract; the Forth template above is authoritative for its current body.
 
+For a manual entry trace, let `argc` be 2. The pointer vector starts with
+`argv[0]` and `argv[1]`, followed by a null pointer at `argv[2]`; the
+environment vector starts at `argv + 3`. The initializer publishes that
+address as `environ`, and the entry code supplies the same address as
+`main`'s third argument. The saved argument registers matter because the
+initializer is itself a C call and may overwrite them. Entry must recover
+`argc` and `argv` before preparing the call to `main`.
+
 Normal exit removes each registered handler before calling it, then invokes the stream flush hook (`forth-bootstrap/chain/runtime/gcc-seed/process.c:52`):
 
 ```c
@@ -344,11 +379,11 @@ create cc-sysrt-longjmp-code
   cc-obj-text [lit] 0 [lit] 43 cc-obj-symbol drop ;
 ```
 
-The function that called `setjmp` must still be active. A changed non-volatile automatic local in that function has an indeterminate value after `longjmp`; this mechanism does not restore ordinary local storage. It also saves no signal mask or floating-point environment. The Flex consumer belongs to Chapter 51; its runtime dependency is documented in `forth-bootstrap/chain/runtime/gcc-seed/NONLOCAL.md:3`.
+The function that called `setjmp` must still be active. A non-volatile automatic local in that function has an indeterminate value after `longjmp` if it changed since `setjmp`; this mechanism does not restore ordinary local storage. It also saves no signal mask or floating-point environment. Chapter 51 shows Flex using this mechanism; its runtime dependency is documented in `forth-bootstrap/chain/runtime/gcc-seed/NONLOCAL.md:3`.
 
 ## Allocation owns both payload and metadata
 
-Small allocations share slabs and return freed slots to size-class lists. Large allocations own separate anonymous mappings. Slabs remain mapped until process termination, trading reclamation for reuse. These choices, including `malloc(0)` and errno preservation by `free`, are specified in `forth-bootstrap/chain/runtime/gcc-seed/README.md`.
+Small allocations share slabs: mapped regions divided into slots of a fixed size. Freeing a slot returns it to the list for that size. Large allocations own separate anonymous mappings. Slabs remain mapped until process termination, trading reclamation for reuse. These choices, including `malloc(0)` and errno preservation by `free`, are specified in `forth-bootstrap/chain/runtime/gcc-seed/README.md`.
 
 The header distinguishes storage extent from the amount of payload the caller requested (`forth-bootstrap/chain/runtime/gcc-seed/alloc.c:8`):
 
@@ -423,7 +458,17 @@ The tail of `realloc` keeps a shrinking object in place and commits a growing re
 
 ## Bytes and strings
 
-The memory functions use byte loops with explicit bounds. `memcpy` requires non-overlap; `memmove` selects its direction using the target's integer ordering of addresses. Comparisons use unsigned bytes, so high-bit bytes retain their ordering despite signed plain `char`.
+Suppose a buffer contains the six bytes `abcdef` and four bytes must move
+from its beginning to the position one byte later. In this manual trace,
+a forward copy would write `a` over `b` before reading `b`; that damage
+would propagate through the remaining copies. Copying backward reads `d`,
+`c`, `b`, and `a` before overwriting their sources and leaves `aabcdf`.
+
+That is the additional obligation of `memmove`. `memcpy` requires
+non-overlap and can keep its simple forward loop. This runtime chooses
+`memmove`'s direction using the target's integer address ordering.
+Byte-comparison functions use unsigned bytes so high-bit values retain
+their order.
 
 The overlap-safe copy walks backward when a forward store could overwrite a later source byte (`forth-bootstrap/chain/runtime/gcc-seed/memory.c:14`):
 
@@ -448,7 +493,7 @@ void *memmove(void *destination, const void *source, size_t count)
 }
 ```
 
-String functions add a terminator contract to the byte contract. Counted copying is not automatically termination: `strncpy` pads a short source, but need not append a null when the count is exhausted. `strdup` composes the ordinary allocation and copy operations.
+String functions add a terminator contract to the byte contract. A counted copy does not necessarily terminate a string: `strncpy` pads a short source, but need not append a null when the count is exhausted. `strdup` composes the ordinary allocation and copy operations.
 
 Duplication allocates space for the terminator and propagates allocation failure (`forth-bootstrap/chain/runtime/gcc-seed/string.c:125`):
 
@@ -567,9 +612,21 @@ Closing releases ownership even when the close syscall reports an error, and nev
 
 A retry could close an unrelated descriptor that reused the released number. Position reporting also accounts for ownership: `ftell` adds pending output and subtracts unread input from the kernel offset, while append output must first be written to learn its position. Pushback belongs to that unread input. These details let file consumers reason about the stream position without knowing its buffer layout.
 
-## Formatting counts what would fit
+<span id="formatting-counts-what-would-fit"></span>
 
-A formatter needs both a destination and a logical output count. The count answers how much space a caller needed even when its bounded buffer was too small. The same formatting engine can target a stream or memory.
+## Formatting counts the complete result
+
+A formatter needs both a destination and a logical output count. The count
+answers how much space a caller needs even when its bounded buffer is
+too small. The same formatting engine can target a stream or memory.
+
+As a manual example, formatting the five characters `hello` into a
+four-byte buffer stores `h`, `e`, `l`, and a null terminator. The returned
+count is still 5: it describes the characters required, excluding that
+terminator. A complete result therefore needs six bytes. With capacity
+zero, no destination byte is written and the required count remains 5.
+Keep these three quantities separate in the code below: capacity supplied,
+characters actually copied, and characters counted.
 
 The output record separates capacity, count, and failure state (`forth-bootstrap/chain/runtime/gcc-seed/stdio.c:746`):
 
@@ -638,7 +695,7 @@ Chapter 46 teaches the argument cursor used by this formatter. Floating represen
 
 ## Where the library is built
 
-Part 4 builds the tools that consume this runtime. The Forth bootstrap driver compiles the runtime C units, emits the runtime adapters, makes an archive, and links `seed-cc` and `seed-ar` (`forth-bootstrap/cc/driver/seed-cc-start.fth:335`). Chapter 50 owns that construction.
+Part 4 builds the tools that consume this runtime. The Forth bootstrap driver compiles the runtime C units, emits the runtime adapters, makes an archive, and links `seed-cc` and `seed-ar` (`forth-bootstrap/cc/driver/seed-cc-start.fth:335`). Chapter 50 follows that construction.
 
 The C driver's runtime builder compiles the C sources and separately invokes these Forth object builders (`forth-bootstrap/cc/driver/seed-cc.c:791`). Its normal link order is the runtime-aware entry, the program objects, then the runtime archive (`forth-bootstrap/cc/driver/seed-cc.c:1252`). This makes the entry and the library's initialization and termination functions parts of the same contract.
 
@@ -739,4 +796,4 @@ The executable returned success. No GCC is involved: `gcc-seed` is only the runt
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-43-realloc-and-ownership).
 
-**Trace — easy.** Follow a failed growing `realloc` from the replacement allocation back to its caller. Which pointer still owns the old bytes, and which statement would become unsafe if moved before the failure check?
+**Trace (easy).** Follow a failed growing `realloc` from the replacement allocation back to its caller. Which pointer still owns the old bytes, and which statement would become unsafe if moved before the failure check?

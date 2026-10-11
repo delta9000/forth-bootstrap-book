@@ -1,10 +1,45 @@
 # Chapter 37 — Functions and translation units
 
-A program whose `main` calls `add`, and whose `add` reads the global `bias`, needs names to survive beyond individual statement parses. Registering those names at file scope connects the bodies and lets deferred calls acquire their destinations. The result is a whole-program parser that supplies an entry stub and produces the program run in the checkpoint.
+A program whose `main` calls `add`, and whose `add` reads the global `bias`, needs names to remain available across statements and function bodies. Registering those names at file scope connects the bodies and lets deferred calls acquire their destinations. The result is a whole-program parser that supplies an entry stub and produces the program run in the checkpoint.
 
 ## Setup
 
-The call parser compiles an expression; the function parser supplies its enclosing scope and frame; the top-level parser selects declarations until end of input. `cc-parse-program` places runtime entry before those bodies and resolves the remaining destinations afterward.
+Here is the checkpoint's source in reading order:
+
+```c
+int bias = 3;
+int add(int n);
+int main(void) { return add(4); }
+int add(int n) { return n + bias; }
+```
+
+The prototype lets the compiler accept the call before it has seen `add`'s
+body. It cannot supply the body's address. That is the problem a fixup list
+solves; the declaration and the later definition must meet at the same
+pending references.
+
+The call parser compiles an expression; the function parser supplies its enclosing scope and frame; the top-level parser selects declarations until end of input. `cc-parse-program` places the entry stub before those bodies and resolves the remaining destinations afterward.
+
+The checkpoint contains four file-scope forms. They arrive in source
+order, but that is not the order in which the resulting program runs:
+
+| Source form | What compilation learns or records | What remains unresolved |
+|---|---|---|
+| `int bias = 3;` | Reserve a data slot and store the initial bytes | The slot's final program address |
+| `int add(int n);` | Register a callable name with no body address | Calls or address uses that later need that body |
+| `int main(void) { return add(4); }` | Record `main`'s address and emit its call | The call field belongs to the earlier `add` entry's fixup list |
+| `int add(int n) { return n + bias; }` | Register the body address; resolve earlier calls; emit a reference to `bias` | The global-address field, until data placement |
+
+The entry stub was emitted before these forms. After finalization, Linux
+enters that stub, the stub calls `main`, `main` calls `add`, and the returned
+7 travels back to the stub's exit syscall. A prototype contributes compiler
+state without contributing a body to run. A global definition contributes
+data whose position can wait until every body has been emitted.
+
+Read the call and function paths with those two pending references in
+mind: one waits for a function definition, the other for the end of code.
+The enum, typedef and top-level dispatch sections cover the other
+file-scope forms.
 
 A function name must remain available while parameter tokens replace the current token. `cc-fn-name-addr` and `cc-fn-name-len` preserve it; `cc-fn-param-count` counts incoming parameters, and `cc-fn-prior-sym-id` keeps the earlier prototype available for patching (`forth-bootstrap/cc/114-cc-func.fth:1`):
 
@@ -109,6 +144,13 @@ Arguments are evaluated left to right and pushed in that order. `cc-emit-pops-fo
   drop ;
 
 ```
+
+<details>
+<summary>Native call defaults and indirect targets</summary>
+
+The core call walkthrough continues below. These intervening definitions
+provide a different argument path for native compilation and the hooks
+that the System V layer will replace.
 
 ### The native-call hooks
 
@@ -239,6 +281,8 @@ defer cc-native-function-desc-fwd
 
 ```
 
+</details>
+
 ### Parsing a core call
 
 The opening parenthesis has already been consumed when `cc-parse-call` receives the callee symbol. It delegates native mode through `cc-native-call-fwd`; the core path starts an argument count and handles an empty list (`forth-bootstrap/cc/100-cc-expr.fth:595`):
@@ -292,12 +336,13 @@ While parsing a nonempty list, the callee id and count stay on the compiler stac
 
 The core path rejects more than six arguments before selecting registers.
 Balanced pushes and pops do not guarantee alignment at every nested call.
-For core `f(1, g())`, start with `rsp mod 16 = 0`: saving argument 1
-changes it to 8. The empty inner `g()` has no argument pushes to undo,
-so its `call` executes at residue 8, violating the System V requirement of
-zero immediately before the call. The return address then puts the callee
-at residue 0 instead of the required 8. This is a source-derived limitation
-of this core path, not an observed crash. Chapter 41's explicit System V
+For core `f(1, g())`, start with a 16-byte-aligned stack: `rsp mod 16 = 0`.
+Saving argument 1 changes the remainder to 8. The empty inner `g()` has no
+argument pushes to undo, so its `call` executes with `rsp mod 16 = 8`,
+violating the System V requirement of zero immediately before the call.
+The return address then puts the callee at `rsp mod 16 = 0` instead of the
+required 8. This is a source-derived limitation of this core path, not an
+observed crash. Chapter 41's explicit System V
 target protects live values and aligns a fresh outgoing block; the copied
 comment below must not be read as that later guarantee
 (`forth-bootstrap/cc/100-cc-expr.fth:625`):
@@ -360,6 +405,13 @@ A function with an address gets a direct call; an unresolved prototype receives 
 ```
 
 ## Parameter lists and the spill
+
+Follow `add(4)` across the boundary. The caller puts 4 in the first
+argument register, `rdi`. The function registers `n` as its first local
+and emits a store from that register into the local slot. The expression
+`n + bias` can then use the ordinary local-load machinery. Giving a
+parameter an addressable home also makes `&n` possible; keeping only its
+incoming register would not.
 
 The parameter parser must allocate storage before the body uses a parameter name. `cc-parse-param-list-loop` starts by selecting the base type; a struct parameter carries its descriptor into registration (`forth-bootstrap/cc/114-cc-func.fth:45`):
 
@@ -943,8 +995,8 @@ Balanced parentheses delimit the skipped signature. The resulting alias records 
 The typedef signature loop above has no EOF branch. Given the truncated
 input `typedef int (*F)(int`, it sees end of input at depth 1 on every
 pass and never finishes, while the balanced declaration compiles normally.
-The checked helper in Chapter 35 shows the better shape: invalid input
-reaches a diagnostic. [Appendix F](60-c-subset.md#observed-profile-boundaries)
+The function-pointer parameter helper in Chapter 35 checks for EOF and
+reports a diagnostic instead. [Appendix F](60-c-subset.md#observed-profile-boundaries)
 lists this with the compiler's other known limits.
 
 ## Top-level elision
@@ -1174,7 +1226,7 @@ variable cc-gdecl-ptr-depth
 
 ```
 
-Registration and reuse answer different questions. `cc-gdecl-add` creates an `sk-global` with the staged type and slot; `cc-gdecl-declared` returns an existing global id or a negative result (`forth-bootstrap/cc/116-cc-prog.fth:378`):
+Registration and reuse answer different questions. `cc-gdecl-add` creates an `sk-global` with the staged type and slot; `cc-gdecl-declared` returns an existing global ID or a negative result (`forth-bootstrap/cc/116-cc-prog.fth:378`):
 
 ```forth file=cc/116-cc-prog.fth
 \ cc-gdecl-add ( -- id )  Register the declarator's name as an sk-global
@@ -1899,7 +1951,7 @@ The executable runs from the temporary directory and returns the helper’s resu
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-37-resolving-a-function).
 
-**Trace — easy.** Follow the checkpoint’s `add` symbol from prototype registration through the call in `main` to its definition. Identify which entry holds the pending call, when its list is cleared, and why the definition survives the end of its local scope.
+**Trace (easy).** Follow the checkpoint’s `add` symbol from prototype registration through the call in `main` to its definition. Identify which entry holds the pending call, when its list is cleared, and why the definition survives the end of its local scope.
 
-**Modify — medium.** Move the definition of `add` before `main`, keeping the prototype. Predict which call-emission branch changes, then rerun the checkpoint and compare the exit status.
+**Modify (moderate).** Move the definition of `add` before `main`, keeping the prototype. Predict which call-emission branch changes, then rerun the checkpoint and compare the exit status.
 

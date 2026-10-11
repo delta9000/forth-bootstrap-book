@@ -1,10 +1,35 @@
 # Chapter 54 — K0 and K1
 
-K0 and K1 supply the kernel services needed to build and run the bootstrap tools in QEMU. Moving compilation off the host kernel requires both a first execution environment and a way to build its replacement. The result is a seed-built K1 running seed-cc, seed-ar and kaem in its own guest processes (`forth-bootstrap/kernel/k1/run-chain.sh:2`).
+Every `write`, `mmap`, fork and exec in the bootstrap has so far reached
+the host's Linux kernel. The compiler and its tools have an ancestry we
+can follow, but they still depend on that ready-made operating
+environment. To build in a guest, we must supply the services ourselves.
+
+That creates another starting problem: a kernel is a program we want to
+compile, yet the compiler needs a kernel on which to run. K0 is the small
+first answer, assembled from hex0 on the host. It can run the seed long
+enough to build K1 in the guest. K1 then supplies the processes, memory
+and files needed by the larger tools
+(`forth-bootstrap/kernel/k1/run-chain.sh:2`).
 
 ## Prepare the handoffs
 
-The route has this shape: hex0-seed assembles K0 on the host; the host-built seed-forth from Chapter 1 is copied into K0's memory image; QEMU boots K0; that seed and its newly built recipe runner construct K1 under K0; K1 imports a new starting tree and runs its recipe. The wrapper keeps image preparation on the host and compilation in the guest (`forth-bootstrap/kernel/k1/run-chain.sh:2`).
+Follow the first seed across the boundary. It is the host-built
+`seed-forth` from Chapter 1, copied into K0's boot image. Its job under
+K0 is to build the next kernel. After the handoff, K1 starts a new
+construction from hex0-seed in an imported tree:
+
+| Where execution happens | Builder already available | What it produces |
+|---|---|---|
+| Host | hex0-seed and image-preparation tools | K0 and a boot image containing the existing seed-forth |
+| K0 inside QEMU | That seed-forth, then its new recipe runner | The K1 executable |
+| K1 inside the same QEMU machine | The retained runner and imported hex0-seed | A fresh seed-forth, seed-cc, seed-ar and kaem |
+
+The two seed constructions serve different purposes. The copied seed
+gets us far enough to build K1; the fresh seed starts the tool route
+under K1. The wrapper keeps image preparation on the host and these
+compiler invocations in the guest
+(`forth-bootstrap/kernel/k1/run-chain.sh:2`).
 
 The host prepares separate images because K0 needs a memory image to start, while K1 reads a disk archive. These lines in `run-chain.sh` assemble K0, prepare the boot image and select the input-image arguments (`forth-bootstrap/kernel/k1/run-chain.sh:31`):
 
@@ -16,7 +41,22 @@ python3 kernel/k1/mkboot.py build-out/k1/boot.img
 set -- "$D/in.img" "$mode"
 ```
 
-The following image-writing steps create the input disk and an empty output disk (`forth-bootstrap/kernel/k1/run-chain.sh:37`). `mkboot.py` supplies the Forth and C sources needed to build K1, with seed-forth reading `k1-direct-start.fth`. It appends the boot recipe to the build recipe so that construction and entry happen in order (`forth-bootstrap/kernel/k1/mkboot.py:4`). The host Python steps construct the images and initial kernel state, including descriptors, page tables and argv, and copy source bytes plus the existing `seed-forth` binary (`forth-bootstrap/kernel/k0/mkfs.py:27`, `forth-bootstrap/kernel/k0/mkfs.py:64–72`). They compile no guest C or Forth program. The wrapper neither builds nor verifies that first seed: build it from the pinned hex0 source as in Chapter 1 before preparing these images. K1 later builds a separate fresh seed from hex0-seed; the serial line `seed-forth built by hex0-seed` refers to that later step. Unpacking, patching and compiler construction then belong to the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
+The following image-writing steps create the input disk and an empty
+output disk (`forth-bootstrap/kernel/k1/run-chain.sh:37`). `mkboot.py`
+supplies the Forth and C sources needed to build K1, with seed-forth
+reading `k1-direct-start.fth`. It appends the boot recipe to the build
+recipe so that construction and entry happen in order
+(`forth-bootstrap/kernel/k1/mkboot.py:4`).
+
+The host Python steps prepare descriptors, page tables and argv as well
+as copying source bytes and the existing seed executable
+(`forth-bootstrap/kernel/k0/mkfs.py:27`,
+`forth-bootstrap/kernel/k0/mkfs.py:64–72`). They compile no guest C or
+Forth program. The wrapper does not build or verify that first seed, so
+build it from the pinned hex0 source before preparing these images.
+The later serial line `seed-forth built by hex0-seed` belongs to the
+fresh construction under K1. Unpacking, patching and compiler construction
+then take place in the guest (`forth-bootstrap/kernel/k1/run-chain.sh:6`).
 
 QEMU receives K0 as its kernel, K0's file image through the loader, and the input and output images as IDE drives. Keeping the serial log on the host preserves evidence across the kernel handoff (`forth-bootstrap/kernel/k1/run-chain.sh:50`):
 
@@ -32,7 +72,18 @@ QEMU receives K0 as its kernel, K0's file image through the loader, and the inpu
 
 ## K0 supplies just enough execution
 
-`k0.hex0` holds the bytes assembled by hex0-seed; `k0.asm` gives the readable instructions and design notes (`forth-bootstrap/kernel/k0/k0.hex0:19`). K0 enters long mode with an identity map and runs programs with kernel privilege, without interrupts. This deliberately small environment has no protected user processes (`forth-bootstrap/kernel/k0/k0.asm:3`).
+K0 needs to run a narrow pattern: start a compiler child, wait for it,
+then use its output in the next step. Its serialized fork runs the child
+to completion before restoring the saved parent. The runner's fork,
+redirect, exec and immediate wait fit that pattern, so this first kernel
+can build its replacement without a general scheduler
+(`forth-bootstrap/kernel/k0/k0.asm:12`).
+
+`k0.hex0` holds the bytes assembled by hex0-seed; `k0.asm` gives the
+readable instructions and design notes
+(`forth-bootstrap/kernel/k0/k0.hex0:19`). K0 enters long mode with an
+identity map and runs programs with kernel privilege, without interrupts.
+It provides no protected user processes (`forth-bootstrap/kernel/k0/k0.asm:3`).
 
 The initial program comes from the boot image's argument block. After installing the syscall entry address, K0 loads that program through its own `execve` handler (`forth-bootstrap/kernel/k0/k0.asm:95`):
 
@@ -48,8 +99,6 @@ The initial program comes from the boot image's argument block. After installing
 ```
 
 For this image the program is seed-forth and its input is the launcher (`forth-bootstrap/kernel/k1/mkboot.py:18`). K0 supplies the handlers behind the library's syscall wrappers (Chapter 18).
-
-K0's serialized fork runs the child to completion before restoring the saved parent. The runner's fork, redirect, exec and immediate wait fit this serial model (`forth-bootstrap/kernel/k0/k0.asm:12`). K0 can therefore run successive compiler invocations without a general scheduler.
 
 The object writer and linker also need calls that K0 lacks. The build loads `k0-syscalls.fth` after the library: it retries `stat` through `lstat`, synthesizes distinct `fstat` identities, treats `munmap` as success without reclaiming memory, and supplies a fixed `getpid` result. These K0 syscall fallbacks activate only after ENOSYS (`forth-bootstrap/kernel/k1/boot/k0-syscalls.fth:1`). They satisfy this build's checks; they do not give K0 general file metadata or memory reclamation.
 
@@ -79,7 +128,12 @@ same ${K}/empty ${K}/mm.out
 rename ${K}/unit.o ${K}/mm.o
 ```
 
-The recipe repeats this arrangement for the file system, processes, syscall dispatcher, disk driver and Linux handoff source. The latter's behavior belongs to Chapter 55. Privileged instructions live in `k1-asm.fth`; the object writer turns its instruction bytes, labels and relocations into the assembly object (`forth-bootstrap/kernel/tools/k1-direct.recipe:24`).
+The recipe repeats this arrangement for the filesystem, processes,
+syscall dispatcher, disk driver and Linux handoff source. Chapter 55
+follows that last component. Privileged instructions live in
+`k1-asm.fth`; the object writer turns its instruction bytes, labels and
+relocations into the assembly object
+(`forth-bootstrap/kernel/tools/k1-direct.recipe:24`).
 
 The final build steps use the Forth linker rather than a host linker (`forth-bootstrap/kernel/tools/k1-direct.recipe:44`):
 
@@ -99,7 +153,17 @@ K0's appended boot recipe then runs that executable. K1 takes over the machine a
 
 ## K1 provides the tools' operating environment
 
-K1 divides responsibilities among `main.c` for boot and traps, `mm.c` for memory, `fs.c` for files, `proc.c` for processes, `sys.c` for syscall dispatch and `ata.c` for disks. Assembly routines handle privileged machine operations (`forth-bootstrap/kernel/k1/README.md:215`). The useful unit of study is the boundary these files provide to static executables.
+The later tools need more than K0's serial child execution. Make can
+have children waiting on pipes while other children run; separate programs
+need separate address spaces. K1 runs user processes through
+SYSCALL/SYSRET, blocks them on waits and pipes, and preempts user code on
+timer ticks (`forth-bootstrap/kernel/k1/README.md:145`). Its memory setup
+is the first part of that separation we will follow.
+
+K1 divides the implementation among `main.c` for boot and traps, `mm.c`
+for memory, `fs.c` for files, `proc.c` for processes, `sys.c` for syscall
+dispatch and `ata.c` for disks. Assembly routines handle privileged machine
+operations (`forth-bootstrap/kernel/k1/README.md:215`).
 
 ### Two virtual addresses, one physical byte
 
@@ -148,7 +212,10 @@ The low mapping reserves space for K1 itself rather than user images (`forth-boo
 
 The build check rejects a K1 image extending beyond that mapping (`forth-bootstrap/kernel/k1/tests/direct-build-check.sh:59`). User processes receive their own page tables, while the upper direct map remains shared (`forth-bootstrap/kernel/k1/mm.c:202`). `struct mm` tracks the break and the next downward mmap placement separately, so heap growth and mapped regions can be checked for overlap (`forth-bootstrap/kernel/k1/k1.h:161`). Physical memory comes from QEMU's e820 map; mapped user regions acquire zeroed pages on demand. Fork copies present pages. Guest RAM must accommodate both the file system and process memory (`forth-bootstrap/kernel/k1/README.md:130`).
 
-Unlike K0's serial execution, K1 runs user processes through SYSCALL/SYSRET, blocks them on waits and pipes, and preempts user code on timer ticks (`forth-bootstrap/kernel/k1/README.md:145`). Its tool-facing services include file and directory operations, fork/exec/wait, pipes, memory mapping, clocks and signals. Console, null, zero and random devices support the runtime; `/proc/self/exe` lets seed-cc locate its source tree (`forth-bootstrap/kernel/k1/README.md:154`).
+The tool-facing services include file and directory operations,
+fork/exec/wait, pipes, memory mapping, clocks and signals. Console, null,
+zero and random devices support the runtime; `/proc/self/exe` lets
+seed-cc locate its source tree (`forth-bootstrap/kernel/k1/README.md:154`).
 
 The header bounds each process's descriptor array with `NFD`, and its signal tables with `NSIG` (`forth-bootstrap/kernel/k1/k1.h:177`). Compatibility also has behavioral limits: static ELF is supported, but an ELF requiring an interpreter is rejected; file-backed mappings are private copies; threads and sockets are unavailable. Unlisted syscalls return ENOSYS (`forth-bootstrap/kernel/k1/README.md:176`, `forth-bootstrap/kernel/k1/README.md:195`). These are workload contracts, not a complete Linux implementation.
 
@@ -169,7 +236,11 @@ Boot establishes storage before selecting the initial process. K0's files move u
 
 The disk image's `/k1.args` names `/k0/build-out/amd64-runner`, `--recipe` and `/k1.recipe`. K1 reads those arguments and starts init with them (`forth-bootstrap/kernel/k1/mkdisk.py:64`, `forth-bootstrap/kernel/k1/main.c:497`). Thus the builder crosses the handoff as a file, then runs as a K1 user process.
 
-The input drive is hda. The output drive is exposed as `/dev/hdb` for explicit writes; files created in the RAM root do not automatically appear on that disk. Result export uses a tar written to hdb on the longer route (`forth-bootstrap/kernel/k1/README.md:161`). Chapter 55 owns that export recipe, Linux, kexec and `--direct-linux`.
+The input drive is hda. The output drive is exposed as `/dev/hdb` for
+explicit writes; files created in the RAM root do not automatically
+appear on that disk. The longer route writes a tar archive to hdb
+(`forth-bootstrap/kernel/k1/README.md:161`). Chapter 55 follows that
+export and the handover to Linux through `--direct-linux`.
 
 The smoke recipe starts construction again inside K1, from hex0-seed. Its initial steps publish seed-forth and build the compiler driver and archiver (`forth-bootstrap/kernel/k1/direct-smoke.recipe:7`):
 
@@ -210,7 +281,7 @@ Run both checkpoints from the forth-bootstrap checkout root, after Chapter 1's s
 sh kernel/k1/tests/direct-build-check.sh
 ```
 
-Observed output, with the build banner, digest and timing lines omitted:
+Recorded build-check output, with the build banner, digest and timing lines omitted:
 
 ```text
 direct-build-check: recipe lists all 29 compiler layers
@@ -228,7 +299,7 @@ The guest checkpoint needs QEMU and uses KVM when `/dev/kvm` is writable. It rec
 kernel/k1/run-chain.sh --direct-smoke
 ```
 
-Observed host output:
+Recorded host output:
 
 ```text
 build-out/k1/boot.img: 51 files, 7 dirs, 1393136 bytes
@@ -253,7 +324,11 @@ k1: PASS (seed-cc, seed-ar and kaem work under the K1 that seed Forth built)
 k1: init exited with status 0
 ```
 
-The host audit proves the build's executable boundary and object comparisons; the guest run proves the handoff and smoke workload. QEMU's successful exit is encoded through its debug-exit device, so the wrapper also checks the guest markers (`forth-bootstrap/kernel/k1/run-chain.sh:59`).
+The host audit checks which executables performed the build and compares
+the resulting objects. The guest run checks the handoff and smoke
+workload. QEMU encodes the guest's exit through its debug-exit device;
+the wrapper checks both that status and the guest markers
+(`forth-bootstrap/kernel/k1/run-chain.sh:59`).
 
 ## Exercise
 

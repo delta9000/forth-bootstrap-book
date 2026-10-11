@@ -4,9 +4,27 @@ A relocatable object can name a function whose address is still unknown. The wri
 
 ## The interface between compiler and linker
 
-The writer grows an object in this order: select a workspace, initialize section metadata, append payload bytes, register symbols and relocations, serialize, then publish. A section-relative value locates a symbol; a relocation identifies a field for the linker to fill. This replaces the ELF wrapper (Chapter 31).
+The writer grows an object in this order: select a workspace, initialize section metadata, append payload bytes, register symbols and relocations, serialize, then publish. A section-relative value locates a symbol; a relocation identifies a field for the linker to fill. The ELF wrapper (Chapter 31) produced a complete executable; this writer leaves final addresses to the linker.
 
-Chapter 42 consumes this format: the linker names this writer in `forth-bootstrap/cc/140-cc-link.fth:3`. Chapter 50 in Part 4 compiles runtime and tool sources, archives the runtime, and links the tools (`forth-bootstrap/cc/driver/seed-cc-start.fth:309` and `forth-bootstrap/cc/driver/seed-cc-start.fth:335`). The writer runs no subprocesses.
+The linker in Chapter 42 consumes these objects (`forth-bootstrap/cc/140-cc-link.fth:3`). Chapter 50 uses both pieces to compile runtime and tool sources, archive the runtime, and link the tools (`forth-bootstrap/cc/driver/seed-cc-start.fth:309` and `forth-bootstrap/cc/driver/seed-cc-start.fth:335`). All object construction happens inside the Forth process.
+
+Follow one unfinished call through the writer checkpoint. Its `.text`
+starts with `E8 00 00 00 00 C3`: a call with an empty four-byte field,
+then a return. Three records give those zero bytes a meaning:
+
+- The section holds the instruction bytes, with the field at offset 1.
+- The symbol record names `external` and says its definition is missing.
+- The relocation connects that field to that symbol, with the call's
+  relative kind and an addend of −4.
+
+Zero alone could be a valid displacement, so the linker cannot discover
+unfinished work by scanning for zeroes. It needs the relocation record.
+The writer can validate and serialize all three records before knowing
+where `external` will land. Keep its symbol handle separate from the ELF
+symbol-table index: serialization assigns the latter after putting local
+symbols first. Chapter 42 will supply final addresses and explain why
+the call's addend is −4. The checkpoint here inspects the records that
+carry that obligation forward.
 
 The source header establishes the writer's dependencies and stable-handle contract (`forth-bootstrap/cc/081-cc-object.fth:1`):
 
@@ -486,7 +504,7 @@ The whole relocation field must exist before the writer accepts a repair instruc
 
 `cc-obj-reloc` allows targets in `.text` or `.data`, checks the symbol handle, and bounds the entire field. The record retains the handle rather than a premature ELF index.
 
-For a relative call, the field begins before the instruction's next address. The call relocation uses addend -4 to account for its four-byte displacement field. The linker will combine the symbol address, explicit addend, and relocation place; the field's old bytes are not an implicit addend. A full-width address initializer can instead request `cc-obj-r64` in `.data`, leaving the pointee unresolved while preserving the initializer's storage layout.
+For a relative call, the displacement field begins four bytes before the next instruction. The call relocation uses addend -4 to account for that distance. The linker will combine the symbol address, explicit addend, and relocation place; the field's old bytes are not an implicit addend. A full-width address initializer can instead request `cc-obj-r64` in `.data`, leaving the pointee unresolved while preserving the initializer's storage layout.
 
 ## Describe the ELF sections
 
@@ -546,7 +564,22 @@ Each relocation section's link selects `.symtab`, while its info field selects `
 
 ## Serialize with local symbols first
 
-Serialization writes into the shared final output buffer.
+The checkpoint deliberately inserts its local symbol last. Its internal
+handles follow insertion order, but ELF must put locals before globals:
+
+| Name | Writer handle | Serialized ELF index |
+|---|---:|---:|
+| `caller` | 1 | 2 |
+| `external` | 2 | 3 |
+| `value` (local) | 3 | 1 |
+
+This manual mapping explains the extra index cell in every symbol row.
+The pending call still refers to handle 2 throughout construction. Only
+serialization translates it to ELF index 3. Copying the handle directly
+into the relocation would make that call name `caller` instead. Symbols
+therefore serialize before relocations, even though the relocation was
+created before `value` existed. The shared output buffer holds the final
+on-disk representation; the writer's records retain their stable identities.
 
 File offsets are captured only after output alignment, so metadata describes the actual serialized position (`forth-bootstrap/cc/081-cc-object.fth:359`):
 
@@ -588,7 +621,7 @@ variable cc-obj-pass
   repeat, ;
 ```
 
-`cc-obj-emit-symbol` packs binding and type into the shared info byte and writes the other fields at their wire widths. `cc-obj-symbol-pass` selects rows by binding and records each emitted row’s ELF index. A local inserted after a global therefore moves ahead in the file without changing either handle.
+`cc-obj-emit-symbol` packs binding and type into the shared info byte and writes the other fields at their ELF widths. `cc-obj-symbol-pass` selects rows by binding and records each emitted row’s ELF index. A local inserted after a global therefore moves ahead in the file without changing either handle.
 An unresolved local name cannot be delegated to another object (`forth-bootstrap/cc/081-cc-object.fth:390`):
 
 ```forth file=cc/081-cc-object.fth
@@ -625,7 +658,7 @@ Relocations are serialized only after every symbol row has its final ELF index (
 
 ## Assemble the file
 
-Section headers translate the internal metadata into wire fields and leave virtual addresses unset (`forth-bootstrap/cc/081-cc-object.fth:411`):
+Section headers translate the internal metadata into ELF fields and leave virtual addresses unset (`forth-bootstrap/cc/081-cc-object.fth:411`):
 
 ```forth file=cc/081-cc-object.fth
 : cc-obj-emit-sh ( index -- )
@@ -920,6 +953,6 @@ Symbol table '.symtab' contains 4 entries:
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-40-identity-versus-serialization).
 
-**Trace — easy.** In the writer checkpoint, follow the handle returned for `external` through `cc-obj-reloc`, both symbol passes, and `cc-obj-emit-relocs`. Explain why inserting `value` last does not change the relocation target, even though it changes the target's ELF index.
+**Trace (easy).** In the writer checkpoint, follow the handle returned for `external` through `cc-obj-reloc`, both symbol passes, and `cc-obj-emit-relocs`. Explain why inserting `value` last does not change the relocation target, even though it changes the target's ELF index.
 
-**Verify — moderate.** Add a reservation in `.bss` before writing the object. Inspect its section size and compare the file sizes before and after. Explain why reserved memory does not become an equally large payload in the file.
+**Verify (moderate).** Add a reservation in `.bss` before writing the object. Inspect its section size and compare the file sizes before and after. Explain why reserved memory does not become an equally large payload in the file.

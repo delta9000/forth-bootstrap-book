@@ -9,7 +9,7 @@ need to finish the compiler before using the earlier feedback.
 
 ## D.1. Chapter 24 — Add the `?exit,` combinator
 
-**Extend — moderate.** Build an immediate `?exit,` that compiles “return if the runtime flag is nonzero,” using the emission operations behind `if,`, `exit,`, and `then,`.
+**Extend (moderate).** Build an immediate `?exit,` that compiles “return if the runtime flag is nonzero,” using the emission operations behind `if,`, `exit,`, and `then,`.
 
 ### What's asked
 
@@ -54,7 +54,7 @@ The dots distinguish the paths: a zero flag skips the return and reaches `emit`;
 
 ## D.2. Chapters 10 and 12 — Why does `ret` end a colon definition?
 
-**Trace — easy.** Follow entry into a colon body and explain which address its terminating `ret` consumes.
+**Trace (easy).** Follow entry into a colon body and explain which address its terminating `ret` consumes.
 
 ### What's asked
 
@@ -91,7 +91,7 @@ The seed prints `ABC`.
 
 ## D.3. Chapter 33 — Trace `cc-parse-add` on `a - b - c`
 
-**Trace — easy.** Identify when each subtraction is emitted and what becomes the next left operand.
+**Trace (easy).** Identify when each subtraction is emitted and what becomes the next left operand.
 
 ### What's asked
 

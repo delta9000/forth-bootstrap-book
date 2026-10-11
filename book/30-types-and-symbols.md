@@ -7,6 +7,35 @@ If that distinction, arrays, struct tags or `const` are unfamiliar, try the
 [Part 3 C-reading bridge](part-3-compiler.md#reading-the-c-input) before
 packing them into compiler records.
 
+## What a name must remember
+
+The spelling `x` tells us very little on its own. An enum constant named
+`x` can supply an integer immediately; a local variable named `x` instead
+identifies storage in a function frame. A **symbol** keeps that distinction
+after the lexer has moved on to another token. Its type describes the
+value, and its kind tells the compiler how to use the stored payload.
+
+A second declaration can temporarily change what the same spelling
+means. We should be able to discard it without reconstructing the first.
+
+Follow the symbol-layer test as a manual trace. It first adds
+outer `x` at row 0 and `foo` at row 1. The next free row is therefore 2:
+
+| Operation | Live row count | Lookup of `x` | Saved scope count |
+|---|---:|---|---:|
+| Before the inner scope | 2 | Row 0 | — |
+| Push the scope | 2 | Row 0 | 2 |
+| Add inner `x` | 3 | Row 2 | 2 |
+| Pop the scope | 2 | Row 0 | — |
+
+Both spellings of `x` select the same hash bucket. Inserting row 2 puts
+it ahead of row 0; popping unlinks row 2 and exposes row 0 again. No copy
+of the outer declaration is needed. The old row 2 bytes may still exist,
+but they are outside the live count and can be reused by the next addition.
+This is compiler bookkeeping: removing a symbol changes future name
+lookup, while the statement and function emitters separately manage the
+storage used by the generated program.
+
 ## The one-word type encoding
 
 The files divide the work this way:
@@ -18,7 +47,15 @@ The files divide the work this way:
              scope boundary → discard younger symbols
 ```
 
-A type word records the kind and pointer depth; a separate descriptor identifies the aggregate layout (`forth-bootstrap/cc/060-cc-types.fth:1`):
+For the opening `int *p`, the base kind is `ty-int`, whose ID is 2,
+and the pointer depth is 1. Packing the base above bit 15 gives
+`2 * 65536 + 1 = 131073`. Adding a star changes the depth field; changing
+the pointed-to type changes the base field. The pointer itself occupies
+eight bytes in both the core and LP64 models, even though their `int`
+sizes differ. Type identity and storage size are separate questions.
+
+A type word records that kind and depth; a separate descriptor identifies
+an aggregate's layout (`forth-bootstrap/cc/060-cc-types.fth:1`):
 
 ```forth file=cc/060-cc-types.fth
 \ 060-cc-types.fth — C type encoding for the C-subset compiler.
@@ -98,7 +135,7 @@ An array node records its element and dimension information separately from the 
 
 ```
 
-The inner link preserves nested dimensions. Qualifiers sit beside the type word, so the same base and pointer depth can describe differently qualified elements. For the bridge's array, the element count is separate from `int`; adding `const` would add qualification, not another pointer level. Chapter 35 builds declarations from these records.
+The inner link preserves nested dimensions. Qualifiers sit beside the type word, so the same base and pointer depth can describe differently qualified elements. An array of `int` stores its element count separately from that type; adding `const` changes qualification, not pointer depth. Chapter 35 builds declarations from these records.
 
 ## Packing types and choosing scalar storage
 
@@ -312,7 +349,7 @@ Without a long suffix, `U` chooses between `uint` and `ulong`. Without any suffi
 
 ```
 
-The unsigned divisions compare magnitudes without treating the high bit as a negative sign. A decimal value beyond signed-long range gets `ulong` as a bootstrap extension. The final `ty-make` wraps the selected base as a scalar type.
+The unsigned divisions compare magnitudes without treating the high bit as a negative sign. A decimal value beyond signed-long range gets `ulong` as a bootstrap extension. The final `ty-make` encodes the selected base with pointer depth zero.
 
 ## Record descriptors: stable identity, movable fields
 
@@ -530,7 +567,7 @@ defer cc-sf-set-array-inner
 
 ## The symbol-table parallel arrays
 
-A symbol id selects the same row across each column. Its kind determines how to interpret `val`: a location for an object or function, a descriptor for a tag, a value for an enum constant, or an aliased type for a typedef (`forth-bootstrap/cc/070-cc-sym.fth:1`):
+A symbol ID selects the same row in every column. Its kind determines how to interpret `val`: a location for an object or function, a descriptor for a tag, a value for an enum constant, or an aliased type for a typedef (`forth-bootstrap/cc/070-cc-sym.fth:1`):
 
 ```forth file=cc/070-cc-sym.fth
 \ 070-cc-sym.fth — symbol table for the C-subset compiler.
@@ -562,7 +599,7 @@ A symbol id selects the same row across each column. Its kind determines how to 
 
 ```
 
-The columns reserve space for simultaneously live declarations, bounded by `cc-sym-cap`. `cc-sym-desc` and `cc-sym-inner` separate aggregate and nested-array metadata, while `cc-sym-qualified` keeps qualifier provenance outside the type word (`forth-bootstrap/cc/070-cc-sym.fth:28`):
+The columns reserve space for simultaneously live declarations, bounded by `cc-sym-cap`. `cc-sym-desc` and `cc-sym-inner` separate aggregate and nested-array metadata, while `cc-sym-qualified` keeps qualifiers outside the type word (`forth-bootstrap/cc/070-cc-sym.fth:28`):
 
 ```forth file=cc/070-cc-sym.fth
 create cc-sym-name-addr  cc-sym-cap [lit] 8 * allot
@@ -597,7 +634,7 @@ variable cc-sym-count
 
 ```
 
-The getter returns zero when no entry matches. This address-keyed list is why descriptor growth exposes a move hook; Chapter 39 supplies the relocation work for qualifications.
+The getter returns zero when no entry matches. This address-keyed list is why descriptor growth exposes a move hook; Chapter 39 updates the qualifier entries when fields move.
 
 ## Linking live symbols by name
 
@@ -788,6 +825,10 @@ defer cc-sym-addr-fixups
 
 ## Scopes are a stack of integers
 
+The lookup behavior at the start of the chapter now has an implementation.
+The saved count tells us which rows to discard; the hash links tell us
+which older declarations must become visible again.
+
 Pushing a scope saves `cc-sym-count` at the next marker and advances the depth. The capacity check rejects excessive nesting before writing the marker (`forth-bootstrap/cc/070-cc-sym.fth:183`):
 
 ```forth file=cc/070-cc-sym.fth
@@ -905,4 +946,4 @@ The type test checks base/depth round trips and default-model sizes (`forth-boot
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-30-shadowed-symbols).
 
-**Trace — easy.** Follow the symbol test's inner `x` through `cc-sym-link` and `cc-scope-pop`. Identify the bucket head before the inner insertion, after it, and after the pop. Explain why decrementing `cc-sym-count` alone would leave the bucket pointing at a discarded row.
+**Trace (easy).** Follow the symbol test's inner `x` through `cc-sym-link` and `cc-scope-pop`. Identify the bucket head before the inner insertion, after it, and after the pop. Explain why decrementing `cc-sym-count` alone would leave the bucket pointing at a discarded row.

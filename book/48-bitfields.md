@@ -1,10 +1,27 @@
 # Chapter 48 — Record bitfields
 
-Setting `flags.low` must leave `flags.delta` negative and `flags.high` unchanged. An ordinary integer store cannot isolate adjacent bitfields: each needs a width and a position within its storage unit. Bitfield allocation and preserving stores make them independently readable and writable.
+Setting `flags.low` must leave `flags.delta` negative and `flags.high` unchanged. An ordinary integer store cannot isolate adjacent bitfields: each needs a width and a position within its storage unit. Allocation records that slice, and every store must preserve the rest of the unit.
 
 ## Describe a slice of a native object
 
-Declaration → unit offset, bit shift and width → extraction or preserving store. In the LP64 native object storage (Chapter 39), a bitfield's byte offset names its containing unit. Record arguments and returns belong to Chapter 49.
+The declaration determines a unit offset, bit shift and width; loads and stores use those three facts to isolate the field. In the LP64 native object storage (Chapter 39), a bitfield's byte offset names its containing unit. Chapter 49 extends that storage layout to record arguments and returns.
+
+Work through the checkpoint's three fields before reading their metadata.
+In this implementation, `unsigned low : 3`, `signed delta : 5`, and
+`unsigned high : 4` occupy bits 0–2, 3–7, and 8–11 of one four-byte int
+unit. The initializer `{5, -3, 9}` gives the low twelve bits
+`1001 11101 101`, or `0x9ED`: the five-bit representation of -3 is 29.
+This is a manual bit calculation; it makes no claim about the unused
+upper bits of the unit.
+
+Changing `low` to 2 must clear only mask `0x7` and insert `0x2`. The low
+twelve bits become `0x9EA`; the other bits retain their previous values.
+Reading `delta` then shifts by three and masks five bits, obtaining 29.
+Because that field is signed and its top bit is set, sign extension
+interprets it as `29 - 32 = -3`. A plain unsigned extraction would report
+29; a whole-unit store of 2 would erase both neighbours. The layout,
+extraction, and preserving-store words below each supply one part of
+this calculation.
 
 `cc-bf-record-bytes` expands compiler field metadata to 72 bytes only in explicit System V mode. `cc-bf-die` writes `cc-bf-error-prefix` and exits with 248 (`forth-bootstrap/cc/129-cc-bitfield.fth:1`):
 ```forth file=cc/129-cc-bitfield.fth
@@ -93,7 +110,16 @@ Int fields admit widths 1–32; long and long long admit 1–32 or 64. Widths 33
 
 ## Allocate within the containing unit
 
-A struct continues at its bit cursor; a union starts at zero. A field stays within its underlying type's unit or advances to the next boundary. Zero width aligns the cursor without creating a member (`forth-bootstrap/cc/129-cc-bitfield.fth:56`):
+The checkpoint fits every field in one unit. The boundary case explains
+why allocation tracks a bit cursor as well as a byte offset. Two unsigned
+int fields of widths 31 and 2 cannot share a four-byte unit: after the first
+field, only one bit remains. The second field starts at bit 32, giving it
+byte offset 4 and shift 0. The first unit's spare bit remains unused; the
+field is not split across two loads. This manual layout follows the
+containment test below.
+
+A struct continues at its bit cursor; a union starts at zero. Zero width
+aligns the cursor without creating a member (`forth-bootstrap/cc/129-cc-bitfield.fth:56`):
 ```forth file=cc/129-cc-bitfield.fth
   cc-bf-desc @ cc-sd-union? if, [lit] 0 else, cc-bf-desc @ cc-sd-bit-end @ then,
   cc-bf-position !
@@ -229,7 +255,7 @@ Storage width also constrains promotion: `cc-bf-value-type` maps fields narrower
 
 ```
 
-A narrow unsigned field therefore compares as a signed int: its entire range fits.
+A narrow unsigned field therefore promotes to signed int: its entire range fits.
 
 ## Initialize the same slice
 
@@ -376,9 +402,9 @@ sizeof(struct Flags) = 4
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-48-preserve-neighboring-fields).
 
-**Trace — easy.** Follow `cc-bf-add` for the checkpoint's members. Derive each shift, the containing byte offset, and the final aligned size. Then explain why changing `low` cannot erase `delta`'s sign bit.
+**Trace (easy).** Follow `cc-bf-add` for the checkpoint's members. Derive each shift, the containing byte offset, and the final aligned size. Then explain why changing `low` cannot erase `delta`'s sign bit.
 
-**Verify — moderate.** After the existing initialization and `flags.low = 2` guards, but before the `PROBE` returns, store `-4` into `flags.delta`. This value fits the signed five-bit field. Add a check that `low` is still 2, `delta` is now −4, and `high` is still 9. Change the shell's expected delta value to −4 and rerun all four probes; the raw status 252 is decoded by the wrapper to −4. Keep the earlier guards unchanged so they still check the original initialization and low-field store.
+**Verify (moderate).** After the existing initialization and `flags.low = 2` guards, but before the `PROBE` returns, store `-4` into `flags.delta`. This value fits the signed five-bit field. Add a check that `low` is still 2, `delta` is now −4, and `high` is still 9. Change the shell's expected delta value to −4 and rerun all four probes; the raw status 252 is decoded by the wrapper to −4. Keep the earlier guards unchanged so they still check the original initialization and low-field store.
 
 
 Repeat independently with a different representable negative value. Predict the unit bits and the returned status before running it, then check that both neighboring fields are still unchanged.

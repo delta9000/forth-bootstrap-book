@@ -1,16 +1,37 @@
 # Chapter 56 — Epilogue: onward to GCC 15.2
 
-GCC 15.2.0 already stands at the end of a bootstrap route in [seed-forth](https://github.com/delta9000/seed-forth). The climb stayed in that older project when forth-bootstrap's direct route to Linux was extracted (`forth-bootstrap/HISTORY.md:28`). Bringing it across would produce a new guest checkpoint; the existing sources give us a concrete integration plan, not a command that works here.
+The guest route now reaches GCC 10.5.0 and can build Linux. A concrete
+next project is to use that compiler to build GCC 15.2.0 under K1 before
+the handoff. We have a starting recipe: the older
+[seed-forth](https://github.com/delta9000/seed-forth) project already made
+that compiler climb on its own route. Its final stages stayed behind
+when forth-bootstrap's direct route was extracted
+(`forth-bootstrap/HISTORY.md:28`).
 
-This chapter reads the historical seed-forth snapshot [0dd2b8815cae](https://github.com/delta9000/seed-forth/tree/0dd2b8815caeb5b9814567036f4ce101fdebeb21), the extraction revision named in `forth-bootstrap/HISTORY.md:3–4`. All `gcc64/` links below belong to that snapshot, outside this book's submodule. The line links identify inspected recipes and recorded results; no fresh GCC 15 build is reported here.
+This is where following the book can become extending it. The work is to
+carry those stages across without losing track of their inputs, builders
+and checks. Forth-bootstrap has no GCC 15 guest checkpoint yet. We will
+read the historical seed-forth snapshot
+[0dd2b8815cae](https://github.com/delta9000/seed-forth/tree/0dd2b8815caeb5b9814567036f4ce101fdebeb21),
+the extraction revision named in `forth-bootstrap/HISTORY.md:3–4`.
+All `gcc64/` links below identify recipes or recorded results in that
+snapshot, outside this book's submodule.
 
 ## The route that stayed behind
 
-The scripts have different shapes. Seed-forth's default stage list runs from `stage0` through `stage12`; forth-bootstrap selects `bridge`, then `stage6` through `stage10` (seed-forth's [`gcc64/run-gcc64.sh:799–803`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/run-gcc64.sh#L799-L803); `forth-bootstrap/chain/gcc64/run-gcc64.sh:452`). Seed-forth reaches gcc-A through TinyCC, musl and binutils (`forth-bootstrap/HISTORY.md:28`). Forth-bootstrap reaches it from the direct GCC 4.0.4 of Chapter 52, through the bridge stage of Chapter 55 (`forth-bootstrap/chain/gcc64/run-gcc64.sh:267`).
+Start by finding where the routes meet. Seed-forth reaches gcc-A through
+TinyCC, musl and binutils (`forth-bootstrap/HISTORY.md:28`). Our route
+reaches it from the direct GCC 4.0.4, through the bridge stage in
+Chapter 55 (`forth-bootstrap/chain/gcc64/run-gcc64.sh:267`). Both then
+climb through the later GCC versions. We can preserve our beginning and
+extend its end.
 
-That distinction must survive an extension: importing the final compiler build does not require changing the route's beginning.
-
-The continuation in seed-forth is small at the orchestration level:
+That choice is visible in the stage lists. Seed-forth defaults to
+`stage0` through `stage12`; forth-bootstrap selects `bridge`, then
+`stage6` through `stage10` (seed-forth's
+[`gcc64/run-gcc64.sh:799–803`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/run-gcc64.sh#L799-L803);
+`forth-bootstrap/chain/gcc64/run-gcc64.sh:452`). The missing continuation
+is therefore small at the orchestration level:
 
 | Step | Input → result | Source in seed-forth |
 |---|---|---|
@@ -19,13 +40,26 @@ The continuation in seed-forth is small at the orchestration level:
 
 These are gcc64 stage names. Forth-bootstrap's `chain/ladder/stage12.sh` builds Linux; it is a different script with a different responsibility (Chapter 55). Reusing a number in a new integration must not silently replace the Linux build.
 
-Seed-forth's README records a successful compiler comparison and the tests it checked ([`gcc64/README.md:163–189`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/README.md#L163-L189)). Those results belong to that run. Its timing record also predates the default stage-zero migration to direct TinyCC; the README explicitly separates the recorded control run from the current starting route ([`gcc64/README.md:141–144`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/README.md#L141-L144)). The extension has precedent, but its evidence belongs to that route and that run.
+Seed-forth's README records a successful compiler comparison and the
+tests it checked
+([`gcc64/README.md:163–189`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/README.md#L163-L189)).
+That gives us a working precedent and a set of observations to reproduce
+under K1.
 
 ## Keep the build's actual boundary
 
 The final compiler recipe uses the existing sysroot, its GMP, MPFR and MPC libraries, and the existing binutils. It selects C and C++, enables bootstrap, and disables several optional runtime libraries and compiler facilities (seed-forth's [`gcc64/build-gcc15.sh:18–29`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/build-gcc15.sh#L18-L29)). This is a particular compiler configuration. “GCC 15.2.0” alone does not specify what was built.
 
-The important change from the preceding recipe is `--enable-bootstrap`: seed-forth's GCC 10.5.0 recipe uses `--disable-bootstrap` ([`gcc64/build-gcc10.sh:29`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/build-gcc10.sh#L29)). The final recipe builds with the supplied compiler and then rebuilds with its own outputs. Its caller requires the log to contain `Comparison successful` before proceeding to the C and C++ tests ([`gcc64/run-gcc64.sh:704`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/run-gcc64.sh#L704)). A port should retain that failure condition, rather than treating an installed `gcc` as sufficient evidence.
+The decisive option is `--enable-bootstrap`. The preceding GCC 10.5.0
+recipe uses `--disable-bootstrap`
+([`gcc64/build-gcc10.sh:29`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/build-gcc10.sh#L29));
+this final recipe instead builds with the supplied compiler, rebuilds
+with its own outputs, and compares generations. We have met that idea
+before in Chapter 52. Here GCC's own build performs the bootstrap, and
+the caller requires `Comparison successful` in the log before continuing
+to C and C++ tests
+([`gcc64/run-gcc64.sh:704`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/run-gcc64.sh#L704)).
+Preserve that stop condition when moving the recipe.
 
 The recipe applies no GCC-source patches and configures without ISL or zstd (seed-forth's [`gcc64/build-gcc15.sh:3`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/build-gcc15.sh#L3), [`gcc64/build-gcc15.sh:29`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/build-gcc15.sh#L29)). That does not make the whole environment patch-free. The README identifies a musl declaration patch for the newer compiler's C23 dialect ([`gcc64/README.md:221`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/README.md#L221)). Integration must audit the surrounding sysroot and patches as well as copy the final recipe.
 
@@ -50,7 +84,15 @@ A proposed GCC extension should preserve separate evidence for each claim:
 - C and C++ workloads compile and run under the guest. Seed-forth's verification also checks the final sysroot, assembler, linker and verbose compiler program paths ([`gcc64/run-gcc64.sh:719–768`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/run-gcc64.sh#L719-L768)).
 - The new outputs receive pins in forth-bootstrap's `HASHES`, with the build root and comparison scope stated. Seed-forth pins the final driver, compiler executables and runtime archives as path-dependent outputs ([`gcc64/HASHES:34`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/HASHES#L34), [`gcc64/HASHES:41–44`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/HASHES#L41-L44)). Its historical digests are reference evidence, not automatic pins for a different guest build.
 
-The report should name the tests actually run and preserve their outputs. Matching compiler stages, matching recorded hashes and executing workloads answer different questions. An extension earns its checkpoint through those observations; a version string is only identification.
+The report should name the tests actually run and preserve their outputs.
+Together, the stage comparison, output hashes and executed workloads
+would turn the integration plan into a new checkpoint.
+
+At the start of the book, the whole executable fit within a byte-by-byte
+reading. The tools now exceed that scale, but each handoff still has a
+source, a builder and a result we can inspect. Adding the next compiler
+means making one more such handoff explicit. That is the method to carry
+beyond this route.
 
 ## Try it
 
@@ -62,7 +104,8 @@ Forth-bootstrap has no GCC 15.2 checkpoint. The following command is quoted from
 BUILDROOT=DIR gcc64/run-gcc64.sh stage11 stage12
 ```
 
-This book shows no output for it: the command belongs to seed-forth, and forth-bootstrap has not run it.
+No output is reproduced here. This command requires the historical
+seed-forth environment; it is not a checkpoint for this checkout.
 
 ## Exercise
 

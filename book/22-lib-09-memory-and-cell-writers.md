@@ -4,7 +4,7 @@ A counter update and a binary writer both change memory, but they need different
 interfaces. `+!` and `-!` package an update to an
 existing cell; `,4` and `,8` append a value in little-endian byte order.
 
-Their skeleton is the set of effects each body must implement:
+The contracts separate updates from appends:
 
 | Word | Stack effect | Memory effect |
 |---|---|---|
@@ -131,7 +131,7 @@ Together they append eight bytes and consume the input.
 On the traced value, the first call writes `ABCD` and the second writes
 `EFGH`. No separate cursor adjustment is needed between the calls:
 each emission has already advanced HERE. Chapter 23 uses these writers
-when building constants; their defining machinery belongs there.
+to build runtime bodies for constants.
 
 ## Try it
 
@@ -169,6 +169,6 @@ checks both halves of the full-cell writer.
 
 ## Exercise
 
-**Trace — easy.** In `-!`, remove the `swap` immediately before `-`.
+**Trace (easy).** In `-!`, remove the `swap` immediately before `-`.
 Trace the changed body with `n` smaller than the stored value. Which
 subtraction does it perform, and does it still store at the correct address?

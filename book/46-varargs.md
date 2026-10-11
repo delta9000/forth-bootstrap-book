@@ -4,7 +4,41 @@
 
 ## Preserve arguments for later retrieval
 
-The layer has a small shape: reserve and save incoming registers, validate a list, then emit cursor operations for the C intrinsics. The System V call sequence already supplies the arguments (Chapter 41); this layer replaces the hook that rejects variadic definitions. `cc-va-signature` retains the definition's signature even if a block-scope declaration changes parser state. `cc-va-register-slot` identifies the save area's base local slot.
+A variadic definition needs three additions: save incoming registers, validate a `va_list`, and emit the cursor operations requested by C intrinsics. The System V call sequence already supplies the arguments (Chapter 41); this layer replaces the hook that rejects variadic definitions. `cc-va-signature` retains the definition's signature even if a block-scope declaration changes parser state. `cc-va-register-slot` identifies the save area's base local slot.
+
+First place the opening call's arguments. Named parameter `n=8` uses
+RDI. Values 1 through 5 use the other five integer argument registers;
+values 6 through 8 arrive on the stack. Saving the registers gives
+`va_arg` stable memory to read after the function starts using those
+registers for its own work.
+
+The list is a position in these saved arguments. It does not contain the
+argument values, a count of remaining values, or their types. `n` supplies
+the loop bound in this example, and each `va_arg(ap, long)` supplies the
+type to retrieve. Asking for the wrong type cannot be repaired by
+inspecting the bytes. The chapter's validation checks the list's layout
+and supported operations, not agreement with every caller's unnamed
+argument list.
+
+For the integer-only checkpoint, let `R` be the register-save base and
+`O` the address of the first unnamed stack argument. This manual trace
+starts just after `va_start`:
+
+| Next value | Address returned | `gp_offset` afterward | Overflow pointer afterward |
+|---|---|---:|---|
+| 1 | `R + 8` | 16 | `O` |
+| 2 through 5 | `R + 16` through `R + 40` | 48 after value 5 | `O` |
+| 6 | `O` | 48 | `O + 8` |
+| 7 | `O + 8` | 48 | `O + 16` |
+| 8 | `O + 16` | 48 | `O + 24` |
+
+The initial GP offset is 8 because the named parameter already used RDI.
+Once the offset reaches 48, there is no seventh saved GP register to
+read: retrieval switches to the overflow pointer. Only the selected
+cursor advances. This is why the two pointers and offsets in a list must
+survive independently, even though the C loop asks for one value at a
+time. The helpers below implement those two paths and then extend the
+same choice to the floating and extended formats.
 
 Bad intrinsic operands need a recognizable diagnostic: `cc-va-error-prefix` stores `varargs: `, and `cc-va-die` writes it before the ordinary compiler error (`forth-bootstrap/cc/126-cc-varargs.fth:6`):
 
@@ -77,7 +111,7 @@ The record layout is fixed:
 
 The offsets occupy four bytes each; the pointers occupy eight. The record occupies 24 bytes and has eight-byte alignment.
 
-A lookalike record must not authorize these memory accesses. `cc-va-tag-name` identifies the reserved tag; `cc-va-descriptor` checks its size, alignment, field count and nonunion shape, while `cc-va-field` checks each scalar field's offset and type (`forth-bootstrap/cc/126-cc-varargs.fth:36`):
+The intrinsics require the reserved `va_list` descriptor as well as the right layout. `cc-va-tag-name` identifies its tag; `cc-va-descriptor` checks its size, alignment, field count and nonunion shape, while `cc-va-field` checks each scalar field's offset and type (`forth-bootstrap/cc/126-cc-varargs.fth:36`):
 
 ```forth file=cc/126-cc-varargs.fth
 create cc-va-tag-name s, __seed_va_list_tag
@@ -99,7 +133,7 @@ create cc-va-tag-name s, __seed_va_list_tag
   dup [lit] 3 [lit] 16 ty-void [lit] 1 ty-make cc-va-field ;
 ```
 
-An intrinsic needs a checked address before it can touch the cursor. `cc-va-operand` parses its expression once, requires a pointer to the genuine descriptor, rejects an inner array dimension, and materializes the address. `cc-va-expect` checks punctuation; `cc-va-void-result` marks a completed operation as void (`forth-bootstrap/cc/126-cc-varargs.fth:53`):
+An intrinsic needs a checked address before it can touch the cursor. `cc-va-operand` parses its expression once, requires a pointer to that descriptor, rejects an inner array dimension, and materializes the address. `cc-va-expect` checks punctuation; `cc-va-void-result` marks a completed operation as void (`forth-bootstrap/cc/126-cc-varargs.fth:53`):
 
 ```forth file=cc/126-cc-varargs.fth
 : cc-va-expect ( punctuation -- )
@@ -164,7 +198,7 @@ defer cc-va-last-slot-fwd
 
 Checking the slot also rejects a local variable that shadows the parameter. Assigning a new value to the actual parameter does not change where unnamed arguments begin.
 
-The initial cursor must skip arguments already consumed by names. `cc-va-layout-default` returns the GP offset, FP offset and frame-relative overflow address through `cc-va-layout-fwd`; `cc-va-start` writes those fields and the register-save pointer (`forth-bootstrap/cc/126-cc-varargs.fth:97`):
+The initial cursor must skip the named arguments. `cc-va-layout-default` returns the GP offset, FP offset and frame-relative overflow address through `cc-va-layout-fwd`; `cc-va-start` writes those fields and the register-save pointer (`forth-bootstrap/cc/126-cc-varargs.fth:97`):
 
 ```forth file=cc/126-cc-varargs.fth
 : cc-va-layout-default ( -- gp-offset fp-offset overflow-offset )
@@ -191,7 +225,7 @@ For `sum`, `n` consumes the first GP register. The list starts at GP offset 8 an
 
 ## Advance the appropriate cursor
 
-Retrieval first selects an address; loading the requested type comes afterward. The address selectors differ only where the ABI requires it:
+Retrieval first selects an address; loading the requested type comes afterward. The INTEGER class covers integers and pointers; the X87 path handles extended floating values. The selectors differ where the ABI requires it:
 
 | Requested class → selector | Register path | Overflow path |
 |---|---|---|
@@ -386,7 +420,7 @@ create cc-va-end-name s, __builtin_va_end
 ' cc-va-intrinsic is cc-native-intrinsic-fwd
 ```
 
-The runtime formatter needs exactly this argument cursor (Chapter 43). `printf` can initialize a list and hand it to a `v` formatter; each conversion then fetches the type implied by the format. A copied list permits another traversal without consuming the first cursor. This completes the argument-access dependency, not the full runtime build: Chapter 50 assembles that runtime after the remaining numeric layers. Retrieving floating arguments does not itself implement floating formatting.
+The runtime formatter needs this argument cursor (Chapter 43). `printf` can initialize a list and hand it to a `v` formatter; each conversion then fetches the type implied by the format. A copied list permits another traversal without consuming the first cursor. Floating formatting also needs the remaining numeric layers. Chapter 50 assembles the complete runtime once those are available.
 
 ## Try it
 
@@ -473,7 +507,7 @@ The final three values come from the stack, so the result exercises both branche
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-46-a-varargs-cursor-crosses-banks).
 
-**Trace — easy.** Follow `gp_offset` and `overflow_arg_area` through every iteration of `sum`. Identify the first iteration that leaves `gp_offset` unchanged.
+**Trace (easy).** Follow `gp_offset` and `overflow_arg_area` through every iteration of `sum`. Identify the first iteration that leaves `gp_offset` unchanged.
 
-**Modify — moderate.** After retrieving the first stack argument (value 6), use `va_copy` to copy the list. Sum the remaining arguments through the copy and then independently through the original, starting each suffix total at zero. Predict both suffix totals before running. Check their equality in C, return the original full total on success so the shell still expects 36, and call `va_end` on both lists.
+**Modify (moderate).** After retrieving the first stack argument (value 6), use `va_copy` to copy the list. Sum the remaining arguments through the copy and then independently through the original, starting each suffix total at zero. Predict both suffix totals before running. Check their equality in C, return the original full total on success so the shell still expects 36, and call `va_end` on both lists.
 

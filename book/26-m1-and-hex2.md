@@ -19,8 +19,9 @@ stdin → asm-src-buf → macro expansion → asm-exp-buf
 M1 gives byte sequences names: `DEFINE syscall 0F05` makes a later
 `syscall` token stand for `0F05`. The hex2 side assigns addresses to
 `:label` declarations and replaces references with numeric fields.
-Here those jobs share a program; expansion leaves numeric sigil tokens
-for the assembly passes to handle.
+Here those jobs share a program. References begin with a marker, or
+*sigil*, such as `!` or `&`; expansion leaves them for the assembly
+passes to handle.
 
 “Self-contained” describes its dependency boundary: load `010-lib.fth`,
 then this file, then invoke `asm-main`. No compiler layer supplies a
@@ -127,7 +128,7 @@ execute after that jump.
 <summary>Hint: count field width before resolving its value</summary>
 
 For the first task, the `!` field stays one byte wide. For the third,
-`%` reserves four bytes even before `target` is known. A quoted string
+`%` reserves four bytes even before `target` is known. A double-quoted string
 includes its NUL. Neither `:base` nor another label advances IP.
 
 </details>
@@ -210,6 +211,21 @@ Source text and expanded text must remain alive while table entries point
 into them. The assembler reserves separate buffers and selects one through
 a cursor; it never overwrites a token to terminate its name.
 
+Keep the opening example beside these allocations. Its three
+representations have different jobs and different lifetimes:
+
+| Buffer | What it holds from the example | What depends on it |
+|---|---|---|
+| Raw source | `DEFINE hop EB` and the later use of `hop` | Macro records point at names and bodies here during expansion |
+| Expanded text | `:base EB !target :message 41 00 ...` | Both assembly passes read it; label names point into it |
+| Binary output | `EB 02 41 00 02 00 60 00` | The final file write copies these bytes |
+
+The ellipsis in the middle row abbreviates the earlier token
+stream, not source to type. Reusing the raw buffer for expansion would
+risk overwriting a macro body before its last use. Reusing the expanded
+buffer for machine bytes would destroy input still needed by a pass.
+Separate storage makes those lifetime rules straightforward.
+
 Allocation starts above the VM pages. The shared size guard follows in
 `forth-bootstrap/forth/130-asm.fth:39`:
 
@@ -233,7 +249,7 @@ skip-vm-pages                                   \ HERE = 0x414000
 ```
 
 Call the shared **prospective-size check** with the size after the proposed
-append. Equality with the cap is permitted; a larger value exits with the
+append. Equality with the capacity is permitted; a larger value exits with the
 supplied code. The input reader deliberately uses a stricter request.
 
 Buffer ownership is explicit in `forth-bootstrap/forth/130-asm.fth:55`:
@@ -252,8 +268,9 @@ create asm-exp-buf  asm-exp-cap allot
 variable asm-exp-len
 ```
 
-`asm-src-cap` and `asm-exp-cap` bound the raw and expanded buffers;
-`asm-src-len` and `asm-exp-len` track their used prefixes.
+The capacity reserves storage; the length says how much of it contains
+input. A macro can expand to more characters than its name, so the used
+lengths of these equally sized allocations need not agree.
 
 ## Selecting and reading a buffer
 
@@ -282,11 +299,12 @@ variable asm-cur-pos
 
 ```
 
-`asm-cur-buf`, `asm-cur-len`, and `asm-cur-pos` hold the active address,
-limit, and offset. `asm-use-src` selects raw input; `asm-use-exp` selects
-expanded input. `asm-reset-pos` rewinds without changing the selection.
+Selecting a buffer changes all three facts the reader needs: where its
+bytes begin, where they end, and where reading resumes. A rewind changes
+only the last. That is the operation the second assembly pass will need:
+read the same expanded bytes again, with the first pass's labels intact.
 
-Reading all remaining room avoids a per-character input syscall in
+Requesting all remaining buffer space avoids a syscall for each input byte in
 `forth-bootstrap/forth/130-asm.fth:85`:
 
 ```forth file=forth/130-asm.fth
@@ -377,9 +395,11 @@ variable asm-out-pos
 
 ```
 
-`asm-out-cap` bounds `asm-out-buf`; `asm-out-pos` counts bytes ready to
-write. `asm-out-init` resets that count. Every `asm-emit-byte` uses the
-prospective-size check before touching the buffer.
+Here the position counts output bytes. In the opening example it ends
+at eight, regardless of how much text expressed those bytes.
+`asm-out-init` resets that position; every append checks the prospective
+size before writing. The check must precede the store, because noticing
+an overflow afterward would leave memory already corrupted.
 
 The file is opened only after assembly has produced the complete output buffer in
 `forth-bootstrap/forth/130-asm.fth:136`:
@@ -448,12 +468,12 @@ variable asm-pass
 
 ```
 
-`asm-rec-size` is the record stride, `asm-cap` the entry limit,
-`asm-labels` the storage, and `asm-count` the used entry count.
-`asm-base` is the starting target address; `asm-ip` is the address being
-assembled; `asm-pass` selects counting or emission. `asm-rec` maps an
-entry index to its record address. The base describes the generated
-program's addresses, independently of where Forth stores its buffers.
+`asm-rec` turns an entry index into a record address by multiplying by
+the stride and adding the table base. In the opening example, the record
+for `message` will hold a slice naming `message` and the value
+`0x600002`. That value belongs to the program being assembled; it is
+neither the address of this record nor a pointer into the output buffer.
+`asm-ip` is how the counting pass assigns those future program addresses.
 
 A declaration must capture the address at its position in the input.
 Here is the record append (`forth-bootstrap/forth/130-asm.fth:179`):
@@ -505,7 +525,7 @@ variable asm-find-len
 ```
 
 `asm-find-addr` and `asm-find-len` retain the query while the loop walks
-records. Equal length gates `bytes-eq` (Chapter 25). On a match,
+records. Only equal-length names reach `bytes-eq` (Chapter 25). On a match,
 `asm-find-label` returns the stored address and true; exhaustion returns
 zero and false. The flag distinguishes a missing label from a valid label
 at address zero. This **newest-first slice lookup** will also serve macros.
@@ -656,7 +676,7 @@ Tokenization returns slices of the selected buffer. It treats whitespace
 and comments as separators outside quotes; inside quotes they are data.
 
 Before starting a token, the reader must consume comments as well as
-whitespace. The skippers are in `forth-bootstrap/forth/130-asm.fth:305`:
+whitespace. The skipping helpers are in `forth-bootstrap/forth/130-asm.fth:305`:
 
 ```forth file=forth/130-asm.fth
 \ ============================================================================
@@ -1456,9 +1476,10 @@ variable asm-out-name  asm-out-path asm-out-name !
 \ source; see tests/asm/*.sh.
 ```
 
-`asm-out-name` holds the output path, `/tmp/asm-out` unless the caller
-stores another NUL-terminated path there first. `asm-main` first drains the
-remaining stdin into source storage, expands it, and selects the expanded
+`asm-out-name` holds the address of a NUL-terminated output path, initially
+`/tmp/asm-out`. The caller can store a different path's address there.
+`asm-main` drains the remaining stdin into source storage, expands it,
+and selects the expanded
 buffer. It initializes the label table only before counting. Between
 assembly walks it rewinds the cursor, restores IP from the base, and
 clears the output position while retaining labels.
@@ -1503,17 +1524,20 @@ in its header. The runnable example exercises the supported subset.
 Run from the `forth-bootstrap` checkout at `./forth-bootstrap`, with the
 seed built in Part 1. The pipeline loads the complete library and assembler,
 then gives `asm-main` a hand-written program including its ELF header.
-The temporary directory holds the input and executable: one line before
-`asm-main` points `asm-out-name` at it. The explicit `/tmp` template
-keeps this embedded Forth pathname free of whitespace, even when the
+The temporary directory holds the input and executable. A Forth line before
+`asm-main` sets `asm-out-name` to the executable pathname's address. The
+explicit `/tmp` template keeps this pathname free of whitespace, even when the
 shell's `TMPDIR` contains spaces. The `||` guard captures the program's
 intentional status 42 even in a shell with `set -e`; the separate `test`
 checks that expected status.
 
 <!-- tryit: expect "hi\nexit: 42\n160" -->
 ```sh
-d=$(mktemp -d /tmp/book-probe.XXXXXXXXXX)
-cat > "$d/hi.M1" <<'M1'
+(
+set -o pipefail
+d=$(mktemp -d /tmp/book-probe.XXXXXXXXXX) || exit "$?"
+trap 'status=$?; rm -rf -- "$d" || status=1; exit "$status"' EXIT
+cat > "$d/hi.M1" <<'M1' || exit "$?"
 DEFINE mov_eax, B8
 DEFINE mov_edi, BF
 DEFINE mov_esi, BE
@@ -1546,16 +1570,16 @@ DEFINE syscall 0F05
     mov_eax, %60  mov_edi, %42  syscall     # exit(42)
 :ELF_end
 M1
-{ cat forth/010-lib.fth forth/130-asm.fth
+{ cat forth/010-lib.fth forth/130-asm.fth || exit "$?"
   echo "create out s, $d/hi [lit] 0 c,  out asm-out-name !"
-  echo asm-main; cat "$d/hi.M1"; } | ./seed-forth
-chmod +x "$d/hi"
+  echo asm-main; cat "$d/hi.M1"; } | ./seed-forth || exit "$?"
+chmod +x "$d/hi" || exit "$?"
 status=0
 "$d/hi" || status=$?             # prints "hi"
 printf 'exit: %s\n' "$status"  # prints "exit: 42"
-test "$status" -eq 42
+test "$status" -eq 42 || exit 1
 wc -c < "$d/hi"             # prints: 160
-rm -rf "$d"
+)
 ```
 
 Observed output:
@@ -1577,12 +1601,12 @@ compiler's arena and I/O buffers.
 
 ## Exercise
 
-**Trace — easy.** Follow `jmp8 !done` in the checkpoint. Mark the field's
+**Trace (easy).** Follow `jmp8 !done` in the checkpoint. Mark the field's
 start and end, then count the string bytes between the field end and
 `:done`. Include the terminating NUL. Explain why counting the opcode as
 part of the displacement would give the wrong destination.
 
-**Modify — medium.** The checkpoint removes its temporary directory.
+**Modify (moderate).** The checkpoint removes its temporary directory.
 Edit the `hi.M1` here-document in a copy of the commands above and rerun
 the whole block, including `mktemp`, to make fresh input. Change the
 message to `hey` followed by newline and its write length to `%4`.

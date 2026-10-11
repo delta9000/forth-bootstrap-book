@@ -4,11 +4,12 @@ A call to `add(&base, 1, 2, 3, 4, 5, 6, 7)` can cross from one C object into ano
 
 ## Trace the call before tracing its parser
 
-Prerequisites are the eight-byte stack cells, `call`'s pushed return address,
-and the `push rbp; mov rbp,rsp` frame setup. This trace uses the explicit
+To follow the trace, recall the eight-byte stack cells, `call`'s pushed
+return address, and the `push rbp; mov rbp,rsp` frame setup. We use the explicit
 scalar System V target. The core six-register path of Chapter 37 and the
 private LP64 all-stack path of Chapter 39 are different contracts; merely
-loading this file selects neither the new layout nor its alignment rule.
+loading the System V definitions selects neither the new layout nor its
+alignment rule.
 
 | Source argument | Caller location immediately before `call` | Callee location after frame setup |
 |---|---|---|
@@ -79,7 +80,7 @@ A function named `stat` must remain visible beside `struct stat`; ordinary looku
 
 ```
 
-Source compatibility has its own lexer seam: `cc-sysv-extension?` recognizes the complete `__extension__` token, `cc-sysv-skip-extensions` skips it, and `cc-sysv-lex-extra` delegates number scanning through `cc-sysv-lex-number-fwd` (`forth-bootstrap/cc/121-cc-sysv.fth:33`):
+The lexer also accepts source spellings needed by this target: `cc-sysv-extension?` recognizes the complete `__extension__` token, `cc-sysv-skip-extensions` skips it, and `cc-sysv-lex-extra` delegates number scanning through `cc-sysv-lex-number-fwd` (`forth-bootstrap/cc/121-cc-sysv.fth:33`):
 
 ```forth file=cc/121-cc-sysv.fth
 \ GNU C's __extension__ only silences pedantic diagnostics, which this
@@ -146,7 +147,19 @@ defer cc-sysv-check-scalar
 
 ## Preserve array shape in signatures
 
-An array parameter becomes a pointer, but its row size still determines indexing. A descriptor must preserve that shape through typedefs, parameter adjustment, and abstract type names.
+Compare `long *p` with `long (*row)[3]`. Both values occupy one eight-byte
+pointer, but `p + 1` advances eight bytes while `row + 1` advances 24.
+The latter points to one whole row of three longs. For a valid matrix,
+`row[1][2]` first advances one row and then two elements: `24 + 16 = 40`
+bytes from the original address. These are manual consequences of LP64
+layout, before any instruction selection.
+
+A parameter written `long row[][3]` adjusts to that pointer-to-row type;
+only the outer array becomes a pointer. Erasing the inner bound would make
+the declaration look like a plain pointer and generate the wrong stride.
+An encoded pointer depth cannot retain the distinction by itself. The
+descriptor must carry the pointee's shape through typedefs, parameter
+adjustment and abstract type names.
 
 Size multiplication checks the bound before computing a product; typedef lookup also carries the declaration’s array shape and qualifiers forward (`forth-bootstrap/cc/121-cc-sysv.fth:81`):
 
@@ -707,7 +720,7 @@ Nested parameter parsing saves the outer context, and a function-declared parame
 
 ## Distinguish prototypes from unspecified lists
 
-`f()` leaves argument types unspecified; `f(void)` requires no arguments. A definition with an identifier list supplies names that subsequent declarations refine. Keeping those states distinct prevents a later weak declaration from erasing a useful prototype.
+In this source dialect, `f()` leaves argument types unspecified; `f(void)` requires no arguments. A definition with an identifier list supplies names that subsequent declarations refine. Keeping those states distinct prevents a later declaration with unspecified parameters from erasing a useful prototype.
 
 Signature construction records the result and opens a fresh declaration context before distinguishing empty, variadic, void, and identifier-list endings (`forth-bootstrap/cc/121-cc-sysv.fth:539`):
 
@@ -1386,7 +1399,7 @@ A call record describes the original stack pointer, surviving span, and staged s
   repeat, drop r> drop ;
 ```
 
-Saving only `rsp` would leave a hole for a function that returns again after intervening calls, such as `setjmp`: the pointer could be restored while an expression operand had already been overwritten. The saved span includes outer argument staging and switch saves, but excludes this call’s disposable argument vector. This scheme assumes fixed frames.
+Saving only `rsp` would not preserve operands across a second return from a function such as `setjmp`: intervening calls could overwrite an operand before the pointer was restored. The saved span includes outer argument staging and switch saves, but excludes this call’s disposable argument vector. This scheme assumes fixed frames.
 
 `cc-sysv-prepare-call` snapshots that span, points `r11` at the staged vector, reserves stack-argument space plus padding, and rounds `rsp` down to a multiple of sixteen before copying arguments (`forth-bootstrap/cc/121-cc-sysv.fth:1080`):
 
@@ -1493,7 +1506,9 @@ An arbitrary callable expression uses the same staging and recovery, normalizes 
 
 ```
 
-## Save the registers the caller owns
+<span id="save-the-registers-the-caller-owns"></span>
+
+## Preserve the caller's register values
 
 The core prologue already preserves `rbp` (Chapter 31). This target also preserves `rbx`, the expression backend’s other used callee-saved register. Incoming arguments are copied into typed local slots so body expressions no longer depend on argument registers.
 
@@ -1775,7 +1790,7 @@ variable cc-om-direct-base
   cc-om-direct-base @ cc-om-buffer ! cc-om-direct-cap cc-om-limit ! ;
 ```
 
-The source comment’s historical capacity measurement is not a measurement made by this checkpoint. The accessors below expose record fields without giving parser symbol IDs ownership of their lifetime.
+The source comment’s capacity measurement is historical; this checkpoint does not repeat it. The records outlive parser symbol IDs, and the accessors below expose their persistent fields.
 
 | Record input | Field accessors |
 |---|---|
@@ -2410,6 +2425,6 @@ The pointer and the first integer arguments travel in registers; `f` and `g` tra
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-41-stack-arguments-and-nested-lifetimes).
 
-**Trace — easy.** Follow `f` and `g` from `cc-sysv-parse-args` through `cc-sysv-prepare-call` into `cc-sysv-store-params-default`. Draw the caller’s outgoing block and the callee’s frame, including the return address and saved `rbp`. Explain why alignment padding cannot move either argument’s expected location.
+**Trace (easy).** Follow `f` and `g` from `cc-sysv-parse-args` through `cc-sysv-prepare-call` into `cc-sysv-store-params-default`. Draw the caller’s outgoing block and the callee’s frame, including the return address and saved `rbp`. Explain why alignment padding cannot move either argument’s expected location.
 
-**Verify — moderate.** Change the checkpoint’s call to pass `add(&base, 1, 2, 3, 4, 5, 6, 7)` as its final argument to a second call of `add`. Predict the exit status before running it, then identify which outer staged values must survive the inner call.
+**Verify (moderate).** Change the checkpoint’s call to pass `add(&base, 1, 2, 3, 4, 5, 6, 7)` as its final argument to a second call of `add`. Predict the exit status before running it, then identify which outer staged values must survive the inner call.

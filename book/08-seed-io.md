@@ -1,8 +1,13 @@
 # Chapter 8 — The seed’s Linux boundary
 
-`emit`, `key` and `bye` are the seed's whole conversation with the outside world, and `syscall6` reaches every other Linux call. Each one lends the stack registers to a Linux system call and recovers the Forth state afterward. With them, a Forth program can read input, write output, and terminate its process.
+When `hello` from Chapter 1 reaches its first `emit`, `rdi` holds 72,
+the byte for `H`. Linux needs that same register to hold 1, the descriptor
+for standard output. Simply assigning the descriptor would lose the
+character. The boundary word must first put the byte somewhere Linux
+can read it, then arrange the call, then recover the Forth stack.
 
-Recall the Linux syscall register convention from Chapter 4; the problem here is adapting the Forth stack to that convention. In particular, `rdi` cannot remain the cached top while it also carries a kernel argument. The skeleton of each primitive is a preparation step, a `syscall`, and, if the call returns, a step that establishes the resulting Forth stack:
+Recall the syscall register convention from Chapter 4. Follow each word
+through its preparation, kernel request, and final effect:
 
 | Word | Prepare | Ask Linux | Finish |
 |---|---|---|---|
@@ -56,7 +61,7 @@ C3                                        ; ret
 
 ```
 
-The I/O scratch byte is at `0x412000` (Chapter 5). `mov [rax], dil` puts the character there before `mov edi, 1` replaces it with stdout’s file descriptor. Only the low byte is written; the rest of the Forth cell does not reach the output stream.
+The I/O scratch byte is at `0x412000` (Chapter 5). `mov [rax], dil` puts the character there before `mov edi, 1` replaces `rdi`'s contents with stdout’s file descriptor. Only the low byte is written; the rest of the Forth cell does not reach the output stream.
 
 The syscall requests `write(1, scratch, 1)`: stdout, the scratch address, and a single byte. After it returns, the tail uses the `drop` pattern from Chapter 6 to consume the character. The kernel’s result in `rax` is discarded, so `emit` supplies neither a byte count nor an error indication to its caller.
 
@@ -146,7 +151,7 @@ Chapter 18 builds readable Linux syscall wrappers on this bridge. Here the disti
 
 ## Try it
 
-Run the following checkpoint from the `forth-bootstrap` checkout (`cd forth-bootstrap` from the book repository). `./seed/build.sh` builds the complete seed; its output below was observed with that command. We use its existing command reader as a tool; Chapter 9 explains token reading and Chapter 12 explains the REPL.
+Run the checkpoint from the `forth-bootstrap` checkout (`cd forth-bootstrap` from the book repository). `./seed/build.sh` builds the complete seed. We use its existing command reader as a tool; Chapter 9 explains token reading and Chapter 12 explains the REPL.
 
 This works because the reader stops at the space after `key`, so `key` itself reads the very next byte of input, which is the character typed straight after it. The first input stream gives `key` an `A`, emits it, then reads and emits a newline before `bye`. The second uses the character `*` as exit status `42` and `<` as syscall number `60`. Shell `printf` supplies a NUL byte for the unused arguments; `dup`, recalled from Chapter 6, copies it into the remaining slots. This supplies `( 42 0 0 0 0 0 60 )` to `syscall6`.
 
@@ -170,4 +175,4 @@ syscall6 exit status: 42
 
 ## Exercise
 
-**Trace — easy.** Follow `syscall6` with an older value below `a`. Mark where `n` is saved, which instruction releases the argument cells, and where the older value sits when the result becomes the cached top. Then explain what would break if the first `mov rax, rdi` were moved after the load of `a`.
+**Trace (easy).** Follow `syscall6` with an older value below `a`. Mark where `n` is saved, which instruction releases the argument cells, and where the older value sits when the result becomes the cached top. Then explain what would break if the first `mov rax, rdi` were moved after the load of `a`.

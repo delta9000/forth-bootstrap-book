@@ -110,7 +110,7 @@ AB
 
 ## Exercise
 
-**Trace — easy.** Use the table to predict the checkpoint’s stack after
+**Trace (easy).** Use the table to predict the checkpoint’s stack after
 each `dup`, `+`, and `emit`. Identify the word that consumes each decimal
 token. Check your prediction against the output, then follow a decoding
 link for any contract you had to look up.

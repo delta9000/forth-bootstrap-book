@@ -44,7 +44,8 @@ A block FAILs if
   * an unambiguous expected output does not match.  Only these shapes are
     asserted (anything else just has to run cleanly):
       - `<!-- tryit: expect "X" -->` immediately above the fence (a JSON
-        string, including escaped newlines; whole block's stdout == X).
+        string, including escaped newlines; whole block's stdout equals
+        X encoded as UTF-8).
         Multiple adjacent tryit markers are allowed;
       - after the block, in the next paragraph: "Expected output: `X`",
         "Expected: `X`", "The expected output is `X`", "The seed prints
@@ -258,6 +259,7 @@ def find_blocks(md, include_omitted=False):
                         value = json.loads(directive[7:])
                         if not isinstance(value, str) or expected is not None:
                             raise ValueError("expect requires one JSON string")
+                        value.encode("utf-8")  # JSON may contain an unpaired surrogate.
                         expected = value
                     except ValueError as e:
                         metadata_error = f"invalid tryit expectation: {e}"
@@ -267,7 +269,7 @@ def find_blocks(md, include_omitted=False):
             out.append(dict(line=i + 1, body=body, para=" ".join(para),
                             marker="skip" if "skip" in markers else "loops" if "loops" in markers else None,
                             expected=expected, metadata_error=metadata_error,
-                            selected=selected))
+                            selected=selected, tag=tag))
         i = j + 1
     return out
 
@@ -304,6 +306,11 @@ def snapshot(d):
             except OSError:
                 snap[rel] = "?"
     return snap
+
+
+def metadata_matches(output, expected):
+    """JSON expectations describe UTF-8 text; process output remains bytes."""
+    return output.rstrip(b"\n") == expected.encode("utf-8").rstrip(b"\n")
 
 
 def can_unshare():
@@ -450,7 +457,8 @@ def run_block(md, blk, timeout, private_tmp, verbose):
             if completed != len(chunks):
                 problems.append(f"only {completed}/{len(chunks)} command chunks completed")
             whole = "".join(outs)
-            if blk.get("expected") is not None and whole.rstrip("\n") != blk["expected"].rstrip("\n"):
+            if (blk.get("expected") is not None
+                    and not metadata_matches(whole.encode("latin-1"), blk["expected"])):
                 problems.append(f"tryit metadata expects {blk['expected']!r}; got {whole!r}")
             for x in para_eq:
                 if whole.rstrip("\n") != unesc(x):

@@ -1,10 +1,31 @@
 # Chapter 29 — The lexer
 
-`int w[4];` becomes a keyword, an identifier, punctuation and a number when the lexer reads it. A parser needs these units before it can recognise C syntax. The lexer supplies them through `cc-next-token`, with token values and reversible lookahead for its callers.
+The preprocessor has left a stream of characters. The parser needs a stream
+of decisions: this is a name, this is a number, this is a closing bracket.
+For `int w[4];`, the lexer makes the following distinctions. This is a
+manual reading of its token contract, not a transcript of the checkpoint.
+
+| Spelling | Kind | Information passed to the parser |
+|---|---|---|
+| `int` | Keyword | The ID for the `int` keyword |
+| `w` | Identifier | Address and length of the name in the source buffer |
+| `[` | Punctuation | The character's byte value |
+| `4` | Number | Its integer value and source spelling |
+| `]` and `;` | Two punctuation tokens | One character value per token |
+
+The lexer does not yet know that `w` names an array. That interpretation
+belongs to the declaration parser. The lexer's job is to make boundaries
+reliable: `intx` must remain one identifier, and `>=` must remain one operator.
+
+We will keep the current token in a small record and leave names in the
+source buffer instead of copying them. A parser can then inspect a token,
+decline it, and put it back for its caller. That last operation is how the
+expression parser will notice `+` while reading a multiplication without
+stealing the addition parser's input.
 
 ## Token kinds and punctuation IDs
 
-The code has this shape:
+The byte reader and token interface meet here:
 
 ```text
 cc-src-buf → skip whitespace/comments → classify leading byte
@@ -184,7 +205,7 @@ Control-flow names and the remaining type names continue that ordering; `_Bool` 
 
 ```
 
-Recognising a prefix must not consume it prematurely. `cc-peek-char-2` returns the current and following bytes without advancing, supplying zero when the following byte is outside the source (`forth-bootstrap/cc/050-cc-lex.fth:141`):
+Recognising a multi-byte token sometimes requires looking ahead without consuming its prefix. `cc-peek-char-2` returns the current and following bytes without advancing, supplying zero when the following byte is outside the source (`forth-bootstrap/cc/050-cc-lex.fth:141`):
 
 ```forth file=cc/050-cc-lex.fth
 \ ===========================================================================
@@ -361,7 +382,7 @@ After a hexadecimal byte has passed that predicate, `cc-hex-digit-val` converts 
 
 ```
 
-The decimal reader uses decimal accumulation (Chapter 12), consuming each digit as it goes (`forth-bootstrap/cc/050-cc-lex.fth:267`):
+The decimal reader multiplies the accumulator by ten and adds each new digit (Chapter 12), consuming the digit as it goes (`forth-bootstrap/cc/050-cc-lex.fth:267`):
 
 ```forth file=cc/050-cc-lex.fth
 \ cc-lex-number-dec ( -- )  Read decimal digits into tok-num.
@@ -871,7 +892,7 @@ That fallback covers delimiters such as parentheses and semicolons, but it is no
 
 ## The top-level driver
 
-An extension gets first refusal before ordinary token classification. `cc-lex-extra-fwd` initially calls `cc-lex-extra-default`, whose false result declines the token (`forth-bootstrap/cc/050-cc-lex.fth:628`):
+An extension can recognise a token before ordinary classification begins. `cc-lex-extra-fwd` initially calls `cc-lex-extra-default`, whose false result leaves the token for the ordinary classifier (`forth-bootstrap/cc/050-cc-lex.fth:628`):
 
 ```forth file=cc/050-cc-lex.fth
 \ ===========================================================================
@@ -989,7 +1010,7 @@ whole protocol, not merely a bookmark in the character buffer.
 
 ## Try it
 
-Run these from the `forth-bootstrap` checkout root. First, watch the opening example become tokens. The driver loads the library and the layers through the lexer, reads `int w[4];` from stdin through the preprocessor (Chapter 28), and prints one line per token: its kind, then the keyword ID, identifier length, punctuation byte or number value.
+Run these from the `forth-bootstrap` checkout root. First, watch the opening example become tokens. The driver loads the library and the layers through the lexer, preprocesses `int w[4];` from stdin, and prints one line per token: its kind, then the keyword ID, identifier length, punctuation byte or number value.
 
 <!-- tryit: expect "6 0\n1 1\n5 [\n2 4\n5 ]\n5 ;" -->
 ```sh
@@ -1056,7 +1077,7 @@ The assertions check keyword IDs for `int` and `return`; identifier kinds, lengt
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-29-lookahead-and-replay).
 
-**Trace — easy.** Follow `cc-punct-dot` on `..` and on `...`, beginning just after the dispatcher consumes the first dot. For each input, identify the branch taken, the punctuation code stored, and the unread suffix. Explain why consuming the next dot before checking the following byte would break the shorter case.
+**Trace (easy).** Follow `cc-punct-dot` on `..` and on `...`, beginning just after the dispatcher consumes the first dot. For each input, identify the branch taken, the punctuation code stored, and the unread suffix. Explain why consuming the next dot before checking the following byte would break the shorter case.
 
-**Verify — medium.** Add a local lexer probe that marks an identifier, reads the following punctuation, resets, and reads again. Check the token payload, source cursor and pending flag as well as the kind. Repeat with a token pending at the moment of the mark.
+**Verify (moderate).** Add a local lexer probe that marks an identifier, reads the following punctuation, resets, and reads again. Check the token payload, source cursor and pending flag as well as the kind. Repeat with a token pending at the moment of the mark.
 

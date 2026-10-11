@@ -4,7 +4,7 @@ The bytes `48 83 ED 08` mean `sub rbp, 8`: they make room for one more cell on t
 
 ## The machine before the instructions
 
-The seed's register assignments differ from those of a C function prologue. Its data stack and the processor's call stack occupy separate places. The register convention appears in `forth-bootstrap/seed/000-seed.hex0:53–61`:
+The seed's data stack and the processor's call stack occupy separate storage and use different registers. The register convention appears in `forth-bootstrap/seed/000-seed.hex0:53–61`:
 
 | Register | Seed role | Named chunks that use it |
 | --- | --- | --- |
@@ -114,7 +114,7 @@ E9 DF 05 00 00                            ; jmp repl  (rel32 = 0x699 - 0x0BA)
 ; 0x0BA       position immediately after this instruction
 ```
 
-`E9` is followed by a signed 32-bit displacement. Reading `DF 05 00 00` little-endian gives `0x05DF`, or 1503. The instruction begins at file offset `0x0B5` and occupies five bytes, so its following address is at offset `0x0BA`. Add the displacement there:
+`E9` is followed by a signed 32-bit displacement. Reading `DF 05 00 00` little-endian gives `0x05DF`, or 1503. The instruction begins at file offset `0x0B5` and occupies five bytes, so the next instruction is at offset `0x0BA`. Add the displacement there:
 
 `target = next address + signed displacement = 0x0BA + 0x05DF = 0x699`.
 
@@ -222,6 +222,6 @@ Disassembly of section .data:
 
 ## Exercise
 
-**Trace — easy.** Decode `48 8B 7D 00` at `forth-bootstrap/seed/000-seed.hex0:92` without looking at its assembly comment. Name the destination, effective address, and instruction length. Compare it with the store above. Why does changing the opcode reverse the direction while the ModRM byte stays the same?
+**Trace (easy).** Decode `48 8B 7D 00` at `forth-bootstrap/seed/000-seed.hex0:92` without looking at its assembly comment. Name the destination, effective address, and instruction length. Compare it with the store above. Why does changing the opcode reverse the direction while the ModRM byte stays the same?
 
 For a second trace, recover the entry jump's destination from its bytes. What error results from adding the displacement at the instruction's start instead of its end?

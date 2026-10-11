@@ -34,3 +34,9 @@ interface.
 The checkpoints inspect the built seed or pipe a few words into
 `./seed-forth`. Each states the particular bytes, output, or exit behavior
 it checks.
+
+Before moving on, return to `hello` from Chapter 1: where is its name
+stored, what bytes are compiled for its body, and how does its `emit`
+reach Linux? Chapters 9, 10 and 8 supply those three links. Part 2 can
+then use a primitive's stack contract without decoding its instructions
+again.

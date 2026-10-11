@@ -47,7 +47,7 @@ This fixed destination is the compiler's output interface. There is no output-na
 
 ## The nine steps
 
-Each phase must leave its result ready for the next. In particular, parsing must finish before global placement, and global placement must finish before the ELF sizes are sealed. The program parser already owns entry generation and function checks (Chapter 37); `cc-main` owns the order around it.
+Each phase must leave its result ready for the next. In particular, parsing must finish before global placement, and global placement must finish before the ELF header sizes are patched. The program parser already owns entry generation and function checks (Chapter 37); `cc-main` owns the order around it.
 
 | Step | Phase | Result passed onward |
 |---|---|---|
@@ -85,6 +85,11 @@ The input handoff determines where this file belongs. Anything appended after it
 
 ## Stage A: the parity proof
 
+So far we have chosen small C programs whose answers we can predict.
+M2-Planet is a different kind of test: a real compiler, large enough to
+exercise many of the paths we have just built. We need a comparison that
+does not require predicting its entire output by hand.
+
 A star on the terminal checks the entry path. Stage-A parity asks a larger, precise question: does M2-Planet built by the Forth compiler emit byte-identical M1 output to M2-Planet built by GCC when both compile the same M2-Planet source set for amd64?
 
 The test constructs the comparison in `forth-bootstrap/tests/cc/stage-a-check.sh:41`:
@@ -96,7 +101,16 @@ The test constructs the comparison in `forth-bootstrap/tests/cc/stage-a-check.sh
 
 The monolith builder prepares the C input and feeds it after the Forth vocabulary (`forth-bootstrap/tests/cc/build-m2planet-monolith.sh:71`). Stage A invokes that builder with `CC_OUT` pointing into its build directory. The builder tries a private `/tmp` and falls back to the shared `/tmp/cc-out` when namespaces are unavailable (`forth-bootstrap/tests/cc/build-m2planet-monolith.sh:42`). The checkpoint preserves that shared path around Stage A too.
 
-The equality is between the emitted assembly files, not between `cc-out-v1` and `m2-ref`, whose machine code came from different compilers: Stage A proves that the Forth-built M2-Planet emits the same M1 as the GCC-built reference on this source set and these options. Assembling that M1, a self-hosting fixed point, a GCC-free route and correctness beyond the exercised paths are left to later tests; the script names host GCC as its reference dependency (`forth-bootstrap/tests/cc/stage-a-check.sh:4`).
+The comparison spans two compilation steps. The Forth compiler and GCC first
+produce two M2-Planet executables; each executable then produces an M1
+file. Those final files are what `cmp` compares. Different machine code
+in the two executables is compatible with identical assembly output.
+
+A match gives evidence that the Forth-built M2-Planet behaves like the
+reference on this source set and these options. It does not establish a
+fixed point or remove the host GCC dependency: GCC supplied the reference
+(`forth-bootstrap/tests/cc/stage-a-check.sh:4`). We can use the result to
+justify the next experiment without asking it to prove the entire chain.
 
 ## The wider chain
 
@@ -106,7 +120,7 @@ Part 4 follows that route: Chapter 50 builds `seed-cc`, Chapter 51 builds the to
 
 ## Try it
 
-Run both checkpoints from the `forth-bootstrap` checkout root at `./forth-bootstrap`, with the seed already built in Part 1. Do not run either checkpoint concurrently with another user of `/tmp/cc-out`. Each saves that path before starting, restores it on exit, and retains the backup directory if restoration fails. The first loads the complete Forth library and the core compiler, then appends the opening C example. `cc/compiler-layers.sh` is the full loader, including the extension layers of Chapters 39–49; this demo loads only the core.
+Run both checkpoints from the `forth-bootstrap` checkout root, with the seed already built in Part 1. Do not run either checkpoint concurrently with another user of `/tmp/cc-out`. Each saves that path before starting, restores it on exit, and retains the backup directory if restoration fails. The first loads the complete Forth library and the core compiler, then appends the opening C example. `cc/compiler-layers.sh` is the full loader, including the extension layers of Chapters 39–49; this demo loads only the core.
 
 <!-- tryit: expect "compiler exit: 0\n*\nprogram exit: 0" -->
 ```sh
@@ -231,6 +245,6 @@ stage-a exit: 0
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-38-handoff-and-stage-a-evidence).
 
-**Trace — easy.** In the first checkpoint, identify the exact Forth token that changes the meaning of the remaining stdin from Forth definitions to C source. Explain what would happen if another Forth definition were appended after that token.
+**Trace (easy).** In the first checkpoint, identify the exact Forth token that changes the meaning of the remaining stdin from Forth definitions to C source. Explain what would happen if another Forth definition were appended after that token.
 
-**Verify — medium.** Set `keep_work=1` in the Stage A checkpoint to retain its build directory while still restoring `/tmp/cc-out`. Use the printed directory path to repeat the script's `cmp` on the emitted M1 files. Explain why that equality does not require the compiler executables themselves to be identical.
+**Verify (moderate).** Set `keep_work=1` in the Stage A checkpoint to retain its build directory while still restoring `/tmp/cc-out`. Use the printed directory path to repeat the script's `cmp` on the emitted M1 files. Explain why that equality does not require the compiler executables themselves to be identical.

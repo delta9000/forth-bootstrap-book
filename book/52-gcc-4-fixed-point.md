@@ -1,10 +1,46 @@
 # Chapter 52 — GCC 4.0.4: stages C and D
 
-Stage D's report opens with one line: `# Stage D: fixed point reached`. Behind it, GCC 4.0.4 built by seed-cc builds GCC, that GCC builds GCC again, and the last two installations agree file for file. The route runs from the plumbing tools of Chapter 51 to that line, and on to the tools the stable compiler builds next.
+Stage D's report opens with one line: `# Stage D: fixed point reached`.
+To earn that line, a GCC built by our Forth compiler must build another
+GCC, and successive GCC-built installations must agree. The build crosses
+from one compiler implementation to another, then asks whether the new
+implementation reproduces its own results.
+
+## Why rebuild a working compiler?
+
+The first GCC executable is already useful: it can compile C programs.
+But its bytes reflect the Forth compiler that built it. Rebuilding the
+same source with GCC gives us a different construction path. Repeating
+that path lets us compare generations that share a compiler implementation.
+Keep these four roles separate while reading the recipes:
+
+| Generation being built | Compiler that builds it | Comparison role |
+|---|---|---|
+| Stage C GCC | `seed-cc` driving the Forth compiler | First GCC executable |
+| Stage 2 | Stage C GCC | First generation produced by GCC |
+| Stage 3 | Stage 2 GCC | Compared with Stage 2 and Stage 4 |
+| Stage 4 | Stage 3 GCC | Tests whether Stage 3 reproduces its installation |
+
+Stage 3 versus Stage 4 tests reproduction by GCC-built GCC. Stage 2 versus
+Stage 3 asks whether that stable result already appeared in the first
+GCC-produced generation (`forth-bootstrap/chain/gcc-direct/stage-d.sh:170`).
+Both comparisons must pass for the report to claim a fixed point.
+
+This is a test of reproduction, with installed files as its evidence.
+A reproducible compiler can reproduce its own mistakes. The execution
+checks below serve a different purpose: they test programs built by the
+new toolchain. Before either kind of check is possible, we need to make
+the first GCC's output usable.
 
 ## Put the output tools before the compiler
 
-The construction has this shape: seed-cc → binutils → GCC compiler proper and driver → libgcc and musl → repeated GCC builds. The controller keeps the plumbing tools (Chapter 51) as its command environment, then runs the stages in dependency order (`forth-bootstrap/chain/gcc-direct/chain.sh:29`):
+Our Forth compiler writes object files directly. GCC's `cc1`, the compiler
+proper, writes assembly instead. A successful GCC compilation therefore
+needs an assembler before it can yield an object, and a linker before it
+can yield a program. The binutils build supplies both. The controller
+keeps Chapter 51's plumbing tools as its command environment and runs
+binutils before Stage C and Stage D
+(`forth-bootstrap/chain/gcc-direct/chain.sh:29`):
 
 ```sh
 BIN=$ROOT/build-out/plumbing/bin
@@ -30,7 +66,10 @@ note "stage D"
 
 `chain.sh` stops after Stage D; the late tools at the end of this chapter run from the K1 route.
 
-GCC's `cc1` is the compiler proper: it translates C into assembly. The driver coordinates that translation with assembly and linking. Before either can build a replacement compiler, GCC's assembly output needs an assembler, and its objects need a linker. The seed-built binutils supplies that boundary; Stage C checks its tools against the Stage B report before copying them into its toolchain directory (`forth-bootstrap/chain/gcc-direct/stage-c.sh:110`).
+The GCC driver coordinates translation, assembly and linking. Stage C
+checks the seed-built binutils tools against the Stage B report before
+copying them into its toolchain directory
+(`forth-bootstrap/chain/gcc-direct/stage-c.sh:110`).
 
 Binutils uses the pinned source and regenerates its shipped parsers and scanners, so the build depends on the chain's generators rather than accepting generated C from the release (`forth-bootstrap/chain/gcc-direct/binutils.sh:65`):
 
@@ -74,7 +113,12 @@ The `GENERATED` list identifies the files removed; handwritten support headers s
   done
 ```
 
-The top-level make can fail because recursive make drops the warning overrides. The direct directory builds retain them. The report requires those builds and configuration to succeed, and records each executable's hash; building an executable is distinct from proving its behaviour (`forth-bootstrap/chain/gcc-direct/binutils.sh:123`).
+The top-level make can fail because recursive make drops the warning
+overrides. The script then builds the required directories directly,
+retaining the overrides. It requires configuration and those builds to
+succeed and records each executable's hash
+(`forth-bootstrap/chain/gcc-direct/binutils.sh:123`). Execution checks
+come later.
 
 ## Let the Makefile select cc1
 
@@ -110,7 +154,10 @@ GCC_OVERRIDES="CFLAGS=-Werror=implicit-function-declaration LDFLAGS= BISON=$oyac
 
 ```
 
-An undeclared C function can acquire an integer return type at its call site. That can destroy a pointer result even when linking finds a definition. Rejecting the call catches the type error before the link hides the missing declaration.
+In this C dialect, an undeclared function call can be assigned an integer
+return type. If the function actually returns a pointer, the caller can
+truncate it even though linking succeeds. Rejecting the call catches the
+missing declaration while its type still matters.
 
 With `--link`, libcpp is archived and the upstream `cc1` target performs the final link. Libcpp's hardcoded archiver must be replaced explicitly (`forth-bootstrap/chain/gcc-direct/census.sh:81`):
 
@@ -133,7 +180,17 @@ The configured seed-cc performs this link with its Forth linker, using the estab
 
 ## Cross from the builder's runtime to the target runtime
 
-Stage C installs musl's headers before configuring GCC. The headers describe the target environment even though seed-cc builds the compiler executable. GCC configuration receives both the binutils directory and a sysroot, the directory tree containing its target headers and libraries (`forth-bootstrap/chain/gcc-direct/stage-c.sh:157`):
+There are now two C environments to account for. The GCC executable is a
+program built by seed-cc, so it runs with seed-cc's runtime. A program
+compiled *by* that GCC will use musl. We can install musl's headers first:
+they tell GCC how to compile calls even before musl's implementation has
+been compiled. The resulting GCC can then build the library those calls
+will reach.
+
+Stage C makes that separation explicit with a **sysroot**, a directory
+tree containing the target's headers and libraries. Configuration receives
+both its location and the binutils directory
+(`forth-bootstrap/chain/gcc-direct/stage-c.sh:157`):
 
 ```sh
 step_headers() {
@@ -191,7 +248,8 @@ step_musl() {
 }
 ```
 
-The compiler executable uses the builder's runtime; the programs it emits use the target runtime selected through the sysroot. That distinction breaks the apparent cycle: headers can be installed before libc is compiled.
+The sysroot now contains the implementation as well as the declarations.
+The new toolchain can compile and link a complete musl program.
 
 Stage C's final check compiles and statically links `stage-c-hello.c` with the installed GCC, runs it, compares stdout with its expected file, and requires `nm` to find libgcc's `__divti3` (`forth-bootstrap/chain/gcc-direct/stage-c.sh:246`). Those checks exercise the output path across GCC, binutils, libgcc, and musl.
 
@@ -217,7 +275,11 @@ The build routine puts the same binutils first in `PATH`, so configure's assembl
 
 The source path, build path, and configured prefix stay the same between generations; otherwise embedded paths could create differences unrelated to code generation (`forth-bootstrap/chain/gcc-direct/stage-d.sh:21`). `DESTDIR` relocates the later installations without changing that configured prefix (`forth-bootstrap/chain/gcc-direct/stage-d.sh:120`).
 
-The compiler ancestry is the reason for the repeated builds. Stage 2 is built by the seed-cc-built Stage C GCC. Stage 3 is built by Stage 2, and Stage 4 by Stage 3. Comparing only Stage C with Stage 2 would compare executables produced by different compiler implementations. The later pair tests reproduction by GCC-built GCC; the earlier pair tests whether that stable result already appeared at the first GCC-produced generation (`forth-bootstrap/chain/gcc-direct/stage-d.sh:170`):
+The calls below implement the ancestry table from the start of the
+chapter. Notice the compiler argument to each `build`: the preceding
+generation becomes the next builder. Only after all three builds does
+the script compare their installations
+(`forth-bootstrap/chain/gcc-direct/stage-d.sh:170`):
 
 ```sh
 : > "$work/steps.txt"
@@ -232,7 +294,9 @@ fixed=$(compare "$stage3" "$stage4" stage3-vs-stage4) || passed=
 second=$(compare "$prefix" "$stage3" stage2-vs-stage3) || passed=
 ```
 
-Here a **compiler fixed point** means agreement of the installed results across both comparisons. It does not prove every accepted C program correct. A reproducible compiler can reproduce its own mistakes.
+Now the question is exact: what does `compare` consider the same
+installation? A timestamp inside an archive and a changed object member
+must lead to different answers.
 
 ## Compare installations, not build debris
 
@@ -254,7 +318,10 @@ files_walk() {
 }
 ```
 
-Thus the comparison covers all installed regular files selected by this traversal, including installed tools, libraries, headers, and support files. It does not compare the entire build tree, directory metadata, or symlink text.
+This selects installed tools, libraries, headers and support files.
+Intermediate build products, directory metadata and symlink text lie
+outside the comparison; a symlink to a file contributes that file's
+contents. We can now give the report's “files agree” a precise meaning.
 
 Stage D sorts those relative paths and compares each common file. Ordinary files must match byte for byte. An archive that differs as a whole receives an archive member comparison instead (`forth-bootstrap/chain/gcc-direct/stage-d.sh:148`):
 
@@ -338,7 +405,11 @@ Each GNU package runs its own configure, followed by make and install; bzip2 is 
   fi
 ```
 
-The report is written to `build-out/late/report.txt` by the default output path and report writer (`forth-bootstrap/chain/gcc-direct/late-tools.sh:198`). K1's finish script includes that report and the late-tools logs in the archive written to the output disk (`forth-bootstrap/chain/ladder/finish.sh:7`). A host-side late-tools checkpoint remains open.
+The default report path is `build-out/late/report.txt`
+(`forth-bootstrap/chain/gcc-direct/late-tools.sh:198`). K1's finish script
+includes that report and the late-tools logs in the archive written to
+the output disk (`forth-bootstrap/chain/ladder/finish.sh:7`). The book has
+no recorded host-side late-tools checkpoint.
 
 ## Try it
 

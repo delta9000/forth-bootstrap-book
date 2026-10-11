@@ -1,6 +1,49 @@
 # Chapter 28 — The preprocessor
 
-`#define ROWS 4` makes a later `ROWS` stand for replacement text before C parsing begins. A preprocessor turns that rule, include directives and conditional groups into a rewritten source buffer. The result is a flattened stream ready for the lexer.
+The lexer should see `4` wherever a macro says that `ROWS` stands for `4`.
+That sounds like text replacement until the replacement contains another
+macro, or an argument contains a quoted comma. Then the preprocessor needs
+to know which text it is reading, where to put the result, and where to
+resume afterward.
+
+## A worked expansion before the machinery
+
+Consider these definitions and a use of the second one:
+
+```c
+#define ROWS 4
+#define SQUARE(x) ((x) * (x))
+SQUARE(ROWS)
+```
+
+Trace this by hand in the legacy profile used by the chapter's checkpoint.
+We are following tokens here; the checkpoint below shows the actual
+whitespace. The result contains two `4` tokens and a multiplication. The
+preprocessor does not calculate 16.
+
+| Step | Text being handled | What must survive the step |
+|---|---|---|
+| Collect the argument | `ROWS` inside `SQUARE(ROWS)` | Where to resume after the closing `)` |
+| Expand the argument | `ROWS` becomes `4` | The surrounding source and its output buffer |
+| Substitute | Each `x` in the stored body receives the expanded argument | The completed argument text until both copies are made |
+| Rescan the replacement | The tokens of `((4) * (4))` | The caller's position while nested text is scanned |
+| Resume | The source after `SQUARE(ROWS)` | No temporary text is needed after its last use |
+
+Each row introduces a storage obligation. A **region** records the text
+being read and the position within it. A **sink** records the buffer being
+written and its used length. The scratch area keeps argument and
+replacement text alive across nested scans. Saving and restoring these
+three things is the central operation of the chapter.
+
+There is one more guard: a macro is marked busy while its replacement is
+scanned, so it cannot keep expanding itself. Quoted strings and comments
+have their own walkers. Change the argument to `","` and collection must
+still find one argument; that comma is inside a string.
+
+The implementation also supports a direct profile with different include
+and substitution rules. We will identify those branches as they appear.
+The region/sink model applies to both; the legacy whitespace and argument
+policy used in this trace does not describe direct `#` and `##` handling.
 
 ## The contract, the sink and the scratch area
 
@@ -14,17 +57,11 @@ cc-in-buf → region walker → cc-src-buf
        temporary sinks, macro table, conditional stack
 ```
 
-The recurring operation is *save-switch-restore*: suspend a region or sink,
-process nested text, then resume its caller. The code retains legacy and
-direct preprocessing policies.
-
-For a first pass, follow the sink, macro table, comment/literal walkers,
-and [macro expansion](#macro-expansion). The worked expansion there names
-each piece of state before the detailed implementation. Include search,
-source-location mapping, stringification and token pasting can be a second
-pass; they extend the same state discipline. The checkpoint uses legacy
-preprocessing, so direct-mode behavior must be selected explicitly before
-using it to predict a result.
+The source builds the storage before the recursive walker that uses it.
+Read each buffer below against the expansion: the outer source must wait
+while its argument is expanded, and the argument must wait while the
+replacement is assembled. Include files introduce another region to
+suspend and resume; they do not require another model of reading text.
 
 The header names the supported directives (`forth-bootstrap/cc/040-cc-prep.fth:1`):
 
@@ -169,7 +206,7 @@ Sink push and pop apply save-switch-restore: push installs a new sink, and pop r
 
 ### Temporary text and token marks
 
-A macro call builds arguments and replacement text in scratch storage. A finished temporary keeps only its used text, and the call releases its whole scratch lifetime when expansion ends (`forth-bootstrap/cc/040-cc-prep.fth:112`):
+A macro call builds arguments and replacement text in scratch storage. Each finished temporary retains only the space its text uses. When expansion ends, the call releases all the scratch space it reserved (`forth-bootstrap/cc/040-cc-prep.fth:112`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -490,7 +527,7 @@ variable cc-prep-at-line-start                    \ true at the start of a line
   then, ;
 ```
 
-The cursor helpers inspect or advance the active region without committing to a particular buffer. Blank skipping leaves newlines visible, and paired-byte tests recognize delimiters (`forth-bootstrap/cc/040-cc-prep.fth:349`):
+The cursor helpers inspect or advance whichever region is active. Blank skipping leaves newlines visible, and paired-byte tests recognize delimiters (`forth-bootstrap/cc/040-cc-prep.fth:349`):
 
 ```forth file=cc/040-cc-prep.fth
 
@@ -680,7 +717,7 @@ Block comments stop at their closing delimiter; line comments leave the ending n
   repeat, ;
 ```
 
-Literal copying removes LF continuations before handling escapes, so an escaped quote does not close the literal. The removed newlines are owed; ordinary CRLF literal splicing is outside this copier's support (`forth-bootstrap/cc/040-cc-prep.fth:500`):
+Literal copying removes LF continuations and handles escapes, so an escaped quote does not close the literal. The removed newlines are owed; this copier does not support ordinary CRLF literal splicing (`forth-bootstrap/cc/040-cc-prep.fth:500`):
 
 ```forth file=cc/040-cc-prep.fth
 
@@ -857,6 +894,14 @@ A preprocessing number is copied with its letters and dots, so a suffix or hexad
   repeat, ;
 
 ```
+
+<details>
+<summary>Include files: path search, source locations, and bounded storage</summary>
+
+An include suspends the current region, reads another file, and restores
+the caller at its next line. This section supplies the file lookup and
+location bookkeeping around that operation. The macro-expansion section
+that follows uses the same region discipline with text already in memory.
 
 ## `#include` and its bounded file pool
 
@@ -1228,34 +1273,12 @@ Direct files occupy the free tail of the packed pool; legacy files occupy their 
   r> close drop ;
 ```
 
+</details>
+
 ## Macro expansion
 
-### A worked expansion before the machinery
-
-Assume the legacy profile, `#define ROWS 4`, and
-`#define SQUARE(x) ((x) * (x))`. Predict what survives after scanning
-`SQUARE(ROWS)`: an expression containing two `4` tokens, not the computed
-number `16`. This is a source-derived trace; the later checkpoint is the
-place to observe the emitted whitespace.
-
-| Step | Region and lexical state | Argument/sink state | Why the next step is safe |
-|---|---|---|---|
-| Collect | Outer region is just past `SQUARE(`; depth starts at 1 | One raw slice names `ROWS`; collection stops just after `)` | Quoted text and comments use their own walkers, so a comma or parenthesis inside a literal does not split an argument |
-| Prescan | Save the outer region, scan the raw slice as replacement text | A temporary sink receives expanded `ROWS`; its macro is busy only while its body is scanned | Nested expansion cannot overwrite the outer source cursor or sink; busy prevents expanding a macro inside its own replacement |
-| Substitute | Restore the outer region; walk the stored SQUARE body | Each encoded `x` marker copies the expanded argument into another temporary sink | Both uses receive the same expansion; legacy substitution adds separator blanks |
-| Rescan | Mark SQUARE busy and scan the substituted text as a new region | Output now goes to the original source sink | Replacement tokens can expand again, but SQUARE cannot immediately expand itself |
-| Resume | Restore the outer region at the byte after `)` and clear busy | Restore the saved scratch top only after rescanning finishes | No live argument/replacement slice is reclaimed before its final use |
-
-Region state answers “which bytes come next?” Sink state answers “where
-do the resulting bytes go?” Busy flags answer “which macro is temporarily
-disabled?” None can replace the others. In direct mode, raw argument
-spellings also remain available for `#` and `##`; do not apply this legacy
-whitespace trace to that substitution policy.
-
-Before continuing, change the raw argument to a quoted comma, `","`.
-The literal walker must consume the complete quoted span during collection;
-the comma does not make a second argument. If your trace split it, revisit
-[comment and literal boundaries](#comment-and-literal-boundaries).
+Return to `SQUARE(ROWS)`. The sink and region helpers are in place; now the
+walker needs to invoke them recursively without losing its caller.
 
 Expansion is walking: `cc-pp-expand-text` parks the active region, scans a replacement as non-file text and restores the caller. Deferred words (Chapter 25) connect the mutually recursive walker and dispatcher. Separator blanks prevent an expansion from accidentally creating a different token (`forth-bootstrap/cc/040-cc-prep.fth:937`):
 
@@ -1709,6 +1732,13 @@ Ordinary parameter markers use expanded text unless either edge is pasted. Marke
 
 ```
 
+<details>
+<summary>Source locations: filename spellings and flattened line maps</summary>
+
+Macro expansion is ready to rescan its substituted text. These helpers
+let built-in location macros describe that text's origin; they do not
+change the save-and-restore sequence of `SQUARE(ROWS)`.
+
 ### Spelling source locations
 
 Dynamic location macros need C text as their result. The number writer emits decimal digits in forward order, and the filename-byte writer escapes bytes that cannot appear literally in a C string (`forth-bootstrap/cc/040-cc-prep.fth:1276`):
@@ -1785,7 +1815,7 @@ create cc-pp-map-resume  cc-prep-direct-depth 1+ [lit] 8 * allot
   cc-pp-line-map @ r@ ! r> cc-pp-line-map ! ;
 ```
 
-Lookup chooses the latest record at or before the requested output line, then adds the distance from that record. Chapter 41 supplies the diagnostic consumer; this layer only maintains the map (`forth-bootstrap/cc/040-cc-prep.fth:1333`):
+Lookup chooses the latest record at or before the requested output line, then adds the distance from that record. Chapter 41 uses the map in diagnostics; this layer only maintains it (`forth-bootstrap/cc/040-cc-prep.fth:1333`):
 
 ```forth file=cc/040-cc-prep.fth
 \ cc-pp-line-map-find ( output-line -- a u source-line true | false )
@@ -1800,6 +1830,8 @@ Lookup chooses the latest record at or before the requested output line, then ad
   repeat, 2drop [lit] 0 ;
 
 ```
+
+</details>
 
 ### Expanding a replacement
 
@@ -1826,7 +1858,7 @@ Dynamic object macros emit the current line or filename directly. An ordinary ob
 
 ```
 
-A function call saves its scratch lifetime, collects arguments and preserves raw records. Direct mode expands only arguments that need prescan; legacy mode expands every argument (`forth-bootstrap/cc/040-cc-prep.fth:1362`):
+A function-like macro call saves the scratch cursor, collects arguments and preserves their raw slices. Direct mode expands only arguments that need prescan; legacy mode expands every argument (`forth-bootstrap/cc/040-cc-prep.fth:1362`):
 
 ```forth file=cc/040-cc-prep.fth
 \ cc-pp-expand-call ( i -- )  The '(' of function-like macro i's call has
@@ -2235,7 +2267,7 @@ The main walker dispatches directives only in file regions and pays their owed n
 
 ## `#if` and friends
 
-Conditional expressions reuse the macro engine, with `defined` answered first, then call `cc-pp-eval`. Chapter 34 supplies the core constant-expression evaluator and Chapter 45 extends typed evaluation; this file defines only the interface (`forth-bootstrap/cc/040-cc-prep.fth:1676`):
+The preprocessor expands a conditional expression, handling `defined` before its operand can expand, then passes the result to `cc-pp-eval`. Chapter 34 supplies the core constant-expression evaluator and Chapter 45 extends typed evaluation; this file defines only the interface (`forth-bootstrap/cc/040-cc-prep.fth:1676`):
 
 ```forth file=cc/040-cc-prep.fth
 \ ===========================================================================
@@ -2442,7 +2474,7 @@ Direct mode requires a nonempty, closed name. Expanded operands must contain onl
     [lit] 0 cc-prep-inc-expanded !
 ```
 
-Opening an include uses save-switch-restore for the region as well as the packed-pool top. Entering and leaving record location-map boundaries, and the included region is walked before the caller resumes (`forth-bootstrap/cc/040-cc-prep.fth:1841`):
+Opening an include uses save-switch-restore for the region as well as the packed-pool top. When line mapping is enabled, entry and exit each add a record. Between them, the walker scans the included region before resuming the caller (`forth-bootstrap/cc/040-cc-prep.fth:1841`):
 
 ```forth file=cc/040-cc-prep.fth
     cc-prep-inc-mode @ [lit] 1 = cc-prep-direct @ or if,
@@ -2501,6 +2533,14 @@ An operand such as `#include EXTRA_MODES_FILE` needs expansion before it names a
   r> cc-pp-scratch-top ! ;
 ```
 
+<details>
+<summary>Line control: interpreting a source-supplied filename and line number</summary>
+
+An included or generated source can change the location reported for
+later tokens. The line-control parser updates that record while keeping
+the physical input cursor separate. After this reference section, the
+main walkthrough returns to installing macro definitions.
+
 ## Parsing C line control
 
 Generated parser text can use `#line` to identify copied grammar actions. After macro expansion, the operand grammar accepts a positive decimal line and an optional ordinary filename string; it does not evaluate an expression (`forth-bootstrap/cc/040-cc-prep.fth:1888`):
@@ -2534,7 +2574,7 @@ variable cc-pp-line-name-size
 
 ```
 
-Filename escapes use local digit decoding. Hexadecimal escapes require a digit and reject overflow while accumulating, keeping malformed provenance from becoming a plausible filename (`forth-bootstrap/cc/040-cc-prep.fth:1914`):
+Filename escapes use local digit decoding. Hexadecimal escapes require a digit and reject overflow while accumulating, so malformed input cannot silently become a different filename (`forth-bootstrap/cc/040-cc-prep.fth:1914`):
 
 ```forth file=cc/040-cc-prep.fth
 : cc-pp-line-hex ( c -- n|-1 )
@@ -2603,7 +2643,7 @@ The filename parser requires a closing quote, rejects NUL and oversized byte val
 
 ### Applying a logical location
 
-`cc-prep-handle-line` expands and validates the entire operand in a temporary region. Extra tokens fail before it restores the source cursor and scratch lifetime (`forth-bootstrap/cc/040-cc-prep.fth:1966`):
+`cc-prep-handle-line` expands and validates the entire operand in a temporary region. It rejects extra tokens before restoring the source cursor and releasing the temporary scratch storage (`forth-bootstrap/cc/040-cc-prep.fth:1966`):
 
 ```forth file=cc/040-cc-prep.fth
 : cc-prep-handle-line
@@ -2637,6 +2677,8 @@ The requested number applies to the following physical line. Updating an offset 
   cc-pp-line-number @ 1- cc-pp-line-map-note ;
 
 ```
+
+</details>
 
 ## `#define` and `#undef`
 
@@ -3152,10 +3194,10 @@ blanks keep the replacement's tokens distinct from their neighbours.
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-28-expansion-and-inactive-text).
 
-**Trace — easy.** Follow `SQUARE(ROWS)` through argument expansion,
+**Trace (easy).** Follow `SQUARE(ROWS)` through argument expansion,
 substitution and replacement rescanning. Account for each separator blank
 around the expanded argument in the observed output.
 
-**Verify — easy.** In the checkpoint input, change `#ifdef ROWS` to
+**Verify (easy).** In the checkpoint input, change `#ifdef ROWS` to
 `#ifdef ABSENT` and rerun. Check which array declaration remains and whether
 the following statement retains its line position.

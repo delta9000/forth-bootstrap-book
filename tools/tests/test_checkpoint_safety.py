@@ -77,7 +77,7 @@ class CheckpointSafetyTests(unittest.TestCase):
 
     def test_all_canonical_checkpoint_fences_parse(self):
         count = 0
-        for chapter in range(27, 50):
+        for chapter in range(26, 50):
             for index, body in enumerate(fences(chapter)):
                 with self.subTest(chapter=chapter, fence=index):
                     result = subprocess.run(["bash", "-n"], input=body,
@@ -190,6 +190,30 @@ class CheckpointSafetyTests(unittest.TestCase):
                         if mode == "generator_fail":
                             self.assertNotIn("program exit:", result.stdout)
                             self.assertNotIn("exit status)", result.stdout)
+
+    def test_assembler_checkpoint_preserves_failures(self):
+        for mode in ("success", "generator_fail", "program_fail", "mktemp_fail"):
+            for errexit in (False, True):
+                with self.subTest(mode=mode, errexit=errexit):
+                    directory = self.directory(f"assembler-{mode}-{errexit}")
+                    body = self.isolate(fences(26)[0], directory)
+                    self.inert_sources(body, directory)
+                    status = 41 if mode == "program_fail" else 42
+                    generator = directory / "seed-forth"
+                    generator.write_text(
+                        "#!/bin/bash\n"
+                        "output=$(sed -n 's/^create out s, \\([^ ]*\\) .*/\\1/p')\n"
+                        + ("exit 17\n" if mode == "generator_fail" else
+                           f"printf '#!/bin/sh\\nexit {status}\\n' > \"$output\"\n"))
+                    generator.chmod(0o755)
+                    if mode == "mktemp_fail":
+                        body = "mktemp() { return 72; }\n" + body
+                    result = self.run_shell(body, directory, errexit)
+                    self.assert_status(result, {"success": 0, "generator_fail": 17,
+                                                "program_fail": 1, "mktemp_fail": 72}[mode])
+                    self.assertEqual(list(directory.glob("book-probe.*")), [])
+                    if mode == "generator_fail":
+                        self.assertNotIn("exit:", result.stdout)
 
     def test_shared_output_complete_wrappers(self):
         for chapter, correct in ((38, 0), (39, 40), (44, 0)):

@@ -1,15 +1,64 @@
 # Chapter 50 — Building seed-cc and seed-ar
 
-`seed-cc` turns a C source file into a runnable program by driving the Forth compiler. The seed constructs that driver itself, by reading a build controller as Forth source. The result is `seed-cc` and its companion `seed-ar`, built without Python, and a `seed-cc` that rebuilds both byte for byte.
+The next build recipe wants to say `seed-cc -c source.c` and receive an
+object file. Part 3 gave us every operation behind that command, but its
+checkpoints still assembled compiler input streams by hand. A **driver**
+can do that bookkeeping for every source file: interpret the options,
+arrange the input stream, run the compiler, and publish the result.
 
+Our driver is a C program. To build its first executable, we need those
+same operations before the driver exists. A Forth controller supplies
+them once; the resulting `seed-cc` can then build the next copy of itself
+and its companion archiver, `seed-ar`. Comparing the copies checks whether
+the two ways of arranging the build agree. The compiler underneath both
+remains the Forth implementation running inside `seed-forth`.
+
+## From a filename to an object
+
+Follow the proposed command `seed-cc -c source.c -o source.o` by hand.
+The driver reads the C file and gathers the compiler layers. It places a
+small Forth driver after those layers and the C text after that driver.
+The final Forth call starts C parsing, just as in the earlier checkpoints.
+The child seed writes an object in the private workspace; after successful
+compilation, `seed-cc` publishes the requested `source.o`
+(`forth-bootstrap/cc/driver/seed-cc.c:577`,
+`forth-bootstrap/cc/driver/seed-cc.c:659`).
+
+The command-line modes choose how far that work goes. `parse` defines
+these choices (`forth-bootstrap/cc/driver/seed-cc.c:169`):
+
+| Input | Result |
+|---|---|
+| no mode flag | Compile C inputs and link a program |
+| `-c` | Publish objects without linking |
+| `-E` | Publish preprocessed text |
+| `-o PATH` | Select the output destination |
+| `-I PATH` | Add an include search directory |
+| `-D NAME=VALUE`, `-U NAME` | Supply preprocessor directives |
+| `-L PATH`, `-l NAME` | Search for library inputs while linking |
+| `-nostdinc`, `-nostdlib` | Omit the default include directory or runtime |
+
+Conflicting modes and unsupported options fail. `-static`, `-O0` and `-g0` describe the output
+already produced; they do not enable additional passes. This is enough of
+a command interface for the recipes in Chapter 51. First we must construct
+the program that implements it.
 
 ## Build a driver without running a driver
 
-The construction has this shape: compile the runtime C sources and the tool C sources → emit the Forth runtime objects → archive the runtime → link each tool. The controller runs inside the existing seed. Its newly written executables are outputs, not builders used by this construction.
+The Forth controller starts with the existing seed and the source files.
+It compiles the runtime and tool C sources, emits the Forth runtime
+objects, archives the runtime, then links each tool. Every compilation
+and link starts a child `seed-forth`; the new tool executables are needed
+only after this construction finishes.
 
 Directory traversal supplies the inputs rather than a handwritten list. `layer?` accepts numbered compiler layers, excluding `120-cc-main.fth` and `140-cc-link.fth`; `source?` accepts runtime C sources except `math.c`. The controller sorts both lists by filename before using them. The linker has its own smaller layer list (`forth-bootstrap/cc/driver/seed-cc-start.fth:188–199`, `forth-bootstrap/cc/driver/seed-cc-start.fth:220–247`, `forth-bootstrap/cc/driver/seed-cc-start.fth:272–279`).
 
-Each translation unit gets a fresh input file so compiler state cannot leak from the preceding unit (`forth-bootstrap/cc/driver/seed-cc-start.fth:309`):
+Each translation unit gets its own input stream and a fresh `seed-forth`
+process. `run-seed` executes the seed again, which resets compiler globals
+and arena state; merely changing the input file would not provide that
+isolation (`forth-bootstrap/cc/driver/seed-cc-start.fth:281`).
+`compile-unit` assembles the stream and starts that process
+(`forth-bootstrap/cc/driver/seed-cc-start.fth:309`):
 ```forth
 : compile-unit
  unit-driver ! dup unit-name ! source-path
@@ -19,7 +68,11 @@ Each translation unit gets a fresh input file so compiler state cannot leak from
  unit-object pathbuf rename if, [lit] 115 die then, ;
 ```
 
-`compiler-layers` appends the library followed by the sorted compiler layers. The fixed driver comes next, followed by one C source, completing the compiler driver stream. `run-seed` writes `unit.o`; the controller renames it to the source's object name before compiling another unit. Runtime C uses `runtime-unit.fth`, while the tool sources use `tools-unit.fth`.
+`compiler-layers` appends the library and the sorted compiler layers.
+The fixed driver comes next, followed by one C source. The child seed
+writes `unit.o`; the controller renames it before compiling another unit.
+Runtime C uses `runtime-unit.fth`, while the tool sources use
+`tools-unit.fth`.
 
 The tool driver selects object compilation (Chapter 41) and provides the runtime include directory; its final call consumes the C text that follows it (`forth-bootstrap/cc/driver/seed-cc-boot/tools-unit.fth:5`):
 ```forth
@@ -54,7 +107,10 @@ The child reads that assembled input through standard input, so no shell or comp
  status @ if, [lit] 114 die then, ;
 ```
 
-The parent waits for the child and stops on a failing status. Every child executes `./seed-forth`; neither `seed-cc`, `seed-ar`, nor Python runs during construction (the shell that launches the checkpoint is outside that claim).
+The parent waits for the child and stops on a failing status. This is the
+whole execution loop behind the first driver: fork, redirect, exec the
+seed, and wait. The surrounding shell launches the controller, but the
+controller constructs both tools without executing Python or a C driver.
 
 ## Put startup before the archive
 
@@ -77,7 +133,14 @@ C runtime objects come first in `libseed.a`, in sorted source order. The Forth-g
 
 `member-line` writes an `arc-add-object` command for the current path. `archive-head.fth` starts the archive; `archive-tail.fth` writes it. These steps load the library, arena, I/O, linker and archive layers, without loading the C parser.
 
-Startup must be eager: its reference to `main` must exist before the linker searches archives (Chapter 42). The program object follows startup, and the runtime archive comes last so it can satisfy the program's unresolved library references (`forth-bootstrap/cc/driver/seed-cc-boot/link-seed-cc.fth:3`):
+Startup must be added as an ordinary object. Archive extraction responds
+to unresolved symbol references (Chapter 42), and no input here asks for
+`_start`. `lnk-entry` records that name for the final entry lookup; it does
+not create a reference that would extract startup from an archive
+(`forth-bootstrap/cc/140-cc-link.fth:161`). The explicit startup object
+therefore supplies `_start`, the program object supplies `main`, and the
+runtime archive satisfies their unresolved library references
+(`forth-bootstrap/cc/driver/seed-cc-boot/link-seed-cc.fth:3`):
 ```forth
 lnk-init
 create driver-obj-0 s, build-out/seed-cc/boot/start.o [lit] 0 c,
@@ -96,22 +159,10 @@ driver-output lnk-link bye
 
 ## Let C assemble the next Forth stream
 
-The resulting C driver handles command-line policy. It does not replace the compiler with a C implementation. Its modes and argument transformations are defined in `parse` (`forth-bootstrap/cc/driver/seed-cc.c:169`):
-
-| Input | Result |
-|---|---|
-| no mode flag | Compile C inputs and link a program |
-| `-c` | Publish objects without linking |
-| `-E` | Publish preprocessed text |
-| `-o PATH` | Select the output destination |
-| `-I PATH` | Add an include search directory |
-| `-D NAME=VALUE`, `-U NAME` | Supply preprocessor directives |
-| `-L PATH`, `-l NAME` | Search for library inputs while linking |
-| `-nostdinc`, `-nostdlib` | Omit the default include directory or runtime |
-
-Conflicting modes and unsupported options fail rather than silently acquiring GCC meanings. `-static`, `-O0` and `-g0` describe the output already produced; they do not enable additional passes.
-
-`forth` joins captured layer bytes, generated driver text and source bytes in that order, preserving the division between command-line policy and compilation (`forth-bootstrap/cc/driver/seed-cc.c:577`):
+We now have a runnable `seed-cc`. Its central job is the stream assembly
+we followed at the start of the chapter. The C function `forth` joins
+captured layer bytes, generated driver text and source bytes in that
+order (`forth-bootstrap/cc/driver/seed-cc.c:577`):
 ```c
 /* Run the seed on the named modules, the driver text and SOURCE. */
 static void forth(struct names *modules, const struct buf *driver, const char *source, unsigned long nsource)
@@ -145,7 +196,12 @@ static void forth(struct names *modules, const struct buf *driver, const char *s
 }
 ```
 
-The driver snapshots its inputs and checks that they stayed unchanged while being captured. It verifies the seed executable against its hex source, then builds a private workspace containing the captured seed and runtime inputs (`forth-bootstrap/cc/driver/seed-cc.c:476`). These checks identify the inputs used by a command; they do not compare successive builds of `seed-cc`.
+The driver captures its compiler inputs and checks for changes during capture.
+It verifies the seed executable against its hex source, then builds a
+private workspace containing the captured seed and runtime inputs
+(`forth-bootstrap/cc/driver/seed-cc.c:476`). These checks establish which
+compiler inputs the command used. Comparing successive builds of `seed-cc` is a
+separate step.
 
 ## Preserve the link and archive policy
 
@@ -190,7 +246,12 @@ The C driver preserves the bootstrap's eager startup and trailing runtime archiv
 
 ## Rebuild the driver with itself
 
-The construction above invokes no pre-existing C compiler executable or driver: its C compiler runs as Forth inside seed-forth. Once it has written `seed-cc`, that driver can compile its own source and the archiver's, and the results can be compared with the bootstrap's. The check compiles both tools with the first generation's `seed-cc`, into a directory at the same depth so the driver still finds its source tree from its own path (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:15`):
+The first construction used fixed Forth drivers. The second can ask the
+new C driver to compile the same tool sources. If it changes an include,
+compiler stream, runtime order or link, the resulting bytes may expose
+the difference. The rebuild check puts the second generation at the same
+directory depth so the driver still finds its source tree from its own
+path (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:15`):
 ```sh
 ./seed-forth < cc/driver/seed-cc-start.fth
 G1=build-out/seed-cc
@@ -201,7 +262,10 @@ mkdir -p "$G2"
 "$G1/seed-cc" -static cc/driver/seed-ar.c -o "$G2/seed-ar"
 ```
 
-Equal bytes mean the bootstrap's fixed driver and the C driver produce the same compilation: the same compiler layers, the same runtime archive order and the same link. It is a fixed point of `seed-cc` alone. GCC's three-generation comparison is a different claim (Chapter 52).
+Equal bytes show that the two construction paths agree on these driver
+and archiver executables. The Forth compiler still performs both builds;
+the result is a fixed point of the tools around it. Chapter 52 will cross
+a larger boundary, from a Forth-built GCC to generations built by GCC.
 
 ## Try it
 
@@ -228,7 +292,7 @@ C
 )
 ```
 
-Observed output:
+Recorded checkpoint output:
 
 ```text
 160136 build-out/seed-cc/seed-cc
@@ -247,7 +311,7 @@ The rebuild check takes a few seconds more and is a step of `./check-all.sh`:
 tests/cc/seed-cc-rebuild-check.sh
 ```
 
-Observed output:
+Recorded rebuild-check output:
 
 ```text
 seed-cc-rebuild-check: PASS (generation 2 seed-cc and seed-ar equal generation 1: 160136 and 98624 bytes)

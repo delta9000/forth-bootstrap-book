@@ -6,7 +6,7 @@ stacks and run a definition that takes or declines a branch.
 
 ## The compiled shape
 
-Recall the inline-cell convention from Chapter 10 (The colon compiler).
+Recall the inline-cell convention from Chapter 10.
 For a branch, the cell holds an absolute destination address. The runtime
 shape follows the entry contract in `forth-bootstrap/seed/000-seed.hex0:607`:
 
@@ -125,7 +125,7 @@ it must reach the caller, not revisit the destination cell. The
 destination may be another word's entry point, provided that word can use
 the existing data stack and return to the enclosing definition's caller.
 
-Chapter 24 (Control-flow combinators) emits and patches branches to build
+Chapter 24 emits and patches branches to build
 structured conditionals and loops. Its runtime reference points are
 [unconditional branch](#branch) and [branch on zero](#0branch). The
 consumed-slot property is the contract those combinators depend on.
@@ -134,9 +134,9 @@ consumed-slot property is the contract those combinators depend on.
 
 Use an already defined word as the destination so its address is known
 before the branch is compiled. The checkpoint helper `target,` reads that
-word's name and appends its address; recall `'` and `,` from Chapter 9
-(The dictionary and token reader). Recall the IMMEDIATE flag from
-Chapter 10: the store at header offset `8` marks `target,` so it runs
+word's name and appends its address; recall `'` and `,` from Chapter 9.
+The IMMEDIATE flag from Chapter 10 controls when this happens: the store
+at header offset `8` marks `target,` so it runs
 while `choose` and `jump` are being compiled. It emits only the cell;
 the preceding `branch` or `0branch` supplies the call.
 
@@ -177,10 +177,10 @@ YANBYC
 
 ## Exercises
 
-- **Trace — easy.** Start with `caller-return` beneath `slot` on the return
+- **Trace (easy).** Start with `caller-return` beneath `slot` on the return
   stack. Follow a zero flag and then a nonzero flag through `zbranch_code`.
   Record `rax`, the return-stack top, and the instruction pointer just
   before and just after the final `ret`.
-- **Verify — easy.** In the checkpoint, replace the nonzero flag with
+- **Verify (easy).** In the checkpoint, replace the nonzero flag with
   `[lit] 89`. Predict the output before running it. Explain why the flag
   itself is never printed.

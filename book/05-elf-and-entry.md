@@ -24,6 +24,15 @@ The root block at `forth-bootstrap/seed/000-seed.hex0:1` lists the chunks
 in file order. It is an assembly manifest; Chapters 6–12 supply the chunks
 after `jmp-to-repl`.
 
+For this chapter, follow three locations: the file begins with the ELF
+header, its program header starts at offset 64, and execution starts at
+offset 120. The manifest below keeps the complete source together; you
+can leave it folded on a first reading and go straight to the loading
+fields.
+
+<details>
+<summary>The complete assembly manifest and source preamble</summary>
+
 ```hex0 file=seed/000-seed.hex0
 <<file-header-comment>>
 <<elf-header>>
@@ -100,6 +109,8 @@ records how to read the source; preserve it with the bytes it documents.
 
 The preamble contributes no machine bytes; the ELF header is the first
 material the loader will read.
+
+</details>
 
 ## Identify the executable and its entry
 
@@ -211,15 +222,15 @@ address conventions and initializes the data-stack registers.
 
 ```
 
-The entry instructions set `rbp = 0x411000` and clear `rdi`; recall the
-cached-top pattern from Chapter 4. Chapter 6 follows the stack transfers.
+The entry instructions set `rbp = 0x411000` and clear the cached top in
+`rdi`. Chapter 6 follows the stack transfers.
 The instructions here occupy 13 bytes, so the next startup responsibility
 begins at file offset `0x085`.
 
 There is no assignment to `rsp` in this startup code. The seed keeps the
-process stack supplied at entry for its return stack; recall `rsp` from
-Chapter 4. It is separate from the data-stack address reserved inside the
-loadable segment, and has no fixed address in this map.
+process stack supplied at entry for its return stack. It is separate from
+the data-stack storage reserved inside the loadable segment and has no
+fixed address in this map.
 
 ## Initialize the mutable system variables
 
@@ -287,9 +298,9 @@ The end of the file image comes from `0x400000 + 0x6EC = 0x4006EC`;
 the end of the segment comes from `0x400000 + 0x1000000 = 0x1400000`.
 Do not mistake either endpoint for the initial allocation cursor.
 
-This is the seed's map before loading the compiler. Chapter 27 owns the
-compiler arena and I/O buffers; Chapters 28 and 30 own preprocessor and
-symbol storage, and Chapter 32 owns generated runtime shims. Their storage
+This is the seed's map before loading the compiler. Chapter 27 covers the
+compiler arena and I/O buffers; Chapters 28 and 30 cover preprocessor and
+symbol storage, and Chapter 32 covers generated runtime shims. Their storage
 layouts are not part of this startup contract.
 
 ## Hand control to the loop
@@ -358,12 +369,12 @@ exit status 0
 
 ## Exercises
 
-- **Trace — easy.** Calculate `e_entry` from the end of the program header,
+- **Trace (easy).** Calculate `e_entry` from the end of the program header,
   then calculate the final startup jump's target. Explain why one uses
   the file base and the other uses the next instruction.
-- **Verify — easy.** Match the checkpoint's `LOAD` fields `FileSiz`,
+- **Verify (easy).** Match the checkpoint's `LOAD` fields `FileSiz`,
   `MemSiz`, and `VirtAddr` to the map. Identify the entry instructions
   in the `od` output.
-- **Trace — medium.** Locate the `HERE` cell and its initial contents.
+- **Trace (moderate).** Locate the `HERE` cell and its initial contents.
   Which address lies in the system-variable area? Which points into
   the dictionary allocation area?

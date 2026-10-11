@@ -1,6 +1,10 @@
 # Appendix G — Compiler error codes
 
-A compiler diagnostic identifies a failed check by number and by the reader's position in the input. Use the catalogue to find the raising word, its source location, and the chapter that explains that layer. The same number can belong to different checks, so keep the loaded layer and any diagnostic prefix beside it.
+A compiler diagnostic gives a failed check's number and the source
+reader's position in the input. Use this catalogue to find the word
+that reports the failure, its source location, and the chapter that
+explains the layer. The same number can belong to different checks,
+so retain the loaded layer and any diagnostic prefix alongside it.
 
 ## How the codes are organised
 
@@ -460,7 +464,7 @@ The driver-generated preprocessing-output writer can itself raise compiler code 
 ## Runtime trap status
 
 The private runtime's unavailable `localtime`, `ldexp` and `longjmp` paths print `seed-forth bootstrap: unsupported NAME` and exit with status `125` when executed. This is distinct from a compiler rejection of a constant expression. The trap emitter is `cc-native-unavailable` (`forth-bootstrap/cc/119-cc-native-runtime.fth:72`).
-Its emitted exit status and conditional registration are at `forth-bootstrap/cc/119-cc-native-runtime.fth:87,105`. [Chapter 39](39-lp64-storage-and-initializers.md) owns that runtime layer.
+Its emitted exit status and conditional registration are at `forth-bootstrap/cc/119-cc-native-runtime.fth:87,105`. [Chapter 39](39-lp64-storage-and-initializers.md) explains that runtime layer.
 
 ## Why a number and a line, not a message?
 

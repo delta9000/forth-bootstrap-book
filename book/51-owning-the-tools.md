@@ -1,10 +1,25 @@
 # Chapter 51 — Owning the tools
 
-A build recipe needs programs that create directories, unpack sources, generate parsers, and interpret shell commands. The plumbing recipes turn C sources and fixed configuration answers into the tools that will run GCC's build.
+A conventional source build begins with a shell running `configure`,
+then make running the resulting recipes. After Chapter 50, our bootstrap
+has a C compiler and an archiver; it still needs make and a shell.
+Building bash brings another dependency: its parser must be generated before the shell can be
+compiled. A compiler alone cannot start this build.
+
+The way forward is to build each missing tool using a simpler operation
+we already have. Kaem can interpret explicit commands before bash exists.
+An explicit list of compiler commands can build make before Makefiles can
+run. Fixed configuration headers can describe the runtime before a shell
+can probe it. By the end, the tools can run ordinary configure scripts,
+and GCC's build can begin.
 
 ## Start with a recipe runner
 
-The construction has this shape: seed-cc → kaem → file utilities and make → text and archive tools → parser generators → bash → configure. The driver and archiver are already built (Chapter 50). The stage controller orders the recipes before handing control to the new bash (`forth-bootstrap/chain/plumbing/chain.kaem:13`):
+The recipes follow that dependency order: kaem, file utilities and make,
+text and archive tools, parser generators, then bash. The driver and
+archiver remain their compiler tools. The controller's
+last line is the payoff: the bash it has just built can run the GCC
+controller (`forth-bootstrap/chain/plumbing/chain.kaem:13`):
 
 ```sh
 ./build-out/plumbing/bin/kaem --verbose --strict --file chain/plumbing/stage1.kaem
@@ -26,7 +41,12 @@ enter 3 /build-out/seed-cc/seed-cc -static vendor/mescc-tools/Kaem/kaem.c \
 status=0
 ```
 
-`enter` executes the compiler inside the prepared root through bwrap under strace, with the environment cleared and `PATH` set to `/bin` (`forth-bootstrap/chain/plumbing-root.sh:60`). The short checkpoint at the end uses the same compiler arguments in the checkout, with a temporary output path. It tests construction and execution of kaem; it does not establish the sealed-run claim.
+`enter` runs the compiler inside the prepared root, with the environment
+cleared and `PATH` set to `/bin` (`forth-bootstrap/chain/plumbing-root.sh:60`).
+Chapter 53 follows that launcher and its trace. For now, the useful fact
+is the source list: seed-cc can compile this first interpreter directly.
+The checkpoint at the end does so in the checkout and uses it to expand
+`MESSAGE` and execute a tiny recipe.
 
 Directory creation must precede installing tools into the new directory. The recipe writes a temporary `mkdir` into the existing build directory, then uses it to make the destination (`forth-bootstrap/chain/plumbing/stage1.kaem:16`):
 
@@ -85,7 +105,12 @@ A configuration answer affects control flow in the package itself. Leaving these
 
 ## Give make commands it can execute directly
 
-The next stage repeats unpack → configure by header → make → install. The table follows the recipe's execution order.
+Having make does not yet give us a shell. A rule that needs a pipeline or
+a compound shell command would still fail. The next packages therefore
+use Makefiles whose recipe lines can be executed directly, with fixed
+headers supplying the configuration answers. Extraction, compilation and
+installation repeat for each package; their order supplies the tools
+needed by later recipes:
 
 | Input | Installed result | Recipe source |
 |---|---|---|
@@ -129,7 +154,11 @@ sed/sed: $(SED_OBJ) lib/libsed.a
 
 The link follows lazy member selection (Chapter 42). A direct recipe also avoids pipelines and compound commands: separate dependency rules express the work instead.
 
-Quoted path definitions would complicate command execution. Fixed configuration puts such strings in C headers, where quoting has C semantics. Diffutils records the program paths it will use there (`forth-bootstrap/chain/plumbing/diffutils-2.7/config.h:1`):
+Passing quoted path definitions on the compiler command line would
+complicate these direct recipes. Fixed configuration puts the strings
+in C headers, where quoting has C semantics. Diffutils records the
+program paths it will use there
+(`forth-bootstrap/chain/plumbing/diffutils-2.7/config.h:1`):
 
 ```c
 /* config.h for GNU diffutils 2.7 built by seed-cc against runtime/gcc-seed.
@@ -152,7 +181,19 @@ Patch precedes coreutils because coreutils source preparation uses the newly bui
 
 ## Generate the generators' inputs
 
-The parser-generator recipe builds oyacc 6.6, then Heirloom lex 070527, then flex 2.5.11 (`forth-bootstrap/chain/plumbing/README.md:133`). A parser generator translates a grammar into C parser code; a scanner generator translates token rules into C scanner code. The ordering solves a dependency problem: lex needs a parser, and flex needs both a parser and a scanner before flex itself can run.
+Flex contains a scanner generated by flex. If we require that scanner to
+come from its description, the source tree seems to ask for the very
+program we are trying to build. The solution is a temporary scanner made
+by an earlier tool, Heirloom lex. It need only support enough of flex to
+let that intermediate flex generate its own final scanner.
+
+There is one earlier dependency to satisfy. A **parser generator** turns
+a grammar into C parser code; a **scanner generator** turns token rules
+into C scanner code. Both lex and flex need a parser, so the recipe builds
+oyacc first, then Heirloom lex 070527, then flex 2.5.11
+(`forth-bootstrap/chain/plumbing/README.md:133`). Follow the scanner's
+ancestry through the Makefile below: lex produces the temporary scanner,
+the temporary flex produces `scan.c`, and the final flex uses `scan.o`.
 
 Oyacc is compiled from its object list. Heirloom's parser is then generated by that oyacc; its scanner support library is archived by seed-ar. Both actions remain direct recipes (`forth-bootstrap/chain/plumbing/heirloom-lex-070527/Makefile:7`):
 
@@ -207,13 +248,19 @@ $(BIN)/flex: $(FINAL) $(LIBL)
 	$(CC) -static -o $@ $(FINAL) $(LIBL)
 ```
 
-The temporary scanner bootstrap breaks the dependency cycle. It need only let the intermediate flex process its own scanner input; the final executable uses `scan.o` instead of `scan-tmp.o`.
+The intermediate executable has now done its job. The final link replaces
+`scan-tmp.o` with `scan.o`, so the installed flex contains the scanner
+generated by that intermediate flex.
 
 This regeneration requirement is local to the generator construction. It does not mean every earlier package regenerates every parser: gawk's recipe explicitly uses the shipped `awktab.c` (`forth-bootstrap/chain/plumbing/gawk-3.0.4/Makefile:1`).
 
 ## Build the shell last
 
-Bash 2.05b can be built once make, patch, and oyacc exist. Its recipe copies fixed configuration and explicit Makefiles, deletes the shipped parser, and applies the reviewed patch (`forth-bootstrap/chain/plumbing/bash.kaem:24`):
+The dependency that stopped us at the start is now satisfied: oyacc can
+generate bash's parser, and make can arrange the compilations. Bash
+2.05b's recipe copies fixed configuration and explicit Makefiles, deletes
+the shipped parser, and applies the reviewed patch
+(`forth-bootstrap/chain/plumbing/bash.kaem:24`):
 
 ```sh
 ../../bin/cp ${R}/config.h config.h
@@ -277,7 +324,8 @@ if [ -n "$forth_ar" ]; then AR=$SEED_AR RANLIB="$SEED_AR s"; fi
 
 The guards log attempts to execute target tools and fail, rather than falling through to a host installation (`forth-bootstrap/chain/gcc-direct/configure.sh:76`). `--forth-ar` deliberately replaces the archive guards with seed-ar. The `--with-binutils` option later permits the chain's built target tools (`forth-bootstrap/chain/gcc-direct/configure.sh:104`); their construction belongs to Chapter 52.
 
-The actual configure invocation names bash explicitly, and captures its exit status and log (`forth-bootstrap/chain/gcc-direct/configure.sh:141`):
+The configure invocation names bash explicitly and captures its exit
+status and log (`forth-bootstrap/chain/gcc-direct/configure.sh:141`):
 
 ```sh
 if [ -n "$sysroot" ]; then set -- "$@" --with-sysroot=$sysroot; fi
@@ -295,7 +343,11 @@ if [ -f "$work/host-tool-attempts.log" ]; then attempts=$(wc -l < "$work/host-to
 
 From the forth-bootstrap checkout root, the full route is `sh chain/plumbing-root.sh`, after caching pinned inputs with `python3 tools/fetch-archives.py`. The fetcher's manifest and hash checks are described in `forth-bootstrap/tools/fetch-archives.py:2`. This is not an automatic Try it: it requires pinned archives, bwrap and strace, and continues through the long GCC build. The launcher checks those tools and stages the archives (`forth-bootstrap/chain/plumbing-root.sh:34`). It executes the plumbing controller inside the sealed root (`forth-bootstrap/chain/plumbing-root.sh:77`), which continues beyond bash through the GCC stages.
 
-It is a long run; the project's recorded runs are in `forth-bootstrap/README.md:237`. Its plumbing outputs lie under `build-out/plumbing-root/build-out/plumbing/bin/`, following the launcher's default root and the recipes' output paths (`forth-bootstrap/chain/plumbing-root.sh:31`). Chapter 53 audits the sealed host run.
+The recorded host run took 18 minutes (`forth-bootstrap/README.md:237`).
+With the default paths, its plumbing outputs lie under
+`build-out/plumbing-root/build-out/plumbing/bin/`
+(`forth-bootstrap/chain/plumbing-root.sh:31`). Chapter 53 audits the
+executions that produced them.
 
 ## Try it
 
@@ -318,7 +370,8 @@ printf '%s\n' 'MESSAGE=hello-from-kaem' 'echo ${MESSAGE}' > "$work/tiny.kaem" ||
 )
 ```
 
-After the generated `inspection directory: /tmp/book-probe.…` line, the program prints:
+The recorded checkpoint printed the generated
+`inspection directory: /tmp/book-probe.…` line, followed by:
 
 ```text
 hello-from-kaem

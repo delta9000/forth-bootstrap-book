@@ -14,7 +14,7 @@ its second needs somewhere to store the updated pointer.
 
 Call the address of the HERE cell `H`, and its current contents `A`.
 The byte belongs at `A`. The updated pointer belongs at `H`. In C terms,
-these are the distinction between a pointer variable's value and its address.
+this is the distinction between a pointer variable's value and its address.
 Writing a new pointer at `A` would overwrite dictionary storage and leave
 the cursor unchanged.
 
@@ -106,7 +106,7 @@ library section.
 Save the starting cursor, then emit a byte, a cell, and a byte. Their
 starting offsets are 0, 1, and 9. Read the cell with `@` and the bytes
 with `c@`. Finally, save the destination obtained through `here-addr @`,
-emit another byte, and read it back there. The character literals make
+emit another byte, and read it back there. The character codes make
 these reads visible through `emit`.
 
 <!-- tryit: expect "ABCD" -->
@@ -131,7 +131,7 @@ ABCD
 
 ## Exercise
 
-**Trace — easy.** Begin with HERE containing `A` and run the body of `c,`
+**Trace (easy).** Begin with HERE containing `A` and run the body of `c,`
 for a byte `b`, then for a byte `d`. Write the destination of each store
 and the contents of HERE after each call. Explain which store would go
 to the wrong address if the final `here-addr` were replaced with `here`.

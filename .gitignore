@@ -1,4 +1,5 @@
 # mdBook build output (book.toml: build-dir = "docs")
 docs/
+dist/
 __pycache__/
 book/bundles/

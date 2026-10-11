@@ -36,3 +36,10 @@ Chapter 14 starts with seed words alone. Later checkpoints load the
 needed library prefix before the chapter's own words; Chapter 26 loads
 the complete library and assembler. Each exercises only words introduced
 so far.
+
+The handoff to Part 3 is the library itself. Before proceeding, be able
+to trace a definition's stack effect and distinguish a word that emits
+an instruction from the instruction that eventually runs. The
+`if,`/`then,` pair in Chapter 24 is the key example: emit a branch,
+remember its unfinished destination, and patch it when that destination
+is known. The C compiler will reuse that pattern on a larger scale.

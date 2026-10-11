@@ -1,20 +1,14 @@
 # Chapter 14 — Stacks and words
 
-A library definition passes values from word to word on the data stack.
-Stack-effect notation lets you carry a symbolic stack through
-its body and check the result against its promise. By the end, you will
-have a method for reading those definitions and the conventions that
-open `forth/010-lib.fth`.
+The body `+ emit` adds two values and prints the low byte of their sum. Does it
+leave the sum available afterward? We can answer without decoding a
+single instruction: `+` consumes two values and leaves one; `emit`
+consumes that one. The combined body leaves neither input nor sum.
 
-Part 2 builds a Forth vocabulary on the completed seed:
-
-- Chapters 14–17 establish notation, code emission, logic, and the return-stack
-  helpers. Chapter 17 builds `over` and subtraction.
-- Chapters 18–22 add Linux interfaces, character classification, comparisons,
-  stack shufflers, and memory updates. Chapter 21 owns `nip`, `rot`, `2dup`,
-  and `2drop`.
-- Chapters 23–25 build immediacy, constants, control flow, and defining words.
-- Chapter 26 uses that vocabulary for the M1 assembler and hex2 linker.
+That kind of reasoning is how we will read the library. Part 1 gave
+each primitive a contract. Now we compose those contracts, carrying
+values from word to word and checking that each new definition leaves
+what its caller expects.
 
 ## Postfix evaluation
 
@@ -71,6 +65,21 @@ A name in the body must also resolve through the dictionary lookup from
 unknown word available. That is why reading the library in source order
 matters: each definition depends on names already available at that point.
 
+Apply the method to the opening `+ emit` body. This is a symbolic hand
+trace; `x` stands for an older value the caller wants to keep:
+
+| Position | Symbolic stack |
+|---|---|
+| Entry | `x a b` |
+| After `+` | `x a+b` |
+| After `emit` | `x` |
+
+The body's contract is `( a b -- )`. Leaving `x` out of that comment
+means the body does not need to know it exists. We can therefore call
+the same word with other useful values waiting beneath its operands.
+The checkpoint gives this body the name `sum-byte` and makes its one
+visible effect easy to recognize.
+
 ## The library’s opening conventions
 
 Before any definitions, the header establishes how the library names
@@ -126,22 +135,41 @@ Observed output:
 A
 ```
 
-The trace checks the definition at its call boundary:
-
-| Position | Symbolic stack |
-|---|---|
-| Entry | `a b` |
-| After `+` | `a+b` |
-| After `emit` | empty |
-
-With `x` below the inputs, the trace ends with `x`. Thus `( a b -- )`
-describes the consumed inputs without requiring an otherwise empty stack.
-The invocation supplies values whose sum emits `A`; the final literal and
-`emit` supply the newline.
+The inputs add to 65, so the emitted byte is `A`. The sum has been
+consumed; the final literal supplies a fresh value for the newline.
+The printed character checks one observable effect. The symbolic trace
+explains why no extra value remains for the next word to trip over.
 
 ## Exercise
 
-**Trace — easy.** For a body consisting of `+ emit`, begin with the symbolic
-stack `a b`. Use Chapter 13 to write the stack after each word, then write
-the body’s combined stack-effect comment. Repeat with an untouched value
-`x` below `a b`. Check your answer against the trace in Try it above.
+**Modify (easy).** Change `sum-byte` to print the byte and leave the sum
+for its caller: `( a b -- sum )`. With the same inputs 32 and 33,
+follow the call with `[lit] 1 + emit`; the result should be `AB` before
+the newline. Decide where a copy is needed, trace the new body with an
+older value `x` beneath its inputs, then run your version. Explain why
+placing `dup` before `+` would compute a different result.
+
+<details>
+<summary>Hint: preserve the result at the point it exists</summary>
+
+Which word first produces the sum? Which word consumes it? Put the copy
+between those two responsibilities, then check the stack one step at a time.
+
+</details>
+
+<details>
+<summary>Check the new contract</summary>
+
+The body is `+ dup emit`. The hand trace is
+`x a b` → `x sum` → `x sum sum` → `x sum`.
+The first `emit` consumes only the copy. The caller's `[lit] 1 + emit`
+turns the retained 65 into 66 and prints `B`, leaving the older `x` alone.
+
+Putting the copy before the addition gives `dup + emit`:
+`x a b` → `x a b b` → `x a 2b` → `x a`.
+For 32 and 33, that body prints `B` and leaves 32. The caller adds one
+and prints `!`, so the changed checkpoint produces `B!` rather than `AB`.
+The two versions leave the same number of values, but different values:
+stack depth alone cannot establish the contract.
+
+</details>

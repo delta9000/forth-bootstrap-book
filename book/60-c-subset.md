@@ -1,6 +1,10 @@
 # Appendix F — The C subset
 
-The C subset is a contract between accepted source, object layout and the calling convention. A construct can parse in the Stage A core without having the representation an ISO C program expects. Use the tables below to choose the target and find the chapter that establishes each boundary.
+The compiler's C subset defines which source it accepts, how it lays out
+objects, and how generated functions call one another. A construct can
+parse in the Stage A core without having the representation an ISO C
+program expects. Use the tables below to choose the target and find the
+chapter that explains each boundary.
 
 ## Choose the compiler target
 

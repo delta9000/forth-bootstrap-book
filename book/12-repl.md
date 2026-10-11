@@ -1,6 +1,6 @@
 # Chapter 12 — Decimal parsing and the REPL
 
-Each token the seed reads is either a word to run, a word to compile, or, after `[lit]`, a decimal number. A token loop joins dictionary lookup to execution and compilation, while `[lit]` requests decimal conversion explicitly. By the end, you can build the complete seed and trace input through its REPL.
+The seed's input loop looks up a word, then either executes it or compiles a call. Some words read further input themselves: `[lit]`, for example, consumes a decimal token and requests its conversion. This chapter connects the reader, dictionary, and compiler into the complete REPL.
 
 ## The shape of the loop
 
@@ -96,8 +96,7 @@ accept zero without confusing it with rejection.
 
 The loop needs a token before it can choose a word. Its entry in
 `forth-bootstrap/seed/000-seed.hex0:664` connects `read_word` directly to
-`find_code`; recall those interfaces from Chapter 9 (The dictionary and
-token reader).
+`find_code`; recall those interfaces from Chapter 9.
 
 ```hex0 chunk=repl
 ;; ----- repl @ 0x699  read a token, find it, run or compile it; loop -----
@@ -135,7 +134,7 @@ name to look up, just like any other token.
 A found word needs a dispatch decision. The tail in
 `forth-bootstrap/seed/000-seed.hex0:677` tests the IMMEDIATE flag before
 STATE and hands ordinary words to `compile_call` in compile mode; recall
-all three from Chapter 10 (The colon compiler).
+all three from Chapter 10.
 
 ```hex0 chunk=repl
 ;; .found:
@@ -237,8 +236,8 @@ exit status: 0
 ```
 
 Exercise decimal conversion first through interpretation, then through a
-compiled definition. Recall `emit` from Chapter 8 (The seed’s Linux
-boundary); the final literal supplies a newline.
+compiled definition. Recall `emit` from Chapter 8; the final literal
+supplies a newline.
 
 <!-- tryit: expect "*\n*" -->
 ```sh
@@ -274,10 +273,10 @@ exit status: 2
 
 ## Exercises
 
-- **Trace — easy.** Follow `: star [lit] 42 emit ; star` through the
+- **Trace (easy).** Follow `: star [lit] 42 emit ; star` through the
   dispatch paths. Which input tokens does the REPL read, and which does
   another word consume? Identify when decimal conversion happens and
   when output happens.
-- **Trace — intermediate.** Move the stack reload in the miss path before
+- **Trace (moderate).** Move the stack reload in the miss path before
   `report_token` on paper. Explain why the reordered path fails to preserve
   the prior stack top.

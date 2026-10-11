@@ -2,9 +2,29 @@
 
 A program can print `**` by calling a `putchar` shim whose location is still unknown when the calls are emitted. A fixup list preserves those call sites until the target exists; the same separation between emitting bytes and resolving addresses supports strings and globals. The checkpoint builds and runs that program directly from emitter words.
 
+## Remember the question until the address exists
+
+A call needs the distance to its callee. We can emit the instruction now,
+leave its displacement empty, and remember where that field is. This
+extends Chapter 31's forward jump: several calls may all be waiting for
+the same destination.
+
+In the checkpoint there are two calls to one not-yet-emitted `putchar`
+body. The first node remembers the first call's displacement field; the
+second node remembers the second field and points back to the first node.
+Traversing the list therefore reaches the second call first. Patch order is harmless:
+each node identifies its own field, and each patch independently subtracts
+that field's end from the same target position.
+
+The list is compiler memory allocated by `cc-alloc`; it never becomes part
+of the executable. Only the resolved four-byte displacements survive in
+the file. This is the lifetime boundary that makes a fixup useful: retain
+the unanswered question while producing code, then remove the need to ask
+it when that code runs.
+
 ## `movabs rdi, imm64` and the forward-call fixup list
 
-The emitter has this shape: write an instruction with a placeholder → remember its output offset → patch it when the target is known. Call displacements use the existing patch operation (Chapter 31); absolute addresses need a full-width immediate field.
+The emitter has this shape: write an instruction with a placeholder → remember its output offset → patch it when the target is known. Call displacements use the existing patch operation; absolute addresses need a full-width immediate field.
 
 `cc-emit-movabs-rdi-imm64` loads an address without a signed-immediate range check by writing the full value after `48 BF`. The opcode arithmetic is `B8 + 7 = BF`; the source comment's `B7` is a typo, while emitted decimal 191 is correct (`forth-bootstrap/cc/090-cc-emit.fth:451`):
 
@@ -48,6 +68,9 @@ Integer literals benefit from the compact form when it is safe. `cc-emit-mov-rdi
 
 ```
 
+<details>
+<summary>Boundary case: why the core literal selector has a restricted domain</summary>
+
 For the helper-level input `0x8000000100000000`, the distinction is concrete.
 The table derives the encoding by hand. Compiled, `0x8000000100000000 != 0`
 returns 0, confirming the value loss, while `2147483648 > 0` returns 1.
@@ -62,6 +85,8 @@ Thus “shortest correct encoding” in the copied comment is too broad for
 arbitrary inputs to the default helper. The small literal checkpoint still
 passes. Keep this restricted default path distinct from the LP64 selector;
 [Appendix F](60-c-subset.md#observed-profile-boundaries) scopes the probes.
+
+</details>
 
 Taking an undefined function’s address needs `cc-emit-movabs-rdi-imm64-placeholder`: the same instruction shape with an empty immediate. The returned offset identifies the value field to overwrite, not the instruction’s beginning (`forth-bootstrap/cc/090-cc-emit.fth:485`):
 
@@ -148,7 +173,16 @@ The source cursor and remaining length move together. An escape can consume more
 
 ## The libc shims: write/read/open/close/mmap
 
-A shim is executable code emitted into the output buffer. These shims accept arguments in the registers named by their comments and return through `rax`; they do not use the Forth data stack. Chapter 37 owns their registration and placement, and Chapter 41 develops the later System V call machinery.
+These words emit small machine-code bodies for calls such as `putchar`;
+loading their Forth definitions does not write those bodies into an output
+program. A later call to an emitter does that. Read the first syscall shim
+to see the register handoff, then follow `putchar` for the checkpoint.
+The stream, allocation and string shims can serve as reference on a first
+pass. Return to [global fixups](#file-scope-globals-and-deferred-vaddr-fixups)
+for the other unresolved-address problem. Chapter 43 supplies the more
+complete separately compiled runtime used by the later toolchain.
+
+A shim is executable code emitted into the output buffer. These shims accept arguments in the registers named by their comments and return through `rax`; they do not use the Forth data stack. Chapter 37 explains their registration and placement, and Chapter 41 develops the later System V call machinery.
 
 A pushed argument can double as a temporary byte buffer. The `putchar` layout uses that stack-buffer pattern to give `write` an address (`forth-bootstrap/cc/090-cc-emit.fth:535`):
 
@@ -264,6 +298,14 @@ Input uses the stack-buffer pattern too, but EOF must become a sentinel rather t
   [lit] 195 cc-emit-byte ;                        \ ret
 
 ```
+
+The `putchar` body is enough to finish the opening example. The remaining
+shims adapt the same argument registers to other small runtime services.
+Their restricted behavior matters when choosing C input; the separately
+compiled runtime will replace this collection for later builds.
+
+<details>
+<summary>Other runtime shims: streams, allocation, and strings</summary>
 
 ## Stream shims
 
@@ -779,6 +821,8 @@ On a match, the current address replaces the candidate in `rax`; otherwise it su
 
 ```
 
+</details>
+
 ## Bitwise, shifts, inc/dec, and unary `!`
 
 The register operations retain the accumulator interface. Their differences fit in a table:
@@ -966,7 +1010,7 @@ variable cc-bss-pos
 
 ```
 
-Global-address fixups use two parallel columns, an output patch position and a storage slot. They live either in default dictionary arrays or in a larger mapped workspace; callers always go through the active pointers, so the choice is made once:
+Global-address fixups use two parallel columns, an output patch position and a storage slot. They live either in default dictionary arrays or in a larger mapped workspace; callers use the active pointers, so selecting a workspace redirects them together:
 
 | Name | Role |
 |---|---|
@@ -997,7 +1041,7 @@ cc-gfixup-default-slot cc-gfixup-slot-buffer !
 : cc-gfixup-slot ( -- address ) cc-gfixup-slot-buffer @ ;
 ```
 
-The direct workspace, the selectors, the count and the base-vaddr variables that await placement follow (`forth-bootstrap/cc/090-cc-emit.fth:1146`):
+The next definitions select the workspace and reserve the count and base-address variables used during placement (`forth-bootstrap/cc/090-cc-emit.fth:1146`):
 
 ```forth file=cc/090-cc-emit.fth
 \ Complete original insn-attrtab.c needs 17,502 deferred global references.
@@ -1024,7 +1068,7 @@ variable cc-bss-base-vaddr                       \ set by cc-finalize-globals
 
 ```
 
-The capacity comments mention historical consumers. They explain sizing decisions, not a current handoff route. Chapter 37 owns global placement and fixup traversal; the emitter’s contract is to preserve the slot and patch position until then.
+The capacity comments mention historical consumers. They explain sizing decisions, not a current handoff route. Chapter 37 explains global placement and fixup traversal; the emitter’s contract is to preserve the slot and patch position until then.
 
 ## Reserving slots and recording uses
 
@@ -1124,6 +1168,14 @@ A reference adds one row to the active fixup columns. `cc-gfixup-add` checks the
 ```
 
 For a data slot, the eventual address is `cc-globals-base-vaddr + slot`. For a BSS slot it is `cc-bss-base-vaddr + slot - cc-bss-flag`. Emission records these inputs without predicting how much code will precede the storage.
+
+For a manual example, suppose a data object has slot 8 and one instruction
+has saved patch offset 202. After all code is emitted, suppose data begins
+at file offset 1000. The finalizer writes `0x400000 + 1000 + 8 = 0x4003f0`
+into the eight bytes starting at offset 202. The slot answers “which
+object?”, the patch offset answers “which instruction field?”, and the
+final data base supplies the information neither knew during parsing.
+Another reference to that object needs another patch row but keeps slot 8.
 
 ## LP64 integer encoders
 
@@ -1416,7 +1468,7 @@ This exercises multiple forward-call nodes, list traversal, integer emission, an
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-32-fixup-lists-and-shim-limits).
 
-**Trace — easy.** Name the head and next node after each call is recorded in the checkpoint. Explain why walking the list in reverse emission order still patches both calls to the same shim.
+**Trace (easy).** Name the head and next node after each call is recorded in the checkpoint. Explain why walking the list in reverse emission order still patches both calls to the same shim.
 
-**Trace — moderate.** Follow `fopen` for mode strings `rb` and `r+`. Identify the byte it examines and explain which requested behavior the shim ignores.
+**Trace (moderate).** Follow `fopen` for mode strings `rb` and `r+`. Identify the byte it examines and explain which requested behavior the shim ignores.
 

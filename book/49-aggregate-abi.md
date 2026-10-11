@@ -4,9 +4,27 @@ A function that accepts `struct Pair` by value must receive the pair's bytes, an
 
 ## Classify the object before moving it
 
-The path is expression address → classification → private argument copy → registers or outgoing stack → callee local object. Return transport follows the same classification in reverse. This extends the scalar boundary of Chapter 41 and closes Chapter 47's floating-argument deferral, where this transport was rejected with error 232. Bitfield members contribute their containing integer types without changing their layout (Chapter 48).
+The path is expression address → classification → private argument copy → registers or outgoing stack → callee local object. Return transport follows the same classification in reverse. This extends the scalar boundary of Chapter 41 and enables the floating arguments that Chapter 47 still rejected with error 232. Bitfield members contribute their containing integer types without changing their layout (Chapter 48).
 
 The implementation is a bounded classifier, not the full mixed-class System V algorithm. Nested records, unions, fixed arrays, pointers and supported integer members are admitted. Records containing `float` or `double` members, vector classes, empty records and over-aligned records are rejected. A pointer is classified without inspecting its pointee. Packed attributes are outside the parser's dialect.
+
+Keep the checkpoint's `shift(original, 3.0)` in view. `original` contains
+two longs, `{20,30}`. Its expression is represented internally by an
+address, but the function parameter is a record value. The call must
+capture those 16 bytes and transport two INTEGER units in RDI and RSI.
+The ABI calls each eight-byte unit an *eightbyte*. The independent
+floating argument uses XMM0. The callee
+reconstructs its local `p` and changes that copy to `{23,32}`; its return
+uses RAX and RDX, which the caller collects into `answer`. The checkpoint
+also checks that `original` is still `{20,30}`.
+
+This manual route through the call explains the staging code that
+follows. Saving only `original`'s address would leave the bytes dependent
+on what later argument evaluation does to the source object. Passing
+that address as the parameter would implement a pointer interface instead
+of this by-value interface. The private snapshot supplies a stable value;
+classification then decides where its bytes travel. Read those as two
+decisions even when both happen in the same call-emission routine.
 
 The target gate keeps this value contract in explicit System V mode, so the private all-stack target is unaffected; every refused shape exits with error 232 (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:1`):
 ```forth file=cc/131-cc-aggregate-abi.fth
@@ -22,7 +40,7 @@ create cc-ag-error-prefix s, aggregate-abi: bl c,
   dup ty-ptr 0= swap ty-base ty-struct = and cc-target-sysv @ and ;
 
 ```
-`cc-ag-walk` visits every leaf, noting long-double and other leaves separately, because an X87 object may contain nothing else. Ranked arrays recurse on their real element, and scalar floating leaves inside records fail instead of silently becoming INTEGER (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:19`):
+`cc-ag-walk` visits every leaf, noting long-double and other leaves separately, because an X87 object may contain nothing else. Multidimensional arrays recurse through their element types, and scalar floating leaves inside records fail instead of silently becoming INTEGER (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:19`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ Validate each nested member, including members of unions and arrays.
 \ A descriptor with an unaligned member is MEMORY; the current parser emits
@@ -105,9 +123,32 @@ Member access must preserve a record address, while assignment must preserve des
 ```
 ## Give arguments explicit locations
 
-A **call transport plan** separates source argument order from register order. The caller and callee use the same plan, including a hidden result pointer before visible arguments for MEMORY returns.
+An argument's source position is no longer its register number. A pair
+needs two GP registers, a scalar double needs one XMM register, and a large
+record needs stack space. A **call transport plan** makes those choices
+explicit so the caller and callee can independently reach the same layout.
 
-A plan holds the signature, a separate count for each register class (GP and SSE), the outgoing stack size and the result slot; it also remembers an indirect target and the live state that must survive the call. Each argument records its type, its class and its location: a first register, or a stack offset and frame slot.
+Consider a scalar-returning function with five leading `long` arguments,
+then a `Pair`, then one more `long`. This manual plan exposes the
+all-or-none rule that a simple “next register” counter would miss:
+
+| Argument | Location immediately before `call` | GP registers used afterward |
+|---|---|---:|
+| First five longs | RDI, RSI, RDX, RCX, R8 | 5 |
+| Two-long pair | Sixteen-byte copy at outgoing stack offset 0 | Still 5 |
+| Final long | R9 | 6 |
+
+The pair needs two registers and only one remains. Putting half in R9 and
+half on the stack would disagree with the callee. The whole pair goes to
+the stack, leaving R9 available for the following scalar. The checkpoint's
+`crowded` call exercises this boundary. A function returning a MEMORY
+record would reserve the first GP register for a hidden result pointer
+before making any of these visible-argument decisions.
+
+The plan therefore keeps separate GP and SSE counts, outgoing stack size,
+result storage, and one location record per argument. Evaluation order
+and transport order can differ without losing either the value or its
+assigned destination.
 
 `cc-ag-plan` selects the current call transport plan; `cc-ag-frame` reserves rounded storage without growing an unevaluated expression frame (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:104`):
 ```forth file=cc/131-cc-aggregate-abi.fth
@@ -511,7 +552,7 @@ These handlers protect the address representation. They are transport defaults; 
 | Current expression → `cc-ag-test`, `cc-ag-not`, `cc-ag-negate`, `cc-ag-complement` | Check before the corresponding scalar operation. |
 | Type → `cc-ag-integer-use` | Check before an integer-only use. |
 
-The scalar guards run even when expression evaluation is suppressed, so an address cannot acquire arithmetic meaning through `sizeof` (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:403`):
+The scalar guards run even when expression evaluation is suppressed, so an invalid scalar operation on a record remains invalid inside `sizeof` (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:403`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ An address representation is not permission to use a record as a scalar.
 \ Explicit record casts remain outside this value contract. Long double
@@ -683,9 +724,22 @@ Long double shares record storage but has its own descriptor identity, so the va
 ```
 ## Compute with extended values without retaining x87 state
 
-Long double stores ten significant bytes in a sixteen-byte object with sixteen-byte alignment. The classifier treats its shared opaque descriptor as an X87 leaf: arguments travel on the stack, while results travel through `st(0)`. A pure long-double wrapper may use that return class; a union with an integer alternative is MEMORY because the walk sees another leaf.
+Long double stores a ten-byte encoding in a sixteen-byte object with sixteen-byte alignment. The classifier treats its shared opaque descriptor as an X87 leaf: arguments travel on the stack, while results travel through `st(0)`. A pure long-double wrapper may use that return class; a union with an integer alternative is MEMORY because the walk sees another leaf.
 
-A fixed-frame snapshot also bounds numeric lifetimes. Each x87 computation ends with a memory result and an empty x87 stack. The type-code test alone cannot distinguish an actual record from long double; descriptor shape checks must precede conversions.
+The x87 register stack creates a second lifetime problem. Keeping an
+intermediate there across a nested call or a branch would require the
+compiler to track another live stack and make every path agree on its
+contents. This implementation pays for a simpler invariant: finish each
+computation by popping its result into a private frame object. The next
+operation reloads that object. A call result arriving in `st(0)` is captured
+the same way by `cc-ag-result` before ordinary expression parsing resumes.
+
+The extra loads, stores and frame space are the cost of keeping no hidden
+x87 expression state across those boundaries. A long-double expression
+still carries an address like a record expression, but their operations
+differ: one admits numeric conversion, the other admits whole-object
+copying. Descriptor shape checks must decide which it is before conversion;
+the shared type code alone cannot.
 
 | Input | Result or destination |
 |---|---|
@@ -992,9 +1046,9 @@ Boolean conversion treats signed zeros as false and unordered values as true; un
 
 Run from the `forth-bootstrap` checkout root with the seed already built. The block loads the compiler through these aggregate and extended computation layers, compiles caller and callee separately, and links them with the Forth linker and a small `_start`. The shell displays each returned integer through the process status.
 
-`shift` receives the INTEGER pair and an SSE double, changes its local copy, and returns the pair by value. The original object stays intact. `extended` exercises stack-passed long double and x87 multiplication. Records with double members remain unsupported; scalar SSE transport does not imply an SSE aggregate classifier.
+`shift` receives the INTEGER pair and an SSE double, changes its local copy, and returns the pair by value. The original object stays intact. `extended` exercises stack-passed long double and x87 multiplication. `crowded` places the pair on the stack while leaving R9 for the final scalar, as in the plan above; it checks each received argument before computing their sum. Records with double members remain unsupported; scalar SSE transport does not imply an SSE aggregate classifier.
 
-<!-- tryit: expect "returned left = 23\nreturned right = 32\noriginal left = 20\nextended result = 8" -->
+<!-- tryit: expect "returned left = 23\nreturned right = 32\noriginal left = 20\nextended result = 8\ncrowded sum = 72" -->
 ```sh
 (
 set -o pipefail
@@ -1023,13 +1077,19 @@ struct Pair shift(struct Pair p, double delta) {
     return p;
 }
 long extended(long double x) { return (long)(x * 2.0L); }
+long crowded(long a, long b, long c, long d, long e, struct Pair p, long tail) {
+    if (a != 1 || b != 2 || c != 3 || d != 4 || e != 5) return 100;
+    if (p.left != 20 || p.right != 30 || tail != 7) return 101;
+    return a + b + c + d + e + p.left + p.right + tail;
+}
 C
-for probe in 0 1 2 3; do
+for probe in 0 1 2 3 4; do
 printf '#define PROBE %s\n' "$probe" > "$work/probe.c"
 cat >> "$work/probe.c" <<'C' || exit "$?"
 struct Pair { long left; long right; };
 struct Pair shift(struct Pair, double);
 long extended(long double);
+long crowded(long, long, long, long, long, struct Pair, long);
 int main(void) {
     struct Pair original = {20, 30};
     struct Pair answer = shift(original, 3.0);
@@ -1037,7 +1097,8 @@ int main(void) {
     if (PROBE == 0) return answer.left;
     if (PROBE == 1) return answer.right;
     if (PROBE == 2) return original.left;
-    return extended(4.0L);
+    if (PROBE == 3) return extended(4.0L);
+    return crowded(1, 2, 3, 4, 5, original, 7);
 }
 C
 for unit in peer probe; do
@@ -1071,12 +1132,13 @@ case "$probe" in
   1) label='returned right'; expected=32 ;;
   2) label='original left'; expected=20 ;;
   3) label='extended result'; expected=8 ;;
+  4) label='crowded sum'; expected=72 ;;
 esac
 printf '%s = %s\n' "$label" "$result"
 test "$result" -eq "$expected" || exit 1
 done
 )
-# prints "returned left = 23\nreturned right = 32\noriginal left = 20\nextended result = 8"
+# prints "returned left = 23\nreturned right = 32\noriginal left = 20\nextended result = 8\ncrowded sum = 72"
 ```
 Observed output:
 ```text
@@ -1084,11 +1146,16 @@ returned left = 23
 returned right = 32
 original left = 20
 extended result = 8
+crowded sum = 72
 ```
 ## Exercise
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-49-whole-record-decisions).
 
-**Trace — easy.** Follow the call plan for `shift`: locate the pair, the double and the result object. Explain which copy keeps `original` unchanged.
+**Trace (easy).** Follow the call plan for `shift`: locate the pair, the double and the result object. Explain which copy keeps `original` unchanged.
 
-**Verify — moderate.** Add integer parameters before the pair until it no longer fits in GP registers. Add an integer after it and explain why that later argument can still use a register. Compile the two units again and check the returned members.
+**Modify (moderate).** Remove the fifth leading parameter `e` from
+`crowded`, its check and addition in the body, and argument `5` at the call. Update
+the prototype too. Predict where the pair and `tail` now travel, then
+change the expected sum and rerun. The value check verifies that caller
+and callee still agree; explain the register/stack change from the plan.

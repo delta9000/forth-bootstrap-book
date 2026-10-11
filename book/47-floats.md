@@ -1,6 +1,22 @@
 # Chapter 47 — Floating values and exact literals
 
-`double sum(void)` can add decimal literals and return their rounded sum. This chapter adds type-directed SSE operations that compute with those bits and return them in the right register, and an exact decimal decoder that produces them. The result is executable floating expressions with correctly rounded literal bits.
+Why does the checkpoint's `0.1 + 0.2 > 0.3` return true? There are two
+sources of rounding to account for: representing each decimal literal and
+performing the addition. Making the compiler accept a decimal point is only the
+start of the work. It must preserve the requested precision at each step.
+
+Two arithmetic engines share that job:
+
+| Work | When it happens | Mechanism |
+|---|---|---|
+| Decode `0.1` or evaluate a static floating expression | While the Forth compiler runs | Exact integer ratios; round each literal or folded operation to the selected format |
+| Execute `a + b` in the generated program | When the C program runs | Scalar SSE instructions at the operands' common precision |
+| Pass a result between these mechanisms | At emission, storage and call boundaries | A typed binary payload; copying its bits does not convert its value |
+
+We first establish what the payload means, then follow runtime operations.
+The second half derives `0.1` completely before implementing its exact
+conversion. Keep the two timelines separate: the seed needs no floating
+arithmetic to generate a program that uses it.
 
 ## Read the bits before rounding
 
@@ -92,7 +108,18 @@ to distinguish below, at, and above a midpoint before rounding once.
 
 ## Keep the payload, preserve the type
 
-The path is spelling → payload in RDI → transient SSE operands → payload in RDI → storage or return. Binary64 occupies a full expression cell; binary32 uses its low half and stores only four bytes. Separate type and transport prevent a `float` store from overwriting its neighbour.
+The expression compiler already emits code to preserve RDI's value while
+evaluating a nested expression. We keep that machinery by storing floating
+*bits* in the cell. For example, the binary64 value `1.0` travels as
+`0x3ff0000000000000`, not as the integer 1. An integer `add` on those bits
+would not implement floating addition.
+
+Arithmetic therefore crosses a short bridge: copy the operands into XMM
+registers, execute a scalar SSE operation, and copy the result back to RDI.
+The value's type chooses the instruction and storage width. Binary64 uses
+the full cell; binary32 uses its low half and stores only four bytes.
+Keeping type alongside transport prevents a `float` store from overwriting
+its neighbour and lets the existing expression stack remain unchanged.
 
 The predicates exclude pointers and enable floating values only in System V mode. `cc-fp-scalar-check` admits those values; `cc-fp-storage-type` presents binary32 to the existing memory emitter as `unsigned int`, without numerically converting it (`forth-bootstrap/cc/127-cc-binary64.fth:1`):
 ```forth file=cc/127-cc-binary64.fth
@@ -235,7 +262,21 @@ An increment needs a unit at the operand's width. `cc-fp-change-value` loads tha
 
 ## Cross the unsigned boundary
 
-A large unsigned integer cannot be handed directly to a signed SSE conversion. `cc-fp-u64-to-value` branches on the high bit, using `cc-fp-jcc` for the patch. In the high half it converts `(u >> 1) | (u & 1)` and doubles the result: the retained low bit preserves the rounding decision. This rounds directly at the destination precision under nearest-even SSE rounding (`forth-bootstrap/cc/127-cc-binary64.fth:109`):
+A large unsigned integer cannot be handed directly to a signed SSE
+conversion. Halving it produces a representable signed input, but simply
+dropping its low bit could turn an above-midpoint input into an exact tie.
+The expression `(u >> 1) | (u & 1)` retains that evidence in the low bit;
+conversion rounds this *sticky half*, and doubling restores the scale.
+
+As a manual binary64 example, take `u = 2^63 + 1025`. The adjacent results
+are `2^63` and `2^63 + 2048`, so the input lies just above their midpoint.
+A plain shift gives `2^62 + 512`, exactly halfway at the smaller scale,
+which ties to even would round down. Retaining the lost bit gives
+`2^62 + 513`, which rounds up; doubling then produces `2^63 + 2048`.
+
+`cc-fp-u64-to-value` uses the high-bit branch only where this repair is
+needed. Both branches round at the destination precision under nearest-even
+SSE rounding (`forth-bootstrap/cc/127-cc-binary64.fth:109`):
 ```forth file=cc/127-cc-binary64.fth
 : cc-fp-jcc ( opcode -- patch )
   [lit] 15 cc-emit-byte cc-emit-byte cc-out-pos @ [lit] 0 cc-emit-4le ;
@@ -478,9 +519,51 @@ The remaining hooks distinguish payload operations from integer-only operations 
 
 ## Build literal bits without floating arithmetic
 
-The seed and the Forth layers have no floating-point words, and the decoder uses only integer Forth operations (`forth-bootstrap/cc/128-cc-float-literal.fth:2`). The bits of a literal therefore never depend on the host's FPU or C library: every machine produces the same encoding, as a reproducible bootstrap requires. The decoder does exact integer arithmetic and rounds once.
+Decimal `0.1` is exactly `1/10`. Its denominator contains a factor of five,
+so no finite binary fraction equals it. The decoder's job is to choose the
+nearest representable value while retaining enough information to decide
+which side of a rounding boundary the exact input occupies.
 
-The literal `0.1` becomes an exact integer ratio, then rounds once to the requested format. The returned cell is either a scalar encoding or an address for an extended constant; Chapter 49 owns extended runtime operations (`forth-bootstrap/cc/128-cc-float-literal.fth:1`):
+Work through the complete conversion before following its implementation.
+This is a manual derivation for binary64:
+
+| Step | Retained information | Decision |
+|---|---|---|
+| Read the spelling | Coefficient 1, one fractional decimal place | Form the exact ratio `1/10` |
+| Normalize | `1/10 = (8/5) * 2^-4` | The significand lies between 1 and 2; preserve exponent -4 |
+| Keep 53 significant bits | `(8/5) * 2^52 = 7205759403792793 + 3/5` | Retain quotient `7205759403792793` and remainder `3/5` |
+| Round once | The remainder exceeds one half | Increment to `q = 7205759403792794` |
+| Pack | `F = q - 2^52 = 0x999999999999a`; `E = 1023 - 4 = 0x3fb` | Produce `0x3fb999999999999a` |
+
+The final `a` exposes the rounding decision: truncation would leave a
+fraction ending in `9`. The quotient alone cannot tell us which to choose;
+the remainder is part of the answer until rounding finishes. At an exact
+half, its comparison becomes equal and quotient parity breaks the tie.
+
+Now answer the opening question. Stored `0.2` has the same integer
+significand `q` as stored `0.1`, with an exponent one larger. Their exact
+sum, before the SSE addition rounds it, is `3*q*2^-56`. At the result's
+scale, one significand unit is `2^-54`:
+
+| Route to a value near 0.3 | Exact significand before rounding | Rounded significand |
+|---|---|---:|
+| Add the two stored operands | `3*q/4 = 5404319552844595 + 1/2` | 5404319552844596 |
+| Decode the decimal literal `0.3` directly | `(3/10)*2^54 = 5404319552844595 + 1/5` | 5404319552844595 |
+
+The addition lands on a tie and chooses the even upper integer; the
+literal is closer to the lower one. Their payloads are respectively
+`0x3fd3333333333334` and `0x3fd3333333333333`. The comparison is true
+because the routes have rounded at different points, not because the
+addition instruction ignored its precision.
+
+The implementation uses integer Forth operations throughout, so literal
+conversion does not depend on the host FPU or C library
+(`forth-bootstrap/cc/128-cc-float-literal.fth:2`). Follow the ratio, its
+normalization and its final remainder through the following sections.
+Limb allocation and carry propagation support that argument; their full
+implementations are expandable reference material. The returned cell is
+either a scalar encoding or an address for an extended constant; Chapter 49
+implements extended runtime operations (`forth-bootstrap/cc/128-cc-float-literal.fth:1`):
 ```forth file=cc/128-cc-float-literal.fth
 \ 128-cc-float-literal.fth -- exact binary32/binary64/extended constants.
 \ Only integer Forth operations participate in parsing or rounding. The
@@ -522,6 +605,15 @@ here cc-f64-error-workspace - constant cc-f64-error-workspace-len
 ```
 
 ## Keep every accepted digit
+
+The ratio can outgrow one seed cell long before its final floating value
+does. Each big integer therefore stores a used-limb count followed by
+32-bit limbs in 64-bit cells. The spare bits let a limb be multiplied by
+ten and combined with a carry without losing information. Zero has no used
+limbs; trimming high zeroes keeps length comparisons meaningful.
+
+<details>
+<summary>Reference: limb storage and decimal multiply-and-add</summary>
 
 The exact ratio uses counted, little-endian limb buffers `cc-f64-n` and `cc-f64-d` (`forth-bootstrap/cc/128-cc-float-literal.fth:35`):
 ```forth file=cc/128-cc-float-literal.fth
@@ -575,7 +667,18 @@ Each decimal digit extends the coefficient by multiply-and-add with carry (`fort
   then, ;
 ```
 
+</details>
+
 ## Compare exact magnitudes
+
+Normalization and rounding need only a small integer vocabulary: compare
+magnitudes, subtract a known-smaller magnitude, and scale by powers of two
+or ten. Comparison starts at the highest differing limb; subtraction
+propagates a borrow toward higher limbs. Their contract is exactness within
+the checked workspace, with no approximation or discarded low bits.
+
+<details>
+<summary>Reference: comparison, subtraction and scaling</summary>
 
 The first unequal high limb decides an equal-length magnitude comparison (`forth-bootstrap/cc/128-cc-float-literal.fth:77`):
 ```forth file=cc/128-cc-float-literal.fth
@@ -625,6 +728,8 @@ Bit lengths estimate the exponent; checked scaling supplies powers of two and te
   repeat, 2drop ;
 
 ```
+
+</details>
 
 ## Read the coefficient and exponent
 
@@ -772,7 +877,7 @@ Complete-spelling validation checks token limits and grammar even for zero or un
 
 ## Normalize, then settle the rounding tie
 
-For `0.1`, normalization preserves `value = N/D * 2^e`, bringing `1/10` to `8/5 * 2^-4` without losing a digit (`forth-bootstrap/cc/128-cc-float-literal.fth:239`):
+Normalization changes the ratio and exponent together, preserving `value = N/D * 2^e` until the ratio lies in `[1,2)` (`forth-bootstrap/cc/128-cc-float-literal.fth:239`):
 ```forth file=cc/128-cc-float-literal.fth
 
 \ Exact x = N/D * 2^e. Initial decimal order rejects obvious overflow
@@ -788,7 +893,7 @@ For `0.1`, normalization preserves `value = N/D * 2^e`, bringing `1/10` to `8/5 
     cc-f64-n [lit] 1 cc-f64-bi-shift [lit] 1 cc-f64-e -!
   then, ;
 ```
-Repeated doubling and exact remainder comparison produce the binary64 quotient 7205759403792793 with remainder `3/5`; twice that remainder exceeds unity, so rounding increments the quotient (`forth-bootstrap/cc/128-cc-float-literal.fth:252`):
+Each iteration appends one quotient bit and leaves an exact remainder smaller than the denominator. After the requested bits, comparing twice that remainder with the denominator distinguishes below, at and above a midpoint (`forth-bootstrap/cc/128-cc-float-literal.fth:252`):
 ```forth file=cc/128-cc-float-literal.fth
 : cc-f64-quotient ( fractional-bits -- )
   \ N/D is in [1,2). At every step q is the integer prefix and
@@ -1094,7 +1199,7 @@ variable cc-f64-b-e
 : cc-f64-sign-of-product ( -- negative? )
   cc-f64-a-negative @ cc-f64-b-negative @ <> ;
 ```
-`cc-f64-product` adds exponents and quotients subtract them, then pack once; `cc-f64-ratio` rejects a zero divisor (`forth-bootstrap/cc/128-cc-float-literal.fth:476`):
+`cc-f64-product` adds exponents; `cc-f64-ratio` subtracts them and rejects a zero divisor. Both round once when packing the result (`forth-bootstrap/cc/128-cc-float-literal.fth:476`):
 ```forth file=cc/128-cc-float-literal.fth
 : cc-f64-product ( -- bits )
   cc-f64-a-m @ cc-f64-n cc-f64-bi-set cc-f64-n cc-f64-b-m @ cc-f64-bi-times
@@ -1223,9 +1328,9 @@ Truncation returns magnitude, sign and cell-fit status, leaving destination rang
 
 Run from the `forth-bootstrap` checkout root with the seed already built. The block compiles layers through this chapter, emits a small `_start` object and links with the Forth linker. The shell prints and checks each executable's result from its process status.
 
-The boundary literal lies just above the midpoint between unity and the next binary64 value. Its union view checks that exact decimal conversion chooses the upper encoding. The other probes exercise `sum`'s XMM0 return, runtime addition, comparison and truncating conversion.
+The boundary literal lies just above the midpoint between unity and the next binary64 value. Its union view checks that exact decimal conversion chooses the upper encoding. The other probes exercise `sum`'s XMM0 return, runtime addition, comparison and truncating conversion. The final probe tests the unsigned midpoint case derived above: retaining the low bit must round `2^63 + 1025` upward.
 
-<!-- tryit: expect "(int)((0.1 + 0.2) * 100) = 30\n0.1 + 0.2 > 0.3 = 1\nboundary bits == 0x3ff0000000000001 = 1" -->
+<!-- tryit: expect "(int)((0.1 + 0.2) * 100) = 30\n0.1 + 0.2 > 0.3 = 1\nboundary bits == 0x3ff0000000000001 = 1\nunsigned rounding = 1" -->
 ```sh
 (
 set -o pipefail
@@ -1248,7 +1353,7 @@ main-name [lit] 4 cc-obj-global cc-obj-func cc-obj-default cc-obj-undef [lit] 0 
 output-path cc-obj-write bye
 FORTH
 } | ./seed-forth || exit "$?"
-for probe in 0 1 2; do
+for probe in 0 1 2 3; do
 printf '#define PROBE %s\n' "$probe" > "$work/probe.c"
 cat >> "$work/probe.c" <<'C' || exit "$?"
 double sum(void) {
@@ -1258,14 +1363,17 @@ double sum(void) {
 }
 int main(void) {
     double x = sum();
+    unsigned long large = 9223372036854776833UL;
     union { double d; unsigned long bits; } boundary;
     boundary.d = 1.00000000000000011102230246251565404236316680908203126;
 #if PROBE == 0
     return (int)(x * 100.0);
 #elif PROBE == 1
     return x > 0.3;
-#else
+#elif PROBE == 2
     return boundary.bits == 4607182418800017409UL;
+#else
+    return (double)large == 9223372036854777856.0;
 #endif
 }
 C
@@ -1302,10 +1410,12 @@ case "$probe" in
      test "$result" -eq 1 || exit 1 ;;
   2) printf 'boundary bits == 0x3ff0000000000001 = %s\n' "$result"
      test "$result" -eq 1 || exit 1 ;;
+  3) printf 'unsigned rounding = %s\n' "$result"
+     test "$result" -eq 1 || exit 1 ;;
 esac
 done
 )
-# prints "(int)((0.1 + 0.2) * 100) = 30\n0.1 + 0.2 > 0.3 = 1\nboundary bits == 0x3ff0000000000001 = 1"
+# prints "(int)((0.1 + 0.2) * 100) = 30\n0.1 + 0.2 > 0.3 = 1\nboundary bits == 0x3ff0000000000001 = 1\nunsigned rounding = 1"
 ```
 
 Observed output:
@@ -1314,12 +1424,13 @@ Observed output:
 (int)((0.1 + 0.2) * 100) = 30
 0.1 + 0.2 > 0.3 = 1
 boundary bits == 0x3ff0000000000001 = 1
+unsigned rounding = 1
 ```
 
 ## Exercise
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-47-exact-halfway-rounding).
 
-**Trace — easy.** In `cc-f64-quotient`, follow an exact halfway remainder with an odd retained quotient, then with an even quotient. Explain why only the odd case increments.
+**Trace (easy).** In `cc-f64-quotient`, follow an exact halfway remainder with an odd retained quotient, then with an even quotient. Explain why only the odd case increments.
 
-**Verify — moderate.** Replace the checkpoint's boundary literal with `1.00000000000000011102230246251565404236316680908203125`, the exact midpoint. Change the C bit comparison to the encoding of unity (`4607182418800017408UL`). Also change the shell's printed bit-pattern label and expected-output comment to `0x3ff0000000000000`. Predict the Boolean result, then run it; the shell should still expect 1 for a true comparison.
+**Verify (moderate).** Replace the checkpoint's boundary literal with `1.00000000000000011102230246251565404236316680908203125`, the exact midpoint. Change the C bit comparison to the encoding of unity (`4607182418800017408UL`). Also change the shell's printed bit-pattern label and expected-output comment to `0x3ff0000000000000`. Predict the Boolean result, then run it; the shell should still expect 1 for a true comparison.

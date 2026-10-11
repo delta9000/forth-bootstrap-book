@@ -1,10 +1,20 @@
 # Part 4 — bootstrap
 
-Part 4 turns the compiler into a toolchain and then uses the toolchain to
-build everything else. By the end, a run that starts from `hex0-seed` and
-the pinned source archives has rebuilt GCC 4.0.4 until it reproduces
-itself. It has also climbed to GCC 10.5.0 and booted Linux 7.2.8 inside
-QEMU, under kernels that the route built itself.
+We can compile a C program. Now try to build a compiler that comes with
+Makefiles, generated parsers, shell scripts and a C library. Each tool
+the build expects becomes another program we must first construct.
+Part 4 solves those dependencies until GCC can rebuild itself, then
+repeats the route under kernels we build on the way to Linux.
+
+Chapters 50–53 construct and audit the toolchain on the host kernel.
+Chapters 54–55 move construction into QEMU: K0 starts the seed, the seed
+builds K1, and the long guest route rebuilds the tools under K1 before
+climbing to GCC 10.5.0 and booting Linux 7.2.8.
+
+These are related build routes, not one uninterrupted run. The guest
+starts with a host-prepared boot image containing the initial seed;
+Chapter 54 identifies that handoff. The later compilers and tools are
+then built inside the guest from the supplied sources.
 
 Most checkpoints in this Part are long builds. Each one says what it
 needs: pinned archives, bwrap and strace, or QEMU with KVM. Where a run
@@ -30,3 +40,8 @@ labels it as recorded.
 - [Chapter 56](56-gcc-15-epilogue.md) closes the book with GCC 15.2. That
   climb exists in the older seed-forth project, and the chapter sets out
   what bringing it into forth-bootstrap would take.
+
+Follow the builder as well as the product. At one handoff, seed-cc
+produces GCC; at the next, GCC becomes the builder. At another, the seed
+builds a kernel that will run the next compiler. Keeping those roles
+visible is the key to understanding how the route grows.

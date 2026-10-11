@@ -1,13 +1,14 @@
 # Chapter 6 — Stack and memory primitives
 
-`dup`, `drop`, `swap`, `@` and `!` are each a few instructions that move
-cells between registers, the data stack and memory. This chapter decodes each one into those changes and checks
-them against its stack effect at the REPL. Chapter 7 uses these operand movements for arithmetic; Chapters 17 and
-22 combine the primitives into Forth definitions and memory-update words.
+To duplicate the top of the stack, the seed needs somewhere to put a
+copy. To drop it, the seed needs to know which older value becomes the
+new top. With the top cached in `rdi`, both operations are small changes
+to a boundary in memory. We will trace that boundary through copying,
+swapping, temporary storage, and memory access.
 
-For each instruction, ask which value it preserves, which it overwrites, and
-whether it changes the stack boundary. Use the initialized memory map
-(Chapter 5).
+Use the initialized map from Chapter 5. Keep asking which value an
+instruction must preserve before overwriting a register or a slot.
+The same question will explain the arithmetic bodies in Chapter 7.
 
 ## The push and pop shapes
 
@@ -25,7 +26,7 @@ Chapter 14 develops the notation further.
 
 ### `dup`: preserve the old top
 
-To realize `( a -- a a )`, the body must give the cached value a memory slot
+To implement `( a -- a a )`, the body must give the cached value a memory slot
 without replacing the cache. The body follows the entry jump in
 `forth-bootstrap/seed/000-seed.hex0:76`.
 
@@ -42,18 +43,20 @@ C3                                        ; ret
 
 ```
 
-Decode `48 83 ED 08` using Chapter 4's REX and ModRM primer: `48` selects the
-cell-width operation, `83` takes a short immediate, and `ED` selects register
-`rbp` and the subtraction operation. The immediate `08` makes room for a cell.
-In `48 89 7D 00`, opcode `89` stores the register operand; ModRM `7D` selects
-`rdi` and the displaced `rbp` address. Its trailing `00` is the displacement,
-not another instruction. `C3` returns to the caller. There is no assignment to
-`rdi`: with input `rdi=a, rbp=p`, the result is `rdi=a, rbp=p-8, [p-8]=a`.
+Start with `rdi=a` and `rbp=p`. Subtracting eight makes `[p-8]` the
+new live slot; the store fills it with `a`. There is no assignment to
+`rdi`, so the top stays `a` while another `a` now waits beneath it.
+The result is `rdi=a, rbp=p-8, [p-8]=a`.
+
+This is the store decoded in Chapter 4. Its explicit zero displacement
+belongs to the addressing form; the eight in the preceding instruction
+is the distance by which the stack boundary moved. Keeping those two
+numbers separate makes the bytes easier to check.
 
 ### `drop`: replace the old top
 
-To realize `( a -- )`, reverse the cached-top pattern direction: the body at
-`forth-bootstrap/seed/000-seed.hex0:86`, following `dup`, promotes the next value.
+To implement `( a -- )`, replace the cached top with the next value in
+memory. The body follows `dup` at `forth-bootstrap/seed/000-seed.hex0:86`.
 
 ```hex0 chunk=drop
 ;; --- drop @ 0x0D0 --- header
@@ -68,11 +71,11 @@ C3                                        ; ret
 
 ```
 
-Opcode `8B` in `48 8B 7D 00` loads through the same displaced `rbp` operand that
-`dup` stored through. In `48 83 C5 08`, ModRM `C5` selects addition to `rbp`,
-releasing the slot just read; `C3` returns. If `rdi=a` and `[p]=b` on entry,
-then `rdi=b` and `rbp=p+8` on return. The released memory need not be erased:
-the pointer change removes it from the live stack.
+With `rdi=a` and `[p]=b`, the load makes `b` the new top. Advancing
+`rbp` to `p+8` then removes `b`'s former memory slot from the live stack.
+The old bits may remain at `[p]`; the pointer defines which slots count.
+This is why dropping a value needs no memory clearing, and why moving
+the pointer before the load would fetch the wrong value.
 
 ### `swap`: preserve depth, exchange positions
 
@@ -138,7 +141,7 @@ C3                                        ; ret
 
 The short register opcodes need no ModRM: `58` pops the primitive's return
 address into `rax`, `57` pushes `rdi`, and `50` pushes the sheltered address
-back. The remaining load and add are `drop`'s cached-top pattern sequence, followed
+back. The remaining load and add repeat `drop`'s stack adjustment, followed
 by `C3`. Just before `ret`, the address is above `n`; just after it, `n` is
 exposed on the caller's return stack.
 
@@ -169,7 +172,7 @@ C3                                        ; ret
 
 ```
 
-The initial subtract and store are exactly `dup`'s cached-top pattern prefix.
+The initial subtract and store repeat `dup`'s opening instructions.
 Then `58` shelters the return address, `5F` pops the saved value into `rdi`,
 and `50` restores the address. `C3` returns with the transfer complete.
 Notice why `r>` cannot begin with `pop rdi`: at entry that would recover the
@@ -264,7 +267,7 @@ memory slot. `C3` returns.
 
 For a destination outside the live stack, trace `rdi=addr, [p]=v, [p+8]=older`:
 the store writes `v` to `addr`, then leaves `rdi=older, rbp=p+16`. The cached address
-never occupied a slot at `[p]`; cached-top pattern accounts for the pointer
+never occupied a slot at `[p]`; the cached-top pattern accounts for the pointer
 movement through the value cells.
 
 ## Byte access: change the memory width
@@ -293,7 +296,7 @@ and `rbp` stays put.
 
 ### `c!`: narrow the store, preserve the cleanup
 
-To realize `( b addr -- )`, the body following `c@`, at
+To implement `( b addr -- )`, the body following `c@`, at
 `forth-bootstrap/seed/000-seed.hex0:178`, changes the store instruction while
 retaining `!`'s operand cleanup.
 
@@ -366,12 +369,12 @@ exit status 0
 
 ## Exercises
 
-- **Trace — easy.** From `[p]=a, rdi=b`, trace `swap` followed by `drop`.
+- **Trace (easy).** From `[p]=a, rdi=b`, trace `swap` followed by `drop`.
   Name the surviving top and the final `rbp` relative to `p`.
-- **Trace — medium.** Draw the return stack before and after each instruction
+- **Trace (moderate).** Draw the return stack before and after each instruction
   in `>r`. Label the primitive's return address separately from the saved data.
   Explain why replacing the balancing `r>` with `r@` fails.
-- **Verify — easy.** Match each operand in the checkpoint disassembly to the
+- **Verify (easy).** Match each operand in the checkpoint disassembly to the
   `swap` trace above. Identify the instruction that preserves `a`.
 
 <details>

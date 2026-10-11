@@ -145,6 +145,27 @@ class TryItTests(unittest.TestCase):
         self.assertEqual(result[0], "FAIL", result)
         self.assertIn("metadata expects", result[2])
 
+    def test_explicit_metadata_uses_utf8(self):
+        result = self.check("printf 'é\\n' | ./seed-forth",
+                            '<!-- tryit: expect "é" -->')
+        self.assertEqual(result[0], "OK", result)
+
+    def test_metadata_does_not_mistake_latin1_bytes_for_utf8(self):
+        result = self.check("printf '\\377' | ./seed-forth",
+                            '<!-- tryit: expect "ÿ" -->')
+        self.assertEqual(result[0], "FAIL", result)
+        self.assertIn("metadata expects", result[2])
+
+    def test_non_utf8_output_keeps_existing_raw_byte_comment_check(self):
+        result = self.check("printf '\\377' | ./seed-forth # prints 'ÿ'")
+        self.assertEqual(result[0], "OK", result)
+
+    def test_unpaired_surrogate_metadata_fails_cleanly(self):
+        result = self.check("printf ok | ./seed-forth",
+                            '<!-- tryit: expect "\\ud800" -->')
+        self.assertEqual(result[0], "FAIL", result)
+        self.assertIn("invalid tryit expectation", result[2])
+
     def test_malformed_metadata_fails_instead_of_dropping_assertion(self):
         for marker in ('<!-- tryit: expect nope -->', '<!-- tryit: expect 42 -->'):
             with self.subTest(marker=marker):

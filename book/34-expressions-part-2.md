@@ -1,17 +1,36 @@
 # Chapter 34 — Expressions: operands and assignment
 
-`(-3 < 0) ? 7 : 9` combines a grouped operand, unary negation, and a choice of result. Compiling it requires the parser to distinguish an operand’s value from any storage it denotes. The completed expression parser carries that distinction through postfix operations and assignment, then supplies a value to its caller.
+An expression can identify a place to store a value. In `*p = 7`, the
+compiler must preserve the address held in `p` until it can write 7 there.
+In `*p + 7`, it must instead read through that address before adding. The
+same operand starts both expressions; what follows determines whether we
+need its location or its contents.
 
-For the core route, read lvalue kinds, [choosing address or value](#choosing-address-or-value),
-locals, parentheses, and [the worked assignment trace](#a-two-stack-assignment-trace).
-You should be able to say whether `rdi` is an address or a value before
-following every hook. Native destination snapshots add type, field and
-qualification facts for the later storage/ABI layers; they preserve the
-same need to protect a destination across recursive parsing.
+We will keep that choice open. An **lvalue** denotes an object; obtaining
+the stored value is a separate step called **materialization**. The parser
+emits code for the operand and records how that result may be used.
+
+Consider `*p += q` by hand, with valid core integer storage: `p` holds
+address `A`, the integer at `A` is 10, and `q` is 3. The generated program
+must preserve `A`, obtain the old 10, add 3, and store 13 back at `A`.
+The assignment expression also supplies 13 to its caller. Loading 10 and
+forgetting `A` would make the addition possible and the store impossible.
+
+There is a matching problem inside the compiler. Parsing `q` overwrites
+the shared record describing the current expression. We must save the
+left side's destination information before making that recursive call.
+First we will build this record, then follow assignment through both the
+compiler and the program it emits. The remaining operand forms fit into
+that same contract.
 
 ## Lvalue tracking
 
-The parser has a floor and a roof: primary and unary words supply operands to the binary cascade (Chapter 33); ternary and assignment wrap its result. Each parse leaves generated code for `rdi` plus metadata describing what `rdi` means. An lvalue denotes an object; an rvalue supplies a value for computation. Reading an lvalue’s stored value is a separate operation. This delayed load lets `p[i]` serve either side of an assignment.
+Primary and unary parsing supply operands to the binary cascade
+(Chapter 33); ternary and assignment consume its results. Each parser
+leaves instructions that produce a result in `rdi`, together with compiler
+metadata describing that result. A pending dereference means `rdi` will
+hold an address when the program runs. Materializing it emits the load.
+This is what lets `p[i]` serve either side of an assignment.
 
 The source’s introductory comment gives the core delayed-load contract; its “four facts” description predates the additional metadata below
 (`forth-bootstrap/cc/100-cc-expr.fth:68`):
@@ -46,7 +65,7 @@ The source’s introductory comment gives the core delayed-load contract; its �
 
 ```
 
-`lv-temporary` prevents a temporary record or member from becoming a store destination. `cc-mark` resets the entire expression record: kind, local slot, qualification, field record, descriptor, type, null provenance, and array dimensions
+`lv-temporary` prevents a temporary record or member from becoming a store destination. `cc-mark` resets the entire expression record: kind, local slot, qualification, field record, descriptor, type, null-constant status, and array dimensions
 (`forth-bootstrap/cc/100-cc-expr.fth:96`):
 ```forth chunk=expr-lvalue
 [lit] 0 constant lv-value
@@ -79,7 +98,7 @@ variable cc-last-expr-array-inner                  \ row width for a two-dimensi
 
 ```
 
-The kind is an implementation category, not a complete C type: `lv-local` already holds a loaded value but retains its store slot; a pending dereference holds an address. Array length and inner width preserve shape for `sizeof`, while null provenance distinguishes a recognized null constant from an arbitrary runtime value.
+The kind is an implementation category, not a complete C type: `lv-local` already holds a loaded value but retains its store slot; a pending dereference holds an address. Array length and inner width preserve shape for `sizeof`, while null-constant status distinguishes a recognized null constant from an arbitrary runtime value.
 
 ### Marking a result
 
@@ -170,6 +189,13 @@ Typed results restore their type after marking, and `cc-unary-type` promotes nar
 
 ```
 
+<details>
+<summary>Value hooks used by later numeric and aggregate types</summary>
+
+Ordinary core integers use the existing emitters. These bindings leave
+places for floating values, bitfields, and aggregates to supply other
+operations without changing the expression grammar.
+
 ### Value-operation hooks
 
 A hook lets a later target replace a value operation without replacing the parser. The bindings here are the defaults, not the later implementations:
@@ -183,7 +209,7 @@ A hook lets a later target replace a value operation without replacing the parse
 | `cc-value-integer-use-fwd`, `cc-value-shape-fwd`, `cc-value-init-fwd` | Consume checking arguments without further action |
 | `cc-opaque-scalar-fwd` | Declines scalar treatment of an aggregate-shaped type |
 
-Literal dispatch and scalar operations initially use the existing encoders; conditional hooks leave the ordinary join in charge
+Literal dispatch and scalar operations initially use the existing encoders; conditional hooks leave branch joining to the ordinary parser
 (`forth-bootstrap/cc/100-cc-expr.fth:186`):
 ```forth chunk=expr-lvalue
 \ Typed value operations share the historical encoders until a target binds them.
@@ -234,6 +260,8 @@ defer cc-opaque-scalar-fwd
 ' cc-opaque-scalar-default is cc-opaque-scalar-fwd
 
 ```
+
+</details>
 
 ### Choosing address or value
 
@@ -325,6 +353,329 @@ defer cc-array-decay-fwd
     then,
     true cc-last-ident-slot !
     lv-value cc-last-lvalue-kind !
+  then, ;
+
+```
+
+## Assignment: snapshot, recurse, store
+
+The left operand parser has done its job: it has identified a destination.
+For now, take the operand and ternary parsers as tools that produce the
+record just described. Assignment protects that record while asking for
+the right side. The detailed trace shows exactly what must be saved and
+which stack owns it.
+
+### A two-stack assignment trace
+
+Return to the opening example in the core profile, with valid eight-byte integer storage: `p` holds
+address `A`, memory at `A` holds 10, and local `q` holds 3 in slot `s`.
+This is a manual trace of `*p += q`, not a new runnable checkpoint.
+Compiler stacks exist while Forth emits code; the program-stack column
+describes what that code does later. Stack top is on the right. Only the
+cells owned by this assignment are shown; return addresses and surrounding
+frames are omitted. Let `K` mean `lv-deref` and `OP` mean the `+=` token.
+
+| Transition | Compiler data stack | Compiler return stack | Generated program stack | Generated registers and metadata |
+|---|---|---|---|---|
+| Parse `*p`, then snapshot left side | `K -1` | empty | empty | `rdi=A`; kind K, no local slot, type core int |
+| Recognize `+=`; preserve destination and old contents | empty, after `OP K >r >r` | `K OP` | `A 10` | Push A, load eight bytes through A, push 10; compiler metadata still describes the left side |
+| Parse and materialize `q` | empty after recursion | `K OP` | `A 10` | `rdi=3`; globals now describe local q: kind `lv-local`, slot s, type core int |
+| Recover old value and apply saved operator | empty after the emitter consumes OP | `K` | `A` | Move 3 to `rcx`, pop 10 to `rdi`, emit addition: `rdi=13` |
+| Recover destination, store and finish | empty | empty | empty | Pop A to `rcx`; saved K selects an eight-byte store; memory[A]=13, `rdi=13`; mark result `lv-value` |
+
+The slot `s` now recorded in the compiler globals describes `q`; it is
+never used as the destination. The saved address supplies that destination, while the saved kind selects
+the store width. The old value and address are runtime values; K and OP
+are compiler decisions. Mixing these two timelines is the common error
+this trace is meant to catch.
+
+For a byte target, the saved kind instead selects a byte load/store. For
+native typed assignment, the snapshot must additionally retain destination
+type, descriptor, field record and qualification; its conversion and
+field-aware hooks cannot be replaced by the core width rule above.
+
+### Recognizing an assignment
+
+An assignment must remember its destination while recursively parsing its source; `cc-assign-op?` recognizes either plain assignment or a compound operator’s table entry
+(`forth-bootstrap/cc/100-cc-expr.fth:2200`):
+```forth chunk=expr-assign
+\ ===========================================================================
+\ cc-parse-assign: ternary (ASSIGN-OP assign)?
+\ ===========================================================================
+\ Right-recursive.  After parsing the LHS via cc-parse-ternary, snapshot
+\ cc-last-ident-slot on the data stack BEFORE recursing into the RHS (which
+\ would otherwise overwrite it).
+\
+\ We test the next token without immediately committing: if it's '=', we use
+\ the snapshot to emit a store; otherwise we put the token back and discard
+\ the snapshot.
+\
+\ NOTE: assignment is right-associative, so the RHS recurses through
+\ cc-parse-assign (not cc-parse-eq) — chained `a = b = 1` works.
+
+\ cc-assign-op? ( -- f )  After cc-next-token-keep, returns -1 if the
+\ current token is '=' or the compound form of an operator in the table
+\ ('+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '|=' '^=').
+: cc-assign-op?
+  tok-kind @ tk-punct = if,
+    tok-num @ [char] = =
+    tok-num @ bo-compound cc-binop-row 0= 0= or
+  else,
+    [lit] 0
+  then, ;
+
+```
+
+Compound assignment reads the old value at the destination’s width, then `cc-apply-compound-op` invokes the corresponding binary emitter
+(`forth-bootstrap/cc/100-cc-expr.fth:2225`):
+```forth chunk=expr-assign
+\ cc-emit-load-via-rdi-or-byte ( byte? -- )  rdi := the byte or the qword
+\ at the address in rdi.
+: cc-emit-load-via-rdi-or-byte
+  if, cc-emit-load-byte-via-rdi else, cc-emit-load-via-rdi then, ;
+
+\ cc-apply-compound-op ( op -- )  After rdi=LHS-value, rcx=RHS-value: apply
+\ the compound-assign op to rdi with the emitter of its row in the operator
+\ table.  Consumes op.  Plain '=' must be filtered by the caller.
+: cc-apply-compound-op
+  bo-compound cc-binop-row                        ( row | 0 )
+  dup 0= if,
+    [lit] 118 cc-die                              \ not a compound operator
+  then,
+  bo-emitter + @ execute ;
+
+```
+
+<details>
+<summary>Native assignment: preserve type, field, and qualification metadata</summary>
+
+The core path below saves a kind and slot. Native stores also need the
+destination's type and field rules after the right side has been parsed.
+This snapshot extends the same lifetime discipline to that larger record.
+
+### Native destination snapshots
+
+`cc-parse-native-assign` rejects temporary destinations and converts a local slot to an address, giving locals and pending dereferences a shared store path
+(`forth-bootstrap/cc/100-cc-expr.fth:2240`):
+```forth chunk=expr-assign
+variable cc-assign-qualified
+variable cc-assign-type
+variable cc-assign-desc
+variable cc-assign-op
+variable cc-assign-field
+
+: cc-aggregate-assignment-default ;
+defer cc-aggregate-assignment-fwd
+' cc-aggregate-assignment-default is cc-aggregate-assignment-fwd
+\ A target may give compound assignment to a record type its own diagnostic.
+: cc-aggregate-compound-default ( type descriptor -- ) 2drop ;
+defer cc-aggregate-compound-fwd
+' cc-aggregate-compound-default is cc-aggregate-compound-fwd
+
+\ One native store path handles locals, globals, fields and dereferences.
+\ Snapshots live on the return stack across the recursive RHS parse.
+: cc-parse-native-assign                          ( kind slot -- )
+  over lv-temporary = if, [lit] 120 cc-die then,
+  cc-check-static-init
+  over lv-local = if,
+    nip cc-emit-lea-rdi-local
+  else,
+    drop dup lv-deref = swap lv-deref-byte = or
+    cc-last-expr-type @ ty-base ty-struct =
+    cc-last-expr-type @ ty-ptr 0= and or
+    0= if, [lit] 120 cc-die then,
+  then,
+```
+
+The `cc-assign-*` globals are scratch cells used after recursion. Qualification, field record, type, descriptor, and operator stay on the return stack until the right side finishes; putting them in those globals earlier would let a nested assignment overwrite them. The aggregate-assignment default does nothing, and the aggregate-compound default consumes its type arguments before the caller rejects the operation.
+
+The generated program saves its destination address and, for compound assignment, its old value; the compiler separately saves metadata across the recursive parse
+(`forth-bootstrap/cc/100-cc-expr.fth:2267`):
+```forth chunk=expr-assign
+  cc-last-expr-qualified @ >r
+  cc-last-field-rec @ >r
+  cc-last-expr-type @ >r cc-last-struct-desc @ >r tok-num @ >r
+  cc-emit-push-rdi
+  r@ [char] = <> if,
+    cc-last-expr-type @ cc-last-field-rec @ cc-field-load-fwd
+    cc-emit-push-rdi
+  then,
+  cc-parse-assign-fwd cc-emit-materialize
+  r> cc-assign-op ! r> cc-assign-desc ! r> cc-assign-type !
+  r> cc-assign-field ! r> cc-assign-qualified !
+  cc-assign-op @ [char] = = if,
+    cc-last-expr-type @ cc-last-struct-desc @
+    cc-assign-type @ cc-assign-desc @ cc-value-shape-fwd
+  then,
+```
+
+An ordinary record assignment copies the object’s bytes and returns its destination address as the expression result; aggregate hooks allow target-specific validation
+(`forth-bootstrap/cc/100-cc-expr.fth:2282`):
+```forth chunk=expr-assign
+  cc-assign-type @ ty-base ty-struct = cc-assign-type @ ty-ptr 0= and
+  cc-assign-type @ cc-assign-desc @ cc-opaque-scalar-fwd 0= and if,
+    cc-assign-op @ [char] = <> if,
+      cc-assign-type @ cc-assign-desc @ cc-aggregate-compound-fwd
+      [lit] 120 cc-die
+    then,
+    cc-aggregate-assignment-fwd
+    [lit] 72 cc-emit-byte [lit] 137 cc-emit-byte [lit] 254 cc-emit-byte
+    cc-emit-pop-rdi cc-emit-push-rdi               \ rsi=source; rdi=destination
+    [lit] 72 cc-emit-byte [lit] 199 cc-emit-byte [lit] 193 cc-emit-byte
+    cc-assign-type @ cc-assign-desc @ cc-expr-type-size cc-emit-4le
+    [lit] 243 cc-emit-byte [lit] 164 cc-emit-byte  \ rep movsb
+    cc-emit-pop-rdi
+    cc-assign-type @ cc-assign-desc @ cc-mark-typed-value
+    cc-assign-qualified @ cc-last-expr-qualified ! exit,
+  then,
+```
+
+Native compound assignment converts operands for the operation, scales pointer changes, and converts the result back to the destination type before the field-aware store
+(`forth-bootstrap/cc/100-cc-expr.fth:2298`):
+```forth chunk=expr-assign
+  cc-assign-op @ [char] = <> if,
+    cc-assign-type @ cc-assign-field @ cc-field-value-type-fwd cc-assign-desc @
+    cc-last-expr-type @ cc-last-struct-desc @ cc-expr-save-types
+    cc-assign-op @ bo-compound cc-binop-row cc-expr-op-row !
+    cc-array-compound-fwd cc-array-binop-fwd
+    cc-expr-op-row @ bo-level + @ level-shift = if,
+      cc-expr-left-type @ cc-expr-promote cc-expr-common !
+    then,
+    cc-assign-type @ ty-ptr if,
+      cc-expr-op-row @ bo-level + @ level-add = if,
+        cc-assign-type @ cc-assign-desc @ cc-expr-pointee-size cc-emit-scale-rdi
+      then,
+    then,
+    cc-emit-mov-rcx-rdi cc-emit-pop-rdi
+    cc-expr-left-type @ cc-expr-common @ cc-emit-convert-value
+    cc-expr-right-type @ cc-expr-common @ cc-emit-convert-right
+    cc-native-binop-emit cc-expr-common @ cc-last-expr-type !
+  then,
+  cc-last-expr-type @ cc-assign-type @ cc-emit-convert-value
+  cc-emit-pop-rcx
+  cc-assign-type @ cc-assign-field @ cc-field-store-fwd
+  cc-assign-type @ cc-assign-field @ cc-field-value-type-fwd
+  cc-assign-desc @ cc-mark-typed-value
+  cc-assign-qualified @ cc-last-expr-qualified ! ;
+
+```
+
+</details>
+
+### Legacy locals and pointer targets
+
+`cc-parse-assign` snapshots kind and slot before looking for an assignment operator; a legacy local saves its old value only when the operator needs it
+(`forth-bootstrap/cc/100-cc-expr.fth:2323`):
+```forth chunk=expr-assign
+: cc-parse-assign
+  cc-parse-ternary
+  \ Snapshot lvalue state BEFORE the recursive RHS parse can clobber it.
+  cc-last-lvalue-kind @                           ( kind )
+  cc-last-ident-slot @                            ( kind slot )
+  cc-next-token-keep
+  cc-assign-op? if,
+    cc-target-lp64 @ if, cc-parse-native-assign exit, then,
+    \ Some assignment operator confirmed.  Dispatch on lvalue kind.
+    \ Stack layout: ( kind slot ).  lv-local -> store to the slot;
+    \ lv-deref / lv-deref-byte -> store through the address in rdi;
+    \ lv-value -> not an lvalue (error).
+    over lv-local = if,
+      \ ---- Local lvalue (lv-local) ---------------------------------------
+      \ The LHS load was already emitted by cc-parse-primary; we'll just
+      \ overwrite the local slot with the RHS / RHS-folded value.
+      nip                                         ( slot )
+      tok-num @                                   ( slot op )
+      swap >r                                     \ stash slot ( op ; R: slot )
+      \ For compound assignment, save current LHS value before parsing RHS.
+      dup [char] = = 0= if,
+        cc-emit-push-rdi
+      then,
+      >r                                          \ stash op ( ; R: slot op )
+      cc-parse-assign
+      cc-emit-materialize                         \ ensure rdi holds a value
+```
+
+The local path folds and stores into its saved slot, while a compound dereference saves both the destination address and its old contents
+(`forth-bootstrap/cc/100-cc-expr.fth:2349`):
+```forth chunk=expr-assign
+      r> r>                                       ( op slot )
+      swap                                        ( slot op )
+      dup [char] = = if,
+        drop                                      ( slot )
+      else,
+        cc-emit-mov-rcx-rdi                       \ rcx = RHS
+        cc-emit-pop-rdi                           \ rdi = LHS (saved earlier)
+        cc-apply-compound-op                      \ rdi := rdi <op> rcx
+      then,
+      cc-emit-store-local                         \ [rbp - 8*(slot+1)] := rdi
+      cc-mark-not-lvalue
+    else,
+      over dup lv-deref = swap lv-deref-byte = or if,
+        \ ---- Dereference lvalue (lv-deref / lv-deref-byte) ---------------
+        \ rdi already holds the destination address (no load was emitted by
+        \ cc-parse-unary).
+        drop                                      ( kind )
+        tok-num @ [char] = <> if,
+          \ Compound: load the old value through the address, combine,
+          \ store back through the same address.
+          tok-num @ swap                          ( op kind )
+          cc-emit-push-rdi                        \ save dest address
+          dup lv-deref-byte = cc-emit-load-via-rdi-or-byte
+          cc-emit-push-rdi                        \ save old value
+          >r >r                                   ( ; R: kind op )
+```
+
+After recursion, compound assignment combines the saved value with the right side and stores through the saved address; plain assignment needs only that address
+(`forth-bootstrap/cc/100-cc-expr.fth:2374`):
+```forth chunk=expr-assign
+          cc-parse-assign
+          cc-emit-materialize
+          cc-emit-mov-rcx-rdi                     \ rcx := RHS
+          cc-emit-pop-rdi                         \ rdi := old value
+          r> cc-apply-compound-op                 \ rdi := old OP RHS
+          cc-emit-pop-rcx                         \ rcx := dest address
+          r> lv-deref-byte = if,
+            cc-emit-store-byte-via-rcx
+          else,
+            cc-emit-store-via-rcx
+          then,
+          cc-mark-not-lvalue exit,
+        then,
+        >r                                        \ R: kind
+        cc-emit-push-rdi                          \ save dest address
+        cc-parse-assign
+        cc-emit-materialize                       \ rdi holds RHS value
+        cc-emit-mov-rcx-rdi                       \ rcx := RHS
+        cc-emit-pop-rdi                           \ rdi := dest address
+        \ End-of-sequence wants rdi=value, rcx=address.  We currently have
+        \ rcx=value, rdi=address.  Swap via push/pop:
+        \    push rdi ; mov rdi, rcx ; pop rcx
+        cc-emit-push-rdi                          \ push address
+        \ mov rdi, rcx: 48 89 CF (mod=11 reg=rcx=1 rm=rdi=7 -> 11_001_111=0xCF)
+```
+
+The final store puts the value in `rdi` and the address in `rcx`, selecting byte or qword width from the saved kind; a non-assignment token discards the unused snapshot
+(`forth-bootstrap/cc/100-cc-expr.fth:2398`):
+```forth chunk=expr-assign
+        [lit]  72 cc-emit-byte
+        [lit] 137 cc-emit-byte
+        [lit] 207 cc-emit-byte
+        cc-emit-pop-rcx                           \ rcx := address
+        r> lv-deref-byte = if,
+          cc-emit-store-byte-via-rcx              \ [rcx] := dil  (1 byte)
+        else,
+          cc-emit-store-via-rcx                   \ [rcx] := rdi  (8 bytes)
+        then,
+        cc-mark-not-lvalue
+      else,
+        \ Not an lvalue at all.
+        2drop
+        [lit] 120 cc-die
+      then,
+    then,
+  else,
+    2drop                                         \ discard kind/slot snapshot
+    cc-putback-token
   then, ;
 
 ```
@@ -578,7 +929,7 @@ The first non-postfix token belongs to the enclosing expression, and each new pr
 
 ```
 
-`cc-parse-operand` dispatches literals, names, and parentheses; a numeric zero records null provenance, and a string publishes a character-pointer type
+`cc-parse-operand` dispatches literals, names, and parentheses; a numeric zero records null-constant status, and a string publishes a character-pointer type
 (`forth-bootstrap/cc/100-cc-expr.fth:947`):
 ```forth chunk=expr-primary-operand
 \ cc-parse-operand ( -- )  Read one token and compile the operand it starts:
@@ -1259,7 +1610,7 @@ A recursive unary operand supports chains such as `**p`; the header describes th
 
 ### Measuring an operand
 
-The legacy `sizeof` dispatcher stages its answer in `cc-sizeof-bytes` instead of threading a size through every branch
+The legacy `sizeof` dispatcher keeps its answer in `cc-sizeof-bytes`, so each branch can update the same cell
 (`forth-bootstrap/cc/100-cc-expr.fth:1235`):
 ```forth chunk=expr-unary
 \ cc-parse-sizeof — `sizeof '(' (type-spec | EXPR) ')'`.
@@ -1534,7 +1885,7 @@ A bare local is changed before loading its result; other operands must yield a p
   r> cc-last-expr-type ! ;
 ```
 
-That lookahead matters in `--b->n`: the destination is the member, not the local holding `b`. Both prefix and postfix return values, so a second mutation cannot use their result as a destination.
+That lookahead matters in `--b->n`: the destination is the member, not the local holding `b`. Both prefix and postfix return values, so another increment or decrement cannot use their result as a destination.
 
 ### Taking an address
 
@@ -1694,7 +2045,9 @@ Complement and native unary plus complete the dispatch; the fallback lets primar
 
 ## Ternary
 
-`cc-parse-ternary` turns the condition into a branch around the true arm, so the opening example selects a result at runtime
+`cc-parse-ternary` turns the condition into a branch around the true arm.
+In the checkpoint's `(-3 < 0) ? 7 : 9`, that branch selects which value
+the program produces at runtime
 (`forth-bootstrap/cc/100-cc-expr.fth:2128`):
 ```forth chunk=expr-ternary
 \ ===========================================================================
@@ -1782,312 +2135,6 @@ Native joining waits until both arm types are known, allowing separate conversio
 ```
 
 Both arms are compiled, but execution follows only the selected arm. The false arm recurses through assignment, which also makes nested conditionals associate to the right. This grammar accepts a bare assignment in the false arm; that is broader than C’s conditional-expression grammar. Chapter 41 supplies native join policy, and Chapter 49 supplies aggregate joins.
-
-## Assignment: snapshot, recurse, store
-
-An assignment must remember its destination while recursively parsing its source; `cc-assign-op?` recognizes either plain assignment or a compound operator’s table entry
-(`forth-bootstrap/cc/100-cc-expr.fth:2200`):
-```forth chunk=expr-assign
-\ ===========================================================================
-\ cc-parse-assign: ternary (ASSIGN-OP assign)?
-\ ===========================================================================
-\ Right-recursive.  After parsing the LHS via cc-parse-ternary, snapshot
-\ cc-last-ident-slot on the data stack BEFORE recursing into the RHS (which
-\ would otherwise overwrite it).
-\
-\ We test the next token without immediately committing: if it's '=', we use
-\ the snapshot to emit a store; otherwise we put the token back and discard
-\ the snapshot.
-\
-\ NOTE: assignment is right-associative, so the RHS recurses through
-\ cc-parse-assign (not cc-parse-eq) — chained `a = b = 1` works.
-
-\ cc-assign-op? ( -- f )  After cc-next-token-keep, returns -1 if the
-\ current token is '=' or the compound form of an operator in the table
-\ ('+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '|=' '^=').
-: cc-assign-op?
-  tok-kind @ tk-punct = if,
-    tok-num @ [char] = =
-    tok-num @ bo-compound cc-binop-row 0= 0= or
-  else,
-    [lit] 0
-  then, ;
-
-```
-
-Compound assignment reads the old value at the destination’s width, then `cc-apply-compound-op` invokes the corresponding binary emitter
-(`forth-bootstrap/cc/100-cc-expr.fth:2225`):
-```forth chunk=expr-assign
-\ cc-emit-load-via-rdi-or-byte ( byte? -- )  rdi := the byte or the qword
-\ at the address in rdi.
-: cc-emit-load-via-rdi-or-byte
-  if, cc-emit-load-byte-via-rdi else, cc-emit-load-via-rdi then, ;
-
-\ cc-apply-compound-op ( op -- )  After rdi=LHS-value, rcx=RHS-value: apply
-\ the compound-assign op to rdi with the emitter of its row in the operator
-\ table.  Consumes op.  Plain '=' must be filtered by the caller.
-: cc-apply-compound-op
-  bo-compound cc-binop-row                        ( row | 0 )
-  dup 0= if,
-    [lit] 118 cc-die                              \ not a compound operator
-  then,
-  bo-emitter + @ execute ;
-
-```
-
-### Native destination snapshots
-
-`cc-parse-native-assign` rejects temporary destinations and converts a local slot to an address, giving locals and pending dereferences a shared store path
-(`forth-bootstrap/cc/100-cc-expr.fth:2240`):
-```forth chunk=expr-assign
-variable cc-assign-qualified
-variable cc-assign-type
-variable cc-assign-desc
-variable cc-assign-op
-variable cc-assign-field
-
-: cc-aggregate-assignment-default ;
-defer cc-aggregate-assignment-fwd
-' cc-aggregate-assignment-default is cc-aggregate-assignment-fwd
-\ A target may give compound assignment to a record type its own diagnostic.
-: cc-aggregate-compound-default ( type descriptor -- ) 2drop ;
-defer cc-aggregate-compound-fwd
-' cc-aggregate-compound-default is cc-aggregate-compound-fwd
-
-\ One native store path handles locals, globals, fields and dereferences.
-\ Snapshots live on the return stack across the recursive RHS parse.
-: cc-parse-native-assign                          ( kind slot -- )
-  over lv-temporary = if, [lit] 120 cc-die then,
-  cc-check-static-init
-  over lv-local = if,
-    nip cc-emit-lea-rdi-local
-  else,
-    drop dup lv-deref = swap lv-deref-byte = or
-    cc-last-expr-type @ ty-base ty-struct =
-    cc-last-expr-type @ ty-ptr 0= and or
-    0= if, [lit] 120 cc-die then,
-  then,
-```
-
-The `cc-assign-*` globals are scratch cells used after recursion. Qualification, field record, type, descriptor, and operator stay on the return stack until the right side finishes; putting them in those globals earlier would let a nested assignment overwrite them. The aggregate-assignment default does nothing, and the aggregate-compound default consumes its type arguments before the caller rejects the operation.
-
-The generated program saves its destination address and, for compound assignment, its old value; the compiler separately saves metadata across the recursive parse
-(`forth-bootstrap/cc/100-cc-expr.fth:2267`):
-```forth chunk=expr-assign
-  cc-last-expr-qualified @ >r
-  cc-last-field-rec @ >r
-  cc-last-expr-type @ >r cc-last-struct-desc @ >r tok-num @ >r
-  cc-emit-push-rdi
-  r@ [char] = <> if,
-    cc-last-expr-type @ cc-last-field-rec @ cc-field-load-fwd
-    cc-emit-push-rdi
-  then,
-  cc-parse-assign-fwd cc-emit-materialize
-  r> cc-assign-op ! r> cc-assign-desc ! r> cc-assign-type !
-  r> cc-assign-field ! r> cc-assign-qualified !
-  cc-assign-op @ [char] = = if,
-    cc-last-expr-type @ cc-last-struct-desc @
-    cc-assign-type @ cc-assign-desc @ cc-value-shape-fwd
-  then,
-```
-
-An ordinary record assignment copies the object’s bytes and republishes its destination address as the expression result; aggregate hooks reserve target-specific validation
-(`forth-bootstrap/cc/100-cc-expr.fth:2282`):
-```forth chunk=expr-assign
-  cc-assign-type @ ty-base ty-struct = cc-assign-type @ ty-ptr 0= and
-  cc-assign-type @ cc-assign-desc @ cc-opaque-scalar-fwd 0= and if,
-    cc-assign-op @ [char] = <> if,
-      cc-assign-type @ cc-assign-desc @ cc-aggregate-compound-fwd
-      [lit] 120 cc-die
-    then,
-    cc-aggregate-assignment-fwd
-    [lit] 72 cc-emit-byte [lit] 137 cc-emit-byte [lit] 254 cc-emit-byte
-    cc-emit-pop-rdi cc-emit-push-rdi               \ rsi=source; rdi=destination
-    [lit] 72 cc-emit-byte [lit] 199 cc-emit-byte [lit] 193 cc-emit-byte
-    cc-assign-type @ cc-assign-desc @ cc-expr-type-size cc-emit-4le
-    [lit] 243 cc-emit-byte [lit] 164 cc-emit-byte  \ rep movsb
-    cc-emit-pop-rdi
-    cc-assign-type @ cc-assign-desc @ cc-mark-typed-value
-    cc-assign-qualified @ cc-last-expr-qualified ! exit,
-  then,
-```
-
-Native compound assignment converts operands for the operation, scales pointer changes, and converts the result back to the destination type before the field-aware store
-(`forth-bootstrap/cc/100-cc-expr.fth:2298`):
-```forth chunk=expr-assign
-  cc-assign-op @ [char] = <> if,
-    cc-assign-type @ cc-assign-field @ cc-field-value-type-fwd cc-assign-desc @
-    cc-last-expr-type @ cc-last-struct-desc @ cc-expr-save-types
-    cc-assign-op @ bo-compound cc-binop-row cc-expr-op-row !
-    cc-array-compound-fwd cc-array-binop-fwd
-    cc-expr-op-row @ bo-level + @ level-shift = if,
-      cc-expr-left-type @ cc-expr-promote cc-expr-common !
-    then,
-    cc-assign-type @ ty-ptr if,
-      cc-expr-op-row @ bo-level + @ level-add = if,
-        cc-assign-type @ cc-assign-desc @ cc-expr-pointee-size cc-emit-scale-rdi
-      then,
-    then,
-    cc-emit-mov-rcx-rdi cc-emit-pop-rdi
-    cc-expr-left-type @ cc-expr-common @ cc-emit-convert-value
-    cc-expr-right-type @ cc-expr-common @ cc-emit-convert-right
-    cc-native-binop-emit cc-expr-common @ cc-last-expr-type !
-  then,
-  cc-last-expr-type @ cc-assign-type @ cc-emit-convert-value
-  cc-emit-pop-rcx
-  cc-assign-type @ cc-assign-field @ cc-field-store-fwd
-  cc-assign-type @ cc-assign-field @ cc-field-value-type-fwd
-  cc-assign-desc @ cc-mark-typed-value
-  cc-assign-qualified @ cc-last-expr-qualified ! ;
-
-```
-
-### Legacy locals and pointer targets
-
-`cc-parse-assign` snapshots kind and slot before looking for an assignment operator; a legacy local saves its old value only when the operator needs it
-(`forth-bootstrap/cc/100-cc-expr.fth:2323`):
-```forth chunk=expr-assign
-: cc-parse-assign
-  cc-parse-ternary
-  \ Snapshot lvalue state BEFORE the recursive RHS parse can clobber it.
-  cc-last-lvalue-kind @                           ( kind )
-  cc-last-ident-slot @                            ( kind slot )
-  cc-next-token-keep
-  cc-assign-op? if,
-    cc-target-lp64 @ if, cc-parse-native-assign exit, then,
-    \ Some assignment operator confirmed.  Dispatch on lvalue kind.
-    \ Stack layout: ( kind slot ).  lv-local -> store to the slot;
-    \ lv-deref / lv-deref-byte -> store through the address in rdi;
-    \ lv-value -> not an lvalue (error).
-    over lv-local = if,
-      \ ---- Local lvalue (lv-local) ---------------------------------------
-      \ The LHS load was already emitted by cc-parse-primary; we'll just
-      \ overwrite the local slot with the RHS / RHS-folded value.
-      nip                                         ( slot )
-      tok-num @                                   ( slot op )
-      swap >r                                     \ stash slot ( op ; R: slot )
-      \ For compound assignment, save current LHS value before parsing RHS.
-      dup [char] = = 0= if,
-        cc-emit-push-rdi
-      then,
-      >r                                          \ stash op ( ; R: slot op )
-      cc-parse-assign
-      cc-emit-materialize                         \ ensure rdi holds a value
-```
-
-The local path folds and stores into its saved slot, while a compound dereference saves both the destination address and its old contents
-(`forth-bootstrap/cc/100-cc-expr.fth:2349`):
-```forth chunk=expr-assign
-      r> r>                                       ( op slot )
-      swap                                        ( slot op )
-      dup [char] = = if,
-        drop                                      ( slot )
-      else,
-        cc-emit-mov-rcx-rdi                       \ rcx = RHS
-        cc-emit-pop-rdi                           \ rdi = LHS (saved earlier)
-        cc-apply-compound-op                      \ rdi := rdi <op> rcx
-      then,
-      cc-emit-store-local                         \ [rbp - 8*(slot+1)] := rdi
-      cc-mark-not-lvalue
-    else,
-      over dup lv-deref = swap lv-deref-byte = or if,
-        \ ---- Dereference lvalue (lv-deref / lv-deref-byte) ---------------
-        \ rdi already holds the destination address (no load was emitted by
-        \ cc-parse-unary).
-        drop                                      ( kind )
-        tok-num @ [char] = <> if,
-          \ Compound: load the old value through the address, combine,
-          \ store back through the same address.
-          tok-num @ swap                          ( op kind )
-          cc-emit-push-rdi                        \ save dest address
-          dup lv-deref-byte = cc-emit-load-via-rdi-or-byte
-          cc-emit-push-rdi                        \ save old value
-          >r >r                                   ( ; R: kind op )
-```
-
-After recursion, compound assignment combines the saved value with the right side and stores through the saved address; plain assignment needs only that address
-(`forth-bootstrap/cc/100-cc-expr.fth:2374`):
-```forth chunk=expr-assign
-          cc-parse-assign
-          cc-emit-materialize
-          cc-emit-mov-rcx-rdi                     \ rcx := RHS
-          cc-emit-pop-rdi                         \ rdi := old value
-          r> cc-apply-compound-op                 \ rdi := old OP RHS
-          cc-emit-pop-rcx                         \ rcx := dest address
-          r> lv-deref-byte = if,
-            cc-emit-store-byte-via-rcx
-          else,
-            cc-emit-store-via-rcx
-          then,
-          cc-mark-not-lvalue exit,
-        then,
-        >r                                        \ R: kind
-        cc-emit-push-rdi                          \ save dest address
-        cc-parse-assign
-        cc-emit-materialize                       \ rdi holds RHS value
-        cc-emit-mov-rcx-rdi                       \ rcx := RHS
-        cc-emit-pop-rdi                           \ rdi := dest address
-        \ End-of-sequence wants rdi=value, rcx=address.  We currently have
-        \ rcx=value, rdi=address.  Swap via push/pop:
-        \    push rdi ; mov rdi, rcx ; pop rcx
-        cc-emit-push-rdi                          \ push address
-        \ mov rdi, rcx: 48 89 CF (mod=11 reg=rcx=1 rm=rdi=7 -> 11_001_111=0xCF)
-```
-
-The final store puts the value in `rdi` and the address in `rcx`, selecting byte or qword width from the saved kind; a non-assignment token discards the unused snapshot
-(`forth-bootstrap/cc/100-cc-expr.fth:2398`):
-```forth chunk=expr-assign
-        [lit]  72 cc-emit-byte
-        [lit] 137 cc-emit-byte
-        [lit] 207 cc-emit-byte
-        cc-emit-pop-rcx                           \ rcx := address
-        r> lv-deref-byte = if,
-          cc-emit-store-byte-via-rcx              \ [rcx] := dil  (1 byte)
-        else,
-          cc-emit-store-via-rcx                   \ [rcx] := rdi  (8 bytes)
-        then,
-        cc-mark-not-lvalue
-      else,
-        \ Not an lvalue at all.
-        2drop
-        [lit] 120 cc-die
-      then,
-    then,
-  else,
-    2drop                                         \ discard kind/slot snapshot
-    cc-putback-token
-  then, ;
-
-```
-
-### A two-stack assignment trace
-
-Use the core profile and valid eight-byte integer storage: `p` holds
-address `A`, memory at `A` holds 10, and local `q` holds 3 in slot `s`.
-This is a manual trace of `*p += q`, not a new runnable checkpoint.
-Compiler stacks exist while Forth emits code; the program-stack column
-describes what that code does later. Stack top is on the right. Only the
-cells owned by this assignment are shown; return addresses and surrounding
-frames are omitted. Let `K` mean `lv-deref` and `OP` mean the `+=` token.
-
-| Transition | Compiler data stack | Compiler return stack | Generated program stack | Generated registers and metadata |
-|---|---|---|---|---|
-| Parse `*p`, then snapshot left side | `K -1` | empty | empty | `rdi=A`; kind K, no local slot, type core int |
-| Recognize `+=`; preserve destination and old contents | empty, after `OP K >r >r` | `K OP` | `A 10` | Push A, load eight bytes through A, push 10; compiler metadata still describes the left side |
-| Parse and materialize `q` | empty after recursion | `K OP` | `A 10` | `rdi=3`; globals now describe local q: kind `lv-local`, slot s, type core int |
-| Recover old value and apply saved operator | empty after the emitter consumes OP | `K` | `A` | Move 3 to `rcx`, pop 10 to `rdi`, emit addition: `rdi=13` |
-| Recover destination, store and finish | empty | empty | empty | Pop A to `rcx`; saved K selects an eight-byte store; memory[A]=13, `rdi=13`; mark result `lv-value` |
-
-The global slot `s` from parsing `q` is never used as the destination.
-The saved address supplies that destination, while the saved kind selects
-the store width. The old value and address are runtime values; K and OP
-are compiler decisions. Mixing these two timelines is the common error
-this trace is meant to catch.
-
-For a byte target, the saved kind instead selects a byte load/store. For
-native typed assignment, the snapshot must additionally retain destination
-type, descriptor, field record and qualification; its conversion and
-field-aware hooks cannot be replaced by the core width rule above.
 
 ## The top-level driver
 
@@ -2302,7 +2349,7 @@ Constant unary operators compute directly on the Forth value, with logical negat
 
 ### Unevaluated constant arms
 
-The constant parser must consume dead syntax without performing dead arithmetic. Its logical handlers preserve an outer skip flag so a nested expression cannot accidentally re-enable evaluation:
+The constant parser must check an unselected branch’s syntax without calculating its value. Its logical handlers preserve an outer skip flag so a nested expression cannot accidentally re-enable evaluation:
 
 | Input condition | Handler action |
 |---|---|
@@ -2411,7 +2458,13 @@ create cc-cx-save  cc-lex-state-size allot
 
 ## Try it
 
-Run from the `forth-bootstrap` checkout root with the seed built in Part 1. The driver below loads through `cc/100-cc-expr.fth`, points the lexer at the opening example, emits an ELF image, and runs it from a fresh temporary directory. It uses no declaration, statement, or compiler-entry layer.
+Run from the `forth-bootstrap` checkout root with the seed built in Part 1.
+The driver loads through `cc/100-cc-expr.fth` and compiles
+`(-3 < 0) ? 7 : 9` into an ELF image in a fresh temporary directory.
+This checks grouping, unary negation, comparison, and the conditional
+join without requiring names or storage declarations. The assignment
+trace above explains how those additional operands retain a destination;
+Chapter 35 supplies the declarations that make them available in C.
 
 The cast hook is declared without a binding at `forth-bootstrap/cc/100-cc-expr.fth:44`. `probe-no-cast` supplies a false result without consuming input, allowing parentheses to mean grouping in this driver. It does not implement casts. Locals and their declarations are outside this checkpoint.
 
@@ -2463,7 +2516,7 @@ This run exercises operand dispatch, grouping, unary negation, comparison, terna
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-34-an-address-through-parentheses).
 
-**Trace — easy.** Follow `(*p)++` with `p` a character pointer. Identify where the pointer is loaded, where the target remains an address, and why parentheses preserve that address for the postfix handler.
+**Trace (easy).** Follow `(*p)++` with `p` a character pointer. Identify where the pointer is loaded, where the target remains an address, and why parentheses preserve that address for the postfix handler.
 
-**Verify — easy.** Change the checkpoint’s comparison from `<` to `>`. Run it again and explain which ternary branch executes; update the printed expression to match your input.
+**Verify (easy).** Change the checkpoint’s comparison from `<` to `>`. Run it again and explain which ternary branch executes; update the printed expression to match your input.
 

@@ -395,7 +395,7 @@ asm macros | 26 The M1 assembler and hex2 linker | asm-defs asm-def-store asm-de
 `skip-vm-pages` | 25 Defining words and byte equality | concept (Forth primitives (treated as black boxes in Part I)); introduced in old Ch 12
 `token` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); `s,`: names as data
 `variable` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); `variable` = `create` + a cell
-Counted names as data (s,) | 25 Defining words and byte equality | idea; `s,`: names as data
+Names as raw bytes (s,) | 25 Defining words and byte equality | idea; `s,`: names as data
 Deferred words | 25 Defining words and byte equality | idea; `defer` and `is`: a name now, a meaning later
 Deferred words (`defer`/`is`: call a word defined later) | 25 Defining words and byte equality | concept (Forth-level ideas); introduced in old Ch 12
 `asm-base` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); The label table
@@ -2464,11 +2464,11 @@ Static initializer lowering | 39 LP64 storage and initializers | idea; Initializ
 `cc-obj-zero` | 40 Objects and relocations | compiler word (`cc/081-cc-object.fth`); Canonical source
 `cc-const-qualified` | 41 System V calls and separate compilation | compiler word (variable, `cc/123-cc-object-program.fth`); Carry code and storage into a relocatable object
 `cc-ld-desc` | 41 System V calls and separate compilation | compiler word (variable, `cc/121-cc-sysv.fth`); Canonical source
-`cc-ld-descriptor` | 41 System V calls and separate compilation | compiler word (`cc/121-cc-sysv.fth`); Save the registers the caller owns
-`cc-ld-die` | 41 System V calls and separate compilation | compiler word (`cc/121-cc-sysv.fth`); Save the registers the caller owns
+`cc-ld-descriptor` | 41 System V calls and separate compilation | compiler word (`cc/121-cc-sysv.fth`); Preserve the caller's register values
+`cc-ld-die` | 41 System V calls and separate compilation | compiler word (`cc/121-cc-sysv.fth`); Preserve the caller's register values
 `cc-ld-error-prefix` | 41 System V calls and separate compilation | compiler word (create, `cc/121-cc-sysv.fth`); Canonical source
-`cc-ld-mismatch` | 41 System V calls and separate compilation | compiler word (`cc/121-cc-sysv.fth`); Save the registers the caller owns
-`cc-ld?` | 41 System V calls and separate compilation | compiler word (`cc/121-cc-sysv.fth`); Save the registers the caller owns
+`cc-ld-mismatch` | 41 System V calls and separate compilation | compiler word (`cc/121-cc-sysv.fth`); Preserve the caller's register values
+`cc-ld?` | 41 System V calls and separate compilation | compiler word (`cc/121-cc-sysv.fth`); Preserve the caller's register values
 `cc-om-address-array` | 41 System V calls and separate compilation | compiler word (`cc/123-cc-object-program.fth`); Carry code and storage into a relocatable object
 `cc-om-address-cast-fwd` | 41 System V calls and separate compilation | compiler word (defer, `cc/123-cc-object-program.fth`); Carry code and storage into a relocatable object
 `cc-om-address-deref` | 41 System V calls and separate compilation | compiler word (`cc/123-cc-object-program.fth`); Carry code and storage into a relocatable object
@@ -2985,11 +2985,11 @@ Static initializer lowering | 39 LP64 storage and initializers | idea; Initializ
 `cc-const-binary-apply` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-binary` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-bool?` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
-`cc-const-boolean` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants are exact records
+`cc-const-boolean` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants retain their encodings
 `cc-const-cap` | 45 Typed constants | compiler word (constant, `cc/125-cc-consteval.fth`); Canonical source
 `cc-const-cast` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-cells` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
-`cc-const-change` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants are exact records
+`cc-const-change` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants retain their encodings
 `cc-const-check-integer` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-check-result` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-common` | 45 Typed constants | compiler word (variable, `cc/125-cc-consteval.fth`); Canonical source
@@ -3001,13 +3001,13 @@ Static initializer lowering | 39 LP64 storage and initializers | idea; Initializ
 `cc-const-evaluate` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-extended-compare` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-extended-nan?` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
-`cc-const-float-binary` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants are exact records
+`cc-const-float-binary` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants retain their encodings
 `cc-const-float-bool` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Keep the numeric boundary explicit
 `cc-const-float-compare` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-float-key` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-float-operand` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-float-spelling` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
-`cc-const-float?` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants are exact records
+`cc-const-float?` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants retain their encodings
 `cc-const-format` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-from-float` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-initial` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Keep the numeric boundary explicit
@@ -3039,7 +3039,7 @@ Static initializer lowering | 39 LP64 storage and initializers | idea; Initializ
 `cc-const-subtract` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-symbol` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-to-float` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
-`cc-const-truth` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants are exact records
+`cc-const-truth` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Floating constants retain their encodings
 `cc-const-type` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-ult` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source
 `cc-const-unary-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Canonical source
@@ -3048,11 +3048,11 @@ Static initializer lowering | 39 LP64 storage and initializers | idea; Initializ
 `cc-const-used` | 45 Typed constants | compiler word (variable, `cc/125-cc-consteval.fth`); Canonical source
 `cc-const-values` | 45 Typed constants | compiler word (create, `cc/125-cc-consteval.fth`); Canonical source
 `cc-f80-new` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Canonical source
-`cc-fp-arith-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants are exact records
-`cc-fp-decimal-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants are exact records
-`cc-fp-integer-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants are exact records
-`cc-fp-resize-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants are exact records
-`cc-fp-truncate-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants are exact records
+`cc-fp-arith-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants retain their encodings
+`cc-fp-decimal-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants retain their encodings
+`cc-fp-integer-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants retain their encodings
+`cc-fp-resize-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants retain their encodings
+`cc-fp-truncate-fwd` | 45 Typed constants | compiler word (defer, `cc/125-cc-consteval.fth`); Floating constants retain their encodings
 `cc-parse-integer-const` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Keep the numeric boundary explicit
 `cc-parse-static-const` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Carry an address without knowing its final location
 `cc-parse-target-const` | 45 Typed constants | compiler word (`cc/125-cc-consteval.fth`); Canonical source

@@ -85,7 +85,7 @@ CONCEPTS = [
     ("Backward loops", [("24-lib-11", "Backward loops")]),
     ("Early exit (exit,)", [("24-lib-11", "`exit,`")]),
     ("Deferred words", [("25-lib-12", "`defer` and `is`")]),
-    ("Counted names as data (s,)", [("25-lib-12", "names as data")]),
+    ("Names as raw bytes (s,)", [("25-lib-12", "names as data")]),
     ("ELF header and program header", [("05-elf", "Identify the executable and its entry"), ("05-elf", "Make storage exist"), ("31-elf", "the ELF wrapper")]),
     ("Entry point (_start)", [("05-", "Give the registers their starting values")]),
     ("Sysvar page (STATE, LATEST, HERE, LAST_FOUND)", [("05-", "Initialize the mutable system variables")]),

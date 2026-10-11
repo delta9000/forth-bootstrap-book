@@ -6,9 +6,32 @@ An initialized record combines a storage layout with a tree of values. The nativ
 
 A declaration context collects the base and declarator; a descriptor supplies size and alignment for allocation and initialization. The program layer provides a place to run static initialization before `main`; its private runtime provides the final Linux boundary. These are separate responsibilities, so LP64 layout does not imply a particular calling convention.
 
-LP64 gives `char`, `short`, and `int` storage widths of one, two, and four bytes, while `long` and pointers occupy eight. An expression register can hold a wider value than the object from which it came. Layout therefore uses object size and alignment, not stack-cell width.
+This target's LP64 layout gives `char`, `short`, and `int` storage widths of one, two, and four bytes, while `long` and pointers occupy eight. An expression register can hold a wider value than the object from which it came. Layout therefore uses object size and alignment, not stack-cell width.
 
 Chapter 41 supplies the System V AMD64 calling convention, and Chapter 43 supplies the later runtime.
+
+Keep the checkpoint's `struct Item { char tag; long value; }` beside the
+walkthrough. Its layout answers where a store must land: `tag` starts at
+offset 0, seven padding bytes precede `value` at offset 8, and the record
+occupies 16 bytes. Its initializer `{3, 7}` answers what to store at those
+two destinations. The padding contributes to the size but consumes no
+initializer value. This layout follows by hand from the field-placement
+rules below.
+
+There is also a timing decision. For the native executable path used in
+this chapter, file-scope initialization becomes callable generated code
+queued to run before `main`. An automatic local's initialization stays
+inline where the declaration executes. In both cases the Forth compiler
+is emitting the stores; the resulting C program executes them later.
+The object-output path introduced in the following chapters has its own
+static-data construction and must not be inferred from this queue.
+
+On a first pass, follow field placement, object allocation, and the
+initializer's destination through that example. Return to the declarator
+context machinery when you need to explain how a nested type preserves
+its enclosing declaration. The checkpoint checks the initialized contents
+and size sum when `main` runs; the queue trace explains how the static
+objects received their values before that point.
 
 The declaration walker needs deep stack access, maximum selection, and record copying without tying those operations to a particular C type (`forth-bootstrap/cc/115-cc-native.fth:1`):
 
@@ -31,9 +54,19 @@ The declaration walker needs deep stack access, maximum selection, and record co
 
 ## Keep each declaration in its own context
 
-A nested declaration must not overwrite the enclosing name or dimensions. `cc-nctx` selects the current declaration context, whose accessors return field addresses.
+Consider an outer record with a `long` followed by an inner record. The
+outer parser has already accumulated eight bytes when it starts reading
+the inner members. The inner parser needs its own running size, current
+name, base type and array bounds. Reusing the outer cells would make the
+inner fields look like additional outer fields and lose the unfinished
+outer declaration.
 
-The address map keeps declarator state together while allowing recursive callers to switch contexts (`forth-bootstrap/cc/115-cc-native.fth:15`):
+`cc-nctx` makes that suspended state explicit: save its pointer, select a
+fresh context for the nested declaration, then restore the pointer before
+placing the completed inner object. The descriptor is the durable result;
+the context is the workspace used to obtain it. Their lifetimes differ.
+The address map groups that workspace so switching contexts restores all
+of the enclosing facts together (`forth-bootstrap/cc/115-cc-native.fth:15`):
 
 ```forth file=cc/115-cc-native.fth
 
@@ -724,7 +757,7 @@ A tentative object that gains an initializer must redirect existing address fixu
 
 ```
 
-The initial initializer handles scalar values and reserves hooks for richer initialization (`forth-bootstrap/cc/115-cc-native.fth:536`):
+The first initializer handles scalar values and reserves hooks for strings and aggregates (`forth-bootstrap/cc/115-cc-native.fth:536`):
 
 ```forth file=cc/115-cc-native.fth
 : cc-native-init-noop ;
@@ -1601,7 +1634,7 @@ The runtime installer keeps the supported syscall list separate from the conditi
 
 ## Try it
 
-Run this from the `forth-bootstrap` checkout root at `./forth-bootstrap`, with the seed already built. The full loader includes the later extension layers. Its final line invokes the core entry, so `sed` removes that invocation while keeping its definitions; the small `storage-main` below selects the native program path. The load order and final-entry placement are specified in `forth-bootstrap/cc/compiler-layers.sh:2`. Compilation artifacts live in a `mktemp -d` directory, and the resulting program runs there. Do not run concurrently with another user of `/tmp/cc-out`. A checked move saves any existing output before compilation; cleanup restores it or reports the retained backup path if restoration fails.
+Run from the `forth-bootstrap` checkout root with the seed already built. The full loader includes the later extension layers. Its final line invokes the core entry, so `sed` removes that invocation while keeping its definitions; the small `storage-main` below selects the native program path. The load order and final-entry placement are specified in `forth-bootstrap/cc/compiler-layers.sh:2`. Compilation artifacts live in a `mktemp -d` directory, and the resulting program runs there. Do not run concurrently with another user of `/tmp/cc-out`. A checked move saves any existing output before compilation; cleanup restores it or reports the retained backup path if restoration fails.
 
 <!-- tryit: expect "compiler exit: 0\nLP64\nprogram exit: 40" -->
 ```sh
@@ -1683,7 +1716,7 @@ The printed bytes come from the initialized character array. The exit sum combin
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-39-object-layout-and-initializer-timing).
 
-**Trace — easy.** Follow `cc-nadd-field` for `struct Item` in the checkpoint. Explain why the `long` member does not immediately follow the `char`, and where the final record extent is rounded.
+**Trace (easy).** Follow `cc-nadd-field` for `struct Item` in the checkpoint. Explain why the `long` member does not immediately follow the `char`, and where the final record extent is rounded.
 
-**Verify — medium.** Move `label` and `item` inside `main`, keeping their initializers. Predict whether the output and exit sum change. Run the modified checkpoint, then explain which initialization code stays inline instead of entering `cc-ni-queue`.
+**Verify (moderate).** Move `label` and `item` inside `main`, keeping their initializers. Predict whether the output and exit sum change. Run the modified checkpoint, then explain which initialization code stays inline instead of entering `cc-ni-queue`.
 

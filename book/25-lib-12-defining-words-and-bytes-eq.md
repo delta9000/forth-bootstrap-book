@@ -95,7 +95,7 @@ wrapper in `forth-bootstrap/forth/010-lib.fth:399` supplies it:
 ```
 
 `variable counter` delegates name reading to `create`, then appends a zero
-cell at the returned word's data address. Executing `counter` supplies an
+cell at the new word's data address. Executing `counter` supplies an
 address for either fetching or storing; it does not fetch the current
 value. The checkpoint first checks the initial zero, then stores and
 reads back a character.
@@ -258,8 +258,7 @@ scratch-buffer contents. The composition in
 
 `create name-a s, maple` gives `name-a` a data area containing `maple`.
 Here “names as data” means raw bytes whose count the caller tracks.
-Despite the index label “Counted names as data,” `s,` stores neither a
-length prefix nor a terminator. A later comparison must receive the
+`s,` stores neither a length prefix nor a terminator. A later comparison must receive the
 length separately. Whitespace separates tokens, so this word is not a
 reader for quoted strings containing spaces.
 
@@ -378,12 +377,12 @@ the token length recovered from `maple`.
 
 ## Exercise
 
-**Trace — easy.** Follow `name-a name-c [lit] 5 bytes-eq` from the
+**Trace (easy).** Follow `name-a name-c [lit] 5 bytes-eq` from the
 checkpoint. At the mismatch, write down the data stack and the saved
 count. Explain which item the emitted return would use as its destination
 if `r> drop` were omitted.
 
-**Modify — medium.** Change `mapXe` to `Xaple`, then to `maplX`.
+**Modify (moderate).** Change `mapXe` to `Xaple`, then to `maplX`.
 Predict which flags change and how far each comparison reads, then run
 the checkpoint to check the flags.
 

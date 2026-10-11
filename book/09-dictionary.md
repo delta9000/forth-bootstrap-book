@@ -20,11 +20,19 @@ BE 02 40 00 00 00 00 00                   ; link  = 0x4002BE (syscall6)
 
 The link occupies a cell. The flags byte is at offset 8, the name-length byte at offset 9, and the name starts at offset 10. Here the name length is 4. The instructions start immediately after `find`'s name; there is no separate code-pointer field.
 
-That address is the **execution token**, abbreviated **xt**. For a header at address `h` with name length `n`, its execution token is `h + 10 + n`. A header address identifies the metadata; an execution token identifies the instructions. Confusing them would make the processor execute a link as machine code.
+That address is the **execution token**, abbreviated **xt**. For a header at address `h` with name length `n`, its execution token is `h + 10 + n`. Here the header is at `0x4002F5`, so the four-byte name puts the code at `0x400303`. These are two addresses for the same word, with different uses: inspect the header for metadata; enter the code to run it. Confusing them would make the processor execute a link as machine code.
 
 ## `find_code`: compare, follow, return
 
 `find` consumes `( c-addr u )`, the address and length of a name, and returns an execution token or zero. It compares lengths before touching the name bytes. `u` arrives in `rdi`, with `c-addr` underneath it.
+
+Trace a search for `find` itself before following the registers. Any
+entry whose name has a different length can be skipped immediately.
+A four-byte name still needs four byte comparisons: a mismatch at any
+position sends the search to the older link. At `find`'s own header,
+the comparisons consume `f`, `i`, `n`, and `d`. The pointer has now
+crossed the name and reached the code at `0x400303`. Successful comparison
+therefore computes the execution token as part of its ordinary work.
 
 A length mismatch rules out an entry without comparing bytes. `find_code` loads the chain head and checks each candidate length (`forth-bootstrap/seed/000-seed.hex0:325`).
 
@@ -66,7 +74,7 @@ EB E8                                     ; jmp .bcmp  (rel8 = 0x32C - 0x344)
 
 A differing byte takes the same `.skip` path as a differing length. When the count reaches zero, `r8` has crossed the entire name and points directly at the code. No terminating NUL byte is needed or compared.
 
-Newest-first lookup has three exits: return the code address, follow an older link, or report a miss (`forth-bootstrap/seed/000-seed.hex0:351`).
+The search has three paths: return the code address, follow an older link, or report a miss (`forth-bootstrap/seed/000-seed.hex0:351`).
 
 ```hex0 chunk=find
 ;; .hit:
@@ -83,8 +91,6 @@ C3                                        ; ret
 ```
 
 On a hit, `LAST_FOUND` retains the header address while the stack receives the execution token. Those addresses serve different purposes: the header gives access to flags, and the execution token can be executed. On a miss, `find` returns zero and leaves `LAST_FOUND` unchanged; a caller must not treat that old header as a new match.
-
-Trace a search for `find` itself. Entries with other lengths take `.skip`. At its own header, the byte loop compares `f`, `i`, `n`, and `d`; its final `r8` points past the `d`, at `find_code`. A same-length name differing at any position still takes `.skip` and continues toward older entries.
 
 ## `here_code` and `comma_code`: append a cell
 
@@ -155,7 +161,7 @@ The final instruction is an indirect tail jump. It leaves the caller's return ad
 
 The reader's path is **skip whitespace → collect bytes → recognize comments → return the token**. `read_word` is an internal routine, not a named dictionary entry. Its `( -- c-addr u )` result fits `find`'s input exactly. The address refers to the shared token buffer from Chapter 5, so reading another token overwrites the old bytes.
 
-Leading whitespace contributes no token bytes. `read_word` clears its length and skips it (`forth-bootstrap/seed/000-seed.hex0:398`).
+Leading whitespace contributes no token bytes. `read_word` resets the token length, then skips that whitespace (`forth-bootstrap/seed/000-seed.hex0:398`).
 
 ```hex0 chunk=read-word
 ;; ----- read_word @ 0x3C1  ( -- c-addr u ) next token from stdin; u = 0 at EOF -----
@@ -174,7 +180,7 @@ E8 6E 00 00 00                            ; call read_char  (rel32 = 0x436 - 0x3
 74 4F                                     ; jz .done  (rel8 = 0x41D - 0x3CE)      ; EOF before a token: u = 0
 ```
 
-The helper `read_char` returns a byte in `rdx` and a whitespace verdict in the zero flag. An immediate `je` uses that verdict. The separate `test edx, edx` detects end of input; before any token bytes, it leads to a zero-length result.
+The helper `read_char` returns a byte in `rdx` and a whitespace verdict in the zero flag. The following `je` uses that verdict. The separate `test edx, edx` detects end of input; before any token bytes, it leads to a zero-length result.
 
 `rbx` holds the length across helper calls. That length also survives a failed lookup for use in error reporting.
 
@@ -415,6 +421,6 @@ HHHH
 
 ## Exercises
 
-- **Trace — easy.** Trace a lookup with a matching length but a different final byte. Which registers still identify the original input when `.skip` follows the next link?
-- **Trace — easy.** Compare the inputs `' (skipped` and `' ( skipped ) dup`. Which name does tick pass to lookup in each case, and which result is safe to pass to `execute`?
-- **Trace — medium.** In the checkpoint's allocation command, track the saved address through `,` and `@`. Why does the store change `HERE` without adding a searchable word?
+- **Trace (easy).** Trace a lookup with a matching length but a different final byte. Which registers still identify the original input when `.skip` follows the next link?
+- **Trace (easy).** Compare the inputs `' (skipped` and `' ( skipped ) dup`. Which name does tick pass to lookup in each case, and which result is safe to pass to `execute`?
+- **Trace (moderate).** In the checkpoint's allocation command, track the saved address through `,` and `@`. Why does the store change `HERE` without adding a searchable word?

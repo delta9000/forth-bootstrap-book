@@ -5,6 +5,25 @@ the address of its unfinished destination cell on the data stack lets
 library words build that conditional without a new parser rule. The same
 mechanism gives us loops and early returns inside colon definitions.
 
+The checkpoint will define
+`: choose if, [char] T emit else, [char] F emit then, ;`.
+Its caller supplies a flag: nonzero prints `T`, zero prints `F`.
+Before reading the emitters, identify the two jumps this behavior needs:
+
+```text
+test flag ──zero──> false arm ──> following code
+    │                               ↑
+ nonzero                            │
+    └──> true arm ──jump past false──┘
+```
+
+During compilation, `if,` knows where to put the first jump but cannot
+yet know where the false arm starts. At `else,`, that start becomes
+known, while the end of the whole conditional is still ahead. At
+`then,`, the second destination finally becomes known. We need a way
+to carry each unfinished obligation until the source reaches its
+destination. The data stack already gives us one.
+
 ## `branch-xt` and `0branch-xt`: a load-time snapshot
 
 The code has a repeated shape: emit a call to a branch primitive, then
@@ -384,12 +403,12 @@ performs its decrement before testing for zero.
 
 ## Exercise
 
-**Trace — easy.** Follow the compile-time marks in `leave-down` from
+**Trace (easy).** Follow the compile-time marks in `leave-down` from
 `begin,` to `again,`. Identify which address is a destination and which
 is a slot. Explain why executing `exit,` during compilation cannot remove
 either mark, even though the generated return leaves the loop at runtime.
 
-**Modify — medium.** Change `choose` so the true arm contains another
+**Modify (moderate).** Change `choose` so the true arm contains another
 conditional. Draw the order of its fixups before running it, then supply
 flags that exercise every arm. Give each arm a distinct output character
 and check that every path consumes the flags it uses.

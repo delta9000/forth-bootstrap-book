@@ -248,7 +248,7 @@ expected status from 1 to 0 too.
 
 [Return to the exercises](36-statements-if-while-for-return.md#exercise).
 
-**Hint.** `continue` targets the loop's step, while `break` targets the
+**Hint.** In this `for` loop, `continue` targets the step, while `break` targets the
 nearest enclosing breakable construct. A jump can bypass saved-state cleanup.
 
 <details>
@@ -393,9 +393,8 @@ The inner call returns 42. With base=14 the outer result is
 `14+1+2+3+4+5+6+42=77`. Its seven earlier argument cells must survive the
 inner call's staging and outgoing block. The live-save protocol protects
 that span in frame storage and restores it afterward. Update output labels
-and expected status to 77. A result alone is
-weaker evidence than a trace
-that explains why those seven cells cannot be overwritten.
+and expected status to 77. Explain why those seven cells survive; the
+returned value alone does not show which mechanism preserved them.
 
 </details>
 
@@ -471,8 +470,7 @@ are valid; equality with 2 would not distinguish these two implementations.
 **45.2.** Use `1 ? sizeof(long)*3+(1<<4) : 1/0` for the initializer.
 The selected value remains 40; the other probes remain 29 and 0. The wrap
 probe returns success zero after checking its typed result internally. Skip
-state
-causes the dead binary division to bypass evaluation while its syntax is
+state causes the dead binary division to bypass evaluation while its syntax is
 still parsed. Changing the condition to 0 selects division, reaches the
 zero-divisor check and predicts error 124; the compile step should stop
 before linking/running. This tests integer binary evaluation. It does not
@@ -530,11 +528,12 @@ odd, making q+1 even; an already even q stays. A carry can then require
 an exponent adjustment. This is nearest-even rounding from exact division.
 
 **47.2.** The decimal ending in `03125` is exactly `1+2^-53`, halfway
-between 1 and `1+2^-52`. The even significand is 1, encoded
-`0x3ff0000000000000`, decimal 4607182418800017408. Change the C bit comparison
+between 1 and `1+2^-52`. Unity has integer significand `2^52`, which is
+even, so the rounded value is 1.0, encoded as `0x3ff0000000000000`,
+decimal 4607182418800017408. Change the C bit comparison
 and printed/expected bit-pattern labels to that encoding. The comparison
-still returns Boolean 1, so its numeric shell guard remains 1; the other
-probes remain 30 and 1.
+still returns Boolean 1, so its numeric shell guard remains 1. The addition,
+comparison and unsigned-rounding probes remain 30, 1 and 1 respectively.
 
 </details>
 
@@ -584,13 +583,15 @@ answer. Original stays `{20,30}` and answer becomes `{23,32}`. No hidden
 MEMORY-result pointer is needed for this Pair. Temporary frame slot numbers
 are implementation choices, not fixed ABI offsets.
 
-**49.2.** Add five ordinary integer arguments before Pair in the prototype,
-definition and call. They consume GP0–4, leaving one register. Pair needs
-two, so the entire record travels on the stack and GP count remains 5.
-A following integer can therefore use R9; delta still uses XMM0. Use/check
-the new scalar so its transport is observable, and keep both translation
-units' signatures identical. Six preceding integers also spill Pair, but
-leave no register for the following scalar and test a different boundary.
+**49.2.** Removing `e` leaves four leading integers in RDI, RSI, RDX, and
+RCX. Pair now fits entirely in the two remaining GP registers, R8 and R9.
+The following `tail` has no GP register left, so it travels on the stack.
+The sum changes from 72 to 67: `1 + 2 + 3 + 4 + 20 + 30 + 7`.
+Remove `e` from the definition's checks and addition, remove its parameter
+from both signatures, and remove `5` from the call before changing the
+expected result. With five leading integers, the pair did not consume
+the last register because it could not fit there in full; removing one
+integer makes the pair consume two registers and pushes the tail out.
 Two sides compiled by this compiler check self-consistency; an independent
 host-compiled peer in both directions would test interoperability more strongly.
 
@@ -614,14 +615,15 @@ head, generated object-add commands and an archive tail. Link children
 receive Forth layers and a link driver. Those streams contain Forth only;
 referenced object bytes are data loaded by commands, not appended C source.
 
-Eager start.o adds its unresolved main reference before archive search.
-If startup is placed only in a lazy archive, the linker does not extract
-it merely because an entry will later be wanted. In the supplied tool links,
-the ordinary program object already defines main, so the visible failure
-can be a missing `_start`, not unresolved main. With main itself in an
-archive, startup's eager demand is also what selects its member. A sound
-answer names the unresolved set at each visit rather than saying only that
-order matters.
+Adding `start.o` directly introduces its reference to `main`.
+The supplied tool object satisfies that reference before archive search.
+If startup appears only in the archive, nothing requests `_start`, so
+the linker leaves its member unselected. Recording `_start` as the entry
+name does not create an unresolved reference; the final entry lookup can
+therefore fail even though the tool object defines `main`. In a different
+link where `main` itself lives in an archive, adding startup directly also
+creates the demand that selects `main`'s member. Track the unresolved
+names at each archive visit to distinguish these cases.
 
 </details>
 
@@ -775,7 +777,7 @@ command-line data, an optional external initrd, and identity mappings while
 retaining the direct map needed by its current stack. The final jump disables
 interrupts, replaces CR3, clears EBP/EDI and jumps to `load+0x200` with RSI
 pointing to boot parameters. That is the transfer of control; subsequent
-Linux output evidences successor execution. An embedded initramfs belongs
+Linux output shows that the successor executed. An embedded initramfs belongs
 to the kernel image, so the absence of optional `/boot/initrd.cpio` does
 not remove the embedded init.
 

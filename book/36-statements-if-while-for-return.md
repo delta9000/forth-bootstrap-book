@@ -1,10 +1,58 @@
 # Chapter 36 — Statements and control flow
 
-A `for` loop that skips an item with `continue` and stops early with `break` needs different destinations for those jumps. The statement parser records pending branches until their enclosing construct supplies a target. The result is `cc-parse-stmt`, which turns blocks, conditionals, loops, switches, and named jumps into executable control flow.
+The expression compiler chooses the order of calculations. Statements
+choose whether a calculation happens and whether it happens again. The
+instruction emitters already supply jumps; now the parser must decide
+where those jumps should land.
+
+## Follow a loop before compiling it
+
+Read the checkpoint's loop in ordinary C notation:
+
+```c
+sum = 0;
+for (i = 0; i < 8; i = i + 1) {
+    if (i == 2) continue;
+    if (i == 5) break;
+    sum = sum + i;
+}
+```
+
+On paper, the loop adds 0, 1, 3, and 4, for a sum of 8. The skipped 2
+still needs its increment: if `continue` went straight to the condition,
+`i` would stay 2 forever. The `break` at 5 must instead bypass the step
+and the condition. These are different jump destinations even though
+both statements stop executing the current body.
+
+There is a second ordering problem for the compiler. The source puts the
+step before the body; the executable needs it afterward. Because this
+compiler emits instructions as it parses, it must deliberately visit the
+source in a different order.
+
+| Compiler visit | What is emitted | What remains to remember |
+|---|---|---|
+| Parse initialization, then condition | Initialization followed by the loop test and a forward exit branch | Test address and the exit field to patch |
+| Scan past the step | No step instructions yet | The source positions delimiting the step |
+| Parse the body | Body instructions, including pending break/continue branches | The lexer position after the body |
+| Rewind and parse the step | Step instructions after the body; continue branches target their start | Restore the lexer position after the body |
+| Finish the loop | Backward jump to the test; patch the exit and break fields | Restore the enclosing loop and scope state |
+
+This table traces the source algorithm below, not a second execution of
+the loop. Runtime never rewinds the lexer: it follows the already emitted
+jumps. Restoring the lexer is just as important as the rewind. Without
+it, the compiler would resume reading near the loop header instead of at
+the statement following the loop. A `continue` targets the emitted step;
+a `break` targets the first instruction after the loop.
+
+Both problems use the same tools: remember a location when it is known,
+or leave a fixup when it is not. We will start with `if`, which needs one
+forward destination, then grow that technique into nested loops and
+switches. Each loop keeps its own pending jumps and patches them as their
+destinations become known.
 
 ## The forward reference, compound blocks, and `if`
 
-The dispatcher selects a parser from the leading token; parsers with bodies call the dispatcher again. `cc-parse-stmt-fwd` closes that recursive circuit after the handlers have been defined (`forth-bootstrap/cc/112-cc-stmt.fth:1`):
+The dispatcher selects a parser from the leading token; parsers with bodies call the dispatcher again. `cc-parse-stmt-fwd` connects those recursive calls to the dispatcher after the handlers have been defined (`forth-bootstrap/cc/112-cc-stmt.fth:1`):
 
 ```forth file=cc/112-cc-stmt.fth
 \ 112-cc-stmt.fth — statement parser for the C-subset compiler.
@@ -473,7 +521,11 @@ Restoring the lexer snapshot resumes parsing after the body. The backward jump r
 
 ```
 
-For `for (i = 0; i < 8; i = i + 1)`, let the body continue when `i == 2`, break when `i == 5`, and otherwise add `i` to a sum initially zero. The continue must reach the increment or the loop repeats the skipped value indefinitely. The break must bypass both the increment and condition. The checkpoint runs this example.
+The opening loop now has all its destinations. Its continue list lands
+at the emitted increment, its break list lands after the loop, and the
+restored lexer points at the next statement. Each saved position belongs
+to one of those jobs; substituting another position can produce valid
+machine code that runs the wrong loop.
 
 ## `do`/`while`
 
@@ -906,7 +958,7 @@ variable cc-label-direct-base
 ;
 ```
 
-`cc-label-direct-workspace` maps storage only when its cached base is empty, then selects disjoint column regions and their common bound. Neither selector migrates live entries or resets `cc-label-count`; function lifecycle handling belongs to Chapter 37 (`forth-bootstrap/cc/112-cc-stmt.fth:671`):
+`cc-label-direct-workspace` maps storage only when its cached base is empty, then selects disjoint column regions and their common bound. Neither selector migrates live entries or resets `cc-label-count`; Chapter 37 resets the count for each function (`forth-bootstrap/cc/112-cc-stmt.fth:671`):
 
 ```forth file=cc/112-cc-stmt.fth
 : cc-label-direct-workspace ( -- )
@@ -1166,7 +1218,7 @@ If lookahead confirms a label, its saved spelling is bound at the current addres
 
 ```
 
-The final dispatch order gives special forms priority over the expression fallback. `return` delegates to the existing `cc-parse-return`; this file supplies its place among the statement heads.
+The final dispatch order gives special forms priority over the expression fallback. A leading `return` token selects the existing `cc-parse-return`, so the dispatcher reuses the return handling from Chapter 35.
 
 | Input → parser |
 |---|
@@ -1290,6 +1342,6 @@ The result exercises compound and expression statements, conditional jumps, the 
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-36-leaving-the-right-construct).
 
-**Trace — easy.** Trace the checkpoint’s continue and break placeholders to their patch sites. Explain why exchanging the destinations would terminate the loop early or fail to leave it at the break.
+**Trace (easy).** Trace the checkpoint’s continue and break placeholders to their patch sites. Explain why exchanging the destinations would terminate the loop early or fail to leave it at the break.
 
-**Modify — medium.** Wrap the continue test in a switch on `i`, using a case for the skipped item. Keep the break test outside the switch. Predict the sum, then rerun the probe and trace which saved register must be restored before continuing.
+**Modify (moderate).** Wrap the continue test in a switch on `i`, using a case for the skipped item. Keep the break test outside the switch. Predict the sum, then rerun the probe and trace which saved register must be restored before continuing.

@@ -4,7 +4,35 @@
 
 ## A value carries its type
 
-The evaluator has a simple shape: parse operands into records, combine them under C types, then return cells to the declaration. A record carries value, type, descriptor, and symbol; an absent symbol means an absolute value, while a present symbol preserves the address addend (Chapter 41). `cc-const-values` is the private pool, `cc-const-cap` bounds it, and `cc-const-used` is its watermark. `cc-const-new` allocates; `cc-const-type`, `cc-const-desc`, and `cc-const-symbol` read fields; `cc-const-cells` unpacks the result (`forth-bootstrap/cc/125-cc-consteval.fth:1`):
+Trace the checkpoint's `(0xffffffffU + 2U) < 2U` by hand in the selected
+LP64 target. The `U` suffixes give the addition two 32-bit unsigned
+operands. The host Forth cell can hold their mathematical sum, but the C
+intermediate value must obey its narrower type:
+
+| Step | Value | Representation |
+|---|---|---|
+| Add before narrowing | `0x100000001` | Working sum in a Forth cell |
+| Normalize the addition | `1` | `unsigned int` |
+| Compare `1 < 2U` | `1` | `int`, the comparison result |
+
+Keeping the wider sum until the final initializer store would make the
+comparison false. The type belongs to every intermediate result, so the
+evaluator must normalize at the addition boundary. Read the conversion
+helpers as part of evaluation, not merely as preparation for a memory store.
+
+A record must therefore carry a type alongside its value. It also carries
+a descriptor for a shaped type and a symbol for an unresolved address.
+For the checkpoint's `&arr[2]`, the compiler can already calculate the
+byte addend `2 * sizeof(int) = 8`; it cannot yet calculate `arr`'s final
+address. The record keeps that symbol and addend together until the
+initializer can request a relocation (Chapter 41). An absent symbol
+instead makes the numeric value absolute.
+
+Every fold consumes records and produces another record; no generated
+machine code runs to calculate the result. The private pool bounds those
+records, and its accessors expose the four fields without confusing the
+record's own Forth address with the value it describes
+(`forth-bootstrap/cc/125-cc-consteval.fth:1`):
 
 ```forth file=cc/125-cc-consteval.fth
 \ 125-cc-consteval.fth — typed LP64 constants for the direct System V target.
@@ -64,7 +92,9 @@ Full-range comparisons need `cc-const-slt` and `cc-const-ult`: when sign bits di
 
 ```
 
-## Floating constants are exact records
+<span id="floating-constants-are-exact-records"></span>
+
+## Floating constants retain their encodings
 
 Floating values reserve the same record shape. `cc-const-float?` recognizes them only for the System V target; `cc-const-sign` locates their sign bit. A binary floating value carries encoded bits, while an extended value carries an encoding address. `cc-fp-decimal-fwd`, `cc-fp-integer-fwd`, `cc-fp-resize-fwd`, `cc-fp-arith-fwd`, and `cc-fp-truncate-fwd` reserve decimal parsing, integer conversion, resizing, arithmetic, and truncation; their defaults reject. `cc-f80-new` reserves construction from a significand and sign/exponent. Chapter 47 supplies numeric operations; Chapter 49 connects extended values to runtime storage (`forth-bootstrap/cc/125-cc-consteval.fth:46`):
 
@@ -218,7 +248,7 @@ Casts must preserve the meaning of a symbol. `cc-const-cast` routes numeric conv
 
 ## Validate leaves before combining them
 
-The lexer retains a spelling even if its accumulated value has wrapped. `cc-const-literal-check` validates it before trusting that value: `cc-const-literal-base` selects the radix, `cc-const-literal-value` tracks the checked accumulation, and `cc-const-literal-digit` records whether any digit occurred. Before multiplying, the loop compares the accumulator with the remaining capacity, after subtracting the digit, divided by the base. The suffix parser must accept the entire suffix; trailing identifier characters or a decimal point reject (`forth-bootstrap/cc/125-cc-consteval.fth:170`):
+The lexer retains a spelling even if its accumulated value has wrapped. `cc-const-literal-check` validates it before trusting that value: `cc-const-literal-base` selects the radix, `cc-const-literal-value` tracks the checked accumulation, and `cc-const-literal-digit` records whether any digit occurred. Before multiplying, the loop subtracts the next digit from the maximum value and divides by the base. The accumulator must not exceed that bound. The suffix parser must accept the entire suffix; trailing identifier characters or a decimal point cause rejection (`forth-bootstrap/cc/125-cc-consteval.fth:170`):
 
 ```forth file=cc/125-cc-consteval.fth
 \ The lexer retains the spelling but accumulates modulo2^64. Recheck the
@@ -278,7 +308,7 @@ defer cc-const-conditional-fwd
 
 ```
 
-`cc-const-operand` keeps each leaf typed. Numeric tokens undergo spelling validation, characters and enum members become integer records, and identifier or string callbacks return the object adapter’s cells. After an opening parenthesis, a type name selects a cast; otherwise the conditional parser handles a grouped expression. Array casts reject before the operand is parsed. Both recursive paths return a record rather than emitted target code (`forth-bootstrap/cc/125-cc-consteval.fth:214`):
+`cc-const-operand` keeps each leaf typed. Numeric tokens undergo spelling validation, characters and enum members become integer records, and identifier or string callbacks return the object adapter’s cells. After an opening parenthesis, a type name selects a cast; otherwise the conditional parser handles a grouped expression. Array casts are rejected before the operand is parsed. Both recursive paths return a record rather than emitted target code (`forth-bootstrap/cc/125-cc-consteval.fth:214`):
 
 ```forth file=cc/125-cc-consteval.fth
 : cc-const-operand ( -- record )
@@ -440,7 +470,7 @@ The handlers share converted operands and return a normalized value.
 |---|---|---|
 | Sum or difference | `cc-const-add`, `cc-const-subtract` | Detect signed overflow, then check the destination width. |
 | Product | `cc-const-multiply` | Bound operand magnitudes before multiplying. |
-| Quotient or remainder | `cc-const-divide` | Reject a zero divisor and signed minimum divided by negative unity. |
+| Quotient or remainder | `cc-const-divide` | Reject a zero divisor and signed minimum divided by −1. |
 | Shift | `cc-const-shift` | Validate the count against the promoted left width. |
 
 Machine-cell overflow and narrow-type overflow are different failures. The sign tests cover the former; `cc-const-check-result` catches the latter when normalization would change a signed result. Unsigned results simply normalize (`forth-bootstrap/cc/125-cc-consteval.fth:339`):
@@ -655,7 +685,18 @@ Floating operands first pass through `cc-const-float-operand`, which rejects sym
 
 ## Parse dead arms while suppressing their effects
 
-Under the inherited skip state (Chapter 34), an unused operand still supplies a typed record. `cc-const-logical-and` and `cc-const-logical-or` save `cc-cx-skip`, enable it for an irrelevant right operand, and restore the outer state afterward. Binary arithmetic handlers consult that state before calculating; tokens and operand types still pass through the parser. This is not a blanket promise that every later numeric-conversion diagnostic is suppressed. Each logical result reuses the left record as an `int` (`forth-bootstrap/cc/125-cc-consteval.fth:510`):
+For a manual trace of `0 && (9 / 0)`, separate consuming tokens from
+performing arithmetic. The left zero makes the right operand irrelevant
+to the value, so the parser enables the skip state before visiting the
+parenthesized expression. It still consumes `9`, `/`, `0`, and `)` and
+builds a typed result, but bypasses the division calculation. After
+restoring the prior skip state, the logical operator produces integer
+zero. Replacing the leading zero with one selects the division and
+reaches the zero-divisor check. An unselected operand must still have
+valid syntax; skipping its calculation cannot repair a missing operand
+or closing parenthesis.
+
+Under the inherited skip state (Chapter 34), an unused operand still supplies a typed record. `cc-const-logical-and` and `cc-const-logical-or` save `cc-cx-skip`, enable it for an irrelevant right operand, and restore the outer state afterward. Binary arithmetic handlers consult that state before calculating; tokens and operand types still pass through the parser. Skipping arithmetic does not suppress every later numeric-conversion diagnostic. Each logical result reuses the left record as an `int` (`forth-bootstrap/cc/125-cc-consteval.fth:510`):
 
 ```forth file=cc/125-cc-consteval.fth
 : cc-const-logical-and ( -- record )
@@ -871,6 +912,6 @@ The wrap probe checks both the stored value and `before_store`. The latter store
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-45-typed-intermediate-values-and-dead-arms).
 
-**Trace — easy.** Follow `wrapped` through literal validation, common-type conversion, addition, and `cc-const-check-result`. Explain why delaying normalization until the final store would break a comparison of the sum with `2U`.
+**Trace (easy).** Follow `wrapped` through literal validation, common-type conversion, addition, and `cc-const-check-result`. Explain why delaying normalization until the final store would break a comparison of the sum with `2U`.
 
-**Verify — moderate.** Change `x` to select between its current initializer and an unselected division by zero. Run the checkpoint, then reverse the condition. Identify the word that suppresses arithmetic in the first run and the check that rejects the second.
+**Verify (moderate).** Change `x` to select between its current initializer and an unselected division by zero. Run the checkpoint, then reverse the condition. Identify the word that suppresses arithmetic in the first run and the check that rejects the second.

@@ -3,8 +3,8 @@
 `open`, `read`, `write`, `close`, and `die` give Linux operations names
 and argument lists a Forth caller can use directly. Calling them through
 the generic bridge still requires unused argument slots and a syscall
-number; each wrapper supplies those details. The result is a small I/O
-interface that leaves success counts and raw errors on the caller's stack.
+number; each wrapper supplies those details. The returning wrappers leave
+the kernel's result directly on the caller's stack.
 
 ## A sidebar on the syscall ABI
 
@@ -76,7 +76,7 @@ count. Direction is the only difference in the pad-and-call bodies in
 ```
 
 Both callers push `fd buf count`. `read` fills the buffer; `write`
-consumes bytes from it. Each appends three padding zeros. The final
+copies bytes from it. Each appends three padding zeros. The final
 literal selects `read` with `0` or `write` with `1`.
 
 On success, `n` is the number of bytes actually transferred. It can be
@@ -164,7 +164,7 @@ would print `X`; its absence checks that execution stopped.
 
 ## Exercise
 
-**Trace — easy.** Start with `saved fd` and trace `close` through its
+**Trace (easy).** Start with `saved fd` and trace `close` through its
 padding and syscall number. Show the stack just before `syscall6` and
 just after it returns. Which value survives beneath the result? Explain
 what would go wrong if the wrapper omitted a padding zero.

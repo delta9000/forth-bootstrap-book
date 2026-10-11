@@ -1,9 +1,11 @@
 # Chapter 3 — Where this fits: routes and history
 
-A source bootstrap inherits tools and branches into onward routes.
-Trace those dependencies to place its seed among the surrounding projects.
-That gives you a way to distinguish this book's current route from the older
-seed-forth routes you may encounter in project history.
+The checkout contains two executables with very different jobs:
+`hex0-seed` assembles hexadecimal, and `seed-forth` is the Forth it builds.
+The first arrives as an inherited binary; the second has just been built
+from the source in front of us. That distinction gives us a way to read
+the project's dependencies and its history without losing track of what
+actually builds what.
 
 ## The projects around the seed
 
@@ -30,7 +32,7 @@ The connection to stage0-posix is visible before the C compiler enters the
 picture. The seed build script selects its vendored AMD64 `hex0-seed` by
 default, then gives it `seed/000-seed.hex0` as input and `seed-forth` as output
 (`forth-bootstrap/seed/build.sh:14`, `forth-bootstrap/seed/build.sh:27`).
-The upstream seed is the assembler; the Forth executable from Chapter 2 is
+The inherited binary is the assembler; the Forth executable from Chapter 2 is
 its product. They occupy different places in the dependency chain.
 
 ## How the route changed
@@ -94,7 +96,7 @@ Observed output:
 
 ## Exercise
 
-**Verify — easy.** Use the source citations above to identify which project
+**Verify (easy).** Use the source citations above to identify which project
 supplied the executable that assembles the Forth seed. Then read the checkpoint
 output: which file is the inherited executable, and which is the product?
 Explain why adding their byte counts does not measure all the source a reader

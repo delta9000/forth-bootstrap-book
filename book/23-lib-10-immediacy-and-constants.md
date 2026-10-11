@@ -5,11 +5,26 @@ choosing what runs during definition and what becomes the new word's body.
 The library makes that choice explicit with `immediate`, native-code emitters,
 and `constant`, then uses them to compile character literals.
 
+There are three moments to keep apart. This table is a reading model
+for the definitions below:
+
+| Moment | What runs | What it leaves behind |
+|---|---|---|
+| Load the library's definition of `constant` | The seed's colon compiler | A word that knows how to construct another word |
+| Read `[lit] 90 constant zed` | That constructor | A dictionary entry and machine-code body for `zed` |
+| Call `zed` | The newly generated body | The value 90 on the data stack |
+
+The middle step is the new ability. The value arrives on the stack;
+the name comes from the remaining input; the constructor turns both into
+a callable dictionary entry. The generated body needs to preserve the
+old top, push 90, and return. We will build its fixed instruction bytes
+and its value field separately.
+
 ## The IMMEDIATE flag: `immediate`
 
 The flags address is `latest @` plus the header's flags offset
-(Chapter 9). The library exposes that address through a marking word in
-`forth-bootstrap/forth/010-lib.fth:180`:
+(Chapter 9). The marking word at `forth-bootstrap/forth/010-lib.fth:180`
+uses that address:
 
 ```forth file=forth/010-lib.fth
 \ ===== immediate flag toggle =====
@@ -107,19 +122,16 @@ emission from naming:
 the waiting value, and restores interpret mode with `[lit] 0 state !`.
 No `here-addr` adjustment is needed: the emitters advance HERE themselves.
 
-While the library defines
-`constant`, the inner `:` becomes a call in its body. The final `;`
-closes `constant` itself. Later, executing `[lit] 90 constant zed` makes that
-stored call to `:` read `zed` from the input. Execution continues through
-`push-body,` even though STATE has changed: STATE governs the outer token
-loop, not instructions already running inside `constant`.
+Here is the subtle part of the middle row in the opening table. Calling
+the stored `:` reads `zed` and changes STATE, but execution continues
+through the rest of `constant`. STATE governs the outer token loop;
+it does not interrupt instructions already running inside a word.
 
-Putting another `;` in the source body would close the outer definition
-while loading the library. Instead, `ret,` supplies the new word's return
-instruction and the explicit store restores STATE. Executing `zed` then
-runs the generated body; using `zed` inside a colon definition compiles a
-call to that body. The constant is an ordinary word, not an immediate word
-that substitutes its value during compilation.
+The constructor must therefore finish the new body itself. `ret,`
+writes its return, and the explicit store restores STATE. Writing `;`
+directly in the constructor's source would have closed `constant` while the
+library was loading. The completed `zed` is an ordinary word: using it
+inside another definition compiles a call to its body.
 
 ## `call,`: emit a call from Forth
 
@@ -142,7 +154,7 @@ the opcode store in `forth-bootstrap/forth/010-lib.fth:224`:
 ```
 
 The input is an absolute execution address. After emitting `232` (`E8`),
-HERE points at the displacement field. `here 4 +` therefore identifies
+HERE points at the displacement field. Adding four therefore identifies
 the end of the call, and subtraction leaves `target - end` for `,4`.
 The result is a five-byte CALL. Adding five at this point would count the
 opcode twice and make the destination wrong.
@@ -188,7 +200,7 @@ compiled. The token-buffer accessor and reader in
 
 `tib` locates the buffer relative to `state`. `char` uses tick for its
 input-reading effect and discards the lookup result, so the spelling need
-not name an existing word. It reads only the token's first byte:
+not name an existing word. It returns only the token's first byte:
 `char Z` and `char Zebra` both produce the character `Z`.
 
 The immediate wrapper connects that byte to code emission in
@@ -268,7 +280,7 @@ from the embedded value `65`.
 
 ## Exercise
 
-**Trace — easy.** Follow `: semi [char] ; emit ;` token by token.
+**Trace (easy).** Follow `: semi [char] ; emit ;` token by token.
 Which word reads each semicolon? Track the character value and the
 execution token through `[char]`'s body, and explain why neither remains
 on the compilation-time data stack.

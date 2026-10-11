@@ -1,6 +1,14 @@
 # Chapter 44 — Target headers
 
-A target macro contract lets headers select declarations from predefined macros. The compiler publishes its target identity and a bounded ANSI declaration policy; a C probe checks those promises.
+The runtime's `stddef.h` declares `size_t` as `unsigned long`. That spelling
+only helps if the compiler gives it the width and calling behavior the
+runtime expects. Other headers choose entire declaration branches from
+macros such as `__STDC__` and `__LP64__`. The compiler must identify the
+environment it can actually provide before those headers are scanned.
+
+This small layer publishes that identity. Its checkpoint tests both halves
+of the agreement: the macro replacements themselves and the corresponding
+object sizes. A successful parse alone would test neither.
 
 ## Names describe the selected target
 
@@ -17,7 +25,7 @@ The stored names map to this advertised interface. Values come from the installe
 | `cc-target-name-amd64` | `__x86_64__` → `1` | Advertise AMD64. |
 | `cc-target-name-lp64` | `__LP64__` → `1` | Advertise the LP64 data model. |
 
-These are stored spellings, not switches that implement the named features. The names occupy the opening of `forth-bootstrap/cc/124-cc-target.fth:1`:
+The macro names describe capabilities; defining them does not implement those capabilities. Their stored spellings begin the source file (`forth-bootstrap/cc/124-cc-target.fth:1`):
 
 ```forth file=cc/124-cc-target.fth
 \ 124-cc-target.fth -- explicit predefined macros for the SysV C90-oriented mode.
@@ -38,7 +46,7 @@ The LP64 promise rests on the storage model already implemented (Chapter 39). Th
 
 `cc-preprocess` clears the macro table before calling the target hook, then scans the source (`forth-bootstrap/cc/040-cc-prep.fth:2308`). Installing entries there avoids injecting synthetic source lines.
 
-`cc-target-predefines` gates the policy on `cc-target-sysv`; its final binding makes the preprocessor call this installer (`forth-bootstrap/cc/124-cc-target.fth:11`):
+`cc-target-predefines` installs these definitions only when `cc-target-sysv` is enabled; its final binding connects the installer to the preprocessor (`forth-bootstrap/cc/124-cc-target.fth:11`):
 
 ```forth file=cc/124-cc-target.fth
 : cc-target-predefines
@@ -68,7 +76,7 @@ A build that needs a particular function or extension must still test that facil
 
 ## Try it
 
-Run from the `forth-bootstrap` checkout root at `./forth-bootstrap`, with the seed already built. The full loader includes later extension definitions; this probe uses only preprocessing, integer sizes, and the System V program entry taught so far. The loader places the executing main last (`forth-bootstrap/cc/compiler-layers.sh:2`), so `sed` removes that invocation before appending `target-main`.
+Run from the `forth-bootstrap` checkout root with the seed already built. The full loader includes later extension definitions; this probe uses only preprocessing, integer sizes, and the System V program entry taught so far. The loader places the executing main last (`forth-bootstrap/cc/compiler-layers.sh:2`), so `sed` removes that invocation before appending `target-main`.
 
 `cc-sysv-enable` selects the target before preprocessing; `cc-sysv-program` emits the executable's entry and translation unit (`forth-bootstrap/cc/121-cc-sysv.fth:1339`). The temporary directory holds the generated inputs and executable, and the exit trap restores any saved `/tmp/cc-out`. Do not run concurrently with another user of that fixed path. Backup failure stops the checkpoint before compilation; restoration failure retains and reports the saved output instead of deleting it.
 
@@ -164,4 +172,4 @@ target contract exit: 0
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-44-defined-is-different-from-true).
 
-**Trace — easy.** Follow `cc-target-name-hosted` from its stored spelling to its `cc-macro-add` call. Why would replacing `#if __STDC_HOSTED__` with `#ifdef __STDC_HOSTED__` select a different branch? Identify the checkpoint condition that distinguishes absence from a false value.
+**Trace (easy).** Follow `cc-target-name-hosted` from its stored spelling to its `cc-macro-add` call. Why would replacing `#if __STDC_HOSTED__` with `#ifdef __STDC_HOSTED__` select a different branch? Identify the checkpoint condition that distinguishes absence from a false value.

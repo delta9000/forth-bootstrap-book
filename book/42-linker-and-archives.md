@@ -1,10 +1,25 @@
 # Chapter 42 — Linker and archives
 
-A Forth linker turns `caller.o` and `add.o` into an executable without the host linker. It chooses definitions, places their sections, and repairs references; an archive supplies definitions only when demanded. The resulting executable contains only the archive members needed to satisfy its references.
+A Forth linker turns `caller.o` and `add.o` into an executable without the host linker. It chooses definitions, places their sections, and repairs references. From an archive, it selects members that satisfy unresolved names rather than including every member.
 
 ## The public boundary
 
-The shape is `lnk-init` → add inputs → `lnk-entry` → `lnk-link`. Object addition registers names immediately; final linking assigns addresses. The header fixes the accepted object format (Chapter 40) and the resource policy.
+The call sequence is `lnk-init` → add inputs → `lnk-entry` → `lnk-link`. Object addition registers names immediately; final linking assigns addresses. The header fixes the accepted object format (Chapter 40) and the resource limits.
+
+The checkpoint gives that sequence a purpose. Adding `start.o` creates a
+demand for `main`; adding `caller.o` supplies `main` and creates a demand
+for `add`. Adding `add.o` supplies the last definition directly. Visiting
+an archive instead searches for a member that supplies the current demand.
+Only after these choices can the linker place the selected sections and
+repair the calls between them. Finding a definition and assigning its
+final address are separate steps.
+
+Read the chapter with those questions in mind: which objects enter the
+link, which definition wins, where do its bytes go, and what value belongs
+in each relocation field? The archive implementation sits between name
+registration and placement because selecting a member can introduce more
+objects and more unresolved names. The final checkpoint compares direct
+addition with this demand-driven selection using the same C functions.
 
 The limits bound allocation and alignment; `lnk-base-address` supplies the image’s virtual base (`forth-bootstrap/cc/140-cc-link.fth:1`):
 
@@ -81,12 +96,12 @@ variable lnk-input-count
 
 ## Validate before dereferencing
 
-These small helpers give wire fields and object records a common vocabulary:
+These helpers read the ELF fields and locate the corresponding internal records:
 
 | Input | Result or operation |
 |---|---|
 | failed predicate / excessive size | `lnk-need`, `lnk-bad`, `lnk-cap`, `lnk-nonnegative` reject it |
-| wire address / value and address | `lnk-u16`, `lnk-u32` read; `lnk-w16`, `lnk-w32` write |
+| field address / value and address | `lnk-u16`, `lnk-u32` read; `lnk-w16`, `lnk-w32` write |
 | allocation size | `lnk-map` returns owned, zeroed storage |
 | record index or offset | `lnk-object`, `lnk-field`, `lnk-section`, `lnk-place`, `lnk-symbol` locate it |
 | symbol address | `lnk-binding`, `lnk-shndx` extract classification |
@@ -172,7 +187,7 @@ create lnk-stat-buffer  [lit] 144 allot
   lnk-size @ lnk-map lnk-op @ !
 ```
 
-Read completion and the object-header minimum (`forth-bootstrap/cc/140-cc-link.fth:106`):
+The read loop completes the input before the header check requires its minimum size (`forth-bootstrap/cc/140-cc-link.fth:106`):
 
 ```forth file=cc/140-cc-link.fth
   [lit] 0 lnk-done !
@@ -407,7 +422,7 @@ variable lnk-hslot
   again, ;
 ```
 
-`lnk-register` upgrades undefined weak demand to strong, prefers definitions over references and strong definitions over weak. First weak wins; duplicate strong definitions fail. `lnk-choose` updates symbol and owner together (`forth-bootstrap/cc/140-cc-link.fth:288`):
+`lnk-register` upgrades an undefined weak reference when a strong reference arrives. It prefers definitions over references and strong definitions over weak ones. The first weak definition wins; duplicate strong definitions fail. `lnk-choose` updates symbol and owner together (`forth-bootstrap/cc/140-cc-link.fth:288`):
 
 ```forth file=cc/140-cc-link.fth
 variable lnk-slot
@@ -954,7 +969,7 @@ variable arc-name-kind
 
 ## Turn the index into linker demand
 
-`arc-parse-index` translates wire header offsets into member indexes, using `arc-found` as a member index plus one. Names must terminate before `arc-index-end`; `arc-index-cursor` consumes them in order. A nonempty member collection requires an index.
+`arc-parse-index` translates stored header offsets into member indexes, using `arc-found` as a member index plus one. Names must terminate before `arc-index-end`; `arc-index-cursor` consumes them in order. A nonempty member collection requires an index.
 
 (`forth-bootstrap/cc/141-archive.fth:326`):
 
@@ -1029,7 +1044,25 @@ Bounded name records and trailing padding (`forth-bootstrap/cc/141-archive.fth:3
 
 ```
 
-The index proposes a member; the linker table decides whether it is needed. `arc-member-needed` looks for a currently undefined strong name. `lnk-add-archive` registers selected members and rescans while `arc-changed` is true. Their new references can demand earlier members.
+An archive visit can create work for a member it has already passed.
+Suppose the member order is `helper.o`, then `add.o`; the current unresolved
+name is `add`, and `add.o` itself calls `helper`. Let `helper.o` define
+`helper` without introducing another reference. This manual selection trace
+explains why one scan is insufficient:
+
+| Visit | Decision | Remaining strong demand |
+|---|---|---|
+| First pass: `helper.o` | No caller needs it yet; leave it out | `add` |
+| First pass: `add.o` | Select it; register its definition and references | `helper` |
+| Second pass: `helper.o` | Select it to satisfy the new reference | none |
+| Next pass | No unselected member is needed | Stop |
+
+The index proposes candidates; the linker's current name table decides
+which candidate is needed. `arc-member-needed` tests strong unresolved
+names. `lnk-add-archive` marks a selected member, registers it once, and
+repeats while a pass makes progress. The pass that selects nothing is the
+termination test. This rescan is local to the current archive: a new
+ordinary object added afterward does not reopen a previously visited one.
 
 (`forth-bootstrap/cc/141-archive.fth:384`):
 
@@ -1073,7 +1106,7 @@ The index proposes a member; the linker table decides whether it is needed. `arc
 
 With `caller.o` registered, `add` is undefined and strong. The first indexed `add.o` supplies it; the duplicate stays unselected.
 
-A weak undefined name alone extracts nothing. A weak definition can satisfy strong demand, leaving an unneeded strong member untouched. Selection validates that member’s object metadata; unused payloads remain uninterpreted. Later inputs do not automatically revisit an earlier archive.
+A weak undefined name alone extracts nothing. A weak definition can satisfy strong demand, leaving an unneeded strong member untouched. Selection validates that member’s object metadata; unused payloads remain uninterpreted.
 
 ## Place bytes and zero-filled memory
 
@@ -1179,7 +1212,27 @@ The requested entry must name a definition inside text; `lnk-find-entry` saves i
 
 ## Apply checked relocations
 
-The relocation arithmetic consumes the records already emitted by the object writer. Here `S` is the resolved symbol, `A` its addend, and `P` the placed field address:
+Return to the four-byte call field from Chapter 40. The linker uses the
+symbol's final address `S`, the relocation's explicit addend `A`, and the
+address of the field's first byte `P`. For the supported PC-relative
+forms, it writes `S + A - P`
+(`forth-bootstrap/cc/140-cc-link.fth:484–488`).
+
+For a manual example, place the call opcode at `0x401000` and its target
+at `0x401020`. The field starts at `P=0x401001`, while the CPU resumes
+after the field at `0x401005`. With `A=-4`, the linker obtains
+`0x401020 - 4 - 0x401001 = 0x1B`. The CPU adds that 27-byte displacement
+to `0x401005` and reaches the intended target. Thus the relocation's
+place is the field's start, and the addend accounts for the CPU's use of
+its end. Subtracting four again would jump four bytes short.
+
+Before continuing, move only the target to `0x401030`. The displacement
+must increase to `0x2B`; the place and addend stay fixed. This is the same
+emit-then-patch idea as the earlier branch emitter, with the symbol's
+location now supplied by another object. The code below also checks that
+the resulting value fits the relocation's field before writing it.
+
+The supported relocation kinds use those same three quantities:
 
 | Kind | Assignment |
 |---|---|
@@ -1409,9 +1462,9 @@ Atomic publication follows the object writer (Chapter 40). This linker additiona
 
 ## Try it
 
-Run from the `forth-bootstrap` checkout root with the seed already built. The compilation loop is unchanged from the preceding checkpoint. A small entry object supplies `call main; mov edi,eax; mov eax,60; syscall` using the existing object writer. The linker requires an explicit entry; choosing `main` itself would leave its return without a caller.
+Run from the `forth-bootstrap` checkout root with the seed already built. As in the preceding checkpoint, each C translation unit is compiled separately. A small entry object supplies `call main; mov edi,eax; mov eax,60; syscall` using the existing object writer. The linker requires an explicit entry; choosing `main` itself would leave its return without a caller.
 
-All generated files use a `mktemp -d` directory. The archive deliberately contains `add.o` twice. After adding the entry and caller, the archive path asserts that only one member joined them; extracting both would cause a duplicate strong definition.
+All generated files use a `mktemp -d` directory. The archive deliberately contains `add.o` twice. After adding the entry and caller, the archive version checks that only one member joined them; extracting both would cause a duplicate strong definition.
 
 <!-- tryit: expect "direct link returned 42\narchive link returned 42" -->
 ```sh
@@ -1506,5 +1559,5 @@ archive link returned 42
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-42-archive-demand-is-time-dependent).
 
-**Trace — easy.** Reverse the caller and archive additions. Explain which name is unresolved and why a second archive occurrence would repair the link.
+**Trace (easy).** Reverse the caller and archive additions. Explain which name is unresolved and why a second archive occurrence would repair the link.
 

@@ -1,6 +1,6 @@
 # Chapter 19 — Character classification
 
-Is the byte `5` a digit, and is `/` just below the digit range?
+Is the character `5` a digit, and is `/` just below the digit range?
 Answering those questions needs a character predicate; subtracting a range's
 base and testing its unsigned quotient supplies one without a branch.
 The resulting words classify digits, letters, and whitespace for the input
@@ -9,7 +9,7 @@ parsers built later.
 ## The range-check trick: `digit?`
 
 The skeleton is **subtract the base → divide by the range size → test for
-zero**. Use unsigned `/`, `*`, `0=`, and canonical flags (Chapter 7),
+zero**. Use unsigned `/`, `0=`, and canonical flags (Chapter 7),
 with contracts collected in
 [Chapter 13](13-primitive-reference.md#the-table).
 The range-check trick uses `/` and `0=` with Chapter 17's subtraction.
@@ -192,7 +192,7 @@ vertical tab, form feed, and `X`.
 
 ## Exercise
 
-**Trace — easy.** Trace `space?` on a tab, retaining the saved character
+**Trace (easy).** Trace `space?` on a tab, retaining the saved character
 and accumulated flag at each step. If the final `swap` were replaced by
 `over`, which extra value would remain beneath the result? Explain why
 the printed classification alone would miss that stack error.

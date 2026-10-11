@@ -28,11 +28,28 @@ separately.
 - The opening paragraph starts from something concrete: a byte sequence,
   a short program, a question. It states the new idea and the result the
   reader gains.
-- The first section shows the shape of the code. Later sections grow it in
-  fragments of about 5–30 lines, each with one job and one citation.
+- Establish a worked mental model before the implementation needs it:
+  follow one expression, allocation, call, or artifact through the mechanism.
+  Name the state each step must preserve and explain the consequence of
+  losing it. Let that example determine the order of the explanation.
+- Grow the implementation in fragments of about 5–30 lines, each with one
+  job and one citation. A caption should explain the need or a consequential
+  choice; avoid translating each code line into a sentence.
+- Source order and reading order can differ. Independent named chunks may
+  move while their assembly recipe preserves the compiled order; successive
+  fragments of the same `file=` or `chunk=` must retain their byte order.
+  Verify reconstruction after every rearrangement.
+- Keep the central mechanism visible. Supporting encodings, extension hooks,
+  and repeated cases may use an expandable implementation section with a
+  specific summary. Teach its interface before the fold. All source remains
+  present; links must reveal their destinations, and printing must include
+  the complete manuscript.
 - A concept already taught is recalled in one clause, as "(Chapter N)", at
   most once per chapter. Chapter numbers have no leading zeros.
 - A chapter ends with `## Try it`, the checkpoint, then `## Exercise`.
+- Label exercises consistently as `Trace`, `Verify`, `Modify` or `Extend`,
+  followed by the difficulty: for example, `**Trace (easy).**`.
+  Use `easy`, `moderate` or `hard` for difficulty.
 - A checkpoint names its prerequisites and comparison. Distinguish newly
   observed output, output from a recorded run, and a manual prediction. A
   command outside the seed-example harness (a long build, pinned archives,
@@ -59,7 +76,8 @@ is not a substitute for explaining its mechanism.
 
 `./check.sh`, run from the repository root, must pass before publication.
 CI runs the same checks on every pull request, builds with mdBook 0.5.4 and
-checks the rendered links. Only `main` deploys.
+checks the rendered links. The authoring checks require Python 3.11 or
+newer, including the packaging regression fixtures. Only `main` deploys.
 
 | Check | What it verifies |
 |---|---|
@@ -70,6 +88,15 @@ checks the rendered links. Only `main` deploys.
 | `tools/gen-index.py --check` | Published name/concept targets exist and the [word index](WORD-INDEX.md) matches the generator |
 | `tools/check-links.py` | Published local Markdown links and derived anchors resolve; external URLs are not fetched |
 | `tools/check-links.py --html docs` after `mdbook build` | Published rendered pages exist and linked fragments are present in their actual HTML |
+
+The reader's [lab companion](labs.md) uses `tools/book-lab.py` to list,
+show, or run one published shell block. Selectors count tagged shell
+fences in chapter order, including excluded ones. Run the affected lab
+after changing a checkpoint. A successful run checks shell status and,
+when present, explicit UTF-8 `tryit: expect` metadata; other transcript
+comparisons remain manual. The runner preserves each block's shell
+semantics and runs without isolation. Long builds and context-dependent
+blocks remain excluded.
 
 `./check.sh --static` runs regression, source-coverage, citation-bounds,
 index and Markdown-link checks without executing the seed. It explicitly
@@ -106,6 +133,38 @@ and `book/34-direct-tinycc.md` are retired and excluded from
 `SUMMARY.md`. They are source-history material, not current authoring
 instructions or learner-validation evidence. This page applies to the
 published edition.
+
+## The reading edition
+
+`theme/reader.css` supplies screen and print typography.
+`theme/reader.js` adds source captions and chapter navigation without
+changing copied code or source anchors. The manuscript remains readable
+without JavaScript. Keep these asset names distinct from mdBook's reserved
+theme filenames, especially `book.js`, which would replace its core
+search and navigation script.
+
+After changes to the reading interface, inspect a long source chapter at
+desktop and phone widths, in light and dark themes. Open the in-chapter
+contents, follow a checkpoint link, try search, and check print styling.
+Code and wide tables may scroll within their own regions; the page itself
+must not require horizontal scrolling.
+
+Build and check the rendered edition before packaging it:
+
+```sh
+mdbook build
+python3 tools/check-links.py --html docs
+python3 tools/package-book.py
+```
+
+The packager requires Python 3.11 or newer. The resulting
+`dist/forth-bootstrap-book.zip` is an offline reading copy.
+Its manifest records the source revision and working-tree content so an
+uncommitted manuscript is not presented as an exact committed release.
+Only published pages and required assets belong in that package; scratch
+bundles and editorial working files do not. Packaging does not rerun the
+compiler or kernel builds, and its hashes establish artifact identity,
+not the correctness of the book's technical claims.
 
 
 ## Evidence to preserve for long runs

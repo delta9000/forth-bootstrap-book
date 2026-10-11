@@ -278,11 +278,11 @@ in the [word index](WORD-INDEX.md).
 
 ### Appendix references
 
-- Historical reproducibility and diverse double-compiling — [Chapter 57](57-historical-reproducibility.md).
-- Worked source-reading exercises — [Chapter 58](58-worked-exercises.md).
-- Forth, compiler, and bootstrap reading — [Chapter 59](59-further-reading.md).
-- Supported C language and ABI boundaries — [Chapter 60](60-c-subset.md).
-- Compiler diagnostics and exit codes — [Chapter 61](61-error-codes.md).
+- Historical reproducibility and diverse double-compiling — [Appendix C](57-historical-reproducibility.md).
+- Worked source-reading exercises — [Appendix D](58-worked-exercises.md).
+- Forth, compiler, and bootstrap reading — [Appendix E](59-further-reading.md).
+- Supported C language and ABI boundaries — [Appendix F](60-c-subset.md).
+- Compiler diagnostics and exit codes — [Appendix G](61-error-codes.md).
 - Exercise hints and feedback — [Appendix H](66-exercise-feedback.md).
 
 ## Capability checks at the transitions

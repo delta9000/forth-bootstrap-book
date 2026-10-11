@@ -4,7 +4,9 @@ A reproducibility result belongs to a particular route, input set and comparison
 
 ## What forth-bootstrap checks today
 
-The quick-check entry point is `check-all.sh`. Its header names the checks, their prerequisites and the longer runs that require an explicit opt-in (`forth-bootstrap/check-all.sh:4`). The useful shape is a set of separate claims, rather than a single promise that everything has been reproduced:
+The quick-check entry point is `check-all.sh`. Its header names the checks,
+their prerequisites and the longer runs that require an explicit opt-in
+(`forth-bootstrap/check-all.sh:4`). Each check supports a specific claim:
 
 | Check | What it tests | Source |
 |---|---|---|
@@ -64,7 +66,12 @@ For the historical M2-Planet route, HISTORY records `bootstrap.sh` reaching v2 =
 
 Diverse double-compiling asks whether differently rooted compiler lineages can compile the same source through comparable rebuilds and reach the same result. The diversity matters because a self-consistent rebuild alone can preserve a defect inherited from its starting compiler. Agreement becomes stronger evidence when the routes do not inherit the same compiler machinery.
 
-The historical handoff provides a related, narrower record: the Forth-fed stage0-posix recipes reproduced the published answer binaries (`forth-bootstrap/HISTORY.md:31`). That statement establishes the reported answer agreement. It does not document which tools were shared between independent rebuilds, or provide the detailed lineage comparison needed to assess a diverse double-compiling argument. This appendix therefore retains the question, without importing the old appendix's proof as a current result.
+The historical handoff provides a related, narrower record: the Forth-fed
+stage0-posix recipes reproduced the published answer binaries
+(`forth-bootstrap/HISTORY.md:31`). That record establishes the reported
+agreement. It does not document which tools the rebuilds shared, or
+provide the detailed lineage comparison needed to assess a diverse
+double-compiling argument.
 
 Stage A also uses different compiler origins, but its actual comparison is emitted M1 on M2-Planet's self-compilation input. Its header explicitly excludes the subsequent M2-Planet self-hosting stages (`forth-bootstrap/tests/cc/stage-a-check.sh:7`; `forth-bootstrap/tests/cc/stage-a-check.sh:12`). Read the comparison that the script performs, rather than inferring a larger proof from the presence of a reference compiler.
 

@@ -60,7 +60,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Little-endian** — Multi-byte values are stored least significant byte first. [Chapter 4](04-x86-64-and-two-stacks.md).
 
-**Loadable segment** — A program-header entry giving file-backed bytes, zero-filled storage, the load address and permissions. [Chapter 5](05-elf-and-entry.md).
+**Loadable segment** — A region an ELF loader maps into memory. Its program-header entry specifies file-backed bytes, zero-filled storage, the load address and permissions. [Chapter 5](05-elf-and-entry.md).
 
 **ModR/M** — See **ModRM**. [Chapter 4](04-x86-64-and-two-stacks.md).
 
@@ -74,7 +74,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **rel32** — A signed displacement added to the address immediately after the instruction. [Chapter 4](04-x86-64-and-two-stacks.md).
 
-**REPL dispatch** — Look up a token, then IMMEDIATE and STATE choose execution or call compilation; a miss reports token? and continues. [Chapter 12](12-repl.md).
+**REPL dispatch** — Look up a token, then use the word's IMMEDIATE flag and the interpreter's STATE to choose execution or call compilation. A miss reports `token?` and continues. [Chapter 12](12-repl.md).
 
 **Return stack** — The stack `rsp` addresses: hardware return addresses, and data a routine saves there explicitly. [Chapter 4](04-x86-64-and-two-stacks.md).
 
@@ -234,7 +234,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Constant expressions** — Evaluate expression syntax at compile time, suppressing arithmetic in unselected arms. [Chapter 34](34-expressions-part-2.md).
 
-**Constant pool watermark** — Temporary allocations are released after each public parse. [Chapter 45](45-typed-constants.md).
+**Constant pool watermark** — A saved allocation position to which the constant pool returns after a public parse, releasing temporary records. [Chapter 45](45-typed-constants.md).
 
 **Declarator-local pointer depth** — Each name adds its own stars to the inherited pointer depth. [Chapter 35](35-declarations-types-globals.md).
 
@@ -266,7 +266,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Forward-call fixup list** — Arena nodes of patch offset plus old head; walked to patch every call site once the target exists. [Chapter 32](32-codegen-part-2.md).
 
-**Frame pointer** — The register anchoring local addresses in generated C functions; the seed uses the same register for its data stack. [Chapter 31](31-elf-and-codegen-part-1.md).
+**Frame pointer** — The register, `rbp`, anchoring local addresses in generated C functions. The seed uses that register for its data stack while running Forth. [Chapter 31](31-elf-and-codegen-part-1.md).
 
 **Frameless adapter** — A machine-code leaf that keeps the stack layout its contract requires. [Chapter 43](43-runtime-and-libc.md).
 
@@ -316,7 +316,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **LP64 native object storage** — Object widths and alignment decide native storage placement and record layout. [Chapter 39](39-lp64-storage-and-initializers.md).
 
-**Lvalue** — An operand designating storage becomes a value only through a delayed read. [Chapter 34](34-expressions-part-2.md).
+**Lvalue** — An expression designating an object. The compiler retains its location until an operation requires either the stored value or the address as a destination. [Chapter 34](34-expressions-part-2.md).
 
 **Lvalue tracking** — Expression metadata keeps storage location, type, qualifiers and array shape. [Chapter 34](34-expressions-part-2.md).
 
@@ -448,7 +448,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Archive pin agreement** — Agreement between stage-specific source digests and the central input manifest. [Chapter 53](53-sealed-run.md).
 
-**Compiler census** — The configured Makefile names the cc1 objects; seed-cc compiles and links each one. [Chapter 52](52-gcc-4-fixed-point.md).
+**Compiler census** — A build that asks the configured Makefile which objects belong to `cc1`, compiles those objects with seed-cc, and optionally links them into `cc1`. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Compiler climb** — Successive chain-built compilers supply the language and target support needed to build Linux. [Chapter 55](55-linux-and-kexec.md).
 
@@ -460,7 +460,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Direct recipes** — The first Makefiles run commands without a shell interpreting them. [Chapter 51](51-owning-the-tools.md).
 
-**Embedded initramfs** — The static init from chain/ladder/init.c travels inside bzImage. [Chapter 55](55-linux-and-kexec.md).
+**Embedded initramfs** — An initial filesystem archive carried inside the kernel image. Here it supplies the static `/init` program and a console device node. [Chapter 55](55-linux-and-kexec.md).
 
 **Executable publication** — The host grants seed-forth's execute bit between entries; it supplies no program bytes. [Chapter 53](53-sealed-run.md).
 
@@ -504,7 +504,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Seed-only driver construction** — The seed alone builds seed-cc and seed-ar by fork/exec of ./seed-forth on assembled Forth input streams. [Chapter 50](50-seed-cc-fixed-point.md).
 
-**Source generator** — A build-time program whose output is compiled later; built by seed-cc rather than shipped. [Chapter 52](52-gcc-4-fixed-point.md).
+**Source generator** — A program that runs during the build and produces source to be compiled in a later step. In the initial GCC build, seed-cc builds these generators. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Sysroot** — The directory tree holding the target headers and libraries the compiler's output uses. [Chapter 52](52-gcc-4-fixed-point.md).
 

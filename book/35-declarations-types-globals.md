@@ -1,6 +1,32 @@
 # Chapter 35 — Declarations and storage
 
-`(char)321 == 65` asks the compiler to interpret a type inside an expression. Recognizing that type requires the declaration grammar: base types, pointer modifiers, and names that denote types. This layer turns declarations into storage reservations and supplies the type parser that makes the cast work.
+The expression parser can read a local slot or follow a pointer. Someone
+must decide which name denotes that slot and whether its contents are a
+pointer in the first place. A declaration makes those decisions before
+the name is used.
+
+## Separate the type, the storage, and the initializer
+
+Trace `int *p, n;` with no locals allocated yet. The base is `int` for
+both names. Parsing `p` adds one pointer level and reserves slot 0;
+parsing `n` starts again from the shared base, adds no stars, and reserves
+slot 1. The core frame places those objects at `[rbp-8]` and `[rbp-16]`.
+Both consume one slot, but their types remain different: the address held
+in `p` may later be dereferenced, while `n` is an integer value. Neither
+declarator has an initializer, so reserving its slot does not put a known
+value there. This is a source-derived trace of the core parser developed below.
+
+Now read `int *p, *q;` on paper. The second star belongs to `q`; it does
+not increase `p`'s depth. Both names have depth one. Keep these three
+questions separate as the parser grows: what type did we recognize,
+where does the object live, and what code, if any, initializes it?
+
+These are three separate responsibilities. Recognizing a type tells the
+expression parser how to use the object; reserving storage gives the
+object a home; an initializer, when present, supplies its first value. Keeping them
+separate also lets us read a type without declaring an object. The cast
+`(char)321`, used in the checkpoint, needs type parsing but no new name
+or local slot.
 
 ## File header and bookkeeping
 
@@ -199,7 +225,7 @@ variable cc-type-name-qualified
 
 ## Storage prefixes
 
-Prefix scanning records declaration policy before choosing a declarator. A qualifier set, storage-class flags, and a storage-class count serve different consumers; accepting a spelling does not by itself allocate storage.
+Prefix scanning records declaration policy before choosing a declarator. Qualifier bits, storage-class flags, and a storage-class count record different properties; accepting a spelling does not by itself allocate storage.
 
 The scratch cells distinguish `static`, `extern`, and the number of storage-class keywords, despite the older comment calling the rest no-ops (`forth-bootstrap/cc/110-cc-decl.fth:142`):
 
@@ -318,7 +344,7 @@ variable cc-sd-build-field-desc                   \ pointee desc for struct-ptr 
 
 ```
 
-A by-value declaration needs a known layout, so `cc-lookup-struct-tag` rejects a missing name or a symbol of the wrong kind (`forth-bootstrap/cc/110-cc-decl.fth:235`):
+Declaring a struct object requires a known layout, so `cc-lookup-struct-tag` rejects a missing name or a symbol of the wrong kind (`forth-bootstrap/cc/110-cc-decl.fth:235`):
 
 ```forth file=cc/110-cc-decl.fth
 \ cc-parse-struct-def ( -- )  Called with the 'struct' keyword ALREADY consumed
@@ -599,7 +625,10 @@ The name receives an `sk-local` row with a pointer-to-function type and a frame 
 
 ## Local declarators and storage
 
-A declaration’s base type is shared across its comma-separated names, but each name supplies its own pointer stars and array suffix. Storage follows the resulting declarator: automatic objects claim frame slots, while static locals use the global storage machinery (Chapter 32) under a locally scoped name.
+We can now implement `int *p, n;`. The shared base is already known;
+this helper parses one name's stars and suffix before reserving storage.
+Automatic objects claim frame slots. Static locals instead use the global
+storage machinery (Chapter 32), while their names remain locally scoped.
 
 `cc-decl-base` holds the shared base. `cc-parse-local-declarator` adds explicit stars to the depth inherited from a typedef, saves the name, and reads the suffix that decides between array and scalar storage (`forth-bootstrap/cc/110-cc-decl.fth:462`):
 
@@ -832,7 +861,7 @@ Keyword combinations establish the base before trailing qualifiers and stars com
 
 ## Cast policy and conversion
 
-Keep the decisions separate: whether a cast is allowed, which instructions convert its value, and whether it retains null-constant provenance. The defaults below make those boundaries explicit.
+Keep the decisions separate: whether a cast is allowed, which instructions convert its value, and whether it retains null-constant status. The defaults below make those boundaries explicit.
 
 | Input → result | Default and hook |
 |---|---|
@@ -1086,7 +1115,7 @@ The final adapter, `cc-native-sizeof-type`, returns a parsed type together with 
 
 ## Try it
 
-Run from the `forth-bootstrap` checkout root with the seed built in Part 1. This driver loads through `cc/110-cc-decl.fth`, compiles the opening expression into an ELF image, and executes it from a fresh temporary directory. The comparison happens inside the generated program: returning the cast value alone would hide a missing conversion because process exit status keeps only its low byte.
+Run from the `forth-bootstrap` checkout root with the seed built in Part 1. This driver loads through `cc/110-cc-decl.fth`, compiles `(char)321 == 65` into an ELF image, and executes it from a fresh temporary directory. The comparison happens inside the generated program: returning the cast value alone would hide a missing conversion because process exit status keeps only its low byte.
 
 <!-- tryit: expect "driver exit: 0\n(char)321 == 65: 1 (exit status)" -->
 ```sh
@@ -1135,7 +1164,7 @@ This exercises type recognition, type-name parsing, the cast hook, and the core 
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-35-descriptor-identity-and-observable-casts).
 
-**Trace — easy.** Follow `struct T { struct T *next; };` through tag registration and field append. Explain why the field keeps a descriptor that becomes complete, while a pointer to an unknown tag keeps zero.
+**Trace (easy).** Follow `struct T { struct T *next; };` through tag registration and field append. Explain why the field keeps a descriptor that becomes complete, while a pointer to an unknown tag keeps zero.
 
-**Verify — easy.** Change the checkpoint expression to `(char)321 == 321` and update its printed label. Run it and explain why testing equality exposes the cast’s effect while returning the cast value directly would not.
+**Verify (easy).** Change the checkpoint expression to `(char)321 == 321` and update its printed label. Run it and explain why testing equality exposes the cast’s effect while returning the cast value directly would not.
 

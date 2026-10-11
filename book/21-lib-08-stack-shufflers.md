@@ -1,10 +1,12 @@
 # Chapter 21 — Stack shufflers
 
-`nip`, `rot`, `2dup`, and `2drop` give names to common operand rearrangements.
-Composing existing words gives a vocabulary for keeping a
-result, rotating operands, copying a pair, and discarding a pair.
+Suppose a buffer's address and length are on the stack, and you now push
+the output descriptor. You have `addr count fd`, but `write` needs
+`fd addr count`. All three values are correct; their positions are wrong.
 
-The skeleton is the set of effects the bodies must produce:
+Stack shufflers adapt one word's results to another word's inputs.
+`nip`, `rot`, `2dup`, and `2drop` give names to four arrangements we
+will need repeatedly:
 
 | Word | Stack effect |
 |---|---|
@@ -96,14 +98,32 @@ in the order they become exposed:
 
 ```
 
-| Step | Data stack |
-|---|---|
-| entry | `a b` |
-| first `drop` | `a` |
-| second `drop` | empty |
+The first `drop` consumes `b`; the second consumes the newly exposed `a`.
+Anything beneath that pair survives. A caller can now say “discard this
+address and length” without tracing the two drops again.
 
-Here “empty” refers to the displayed operands; anything below them survives.
-The name lets a caller express “discard this pair” as a single operation.
+## Use the vocabulary at an interface
+
+Return to the output problem. Trace two rotations on paper before the
+call to `write` from Chapter 18:
+
+| Step | Stack |
+|---|---|
+| Buffer and descriptor ready | `addr count fd` |
+| First `rot` | `count fd addr` |
+| Second `rot` | `fd addr count` |
+| `write` returns | `written-or-error` |
+
+No bytes moved in the buffer. Only the values describing the operation
+changed places. A single `swap` would exchange the top two operands and
+still leave the descriptor in the wrong position.
+
+If the caller needs the original buffer pair afterward, apply `2dup`
+to `addr count` *before* pushing the descriptor. The same two rotations
+and `write` consume the copied operands, leaving
+`addr count written-or-error`. That is a useful way to design a short
+Forth body: write the next word's required inputs, then account for
+which values must survive its call.
 
 ## Try it
 
@@ -140,5 +160,5 @@ leaving `A B` to print as `BA`.
 
 ## Exercise
 
-**Trace — easy.** Starting with `a b c d`, trace `rot nip` one component
+**Trace (easy).** Starting with `a b c d`, trace `rot nip` one component
 word at a time. Which original operands survive, and in what order?
