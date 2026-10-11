@@ -296,6 +296,10 @@ and would test a different program.
 **Hint.** A newer symbol can shadow a prototype without erasing fixup
 nodes already attached to the older row.
 
+For the argument test, make the two positions contribute differently.
+The last argument pushed is the first value popped, but it is not the
+first parameter.
+
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
 
@@ -311,6 +315,23 @@ mean its absolute symbol ID is not a useful fixed answer.
 makes the call find a known body address. It can emit the call immediately
 instead of queuing an unresolved site. The result is still `4+3=7`.
 Same result, different resolution path, is the intended comparison.
+
+**37.3.** With `10*a+b`, predict 34 for `(3,4)` and 43 for `(4,3)`.
+Both stay the same when the definition moves before `main`; only the
+call-resolution path changes. For `(3,4)`, the emitted pushes save 3 then
+4; the pops put 4 in `rsi`, then 3 in `rdi`. The parameter spills give
+`a` the first register's value in slot 0 and `b` the second in slot 1.
+An observable reversal would exchange the two results. Addition would
+return 7 for both orders and hide it.
+
+Record all four compiler/program results and explain why the chosen
+input distinguishes the proposed mistake. The four programs return the
+predicted statuses at this source pin. They cover this scalar two-argument
+path; they neither establish full ABI correctness nor exclude mutually
+cancelling caller/callee mistakes. A wrong result calls for tracing the
+transfer and calculation, rather than immediately blaming one emitter.
+If the order is unclear, sketch the stack with 4 on top before the pops,
+then label each destination register and local slot.
 
 </details>
 
@@ -426,9 +447,12 @@ returned value alone does not show which mechanism preserved them.
 
 ## Chapter 42: archive demand is time-dependent
 
-[Return to the exercise](42-linker-and-archives.md#exercise).
+[Return to the exercises](42-linker-and-archives.md#exercise).
 
 **Hint.** List unresolved strong names at the moment the archive is visited.
+For the relocation trace, locate the first byte after `E8`: that is `P`.
+Apply `S + A - P` with `A=-4` to the call, and `S + 0` to the pointer.
+Change only the quantities the question moves.
 
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
@@ -439,6 +463,21 @@ but the completed archive visit is not automatically repeated. A second
 archive occurrence after caller now selects the member defining add.
 Startup's main reference is satisfied by caller; add is the relevant
 remaining demand. This assumes the checkpoint's other inputs stay fixed.
+
+**42.2.** The opcode is now `0x401010`, so `P=0x401011`.
+The displacement is `0x401020 - 4 - 0x401011 = 0x0B`; the field contains
+`0B 00 00 00`. The CPU continues from `0x401015` and adds 11 to reach
+`0x401020`. The absolute pointer remains `0x401020`, because its target
+did not move. A whole-image move changes both `S` and `P`, cancelling in
+the relative expression, but still changes absolute pointer values.
+Thus one unchanged call does not establish whole-image position independence.
+
+A displacement of `0x1B` incorrectly applies whole-image invariance when
+only the caller moved. `0x0F` loses the addend; subtracting four again
+from `0x0B` applies it twice. Moving the pointer's value by 16 confuses
+its target with the call field. In the second prediction, the target
+becomes `0x401030`: the call displacement returns to `0x1B`, and the
+pointer must now hold `0x401030`. These are manual layout derivations.
 
 </details>
 

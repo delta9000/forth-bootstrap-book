@@ -1267,6 +1267,30 @@ The supported relocation kinds use those same three quantities:
 | `R_X86_64_32` | `S + A`, requiring zero extension |
 | `R_X86_64_32S` | `S + A`, requiring sign extension |
 
+For a different manual prediction, return to the original target at
+`0x401020`. Relink the same objects with the image base raised from
+`0x400000` to `0x600000`, preserving section order and alignment. Both
+the call field and its target move by `0x200000`: `P` becomes `0x601001`
+and `S` becomes `0x601020`. Adding the same amount to both addresses
+cancels in `S + A - P`, so the displacement remains `0x1B`.
+
+An eight-byte pointer to that target in `.data` behaves differently.
+With `R_X86_64_64` and addend zero, its value is `S`:
+
+| Patched field | Base `0x400000` | Base `0x600000` |
+|---|---|---|
+| Call instruction bytes | `E8 1B 00 00 00` | `E8 1B 00 00 00` |
+| Pointer bytes, low address first | `20 10 40 00 00 00 00 00` | `20 10 60 00 00 00 00 00` |
+
+The pointer changes from `0x401020` to `0x601020`, even though the
+relative call does not change. Here the virtual addresses move while
+the section file offsets stay fixed: the linker adds the image base
+when resolving a section-relative symbol
+(`forth-bootstrap/cc/140-cc-link.fth:408–414`). This is a new link at a
+new base. An unchanged call field does not make the complete executable
+position-independent; its absolute pointers and image headers still
+need the new addresses.
+
 Relocation cursors retain type, offset, width, target, patch position, and value. `lnk-signed32?` reconstructs sign extension to test representability without overflowing a signed comparison
 (`forth-bootstrap/cc/140-cc-link.fth:452`):
 
@@ -1591,3 +1615,14 @@ and predict whether the link succeeds. Then predict what changes if the
 archive appears again after the caller. Tie each member-selection decision
 to the demand present at that visit.
 
+**Trace (moderate).** Start again with the call opcode at `0x401000`,
+the target at `0x401020`, and an absolute eight-byte pointer to that
+target with addend zero. In a manual layout variation, move only the
+call instruction 16 bytes forward, leaving the target and pointer slot
+fixed. What are the new `P`, the four displacement bytes, and the stored
+pointer value? Explain why this differs from moving the entire image.
+Does an unchanged relative-call field establish that the whole executable
+is position-independent?
+
+For a second prediction, keep the moved call fixed and move only its
+target another 16 bytes forward. Which fields now change?

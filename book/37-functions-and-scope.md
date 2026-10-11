@@ -169,6 +169,13 @@ Arguments are evaluated left to right and pushed in that order. `cc-emit-pops-fo
 
 ```
 
+Reuse the [distinguishing-test strategy from Chapter 22](22-lib-09-memory-and-cell-writers.md#exercise)
+at this call boundary. A balanced stack is only part of the contract:
+each value must reach its own parameter. With two arguments, the last
+pushed value goes to `rsi` before the first goes to `rdi`. A helper that
+adds its parameters would conceal a swap. Choose a result in which their
+positions matter; the final exercise uses a small decimal tag.
+
 <details>
 <summary>Native call defaults and indirect targets</summary>
 
@@ -1991,3 +1998,22 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-37-resolv
 
 **Modify (moderate).** Move the definition of `add` before `main`, keeping the prototype. Predict which call-emission branch changes, then rerun the checkpoint and compare the exit status.
 
+**Verify (moderate).** In a copy of the checkpoint, replace the single C
+source token with this two-argument helper, keeping the wrapper and its
+compiler-status check:
+
+```forth
+s, int/**/tag(int/**/a,int/**/b);int/**/main(void){return/**/tag(3,4);}int/**/tag(int/**/a,int/**/b){return/**/10*a+b;}
+```
+
+Predict the result by hand, then update the copied expected-output
+annotation and final `program_status` assertion. Run it again with
+`tag(4,3)`. For each pair, move the definition before `main`, retaining
+the prototype, and repeat: four small programs in all. Keep the C source
+as one token for `s,`.
+
+Explain why these inputs can expose an observable argument swap, while
+replacing the helper's body with `return a+b;` cannot. Trace the two
+pushes, the destinations of the two pops, and the parameter spills.
+Does a pass establish the call convention for every program? Name one
+mistake these tests could still miss.
