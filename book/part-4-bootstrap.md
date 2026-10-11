@@ -16,10 +16,12 @@ starts with a host-prepared boot image containing the initial seed;
 Chapter 54 identifies that handoff. The later compilers and tools are
 then built inside the guest from the supplied sources.
 
-Most checkpoints in this Part are long builds. Each one says what it
-needs: pinned archives, bwrap and strace, or QEMU with KVM. Where a run
-is too long to repeat, the chapter shows the output of a recorded run and
-labels it as recorded.
+This Part mixes short tool builds and trace checks with sustained
+bootstrap runs. Chapters 50–51 build small tools; Chapter 53 can check
+pins and a synthetic trace without rebuilding GCC. The full host and
+Linux routes in Chapters 52 and 55 need more time and resources. Each
+checkpoint states its prerequisites, and output from an earlier run is
+labelled as recorded.
 
 - [Chapter 50](50-seed-cc-fixed-point.md) builds `seed-cc` and `seed-ar`,
   the command-line driver and archiver around the Forth compiler, from the

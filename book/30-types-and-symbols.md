@@ -114,9 +114,9 @@ An array node records its element and dimension information separately from the 
 | Input → result | Reader |
 |---|---|
 | node → element type | `cc-ad-type` |
-| node → element aggregate descriptor | `cc-ad-desc` |
+| node → element descriptor (when needed) | `cc-ad-desc` |
 | node → element count | `cc-ad-count` |
-| node → inner array node | `cc-ad-inner` |
+| node → optional second-dimension count | `cc-ad-inner` |
 | node → total storage size | `cc-ad-size` |
 | node → required alignment | `cc-ad-align` |
 | node → element qualifier set | `cc-ad-qualified` |
@@ -136,7 +136,7 @@ An array node records its element and dimension information separately from the 
 
 ```
 
-The inner link preserves nested dimensions. Qualifiers sit beside the type word, so the same base and pointer depth can describe differently qualified elements. An array of `int` stores its element count separately from that type; adding `const` changes qualification, not pointer depth. Chapter 35 builds declarations from these records.
+The inner cell holds a second dimension's count, not another node's address. Chapter 41's System V constructor converts a nonzero inner count into a nested element-array descriptor in `cc-ad-desc` and clears `cc-ad-inner` (`forth-bootstrap/cc/121-cc-sysv.fth:106–114`). Qualifiers sit beside the type word, so the same base and pointer depth can describe differently qualified elements. An array of `int` stores its element count separately from that type; adding `const` changes qualification, not pointer depth. Chapter 35 builds declarations from these records.
 
 For `int w[4];` from the lexer chapter, the four is a count, not part of
 the scalar `int` encoding. A declaration parser will have to retain both
@@ -565,7 +565,7 @@ A field carries both an encoded type and an optional descriptor. For a struct po
 
 ```
 
-Nested-array metadata has a separate extension point. The default reader reports no inner node; the default setter accepts absence and rejects a nonzero node with code 213 (`forth-bootstrap/cc/060-cc-types.fth:333`):
+Nested-array metadata has a separate extension point. The default reader reports no inner bound; the default setter accepts absence and rejects a nonzero bound with code 213 (`forth-bootstrap/cc/060-cc-types.fth:333`):
 
 ```forth file=cc/060-cc-types.fth
 \ Targets may extend field shape without changing legacy/native records.
@@ -780,7 +780,7 @@ Named accessors prevent callers from confusing the meanings of shared columns. H
 | id → kind / type / value | `cc-sym-kind-of`, `cc-sym-type-of`, `cc-sym-val-of` | corresponding column |
 | id → array length | `cc-sym-array-len-of` | `cc-sym-extra` |
 | id → struct descriptor | `cc-sym-struct-desc-of` | legacy extra; LP64 desc |
-| id → inner array node | `cc-sym-array-inner-of` | `cc-sym-inner` |
+| id → optional second-dimension count | `cc-sym-array-inner-of` | `cc-sym-inner` |
 | function id → call-list head cell | `cc-sym-call-fixups` | default extra |
 | function id → address-list head cell | `cc-sym-addr-fixups` | default extra2 |
 | object id → storage size | `cc-sym-object-size-of` | `cc-sym-extra2` |

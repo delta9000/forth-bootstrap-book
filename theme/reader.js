@@ -1,6 +1,16 @@
 /* Progressive enhancements only: the manuscript works without JavaScript. */
 (() => {
     "use strict";
+
+    // mdBook 0.5.4 omits the ID prefix in the search field's description.
+    // Repair only that known reference; leave newer templates untouched.
+    const searchbar = document.getElementById("mdbook-searchbar");
+    const searchResultsHeader = document.getElementById("mdbook-searchresults-header");
+    if (searchbar && searchResultsHeader &&
+        searchbar.getAttribute("aria-describedby") === "searchresults-header") {
+        searchbar.setAttribute("aria-describedby", searchResultsHeader.id);
+    }
+
     const main = document.querySelector("main");
     if (!main) return;
 

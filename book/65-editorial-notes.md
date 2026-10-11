@@ -91,7 +91,10 @@ is not a substitute for explaining its mechanism.
 `./check.sh`, run from the repository root, must pass before publication.
 CI runs the same checks on every pull request, builds with mdBook 0.5.4 and
 checks the rendered links. The authoring checks require Python 3.11 or
-newer, including the packaging regression fixtures. Only `main` deploys.
+newer, including the packaging regression fixtures. When Node.js is
+available, the suite also executes focused reader-interface tests; without
+it, those cases report `SKIP`. They check script behavior, not browser
+layout or screen-reader output. Only `main` deploys.
 
 | Check | What it verifies |
 |---|---|
