@@ -162,3 +162,14 @@ leaving `A B` to print as `BA`.
 
 **Trace (easy).** Starting with `a b c d`, trace `rot nip` one component
 word at a time. Which original operands survive, and in what order?
+
+<details>
+<summary>Self-check: four inputs, two shufflers</summary>
+
+With the top at the right, `rot` acts only on `b c d`:
+`a b c d → a c d b`. Then `nip` removes `d`, leaving `a c b`.
+The original `a` never enters the rotation. With character codes for
+`A B C D`, three `emit` calls consume the result top-first and print
+`BCA`; the printed order is the reverse of the surviving stack order.
+
+</details>

@@ -16,20 +16,23 @@ starts with a host-prepared boot image containing the initial seed;
 Chapter 54 identifies that handoff. The later compilers and tools are
 then built inside the guest from the supplied sources.
 
-Most checkpoints in this Part are long builds. Each one says what it
-needs: pinned archives, bwrap and strace, or QEMU with KVM. Where a run
-is too long to repeat, the chapter shows the output of a recorded run and
-labels it as recorded.
+This Part mixes short tool builds and trace checks with sustained
+bootstrap runs. Chapters 50–51 build small tools; Chapter 53 can check
+pins and a synthetic trace without rebuilding GCC. The full host and
+Linux routes in Chapters 52 and 55 need more time and resources. Each
+checkpoint states its prerequisites, and output from an earlier run is
+labelled as recorded.
 
 - [Chapter 50](50-seed-cc-fixed-point.md) builds `seed-cc` and `seed-ar`,
   the command-line driver and archiver around the Forth compiler, from the
   seed alone.
-- [Chapter 51](51-owning-the-tools.md) uses them to build kaem, make, the
-  parser generators and bash 2.05b, and so owns the tools that run GCC's
-  build.
+- [Chapter 51](51-owning-the-tools.md) uses them to build kaem, the file
+  utilities from mescc-tools-extra, make, the parser generators and bash
+  2.05b, and so owns the tools that run GCC's build.
 - [Chapter 52](52-gcc-4-fixed-point.md) builds binutils and GCC 4.0.4. It
   then rebuilds GCC until the installed files of stages 2, 3 and 4 agree,
-  and builds the late tools with that compiler.
+  and follows the late-tool recipe that the guest route runs with that
+  compiler.
 - [Chapter 53](53-sealed-run.md) audits that run. It starts in a root whose
   only executable is `hex0-seed`, and every `execve` is traced.
 - [Chapter 54](54-k0-and-k1.md) moves the route off the host kernel. QEMU

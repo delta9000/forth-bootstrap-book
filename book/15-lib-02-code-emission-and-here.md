@@ -1,9 +1,10 @@
 # Chapter 15 — Code emission and HERE
 
-`c,` appends an instruction byte and advances the allocation cursor. The key is to separate
-the destination of an emitted byte from the address of the cell that records
-the destination. `here-addr` and `c,` give the library a byte emitter built
-from the seed's memory operations.
+The seed's comma appends an eight-byte cell. A code emitter also needs
+to append a single opcode byte, and a string writer needs the same operation
+for a character. `c,` supplies that one-byte write and advances the
+allocation cursor. To build it, we must separate the destination of the
+byte from the address of the cell that records that destination.
 
 ## The address of the cursor
 
@@ -135,3 +136,28 @@ ABCD
 for a byte `b`, then for a byte `d`. Write the destination of each store
 and the contents of HERE after each call. Explain which store would go
 to the wrong address if the final `here-addr` were replaced with `here`.
+
+<details>
+<summary>Hint: label the cell and the destination separately</summary>
+
+Keep `H` fixed as the address of the HERE cell. Before each call, read
+that cell to find the payload destination. Which address must receive
+the updated pointer for the next call to find it?
+
+</details>
+
+<details>
+<summary>Check both writes</summary>
+
+The first call stores the low byte of `b` at `A`, then stores `A+1`
+in the cell at `H`. The second stores the low byte of `d` at `A+1`,
+then stores `A+2` at `H`.
+
+With the final `here-addr` replaced by `here`, even the first call fails:
+its payload store succeeds, but its final `!` writes the pointer `A+1`
+as an eight-byte cell at `A`. This overwrites the byte just emitted and
+seven following bytes. The cell at `H` still contains `A`, so the next
+call starts at the same destination. The mistake changes both the data
+and the cursor's progress; checking only one would miss half the failure.
+
+</details>

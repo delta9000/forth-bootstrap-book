@@ -1,6 +1,6 @@
-# Inventory of the current book
+# Historical source-migration inventory
 
-Generated from book/*.md and the forth-bootstrap submodule: every chapter, its length, and the source lines its `file=` blocks teach.
+This snapshot records the earlier chapter migration, not current source coverage. Its old filenames and line counts remain inputs to authoring bundles. Current required coverage is in `tools/canonical-sources.txt`; `tools/tangle.sh verify --strict` checks it. The assembler walkthrough has since been retired and no longer owns source fences.
 
 | chapter file | title | lines | file= spans (source lines in root blocks; chunk-assembled files are listed under "Chunks by chapter") |
 |---|---|---|---|
@@ -37,7 +37,7 @@ Generated from book/*.md and the forth-bootstrap submodule: every chapter, its l
 | 30-statements-if-while-for-return.md | Statements: if, while, for, switch, break, continue, goto | 1351 | cc/112-cc-stmt.fth 1-905 |
 | 31-functions-and-scope.md | Functions: parameters, calls, globals, entry stub | 1939 | cc/114-cc-func.fth 1-310; cc/116-cc-prog.fth 1-884 |
 | 32-main-and-bootstrap-chain.md | End to end: main and the bootstrap chain | 535 | cc/120-cc-main.fth 1-40 |
-| 33-the-assembler.md | The assembler: M1 and hex2 in Forth | 1644 | forth/130-asm.fth 1-785 |
+| 33-the-assembler.md | Retired assembler walkthrough; now check-only | — | |
 | 34-direct-tinycc.md | Compiling TinyCC directly | 1526 | cc/115-cc-native.fth 1-647; cc/117-cc-native-program.fth 1-100; cc/118-cc-native-init.fth 1-321; cc/119-cc-native-runtime.fth 1-111 |
 | 35-direct-gcc-objects.md | Relocatable objects | 723 | cc/081-cc-object.fth 1-507 |
 | 36-direct-gcc-calls.md | System V calls | 2491 | cc/121-cc-sysv.fth 1-1359; cc/123-cc-object-program.fth 1-483 |
@@ -104,7 +104,7 @@ Source sizes (forth-bootstrap):
 - cc/140-cc-link.fth: 613 lines, all covered by fences: True
 - cc/141-archive.fth: 413 lines, all covered by fences: True
 - forth/010-lib.fth: 469 lines, all covered by fences: True
-- forth/130-asm.fth: 785 lines, all covered by fences: True
+- forth/130-asm.fth: check-only; no book source reconstruction (see tools/check-only-sources.txt)
 - seed/000-seed.hex0: 689 lines, assembled from chunks (below); tangle --strict proves it complete
 
 ## Chunks by chapter

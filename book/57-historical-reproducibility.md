@@ -2,6 +2,64 @@
 
 A reproducibility result belongs to a particular route, input set and comparison. Forth-bootstrap keeps the direct route to Linux; the earlier project's other routes remain historical evidence (`forth-bootstrap/HISTORY.md:8`). This appendix separates the checks available here from the results retained elsewhere, so a matching artifact has a precise meaning.
 
+## The projects around the seed
+
+The bootstrappable-builds community supplies much of the surrounding work.
+The project's credits name Jeremiah Orians' stage0-posix, mescc-tools,
+M2-Planet and M2libc, alongside live-bootstrap
+(`forth-bootstrap/CREDITS.md:42`). Their connections to this checkout are
+concrete:
+
+| Project | Connection to forth-bootstrap | Source |
+| --- | --- | --- |
+| stage0-posix | Supplies the starting `hex0-seed` binary and the mescc-tools-extra utility sources. | `forth-bootstrap/CREDITS.md:12–13` |
+| mescc-tools | Supplies kaem, the shell source used by the route. | `forth-bootstrap/CREDITS.md:14` |
+| M2-Planet | Supplies the C compiler source used for the Stage A comparison. | `forth-bootstrap/CREDITS.md:15` |
+| live-bootstrap | Supplies patches and much of the ordering followed by the GCC climb. | `forth-bootstrap/CREDITS.md:16–17`, `forth-bootstrap/CREDITS.md:44` |
+
+These are different kinds of dependency. An inherited executable is already
+machine code when the route begins. Inherited source requires a builder.
+A borrowed patch or build order carries knowledge about how to make
+upstream packages work together. Keep those distinctions when reading a claim
+that a project builds “from source.”
+
+## How the route changed
+
+forth-bootstrap began as route D of the older **seed-forth project**, then
+moved into its own repository (`forth-bootstrap/HISTORY.md:3`). Distinguish
+that project name from the executable named `seed-forth`, which remains in
+this checkout (`forth-bootstrap/README.md:16`).
+
+The older project explored several onward routes. Its history records a
+route to self-hosted M2-Planet and a handoff into stage0-posix's recipes;
+it also records direct TinyCC and pnut routes. Those routes stayed in the
+older project when forth-bootstrap split off
+(`forth-bootstrap/HISTORY.md:19–34`). Their reproducibility accounts below are historical records, rather than
+the operating instructions for this checkout.
+
+The current route has a different center: the Forth C compiler leads to
+`seed-cc`, the tools it builds, and GCC. That is the route identified as D
+in the project history (`forth-bootstrap/HISTORY.md:7–10`). The plumbing
+recipe orders the tool-building stages before invoking the GCC chain
+(`forth-bootstrap/chain/plumbing/chain.kaem:12–16`). Chapter 50 follows
+`seed-cc`; Chapter 51 follows those tools; Chapter 52 follows the GCC rebuilds.
+
+What sets this route apart is its middle. After the 229-byte `hex0-seed`
+assembles the Forth seed, a C compiler written in that Forth builds the
+driver, shell and first Unix tools, and those build GCC 4.0.4, then GCC
+10.5.0, then Linux 7.2.8, with no compiler brought in from outside
+(`forth-bootstrap/README.md:3–7`). The project history calls it the route
+that reaches Linux with no other compiler at all
+(`forth-bootstrap/HISTORY.md:7–8`).
+
+M2-Planet still has a role here as a comparison target. Stage A compares
+assembly emitted by a Forth-built M2-Planet with assembly emitted by a
+GCC-built reference on the same M2-Planet source. The script compares those
+outputs, not the compiler executables themselves
+(`forth-bootstrap/tests/cc/stage-a-check.sh:57–76`). Chapter 38 returns to
+that check. Agreement on this input is a bounded result, not a claim about
+every C program.
+
 ## What forth-bootstrap checks today
 
 The quick-check entry point is `check-all.sh`. Its header names the checks,
@@ -79,7 +137,7 @@ Stage A also uses different compiler origins, but its actual comparison is emitt
 
 Byte-identical means that the compared files contain exactly the same bytes. The comparison point matters: Stage A compares emitted M1, rather than the differently built compiler executables (Chapter 38). Its `cmp` rejects a difference in those output files (`forth-bootstrap/tests/cc/stage-a-check.sh:73`). No claim about every possible C input follows from that particular comparison.
 
-The driver rebuild compares the executable files for seed-cc and seed-ar directly (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:23`). Stage D's comparison has a documented archive exception: archive member names, order and bytes can agree even when the archive containers differ (Chapter 52). The implementation falls back to that member comparison after a whole-file comparison fails (`forth-bootstrap/chain/gcc-direct/stage-d.sh:133`; `forth-bootstrap/chain/gcc-direct/stage-d.sh:154`). “Fixed point” must be interpreted using that comparator, not as an unstated promise about every container byte.
+The driver rebuild compares the executable files for seed-cc and seed-ar directly (`forth-bootstrap/tests/cc/seed-cc-rebuild-check.sh:23`). Stage D's comparison has a documented archive exception: after a whole-file comparison fails, it compares ordered member names and their name-selected payloads (Chapter 52). With simple, unique names, that checks every member's bytes while permitting container metadata to differ; repeated names need a separate audit (`forth-bootstrap/chain/gcc-direct/stage-d.sh:133`; `forth-bootstrap/chain/gcc-direct/stage-d.sh:154`). “Fixed point” must be interpreted using that comparator, not as an unstated promise about every container byte.
 
 The combined evidence supports construction, agreement and execution claims within named boundaries. The README records a sealed host root starting from hex0-seed, a compiler fixed point and a guest-built Linux kernel that boots (`forth-bootstrap/README.md:237`; `forth-bootstrap/README.md:239`). The source and archive assumptions remain explicit: repository sources, pinned upstream archives and vendor sources are inputs the route trusts (`forth-bootstrap/README.md:85`).
 
@@ -88,3 +146,17 @@ These results do not establish that the sources are correct for all inputs, or t
 ## Exercise
 
 **Trace (easy).** Choose a row from the recorded Results table above. Identify its comparison point, its execution boundary and the source that records the outcome. Then find its corresponding quick check or opt-in branch in `check-all.sh`. Explain why an `OK` from a different branch would not establish the same claim.
+
+<details>
+<summary>Check the scope of your evidence</summary>
+
+For the sealed host chain, compare the installed Stage D files under the
+archive rule from Chapter 52. Execution stays inside the prepared root
+on the host kernel; the row cites the recorded outcome in the README.
+`CHECK_CHAIN=1` selects that long branch. A successful driver-rebuild check
+compares seed-cc and seed-ar instead, so it supplies no new GCC fixed-point
+result. For another row, name its own artifacts and boundary with the same
+precision. A recorded outcome describes that earlier run; selecting a
+branch tells you how to request a new check, not that you have run it.
+
+</details>

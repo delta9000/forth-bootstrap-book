@@ -21,16 +21,23 @@ not increase `p`'s depth. Both names have depth one. Keep these three
 questions separate as the parser grows: what type did we recognize,
 where does the object live, and what code, if any, initializes it?
 
-These are three separate responsibilities. Recognizing a type tells the
-expression parser how to use the object; reserving storage gives the
-object a home; an initializer, when present, supplies its first value. Keeping them
-separate also lets us read a type without declaring an object. The cast
-`(char)321`, used in the checkpoint, needs type parsing but no new name
-or local slot.
+The separation also lets us read a type without declaring an object. The
+cast `(char)321`, used in the checkpoint, needs type parsing but no new
+name or local slot. We will first build the declaration machinery, then
+reuse its type recognition to distinguish a cast from grouped expression
+syntax.
 
 ## File header and bookkeeping
 
-The declaration engine starts with a base type, then chooses a declarator grammar. An ordinary declarator adds pointer stars and a name before selecting scalar or array storage; function pointers and records have their own paths. Type names reuse the prefix without allocating an object. The header places this engine before the statement dispatcher in Chapter 36 and the function and file-scope parsers in Chapter 37.
+The declaration engine starts with a base type, then chooses a declarator
+grammar. An ordinary declarator adds pointer stars and a name before
+selecting scalar or array storage; function pointers and records have
+their own paths.
+
+The header places this engine before the statement dispatcher in Chapter
+36 and the function and file-scope parsers in Chapter 37. Those callers
+will decide when a declaration is allowed; this layer decides what the
+declaration means for types, symbols, and storage.
 
 The source header marks that boundary so declaration parsing can be loaded independently (`forth-bootstrap/cc/110-cc-decl.fth:1`):
 
@@ -299,7 +306,10 @@ The loop consumes recognized prefixes, including `inline`, and returns the first
 
 ## Struct definitions
 
-A definition fills a descriptor (Chapter 30) field by field. The important ordering decision is to register the tag before reading its fields, so a pointer field can name the very record being built.
+In `struct T { struct T *next; };`, the field's type names `T` before the
+definition is complete. Registering the tag first gives that use a stable
+descriptor to refer to. The parser then fills the descriptor (Chapter 30).
+As its layout grows, `next` retains that same descriptor.
 
 `cc-sd-build-desc` selects the record under construction; `cc-sd-build-fname-a`, `cc-sd-build-fname-u`, `cc-sd-build-field-ty`, and `cc-sd-build-field-desc` hold the pending field. This single scratch set excludes nested definitions (`forth-bootstrap/cc/110-cc-decl.fth:192`):
 
@@ -678,6 +688,17 @@ An array requires a positive constant bound. Its symbol records the deepest rese
   then,
 ```
 
+For a manual core-layout example, start with no locals and declare
+`int n; int a[3];`. The scalar gets slot 0; the array reserves slots 1–3
+and records slot 3 as its base. A slot's address is `rbp - 8*(slot+1)`,
+so `n` is at `rbp-8` and `a[0]` at `rbp-32`. Indexing adds eight bytes
+per integer element: `a[1]` is at `rbp-24`, and `a[2]` at `rbp-16`
+(`forth-bootstrap/cc/090-cc-emit.fth:88`,
+`forth-bootstrap/cc/100-cc-expr.fth:417`). Slot allocation moves downward
+in memory, while array indexing moves upward. Recording the deepest slot
+reconciles those directions; using slot 1 as the base would make `a[1]`
+overwrite `n`.
+
 A static scalar writes its constant initializer into the data area during compilation. An automatic scalar reserves a frame slot and emits an optional expression-and-store sequence to run on entry to the declaration (`forth-bootstrap/cc/110-cc-decl.fth:486`):
 
 ```forth file=cc/110-cc-decl.fth
@@ -1017,7 +1038,11 @@ The pointer branch reserves a single slot but retains the pointee descriptor for
 
 ## `cc-parse-return`
 
-Return handling uses the current function’s type and frame state. The statement dispatcher and the control-flow constructs that maintain switch depth belong to Chapter 36; here only their unwind contract is needed.
+The declaration file also contains `return`, which connects an expression
+result to the current function's type and frame. Its caller arrives in
+Chapter 36. Before returning, the emitted code must restore any saved
+switch state that the jump out of the function would bypass. We need that
+unwind contract here; the switch parser that maintains it comes next.
 
 `cc-switch-depth` counts open saved switch values; `cc-loop-switch-depth` records the enclosing loop’s boundary. The source comment specifies how an early exit must compensate for saved state it bypasses (`forth-bootstrap/cc/110-cc-decl.fth:740`):
 
@@ -1166,5 +1191,9 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-35-descri
 
 **Trace (easy).** Follow `struct T { struct T *next; };` through tag registration and field append. Explain why the field keeps a descriptor that becomes complete, while a pointer to an unknown tag keeps zero.
 
-**Verify (easy).** Change the checkpoint expression to `(char)321 == 321` and update its printed label. Run it and explain why testing equality exposes the cast’s effect while returning the cast value directly would not.
+**Verify (easy).** Change the checkpoint expression to `(char)321 == 321`.
+Predict its result, then update the printed label and the final
+`test "$program_status"` assertion before running it. Keep the
+compiler-status check at zero. Explain why testing equality exposes the
+cast's effect while returning the cast value directly would not.
 

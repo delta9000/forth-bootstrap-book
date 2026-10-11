@@ -83,7 +83,22 @@ mkdir -p /usr
 [ -e /usr/bin ] || ln -s ../build-out/plumbing/bin /usr/bin
 ```
 
-That script checks the stage-D report before building the late tools, then removes source and build trees that the remaining route does not read (`forth-bootstrap/kernel/k1/direct-full.sh:29`). `stage10-direct.sh` replaces the plumbing links with directories containing the late tools and makes `/bin/sh` point to their bash (`forth-bootstrap/chain/ladder/stage10-direct.sh:11`). Thus later scripts' system paths still name programs built inside K1.
+That script checks the stage-D report before building the late tools,
+then removes source and build trees that the remaining route does not
+read (`forth-bootstrap/kernel/k1/direct-full.sh:29`). This cleanup has a
+resource purpose: K1 holds regular-file contents in RAM, where they
+compete with the next compiler's process memory
+(`forth-bootstrap/kernel/k1/README.md:130–160`). The script keeps Stage D's
+compiler prefix, Stage C's toolchain and sysroot, the installed late tools,
+and the route's reports and logs (`forth-bootstrap/kernel/k1/direct-full.sh:35`).
+The next compiler climb still uses that GCC and copies that sysroot
+(`forth-bootstrap/chain/gcc64/run-gcc64.sh:267–292`). Space is recovered
+after the temporary trees' last use, while the next build's inputs survive.
+
+`stage10-direct.sh` replaces the plumbing links with directories containing
+the late tools and makes `/bin/sh` point to their bash
+(`forth-bootstrap/chain/ladder/stage10-direct.sh:11`). Thus later scripts'
+system paths still name programs built inside K1.
 
 ## Carry inputs, check bytes
 
@@ -162,6 +177,24 @@ The stage names belong to gcc64's script; they are distinct from the ladder scri
 | `stage8` | gcc-B → GCC 4.7.4 with C and C++ | `forth-bootstrap/chain/gcc64/run-gcc64.sh:367` |
 | `stage9` | GCC 4.7.4 → binutils 2.41 | `forth-bootstrap/chain/gcc64/run-gcc64.sh:387` |
 | `stage10` | GCC 4.7.4 with binutils 2.41 → GCC 10.5.0 | `forth-bootstrap/chain/gcc64/run-gcc64.sh:404` |
+
+C and C++ in that table name the languages the resulting compiler accepts.
+The language needed to build that compiler is a separate question. gcc-B
+is C-only (`forth-bootstrap/chain/gcc64/build-gcc4.sh:41`). The GCC 4.7.4
+recipe takes that C compiler, sets `CXX=false` in its incoming build
+environment, and requests `--enable-languages=c,c++` for its output
+(`forth-bootstrap/chain/gcc64/build-gcc47.sh:20–31`). An existing C++
+compiler is not required for this intermediate construction.
+
+That new C++ capability supplies a builder for the next GCC. Stage 8
+exercises the installed `g++` on `cxx-test.cc`; stage 10 passes both its
+`gcc` and `g++` to `build-gcc10.sh`
+(`forth-bootstrap/chain/gcc64/run-gcc64.sh:375–377`,
+`forth-bootstrap/chain/gcc64/run-gcc64.sh:409`). The latter script uses
+its second argument as `CXX` (`forth-bootstrap/chain/gcc64/build-gcc10.sh:6`,
+`forth-bootstrap/chain/gcc64/build-gcc10.sh:21`). This dependency is why
+producing a C++ front end matters: GCC's own implementation uses C++
+starting with [GCC 4.8](https://gcc.gnu.org/gcc-4.8/changes.html).
 
 The final step explicitly selects the newer assembler and linker before invoking `build-gcc10.sh`; it also compiles and runs C and C++ test programs (`forth-bootstrap/chain/gcc64/run-gcc64.sh:409`). Those tests check behavior on their workloads. The B/C comparison checks repeatability of the selected rebuilt artifacts, rather than general compiler correctness (`forth-bootstrap/chain/gcc64/run-gcc64.sh:312`).
 
@@ -258,6 +291,11 @@ The small `kexec` program issues the reboot syscall with the KEXEC command. K1 d
 
 ## Prepare the Linux entry state
 
+The external contract is documented in the
+[Linux/x86 boot protocol](https://docs.kernel.org/arch/x86/boot.html),
+including the setup header and the 64-bit entry requirements. The next
+steps show how K1 prepares that handoff.
+
 A bzImage is not an ELF program for K1's process loader. `boot_linux` reads the setup header, checks its signature and accepts only a protocol with the required long-mode entry. It finds the protected-mode payload after the setup area, in `linux.c` (`forth-bootstrap/kernel/k1/linux.c:41`):
 
 ```c
@@ -328,7 +366,14 @@ state, and from that state to a running system.
 
 ## Try it
 
-Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and 24 GiB of free host RAM for the guest. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:182`, `forth-bootstrap/README.md:239`). The wrapper defaults to that memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
+Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and room on the host for a 24 GiB guest plus QEMU's own overhead. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:182`, `forth-bootstrap/README.md:239`). The wrapper defaults to that guest memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
+
+The 24 GiB figure is a recorded successful configuration, not a measured
+peak or a demonstrated minimum. Budget for retained file pages, running
+programs and kernel allocations together. The separate 4 GiB output disk
+stores the exported results; it does not enlarge K1's RAM filesystem
+(`forth-bootstrap/kernel/k1/run-chain.sh:38–39`,
+`forth-bootstrap/kernel/k1/README.md:154–164`).
 
 The command recreates the input and output images under `build-out/k1-direct-linux` and writes `serial.log` there. Preserve earlier results before starting; the output disk is replaced (`forth-bootstrap/kernel/k1/run-chain.sh:28`, `forth-bootstrap/kernel/k1/run-chain.sh:38`).
 
@@ -391,3 +436,9 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-55-produc
 **Trace (moderate).** Follow bzImage from `stage12.sh` through `finish.sh`, the reboot handler and `boot_linux`. Identify which step copies file bytes, which reserves decompression space, which constructs boot parameters and which transfers control. Explain why an embedded initramfs can coexist with no external initrd.
 
 **Verify (easy).** Classify these observations: an archive passes SHA-256 checking; a gcc64 artifact matches a pin; `finish` reports an export; Linux prints its version; init prints the greeting. For each, name one failure it rules out and one failure it leaves possible. Use the cited sources and recorded excerpts without starting a build.
+
+**Trace (moderate).** Suppose stage 8 were changed to produce only a C
+compiler. Name the stage-8 test invocation that could no longer compile
+its input and the stage-10 compiler argument that would be missing.
+Why does `CXX=false` in the actual GCC 4.7.4 recipe not mean its installed
+compiler is C-only? Answer from the sources without starting a build.

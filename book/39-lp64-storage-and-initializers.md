@@ -1,6 +1,15 @@
 # Chapter 39 — LP64 storage and initializers
 
-An initialized record combines a storage layout with a tree of values. The native layer extends the core declaration machinery with LP64 sizes, aligned fields, and recursive initialization, so that both a character array and a record containing `char` and `long` receive their intended contents.
+An eight-byte working slot tells us how the evaluator carries a value.
+It does not tell us how to locate or store a field of
+`struct Item { char tag; long value; }`. The `tag` object needs one byte;
+`value` needs eight-byte alignment. How should the initializer `{3, 7}`
+reach those two destinations without treating storage as a row of working
+values?
+
+The native layer answers with LP64 sizes, aligned field offsets, and a
+recursive initializer. A descriptor says where each value belongs in the
+object; the initializer walks that layout and emits the appropriate stores.
 
 ## Native declarations and aligned storage
 
@@ -10,8 +19,8 @@ This target's LP64 layout gives `char`, `short`, and `int` storage widths of one
 
 Chapter 41 supplies the System V AMD64 calling convention, and Chapter 43 supplies the later runtime.
 
-Keep the checkpoint's `struct Item { char tag; long value; }` beside the
-walkthrough. Its layout answers where a store must land: `tag` starts at
+Keep that `Item` beside the walkthrough; it is the checkpoint's record.
+Its layout answers where a store must land: `tag` starts at
 offset 0, seven padding bytes precede `value` at offset 8, and the record
 occupies 16 bytes. Its initializer `{3, 7}` answers what to store at those
 two destinations. The padding contributes to the size but consumes no
@@ -26,8 +35,10 @@ is emitting the stores; the resulting C program executes them later.
 The object-output path introduced in the following chapters has its own
 static-data construction and must not be inferred from this queue.
 
-On a first pass, follow field placement, object allocation, and the
-initializer's destination through that example. Return to the declarator
+On a first pass, follow [field placement](#place-fields-at-aligned-offsets),
+[object allocation](#allocate-an-object-and-keep-its-references-valid), and
+[the initializer's destination](#walk-children-without-losing-the-destination)
+through that example. Return to the declarator
 context machinery when you need to explain how a nested type preserves
 its enclosing declaration. The checkpoint checks the initialized contents
 and size sum when `main` runs; the queue trace explains how the static
@@ -563,6 +574,24 @@ Each declarator resets its name and dimensions before combining its own shape wi
 
 ## Place fields at aligned offsets
 
+For `Item`, placing `tag` leaves the running extent at one byte. Before
+placing `value`, round that extent up to its eight-byte alignment: the
+next field begins at offset 8 and ends at offset 16. The record's maximum
+member alignment is eight, so completion needs no further tail padding in
+this example. These decisions use each field's object type, even though
+both values can pass through the same eight-byte expression register.
+
+For a paper variation, reverse the fields:
+`struct Item { long value; char tag; };`. Now `value` occupies offsets
+0–7 and `tag` occupies offset 8. The last field ends at byte 9, but
+completion rounds the size to 16. Why keep seven bytes after the field?
+Imagine `struct Item rows[2]` beginning at an eight-byte-aligned address
+`B`. The second element starts at `B + sizeof(struct Item)`, putting its
+`value` at `B + 16`, also aligned. A nine-byte stride would put that
+`long` at `B + 9`. Tail padding makes the completed size a usable array
+stride. It belongs to `sizeof(struct Item)` even for a single object,
+and consumes no initializer value.
+
 Growing a field table changes record addresses, so qualifier entries must follow the moved records (`forth-bootstrap/cc/115-cc-native.fth:393`):
 
 ```forth file=cc/115-cc-native.fth
@@ -711,6 +740,12 @@ defer cc-native-type-shape-fwd
 `cc-native-type-name` restores declaration state after parsing. Its default shape hook adds pointer depth; a later target can supply richer shapes. `cc-cast-desc` receives the result descriptor.
 
 ## Allocate an object and keep its references valid
+
+The completed `Item` descriptor now requests a sixteen-byte object with
+eight-byte alignment. Allocation must reserve that whole extent before
+initialization starts. The base it chooses, together with the retained
+field offsets 0 and 8, supplies the two destinations; the initializer
+must not allocate a fresh working slot for each member.
 
 Storage allocation needs the full object extent, and its symbol must retain the same shape used to compute it (`forth-bootstrap/cc/115-cc-native.fth:503`):
 
@@ -1279,6 +1314,12 @@ defer cc-ni-string-fwd
 
 ## Walk children without losing the destination
 
+For `struct Item item = {3, 7}`, the first child retains the object's base and adds
+`tag`'s offset 0; the second adds `value`'s offset 8. Each child also
+carries its own type, so the scalar path emits a one-byte store for 3 and
+an eight-byte store for 7. The seven padding bytes are a gap between
+addresses, not seven extra children to consume from the initializer.
+
 Array children derive offsets from element stride, while record children use their field offsets (`forth-bootstrap/cc/118-cc-native-init.fth:178`):
 
 ```forth file=cc/118-cc-native-init.fth
@@ -1717,6 +1758,12 @@ The printed bytes come from the initialized character array. The exit sum combin
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-39-object-layout-and-initializer-timing).
 
 **Trace (easy).** Follow `cc-nadd-field` for `struct Item` in the checkpoint. Explain why the `long` member does not immediately follow the `char`, and where the final record extent is rounded.
+
+Then reverse the member declarations and change the initializer to
+`{7, 3}` so the field values stay the same. Predict the new field offsets,
+`sizeof(item)`, and the byte distance between adjacent elements of
+`struct Item rows[2]`. Does the checkpoint's output or exit sum change?
+Explain why adding only the member widths gives the wrong record size.
 
 **Verify (moderate).** Move `label` and `item` inside `main`, keeping their initializers. Predict whether the output and exit sum change. Run the modified checkpoint, then explain which initialization code stays inline instead of entering `cc-ni-queue`.
 

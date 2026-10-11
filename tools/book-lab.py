@@ -5,8 +5,9 @@
     python3 tools/book-lab.py show CHAPTER.BLOCK
     python3 tools/book-lab.py run CHAPTER.BLOCK [--timeout SECONDS]
 
-Selectors count sh/bash/shell fences in each published numbered chapter,
-including excluded fences. Untagged transcripts and canonical source fences
+Selectors count sh/bash/shell fences in each published numbered file,
+including the legacy 26.1 assembler regression check and excluded fences.
+Untagged transcripts and canonical source fences
 are never executable labs. Commands are read from the book on every call.
 
 Run executes the exact fence in a clean, noninteractive Bash from the source
@@ -209,9 +210,9 @@ def main(argv=None):
     listing = commands.add_parser("list", help="list published shell fences, prerequisites and exclusions")
     listing.add_argument("chapter", type=int, nargs="?")
     showing = commands.add_parser("show", help="print the exact shell fence, including excluded fences")
-    showing.add_argument("selector", help="CHAPTER.BLOCK, for example 26.1")
+    showing.add_argument("selector", help="CHAPTER.BLOCK, for example 15.1")
     running = commands.add_parser("run", help="run one short checkpoint from the source root")
-    running.add_argument("selector", help="CHAPTER.BLOCK, for example 26.1")
+    running.add_argument("selector", help="CHAPTER.BLOCK, for example 15.1")
     running.add_argument("--timeout", type=positive_seconds, default=30, metavar="SECONDS")
     args = parser.parse_args(argv)
     try:
@@ -231,7 +232,7 @@ def main(argv=None):
                     print("       " + problem)
             return 0
         if not re.fullmatch(r"[1-9]\d*\.[1-9]\d*", args.selector):
-            parser.error("selector must be CHAPTER.BLOCK, for example 26.1")
+            parser.error("selector must be CHAPTER.BLOCK, for example 15.1")
         lab = next((lab for lab in labs if lab["selector"] == args.selector), None)
         if lab is None:
             parser.error(f"unknown checkpoint {args.selector}; use list to see selectors")

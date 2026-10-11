@@ -1,85 +1,71 @@
-# Chapter 3 — Where this fits: routes and history
+# Chapter 3 — What builds the seed?
 
-The checkout contains two executables with very different jobs:
-`hex0-seed` assembles hexadecimal, and `seed-forth` is the Forth it builds.
-The first arrives as an inherited binary; the second has just been built
-from the source in front of us. That distinction gives us a way to read
-the project's dependencies and its history without losing track of what
-actually builds what.
+We have run `seed-forth` and measured its bytes. But before we could run
+it, another program had to make that executable. The build message names
+that program: `hex0-seed`.
 
-## The projects around the seed
+Its job is small. It reads pairs of hexadecimal digits from
+`seed/000-seed.hex0` and writes their byte values to `seed-forth`, ignoring
+comments. The source's opening `7F 45 4C 46` becomes the four bytes we
+inspected in Chapter 2. The source file already specifies the machine
+instructions; this assembler does not have to choose instructions for us.
 
-The bootstrappable-builds community supplies much of the surrounding work.
-The project's credits name Jeremiah Orians' stage0-posix, mescc-tools,
-M2-Planet and M2libc, alongside live-bootstrap
-(`forth-bootstrap/CREDITS.md:42`). Their connections to this checkout are
-concrete:
+## Builder, source, product
 
-| Project | Connection to forth-bootstrap | Source |
-| --- | --- | --- |
-| stage0-posix | Supplies the starting `hex0-seed` binary and the mescc-tools-extra utility sources. | `forth-bootstrap/CREDITS.md:12–13` |
-| mescc-tools | Supplies kaem, the shell source used by the route. | `forth-bootstrap/CREDITS.md:14` |
-| M2-Planet | Supplies the C compiler source used for the Stage A comparison. | `forth-bootstrap/CREDITS.md:15` |
-| live-bootstrap | Supplies patches and much of the ordering followed by the GCC climb. | `forth-bootstrap/CREDITS.md:16–17`, `forth-bootstrap/CREDITS.md:44` |
+There are three things to keep separate in the first build:
 
-These are different kinds of dependency. An inherited executable is already
-machine code when the route begins. Inherited source requires a builder.
-A borrowed patch or build order carries knowledge about how to make
-upstream packages work together. Keep those distinctions when reading a claim
-that a project builds “from source.”
+| Role | File | What it contributes |
+|---|---|---|
+| Builder | `hex0-seed` | The running program that translates the hexadecimal |
+| Source | `seed/000-seed.hex0` | The annotated byte values we can read and change |
+| Product | `seed-forth` | The executable the builder writes |
 
-The connection to stage0-posix is visible before the C compiler enters the
-picture. The seed build script selects its vendored AMD64 `hex0-seed` by
-default, then gives it `seed/000-seed.hex0` as input and `seed-forth` as output
-(`forth-bootstrap/seed/build.sh:14`, `forth-bootstrap/seed/build.sh:27`).
-The inherited binary is the assembler; the Forth executable from Chapter 2 is
-its product. They occupy different places in the dependency chain.
+The script selects the vendored AMD64 `hex0-seed`, then gives it the
+source path and output path (`forth-bootstrap/seed/build.sh:14`,
+`forth-bootstrap/seed/build.sh:27`). The builder comes from
+[stage0-posix](https://github.com/oriansj/stage0-posix), which this project
+credits for its starting binary (`forth-bootstrap/CREDITS.md:12`).
 
-## How the route changed
+This is where the construction starts: the 229-byte `hex0-seed` arrives
+as an **inherited executable**, already in machine-code form. We use it
+to build the 1,772-byte Forth seed from the source in front of us. We have
+not built the starting assembler in this step, and adding its size to the
+Forth seed's size would not describe the whole environment. Linux is
+already running both programs on the processor.
 
-forth-bootstrap began as route D of the older **seed-forth project**, then
-moved into its own repository (`forth-bootstrap/HISTORY.md:3`). Distinguish
-that project name from the executable named `seed-forth`, which remains in
-this checkout (`forth-bootstrap/README.md:16`).
+## How a small builder leads to larger ones
 
-The older project explored several onward routes. Its history records a
-route to self-hosted M2-Planet and a handoff into stage0-posix's recipes;
-it also records direct TinyCC and pnut routes. Those routes stayed in the
-older project when forth-bootstrap split off
-(`forth-bootstrap/HISTORY.md:19–34`). Read their reproducibility account as
-history in Appendix C, rather than as the operating instructions for this
-checkout.
+The next handoff works differently. We run `seed-forth` and feed it Forth
+source. As with `hello`, it compiles those definitions into its own running
+process. A library supplies more words; further definitions make a C
+compiler. That compiler can write separate executables for the tools that
+follow.
 
-The current route has a different center: the Forth C compiler leads to
-`seed-cc`, the tools it builds, and GCC. That is the route identified as D
-in the project history (`forth-bootstrap/HISTORY.md:7–10`). The plumbing
-recipe orders the tool-building stages before invoking the GCC chain
-(`forth-bootstrap/chain/plumbing/chain.kaem:12–16`). Chapter 50 follows
-`seed-cc`; Chapter 51 follows those tools; Chapter 52 follows the GCC rebuilds.
+This lets us use much larger sources without bringing in an already-built
+C compiler. The route goes through its own C compiler and Unix tools to
+GCC 4.0.4, then GCC 10.5.0, and Linux 7.2.8
+(`forth-bootstrap/README.md:3–7`). Those later programs bring substantial
+**inherited source**: upstream code that still needs a builder. Starting
+with a small executable does not make all that source small or remove the
+need to inspect it.
 
-What sets this route apart is its middle. After the 229-byte `hex0-seed`
-assembles the Forth seed, a C compiler written in that Forth builds the
-driver, shell and first Unix tools, and those build GCC 4.0.4, then GCC
-10.5.0, then Linux 7.2.8, with no compiler brought in from outside
-(`forth-bootstrap/README.md:3–7`). The project history calls it the route
-that reaches Linux with no other compiler at all
-(`forth-bootstrap/HISTORY.md:7–8`).
+The later build chapters follow each builder and what it produces. They
+also distinguish building an artifact from comparing it with another
+build or running it. For now, we have one completed handoff to examine:
+hexadecimal source has become a Forth executable. Part 1 explains how the
+bytes in that executable let us add and run a word.
 
-M2-Planet still has a role here as a comparison target. Stage A compares
-assembly emitted by a Forth-built M2-Planet with assembly emitted by a
-GCC-built reference on the same M2-Planet source. The script compares those
-outputs, not the compiler executables themselves
-(`forth-bootstrap/tests/cc/stage-a-check.sh:57–76`). Chapter 38 returns to
-that check. Agreement on this input is a bounded result, not a claim about
-every C program. The history explains the names; from Chapter 4 on, the
-book reads the machinery itself.
+The [project history and credits](57-historical-reproducibility.md#the-projects-around-the-seed)
+place this route among the other bootstrap projects. They are useful
+background when you want to compare routes; the seed walkthrough does not
+require those project names.
 
 ## Try it: measure the shared starting point
 
 Recall the checkpoint working directory from Chapter 1. Run this block from
 the `forth-bootstrap` root, with the seed built there. `wc -c` measures the
-stage0-posix executable beside its Forth product. The final command uses the
-seed's `bye`, taught in Chapter 8, and produces no output.
+stage0-posix executable beside its Forth product. The final command asks the seed to exit with `bye`, as in Chapter 1,
+and produces no output.
 
 ```sh
 wc -c vendor/stage0-posix/bootstrap-seeds/POSIX/AMD64/hex0-seed seed-forth

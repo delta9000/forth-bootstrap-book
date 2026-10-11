@@ -108,7 +108,7 @@ CONCEPTS = [
     ("Preprocessor", [("22-", "The pass driver")]),
     ("Macro table", [("22-", "The macro table")]),
     ("#include and the include pool", [("22-", "`#include` and its bounded file pool")]),
-    ("#define and macro expansion", [("22-", "Macro expansion"), ("22-", "`#define` and `#undef`")]),
+    ("#define and macro expansion", [("28-the-preprocessor", "Macro expansion"), ("28-the-preprocessor", "`#define` and `#undef`")]),
     ("Conditional compilation (#if, #ifdef)", [("22-", "Conditional groups and the walker"), ("22-", "`#if` and friends")]),
     ("Token kinds", [("29-the-lexer", "Token kinds and punctuation IDs")]),
     ("Keyword table", [("29-the-lexer", "The keyword table")]),
@@ -143,7 +143,7 @@ CONCEPTS = [
     ("Entry stub", [("37-func", "The entry stub")]),
     ("Top-level classification", [("37-func", "Top-level elision")]),
     ("Enums and typedefs", [("37-func", "Enums and typedefs")]),
-    ("Stage-A parity proof", [("38-main", "Stage A: the parity proof")]),
+    ("Stage-A parity comparison", [("38-main", "Stage A: the parity proof")]),
     ("Bootstrap chain", [("38-main", "The wider chain"), ("57-historical", "What forth-bootstrap checks today")]),
     ("GCC-free build", [("57-historical", "The GCC-free build")]),
     ("Diverse double-compiling", [("57-historical", "Diverse double-compiling")]),
@@ -181,7 +181,18 @@ class Chapter:
         with open(path, encoding="utf-8") as source:
             self.lines = source.read().split("\n")
         stem = self.file.split("-", 1)[0]
-        if stem.startswith("A"):
+        title = next((line for line in self.lines if line.startswith("# ")), "")
+        appendix = re.match(r"# Appendix ([A-Z])\b", title)
+        if self.file == "26-m1-and-hex2.md":
+            # The stable filename now holds a check, not a teaching chapter.
+            self.label = "Check"
+            self.order = 109
+        elif appendix:
+            # Published appendix letters differ from their stable numeric filenames.
+            letter = appendix.group(1)
+            self.label = "App. " + letter
+            self.order = 101 + ord(letter) - ord("A")
+        elif stem.startswith("A"):
             self.label = "App. " + chr(ord("A") + int(stem[1:]) - 1)
             self.order = 100 + int(stem[1:])
         else:
@@ -496,8 +507,7 @@ def render(chapters):
         "  Chapter 13);",
         "- *Forth word*: `forth/010-lib.fth` (Part 2);",
         "- *compiler word*: the C compiler, `cc/020-cc-arena.fth` to",
-        "  `cc/141-archive.fth` (Part 3);",
-        "- *assembler word*: `forth/130-asm.fth`.",
+        "  `cc/141-archive.fth` (Part 3).",
         "",
         "A kind in parentheses other than the file is the defining word used",
         "(`variable`, `constant`, `create`, `defer`); plain colon definitions",

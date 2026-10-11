@@ -38,6 +38,15 @@ of this by-value interface. The private snapshot supplies a stable value;
 classification then decides where its bytes travel. Read those as two
 decisions even when both happen in the same call-emission routine.
 
+The snapshot stops at the record's byte boundary. An array member lies
+inside it, so its elements are copied with the record. A pointer member
+contributes its address value; the object it points to is not copied.
+Caller and callee have separate pointer fields that can still point to
+the same object. Assigning the callee's pointer field changes only its
+local record; storing through it can change the shared object. This also
+explains why classification can stop at a pointer without walking its
+pointee.
+
 The target gate keeps this value contract in explicit System V mode, so the private all-stack target is unaffected; every refused shape exits with error 232 (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:1`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ 131-cc-aggregate-abi.fth -- shared INTEGER/binary32/binary64/X87/MEMORY SysV ABI.
@@ -246,6 +255,16 @@ A fixed prototype reserves only its declared argument capacity; unspecified and 
 
 A **fixed-frame snapshot** owns the bytes of a completed argument. Later argument expressions, nested calls and changes to the original object cannot change those bytes. A result object receives its own storage too.
 
+This parser evaluates and snapshots arguments in source order
+(`forth-bootstrap/cc/131-cc-aggregate-abi.fth:180–218`). That is this
+compiler's choice; C does not promise left-to-right argument evaluation
+([C11 draft, §6.5.2.2](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf)).
+The snapshot preserves a value once evaluated. It does not make a C
+program portable if that program depends on which argument runs first.
+C's separate restrictions on unsequenced reads and writes to the same
+scalar still apply (§6.5); choosing an evaluation order does not remove
+those restrictions.
+
 | Input | Result or destination |
 |---|---|
 | Slot, GP register → `cc-ag-store-gp` | Spill the incoming register. |
@@ -453,6 +472,25 @@ An expression-valued function pointer needs callable and signature checks before
 
 ```
 ## Reconstruct callee objects and return bytes
+
+Contrast `Pair`'s two-register return with a manual plan for
+`struct Triple { long x; long y; long z; };` and a function declared
+`struct Triple make(long n)`. Its 24-byte result is MEMORY class
+(`forth-bootstrap/cc/131-cc-aggregate-abi.fth:52–62`). Before `make(7L)`,
+the caller reserves its own result object and passes that object's address
+in RDI. The visible `n` argument therefore travels in RSI, not RDI. The
+return type has changed argument placement even though the source call
+still contains only one argument.
+
+On entry, `make` saves the hidden pointer in its frame, so later body
+operations can reuse RDI. When it returns a local `Triple`, the return
+emitter copies all 24 bytes into that saved destination and places the
+destination address in RAX. The caller continues with an expression
+addressing its own result object. Returning only the callee local's address
+would leave the result dependent on storage whose lifetime ended with the
+call. Follow the hidden pointer separately from the visible parameter in
+the entry and return code below; the pointer transports a destination,
+while the copy supplies the C record value.
 
 `cc-ag-parameters` installs each named parameter as an independent local object, so the callee can modify its copy without touching the caller's (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:320`):
 ```forth file=cc/131-cc-aggregate-abi.fth
@@ -753,6 +791,27 @@ differ: one admits numeric conversion, the other admits whole-object
 copying. Descriptor shape checks must decide which it is before conversion;
 the shared type code alone cannot.
 
+Follow `10.0L - 3.0L` as a manual trace. RDI initially addresses the left
+operand's object and RCX the right. `st(0)` names the x87 stack top;
+`st(1)` is the value beneath it. A load pushes a new top, and a pop exposes
+the next value. These names describe positions, unlike fixed RDI or RCX.
+
+| Emitted action | x87 values afterward, top first | Value outside x87 |
+|---|---|---|
+| Begin with evaluated operands | Empty | RDI → 10.0L; RCX → 3.0L |
+| Load the right object | 3.0L | Operand objects unchanged |
+| Load the left object | 10.0L, 3.0L | Operand objects unchanged |
+| Subtract with the reverse-and-pop form | 7.0L | Result still in x87 |
+| Store and pop into a fresh frame object | Empty | RDI → result object containing 7.0L |
+
+The reverse form computes the top value minus the one below it before
+popping (`forth-bootstrap/cc/132-cc-long-double.fth:124–138`). The save
+helper points RDI at the new object, stores the result and pops it, leaving
+no x87 result live (`forth-bootstrap/cc/132-cc-long-double.fth:12–14`). Reversing the
+loads without changing that subtraction would give −7.0L. Multiplication
+alone would hide this operand-order mistake because swapping its operands
+does not change the product.
+
 | Input | Result or destination |
 |---|---|
 | Type → `cc-x87-type?` | System V opaque-record type-code test. |
@@ -908,7 +967,7 @@ Conversion out stores directly at the destination floating precision, compares w
   then, cc-sysv-array-binop ;
 ' cc-x87-binop-check is cc-array-binop-fwd
 ```
-`cc-x87-binop` loads right then left so subtraction and division preserve operand order. Arithmetic pops into private storage; comparisons pop both operands and reuse unordered flag handling (`forth-bootstrap/cc/132-cc-long-double.fth:124`):
+`cc-x87-binop` loads right then left so subtraction and division preserve operand order. Arithmetic pops into private storage; comparisons pop both operands and reuse [the unordered flag handling from Chapter 47](47-floats.md#compute-at-the-common-precision) (`forth-bootstrap/cc/132-cc-long-double.fth:124`):
 ```forth file=cc/132-cc-long-double.fth
 : cc-x87-binop
   cc-expr-common @ cc-x87-type? 0= if, cc-fp-binop exit, then,
@@ -1171,3 +1230,28 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-49-whole-
 the prototype too. Predict where the pair and `tail` now travel, then
 change the expected sum and rerun. The value check verifies that caller
 and callee still agree; explain the register/stack change from the plan.
+
+**Trace (moderate).** This paper example uses the same System V path as
+`Pair`; it does not require changing the checkpoint:
+
+```c
+struct Parcel { long inside[1]; long *shared; };
+long revise(struct Parcel p) {
+    p.inside[0] = 30;
+    *p.shared = 40;
+    p.shared = 0;
+    return p.inside[0];
+}
+```
+
+The caller executes:
+
+```c
+long target = 20;
+struct Parcel original = {{10}, &target};
+long result = revise(original);
+```
+
+Predict `original.inside[0]`, `target`, `original.shared`, and `result`.
+Identify the two INTEGER eightbytes at the call boundary. Why does
+setting `p.shared` to zero not undo the earlier write to `target`?

@@ -359,11 +359,16 @@ defer cc-array-decay-fwd
 
 ## Assignment: snapshot, recurse, store
 
-The left operand parser has done its job: it has identified a destination.
-For now, take the operand and ternary parsers as tools that produce the
-record just described. Assignment protects that record while asking for
-the right side. The detailed trace shows exactly what must be saved and
-which stack owns it.
+The left operand parser has obtained an expression, but that does not
+promise a place to store. In the core path, local `a` retains its slot;
+`*p` retains an address. The sum `a + 1` is different: the binary fold
+marks it `lv-value`, with no destination. Assignment saves the result's
+kind and slot. If an assignment operator follows, the saved kind must
+describe a destination; `a + 1 = 7` therefore fails with error 120.
+Otherwise the parser discards the snapshot and returns the lookahead
+token. For an accepted destination, it protects that record while parsing
+the right side. The detailed trace shows what must be saved and which
+stack owns it.
 
 ### A two-stack assignment trace
 
@@ -680,7 +685,26 @@ The final store puts the value in `rdi` and the address in `rcx`, selecting byte
 
 ```
 
+Assignment's recursive call also chooses its grouping. With distinct
+core integer locals, `a = b = 7` means `a = (b = 7)`: the outer call
+saves `a`'s slot while the inner call emits a store into `b`. That inner
+assignment supplies 7 for the outer store. Both assignments finish as
+`lv-value`; the outer store works because its own destination was saved
+before recursion. Chapter 33's subtraction loop instead combines the
+left pair before handling another minus.
+
+Parentheses preserve whatever kind the inner parse produced. They retain
+an existing destination, but cannot turn a completed assignment's value
+into a new destination. If that outer assignment is rejected, any inner
+store emitted so far is still only an instruction in an unfinished output
+buffer. It has not changed the C program's storage.
+
 ## Struct-field lookup
+
+Assignment can now consume a destination without losing it. We can turn
+back to the operand forms that supply one: fields, subscripts, names, and
+unary dereferences. Each must leave both the right runtime result and the
+metadata needed by its next consumer.
 
 A field lookup must return both an offset and enough metadata for the next postfix operation; the `cc-ff-*` cells hold the search name, descriptor, and matched results
 (`forth-bootstrap/cc/100-cc-expr.fth:298`):
@@ -863,7 +887,10 @@ Generated code saves the base, evaluates and scales the index, then forms an add
 
 ## Primary expressions
 
-The primary family is assembled in dependency order, with handlers before the dispatch loop that calls them
+A primary starts with an operand, then lets suffixes refine its result.
+We will read the dispatch loop first so each handler has a place in that
+process. The source itself assembles the handlers before the loop that
+calls them
 (`forth-bootstrap/cc/100-cc-expr.fth:674`):
 ```forth chunk=expr-primary
 <<expr-primary-literals>>
@@ -1330,6 +1357,12 @@ The operand dispatcher asks `cc-try-cast-fwd` before taking this grouping path. 
 
 ### Increment and decrement
 
+Mutation adds a second question to the destination contract: which value
+should the expression supply afterward? Both `++x` and `x++` change the
+same object. Prefix supplies the changed value; postfix must preserve the
+old value while performing the store. The native path shares one updater
+and makes that choice explicit.
+
 The `cc-change-*` cells record the operand metadata, direction, and prefix/postfix choice; the default check validates integer use, and the default update scales pointers before converting back to the stored type
 (`forth-bootstrap/cc/100-cc-expr.fth:977`):
 ```forth chunk=expr-primary-postfix-incdec
@@ -1609,6 +1642,11 @@ A recursive unary operand supports chains such as `**p`; the header describes th
 ```
 
 ### Measuring an operand
+
+`sizeof` asks about the operand's storage rather than its contents. For
+an array, that means retaining its shape instead of treating it as a
+pointer. For a native expression operand, it also means learning the type
+without leaving code that evaluates the expression at runtime.
 
 The legacy `sizeof` dispatcher keeps its answer in `cc-sizeof-bytes`, so each branch can update the same cell
 (`forth-bootstrap/cc/100-cc-expr.fth:1235`):
@@ -2179,7 +2217,14 @@ not a feature. The core profile has no comma operator at all. See
 
 ## Constant expressions
 
-Compile-time expressions return a Forth value instead of emitting a runtime calculation; `cc-cx-pp`, `cc-cx-skip`, and `cc-cx-unsigned` track preprocessing mode, dead arms, and signedness
+An array bound must be known when the compiler reserves storage; a case
+label must be known when it builds dispatch. Neither can wait for the
+generated program to run. Constant parsing reuses the operator table and
+precedence levels but computes a Forth value instead of emitting a runtime
+calculation.
+
+`cc-cx-pp`, `cc-cx-skip`, and `cc-cx-unsigned` track preprocessing mode,
+dead arms, and signedness
 (`forth-bootstrap/cc/100-cc-expr.fth:2444`):
 ```forth chunk=expr-top
 \ ===========================================================================
@@ -2518,5 +2563,21 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-34-an-add
 
 **Trace (easy).** Follow `(*p)++` with `p` a character pointer. Identify where the pointer is loaded, where the target remains an address, and why parentheses preserve that address for the postfix handler.
 
-**Verify (easy).** Change the checkpoint’s comparison from `<` to `>`. Run it again and explain which ternary branch executes; update the printed expression to match your input.
+**Verify (easy).** Change the checkpoint’s comparison from `<` to `>`.
+Predict which ternary branch executes and the resulting program status.
+Update both the printed expression and the final `test "$program_status"`
+assertion to match that prediction, then run it. Keep the compiler-status
+check at zero: successful compilation and the generated program's answer
+are separate results.
 
+
+**Trace (moderate).** Assume distinct writable core-integer locals `a`
+and `b`, initially 1 and 2. Treat each expression independently:
+`a += b = 7`, `(a) = b`, and `(a += b) = 7`. Predict which compile.
+For each accepted expression, give both stored values and the expression
+value. In the compound chain, identify what the compiler must preserve
+while parsing `b = 7`: which facts describe the destination, and which
+emitted instruction saves an old runtime value? Explain why the rejected
+case executes no store even if a store instruction has already been
+emitted. This is a source trace; this chapter's checkpoint does not
+install local declarations.

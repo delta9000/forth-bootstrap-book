@@ -1,6 +1,6 @@
 # Glossary
 
-Definitions are grouped by the Part that introduces each concept, then alphabetically. Each entry links to its teaching chapter; individual seed names and Forth words belong in the [word index](WORD-INDEX.md). For C APIs, use the teaching chapter or book search; the generated index does not enumerate C functions.
+Definitions are grouped by the Part that introduces each concept, then alphabetically. Each entry links to its teaching page; individual seed names and Forth words belong in the [word index](WORD-INDEX.md). For C APIs, use the teaching chapter or book search; the generated index does not enumerate C functions.
 
 ## Part 1: Machine and seed
 
@@ -56,7 +56,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Interpret mode** — The compilation state in which ordinary parsed words execute immediately. [Chapter 10](10-colon-compiler.md).
 
-**Linux syscall register convention** — Number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11. [Chapter 4](04-x86-64-and-two-stacks.md).
+**Linux syscall register convention** — Number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11. [Chapter 8](08-seed-io.md#the-linux-register-boundary).
 
 **Little-endian** — Multi-byte values are stored least significant byte first. [Chapter 4](04-x86-64-and-two-stacks.md).
 
@@ -106,7 +106,9 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **xt** — See **Execution token (xt)**. [Chapter 9](09-dictionary.md).
 
-## Part 2: Forth library and assembler
+<a id="part-2-forth-library-and-assembler"></a>
+
+## Part 2: Forth library
 
 **Back-patching** — See **Emit, remember, patch**. [Chapter 24](24-lib-11-control-flow-combinators.md).
 
@@ -138,15 +140,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Functional completeness of NAND** — NAND constructions express every Boolean function. [Chapter 16](16-lib-03-logic-from-nand.md).
 
-**hex2** — A hexadecimal assembly format with named labels and sized absolute or relative references. [Chapter 26](26-m1-and-hex2.md).
-
-**Label table** — Records of name slice and address; newest-first slice lookup, newest declaration wins. [Chapter 26](26-m1-and-hex2.md).
-
 **Little-endian cell writers** — Emit a value from its least significant byte upward. [Chapter 22](22-lib-09-memory-and-cell-writers.md).
-
-**M1** — Macro assembly text whose substitutions, numeric references and strings are expanded before label resolution. [Chapter 26](26-m1-and-hex2.md).
-
-**M1 macro** — DEFINE name value: textual, non-recursive substitution before assembly. [Chapter 26](26-m1-and-hex2.md).
 
 **Pad-and-call** — Caller arguments, zero padding, a fixed syscall number, then syscall6. [Chapter 18](18-lib-05-syscalls.md).
 
@@ -162,8 +156,6 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Self-NAND** — `dup nand` complements a cell. [Chapter 16](16-lib-03-logic-from-nand.md).
 
-**Sigil** — The initial character of an M1 or hex2 reference token; it selects the field width and absolute or relative interpretation. [Chapter 26](26-m1-and-hex2.md).
-
 **Sign test by division** — Unsigned division by the value of the high bit isolates that bit, allowing a signed-negative test. [Chapter 20](20-lib-07-comparisons-from-division.md).
 
 **Signed-overflow domain** — The subtraction-based signed comparison is valid only when the operand difference does not overflow. [Chapter 20](20-lib-07-comparisons-from-division.md).
@@ -175,8 +167,6 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 **Store-and-advance** — Write a payload at HERE, then advance HERE by the payload's width. [Chapter 15](15-lib-02-code-emission-and-here.md).
 
 **Two's complement** — A signed `w`-bit field with its high bit set represents its unsigned value minus `2^w`; [Chapter 4](04-x86-64-and-two-stacks.md#reading-a-negative-displacement) applies that rule to displacements. Complementing a value and adding one produces its additive inverse in wrapping cell arithmetic; [Chapter 17](17-lib-04-return-stack-over-subtract.md) derives that operation.
-
-**Two-pass assembly** — An initial scan counts bytes and records labels; a subsequent scan resolves references and emits bytes. [Chapter 26](26-m1-and-hex2.md).
 
 **Word** — A named Forth operation identified by a dictionary entry and executable through its execution token. [Chapter 14](14-lib-01-stacks-and-words.md).
 
@@ -320,6 +310,8 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Lvalue tracking** — Expression metadata keeps storage location, type, qualifiers and array shape. [Chapter 34](34-expressions-part-2.md).
 
+**M1** — The textual assembly format emitted by M2-Planet; Stage A compares two such output files byte for byte. [Chapter 38](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof).
+
 **M2-Planet** — The C compiler used as Stage A’s comparison target, built by both the Forth compiler and a reference compiler. [Chapter 38](38-main-and-bootstrap-chain.md).
 
 **Macro expansion** — Collect arguments, substitute, then rescan the replacement. [Chapter 28](28-the-preprocessor.md).
@@ -402,7 +394,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Stack-buffer pattern** — A pushed value supplies temporary buffer storage for byte I/O. [Chapter 32](32-codegen-part-2.md).
 
-**Stage-A parity proof** — Forth-built and GCC-built M2-Planet emit identical M1 for the same M2-Planet inputs; this checks assembly parity rather than correctness for all C. [Chapter 38](38-main-and-bootstrap-chain.md).
+**Stage-A parity comparison** — Forth-built and GCC-built M2-Planet emit identical M1 for the same M2-Planet inputs; this checks assembly parity rather than correctness for all C. [Chapter 38](38-main-and-bootstrap-chain.md).
 
 **Static initializer lowering** — Queued initialization routines reuse expression fixups and run before main. [Chapter 39](39-lp64-storage-and-initializers.md).
 
@@ -432,6 +424,8 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Unavailable tokens** — Shadow marks keep a macro from re-expanding across rescans. [Chapter 28](28-the-preprocessor.md).
 
+**Unordered comparison** — A floating comparison involving NaN. Neither operand is less than, equal to, or greater than the other; only `!=` is true. The runtime uses PF to distinguish this from ordinary equality. [Chapter 47](47-floats.md#compute-at-the-common-precision).
+
 **Variadic cursor copying** — Copying cursor fields permits independent traversals of the same saved arguments. [Chapter 46](46-varargs.md).
 
 **Variadic register-save area** — Each variadic function invocation saves incoming argument registers in its own frame. [Chapter 46](46-varargs.md).
@@ -444,19 +438,21 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **AMD64 recipe runner** — The guest program that executes recipe operations with explicit paths and checked process status. [Chapter 54](54-k0-and-k1.md).
 
-**Archive member comparison** — Archives that differ as wholes still match when member names, order and bytes agree. [Chapter 52](52-gcc-4-fixed-point.md).
+**Archive member comparison** — For readable archives with simple, unique member names, compare ordered names and each named member's bytes while permitting container metadata to differ. Repeated names need a separate audit because named extraction does not identify each occurrence. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Archive pin agreement** — Agreement between stage-specific source digests and the central input manifest. [Chapter 53](53-sealed-run.md).
 
 **Compiler census** — A build that asks the configured Makefile which objects belong to `cc1`, compiles those objects with seed-cc, and optionally links them into `cc1`. [Chapter 52](52-gcc-4-fixed-point.md).
 
-**Compiler climb** — Successive chain-built compilers supply the language and target support needed to build Linux. [Chapter 55](55-linux-and-kexec.md).
+**Compiler climb** — Successive chain-built compilers supply the language and target support needed to build Linux. The C-only predecessor builds a C/C++ compiler, providing the C++ builder for the next GCC. [Chapter 55](55-linux-and-kexec.md#climb-to-the-linux-compiler).
 
-**Compiler driver stream** — Each compilation's input is the compiler layers, a fixed driver and one C source. [Chapter 50](50-seed-cc-fixed-point.md).
+**Compiler driver stream** — A compilation's input stream combines the compiler layers, a Forth driver prepared for that invocation, and one C source. [Chapter 50](50-seed-cc-fixed-point.md).
 
-**Compiler fixed point** — Successive generations agree under the stated installed-output comparator. This route compares bytes first, then permits archive-container differences when member names, order and bytes agree. [Chapter 52](52-gcc-4-fixed-point.md).
+**Compiler fixed point** — Successive generations agree under the stated installed-output comparator. This route compares bytes first, then permits archive-container differences under the bounded **Archive member comparison** above. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Direct Linux recipe** — The guest recipe extending tool construction through the compiler climb, Linux build, export and handover. [Chapter 55](55-linux-and-kexec.md).
+
+**Direct map** — A kernel mapping in which adding a fixed base to a physical address gives a virtual address for the same memory. The address arithmetic requires matching page tables. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).
 
 **Direct recipes** — The first Makefiles run commands without a shell interpreting them. [Chapter 51](51-owning-the-tools.md).
 
@@ -464,11 +460,13 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Executable publication** — The host grants seed-forth's execute bit between entries; it supplies no program bytes. [Chapter 53](53-sealed-run.md).
 
-**Execve trace audit** — Every successful execve path must resolve to hex0-seed, the host's bwrap, or a program the chain built. [Chapter 53](53-sealed-run.md).
+**Execve trace audit** — Account for each successful execve path using the starting executable, the host's bwrap entry, a chain-built program, or a script interpreted by the built shell. Failed attempts are separate evidence. [Chapter 53](53-sealed-run.md).
 
 **Fixed configuration** — Hand-written config.h answers replace running configure for the first tools. [Chapter 51](51-owning-the-tools.md).
 
 **Guarded configure probes** — Explicit tool settings and failing guard scripts keep configure from finding host tools. [Chapter 51](51-owning-the-tools.md).
+
+**Identity map** — A mapping in which a virtual address translates to the same numeric physical address. It does not change addresses already held in registers. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).
 
 **Interrupted execve join** — Pairing a trace’s unfinished and resumed syscall records by process identity before classifying the result. [Chapter 53](53-sealed-run.md).
 
@@ -492,6 +490,8 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Output pin scope** — An artifact digest may apply at any build path or only at the declared root when outputs embed configured paths. [Chapter 55](55-linux-and-kexec.md).
 
+**Physical address** — The memory address reached after translation through page tables, distinct from the virtual address used by an instruction. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).
+
 **RAM-tree import** — K1 imports hda as its RAM root and keeps K0's files under /k0/. [Chapter 54](54-k0-and-k1.md).
 
 **Reproducible build** — A build whose repeated inputs and conditions yield byte-identical outputs. [Chapter 52](52-gcc-4-fixed-point.md).
@@ -509,3 +509,5 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 **Sysroot** — The directory tree holding the target headers and libraries the compiler's output uses. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Temporary scanner bootstrap** — Heirloom lex builds an intermediate flex that then generates flex's own scanner. [Chapter 51](51-owning-the-tools.md).
+
+**Virtual address** — The address a program uses for a memory access. Page tables translate it and determine whether the access is permitted; distinct virtual addresses can reach the same physical byte. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).

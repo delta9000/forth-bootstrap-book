@@ -7,6 +7,34 @@ the outline's chapter order; it does not measure what you can already do.
 Definitions are in the [Glossary](62-glossary.md), and individual words are
 in the [word index](WORD-INDEX.md).
 
+## Focused reading routes
+
+Start with [Chapter 1](01-reading-the-book.md) to establish the source
+checkout and run your first word. For the full construction, continue in
+sidebar order. For a specific question, use one of these routes.
+
+Choose a route according to the question you brought:
+
+- **Understand the whole construction.** Read in sidebar order. At each
+  part boundary, use its map to name the artifact you have gained and
+  the next thing it must build.
+- **See a compiler work, then open it up.** Establish the [Chapter 1 setup](01-reading-the-book.md#try-it-establish-the-setup),
+  read the [Forth notation](14-lib-01-stacks-and-words.md), then follow
+  the [expression checkpoint](34-expressions-part-2.md#try-it) and the
+  first [compiler-entry checkpoint](38-main-and-bootstrap-chain.md#try-it).
+  Return to Chapters 27–37 to explain each layer those commands load.
+- **Audit the bootstrap claim.** Read Chapters 2–3, the
+  [Stage A comparison](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof),
+  and Chapters 50–55. Track who builds each artifact, what gets compared,
+  and which host or guest runs it. The long runs have their own resource
+  requirements; reading their evidence does not require launching them.
+
+Part 3's [C-reading bridge](part-3-compiler.md#reading-the-c-input)
+introduces the pointer, array, and record notation used by the compiler's
+inputs. No prior course in C implementation or calling conventions is
+needed. The capability checks below help you recover earlier mechanisms
+when returning after a break.
+
 ## Topic → chapter quick reference
 
 ### Part 1: Machine and seed
@@ -37,7 +65,7 @@ in the [word index](WORD-INDEX.md).
 - Inherited source — [Chapter 3](03-where-this-fits.md)
 - Inline-cell convention — [Chapter 10](10-colon-compiler.md)
 - Interpret mode — [Chapter 10](10-colon-compiler.md)
-- Linux syscall register convention — [Chapter 4](04-x86-64-and-two-stacks.md)
+- Linux syscall register convention — [Chapter 8](08-seed-io.md#the-linux-register-boundary)
 - Little-endian — [Chapter 4](04-x86-64-and-two-stacks.md)
 - Loadable segment — [Chapter 5](05-elf-and-entry.md)
 - ModR/M — See ModRM. [Chapter 4](04-x86-64-and-two-stacks.md)
@@ -64,7 +92,9 @@ in the [word index](WORD-INDEX.md).
 - Under-TOS — See Second on stack. [Chapter 4](04-x86-64-and-two-stacks.md)
 - xt — See Execution token (xt). [Chapter 9](09-dictionary.md)
 
-### Part 2: Forth library and assembler
+<a id="part-2-forth-library-and-assembler"></a>
+
+### Part 2: Forth library
 
 - Back-patching — See Emit, remember, patch. [Chapter 24](24-lib-11-control-flow-combinators.md)
 - Backward loops — [Chapter 24](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat)
@@ -81,11 +111,7 @@ in the [word index](WORD-INDEX.md).
 - Emit-and-divide — [Chapter 22](22-lib-09-memory-and-cell-writers.md)
 - Fixup on the stack — [Chapter 24](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair)
 - Functional completeness of NAND — [Chapter 16](16-lib-03-logic-from-nand.md#why-logic-from-nand-matters)
-- hex2 — [Chapter 26](26-m1-and-hex2.md)
-- Label table — [Chapter 26](26-m1-and-hex2.md)
 - Little-endian cell writers — [Chapter 22](22-lib-09-memory-and-cell-writers.md#4-and-8-cell-sized-emission)
-- M1 — [Chapter 26](26-m1-and-hex2.md)
-- M1 macro — [Chapter 26](26-m1-and-hex2.md)
 - Pad-and-call — [Chapter 18](18-lib-05-syscalls.md)
 - Postfix evaluation — [Chapter 14](14-lib-01-stacks-and-words.md#postfix-evaluation)
 - Range-check trick — [Chapter 19](19-lib-06-character-classification.md#the-range-check-trick-digit)
@@ -93,14 +119,12 @@ in the [word index](WORD-INDEX.md).
 - RPN — See Postfix evaluation. [Chapter 14](14-lib-01-stacks-and-words.md)
 - Runtime body — [Chapter 23](23-lib-10-immediacy-and-constants.md)
 - Self-NAND — [Chapter 16](16-lib-03-logic-from-nand.md)
-- Sigil — [Chapter 26](26-m1-and-hex2.md)
 - Sign test by division — [Chapter 20](20-lib-07-comparisons-from-division.md)
 - Signed-overflow domain — [Chapter 20](20-lib-07-comparisons-from-division.md)
 - Stack trace — [Chapter 14](14-lib-01-stacks-and-words.md)
 - Stack-effect notation — [Chapter 14](14-lib-01-stacks-and-words.md#stack-effect-comments)
 - Store-and-advance — [Chapter 15](15-lib-02-code-emission-and-here.md)
 - Two's complement — [Chapter 4: decode signed fields](04-x86-64-and-two-stacks.md#reading-a-negative-displacement); [Chapter 17: derive negation](17-lib-04-return-stack-over-subtract.md#--from--and-nand)
-- Two-pass assembly — [Chapter 26](26-m1-and-hex2.md)
 - Word — [Chapter 14](14-lib-01-stacks-and-words.md)
 
 ### Part 3: Compiler
@@ -129,6 +153,7 @@ in the [word index](WORD-INDEX.md).
 - Codegen — See Code generation. [Chapter 31](31-elf-and-codegen-part-1.md)
 - Compact type encoding — [Chapter 30](30-types-and-symbols.md)
 - Compiler diagnostic — [Chapter 27](27-arena-and-io-buffers.md)
+- Buffer capacity and cursor — [Chapter 27](27-arena-and-io-buffers.md#part-3-from-storage-to-a-c-compiler)
 - Computed include operand — [Chapter 28](28-the-preprocessor.md)
 - Conditional compilation — [Chapter 28](28-the-preprocessor.md)
 - Constant expressions — [Chapter 34](34-expressions-part-2.md#constant-expressions)
@@ -177,9 +202,12 @@ in the [word index](WORD-INDEX.md).
 - LP64 native object storage — [Chapter 39](39-lp64-storage-and-initializers.md#native-declarations-and-aligned-storage)
 - Lvalue — [Chapter 34](34-expressions-part-2.md)
 - Lvalue tracking — [Chapter 34](34-expressions-part-2.md#lvalue-tracking)
+- M1 — [Chapter 38](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof)
 - M2-Planet — [Chapter 38](38-main-and-bootstrap-chain.md)
 - Macro expansion — [Chapter 28](28-the-preprocessor.md#macro-expansion)
 - Macro table — [Chapter 28](28-the-preprocessor.md)
+- Name slice — [Chapter 27](27-arena-and-io-buffers.md#shared-helpers-for-c-names)
+- Newest-first slice lookup — [Chapter 27](27-arena-and-io-buffers.md#shared-helpers-for-c-names)
 - Monolith — [Chapter 38](38-main-and-bootstrap-chain.md)
 - Native redirection — [Chapter 27](27-arena-and-io-buffers.md)
 - Nonlocal continuation — [Chapter 43](43-runtime-and-libc.md)
@@ -188,6 +216,8 @@ in the [word index](WORD-INDEX.md).
 - Operand snapshot — [Chapter 33](33-expressions-part-1.md)
 - Operator table — [Chapter 33](33-expressions-part-1.md#the-operator-table)
 - Output back-patching — [Chapter 27](27-arena-and-io-buffers.md)
+- Parallel arrays — [Chapter 27](27-arena-and-io-buffers.md#shared-helpers-for-c-names)
+- Prospective-size check — [Chapter 27](27-arena-and-io-buffers.md#failing-cc-die)
 - Owed newlines — [Chapter 28](28-the-preprocessor.md)
 - Parser — [Chapter 33](33-expressions-part-1.md)
 - Per-object placement — [Chapter 42](42-linker-and-archives.md)
@@ -218,7 +248,7 @@ in the [word index](WORD-INDEX.md).
 - Stable object record — [Chapter 41](41-system-v-calls.md)
 - Stable symbol handle — [Chapter 40](40-objects-and-relocations.md)
 - Stack-buffer pattern — [Chapter 32](32-codegen-part-2.md)
-- Stage-A parity proof — [Chapter 38](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof)
+- Stage-A parity comparison — [Chapter 38](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof)
 - Static initializer lowering — [Chapter 39](39-lp64-storage-and-initializers.md#initializers-reuse-expression-fixups)
 - Static local storage — [Chapter 35](35-declarations-types-globals.md)
 - Sticky-half unsigned conversion — [Chapter 47](47-floats.md)
@@ -249,12 +279,14 @@ in the [word index](WORD-INDEX.md).
 - Compiler driver stream — [Chapter 50](50-seed-cc-fixed-point.md)
 - Compiler fixed point — [Chapter 52](52-gcc-4-fixed-point.md)
 - Direct Linux recipe — [Chapter 55](55-linux-and-kexec.md)
+- Direct map — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 - Direct recipes — [Chapter 51](51-owning-the-tools.md)
 - Embedded initramfs — [Chapter 55](55-linux-and-kexec.md)
 - Executable publication — [Chapter 53](53-sealed-run.md)
 - Execve trace audit — [Chapter 53](53-sealed-run.md)
 - Fixed configuration — [Chapter 51](51-owning-the-tools.md)
 - Guarded configure probes — [Chapter 51](51-owning-the-tools.md)
+- Identity map — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 - Interrupted execve join — [Chapter 53](53-sealed-run.md)
 - K0 serialized fork — [Chapter 54](54-k0-and-k1.md)
 - K0 syscall fallbacks — [Chapter 54](54-k0-and-k1.md)
@@ -266,6 +298,7 @@ in the [word index](WORD-INDEX.md).
 - Libgcc — [Chapter 52](52-gcc-4-fixed-point.md)
 - Linux boot parameters — [Chapter 55](55-linux-and-kexec.md)
 - Output pin scope — [Chapter 55](55-linux-and-kexec.md)
+- Physical address — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 - RAM-tree import — [Chapter 54](54-k0-and-k1.md)
 - Reproducible build — [Chapter 52](52-gcc-4-fixed-point.md)
 - Result export — [Chapter 55](55-linux-and-kexec.md)
@@ -275,6 +308,7 @@ in the [word index](WORD-INDEX.md).
 - Source generator — [Chapter 52](52-gcc-4-fixed-point.md)
 - Sysroot — [Chapter 52](52-gcc-4-fixed-point.md)
 - Temporary scanner bootstrap — [Chapter 51](51-owning-the-tools.md)
+- Virtual address — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 
 ### Appendix references
 
@@ -342,11 +376,11 @@ chapter's matching `book/outline/NN-*.md` file. Most of these are editorial
 reading-order edges: following the chain recovers the recommended first
 pass, not a demonstrated minimum set of skills for every later task. Use
 the capability checks above to select a repair or a familiar entry point.
-The last column is an inventory of earlier chapter references, not an
+The last column selects earlier explanations to revisit, not an
 additional set of requirements. A reference can be a comparison or an
 optional consultation; a forward pointer alone does not add a dependency.
 
-| Chapter | Prerequisites from outline | Earlier chapters named in prose |
+| Chapter | Prerequisites from outline | Selected earlier explanations |
 |---|---|---|
 | [4 — x86-64 encoding and the two-stack machine](04-x86-64-and-two-stacks.md) | [3](03-where-this-fits.md) | — |
 | [5 — ELF, entry, and the memory map](05-elf-and-entry.md) | [4](04-x86-64-and-two-stacks.md) | [4](04-x86-64-and-two-stacks.md) |
@@ -370,12 +404,11 @@ optional consultation; a forward pointer alone does not add a dependency.
 | [23 — Immediacy and constants](23-lib-10-immediacy-and-constants.md) | [22](22-lib-09-memory-and-cell-writers.md), [13](13-primitive-reference.md) | [9](09-dictionary.md), [10](10-colon-compiler.md) |
 | [24 — Control-flow combinators](24-lib-11-control-flow-combinators.md) | [23](23-lib-10-immediacy-and-constants.md), [13](13-primitive-reference.md) | [9](09-dictionary.md), [11](11-branches.md) |
 | [25 — Defining words and byte equality](25-lib-12-defining-words-and-bytes-eq.md) | [24](24-lib-11-control-flow-combinators.md), [13](13-primitive-reference.md) | [23](23-lib-10-immediacy-and-constants.md), [24](24-lib-11-control-flow-combinators.md) |
-| [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md) | [25](25-lib-12-defining-words-and-bytes-eq.md) | [12](12-repl.md), [25](25-lib-12-defining-words-and-bytes-eq.md) |
-| [27 — Arena and I/O buffers](27-arena-and-io-buffers.md) | [26](26-m1-and-hex2.md) | [20](20-lib-07-comparisons-from-division.md), [23](23-lib-10-immediacy-and-constants.md) |
+| [27 — Arena and I/O buffers](27-arena-and-io-buffers.md) | [25](25-lib-12-defining-words-and-bytes-eq.md) | [20](20-lib-07-comparisons-from-division.md), [22](22-lib-09-memory-and-cell-writers.md), [23](23-lib-10-immediacy-and-constants.md), [24](24-lib-11-control-flow-combinators.md), [25](25-lib-12-defining-words-and-bytes-eq.md) |
 | [28 — The preprocessor](28-the-preprocessor.md) | [27](27-arena-and-io-buffers.md) | [25](25-lib-12-defining-words-and-bytes-eq.md), [27](27-arena-and-io-buffers.md) |
 | [29 — The lexer](29-the-lexer.md) | [28](28-the-preprocessor.md) | [27](27-arena-and-io-buffers.md), [28](28-the-preprocessor.md) |
 | [30 — Types and symbols](30-types-and-symbols.md) | [29](29-the-lexer.md) | [27](27-arena-and-io-buffers.md), [29](29-the-lexer.md) |
-| [31 — ELF emission and instruction encoding](31-elf-and-codegen-part-1.md) | [30](30-types-and-symbols.md) | [4](04-x86-64-and-two-stacks.md), [5](05-elf-and-entry.md) |
+| [31 — ELF emission and instruction encoding](31-elf-and-codegen-part-1.md) | [30](30-types-and-symbols.md) | [4](04-x86-64-and-two-stacks.md), [5](05-elf-and-entry.md), [24](24-lib-11-control-flow-combinators.md) |
 | [32 — Calls, shims, and globals](32-codegen-part-2.md) | [31](31-elf-and-codegen-part-1.md) | [29](29-the-lexer.md), [31](31-elf-and-codegen-part-1.md) |
 | [33 — Expressions: precedence](33-expressions-part-1.md) | [32](32-codegen-part-2.md) | [29](29-the-lexer.md), [30](30-types-and-symbols.md) |
 | [34 — Expressions: operands and assignment](34-expressions-part-2.md) | [33](33-expressions-part-1.md) | [30](30-types-and-symbols.md), [33](33-expressions-part-1.md) |
@@ -403,9 +436,9 @@ optional consultation; a forward pointer alone does not add a dependency.
 | [56 — Epilogue: onward to GCC 15.2](56-gcc-15-epilogue.md) | [55](55-linux-and-kexec.md) | [55](55-linux-and-kexec.md) |
 | [57 — Appendix C: historical reproducibility routes](57-historical-reproducibility.md) | [55](55-linux-and-kexec.md) | [38](38-main-and-bootstrap-chain.md), [50](50-seed-cc-fixed-point.md), [52](52-gcc-4-fixed-point.md), [53](53-sealed-run.md), [54](54-k0-and-k1.md), [55](55-linux-and-kexec.md), [56](56-gcc-15-epilogue.md) |
 | [58 — Appendix D: worked exercises](58-worked-exercises.md) | D.1: [24](24-lib-11-control-flow-combinators.md); D.2: [10](10-colon-compiler.md) and [12](12-repl.md); D.3: [33](33-expressions-part-1.md) for the trace, [38](38-main-and-bootstrap-chain.md) for the full compiler run | [10](10-colon-compiler.md), [12](12-repl.md), [24](24-lib-11-control-flow-combinators.md), [33](33-expressions-part-1.md) |
-| [59 — Appendix E: further reading](59-further-reading.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [33](33-expressions-part-1.md) |
-| [60 — Appendix F: the C subset](60-c-subset.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [38](38-main-and-bootstrap-chain.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [43](43-runtime-and-libc.md), [44](44-target-headers.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md), [51](51-owning-the-tools.md), [52](52-gcc-4-fixed-point.md) |
-| [61 — Appendix G: compiler error codes](61-error-codes.md) | [26](26-m1-and-hex2.md), [38](38-main-and-bootstrap-chain.md) | [9](09-dictionary.md), [26](26-m1-and-hex2.md), [27](27-arena-and-io-buffers.md), [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md) |
+| [59 — Appendix E: further reading](59-further-reading.md) | [38](38-main-and-bootstrap-chain.md) | [33](33-expressions-part-1.md) |
+| [60 — Appendix F: the C subset](60-c-subset.md) | [38](38-main-and-bootstrap-chain.md) | [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [38](38-main-and-bootstrap-chain.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [43](43-runtime-and-libc.md), [44](44-target-headers.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md), [51](51-owning-the-tools.md), [52](52-gcc-4-fixed-point.md) |
+| [61 — Appendix G: compiler error codes](61-error-codes.md) | [38](38-main-and-bootstrap-chain.md) | [9](09-dictionary.md), [27](27-arena-and-io-buffers.md), [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md) |
 
 The prose references often reach past the immediately preceding chapter: the outlines preserve reading order, while the last column locates the particular machinery being reused. The historical appendix also points to the epilogue; a cross-reference alone does not add a prerequisite.
 
@@ -413,16 +446,22 @@ The prose references often reach past the immediately preceding chapter: the out
 
 ### First pass
 
-Read [Chapters 1–3](01-reading-the-book.md) for orientation, then Chapters 4–56 in sidebar order. Consult the appendices when a topic calls for them. This respects the main route's outline order. Appendix D can be used one exercise at a time at the points shown above; it does not require finishing Part 3 first.
+Read [Chapters 1–3](01-reading-the-book.md) for orientation, then Chapters
+4–25 and 27–56 in sidebar order. The library leads straight to the
+compiler. Chapter numbers retain the gap at 26, whose page now holds a
+separate regression check. Consult the appendices when a topic calls for
+them. This respects the main route's outline order. Appendix D
+can be used one exercise at a time at the points shown above; it does not
+require finishing Part 3 first.
 
 ### Compiler-only path
 
 Begin with [Part 3](part-3-compiler.md), Chapters 27–49, if you can trace
 Forth stack effects, distinguish compilation from execution, and follow
 memory stores and emitted bytes. The transition checks above help locate
-the specific earlier explanation if one of those is rusty; Chapter 26
-explains the M1 format compared at Stage A. Use the local
-C-input bridge before type and parser records. Stop at
+the specific earlier explanation if one of those is rusty. Chapter 38
+introduces M1 as the output compared at Stage A. Use the local C-input
+bridge before type and parser records. Stop at
 [Chapter 38](38-main-and-bootstrap-chain.md) for the core compiler and
 Stage A, or continue through [Chapter 49](49-aggregate-abi.md) for the
 extended compiler. Keep [Appendix F](60-c-subset.md) and

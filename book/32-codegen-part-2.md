@@ -88,6 +88,11 @@ passes. Keep this restricted default path distinct from the LP64 selector;
 
 </details>
 
+For either `4` in our `((4) * (4))` trace, the compact immediate form
+preserves the value in both profiles. This selector only encodes the
+value handed to it: it does not replace the two loads and multiplication
+with a load of 16. The parser will connect those separate operations.
+
 Taking an undefined function’s address needs `cc-emit-movabs-rdi-imm64-placeholder`: the same instruction shape with an empty immediate. The returned offset identifies the value field to overwrite, not the instruction’s beginning (`forth-bootstrap/cc/090-cc-emit.fth:485`):
 
 ```forth file=cc/090-cc-emit.fth
@@ -299,10 +304,13 @@ Input uses the stack-buffer pattern too, but EOF must become a sentinel rather t
 
 ```
 
-The `putchar` body is enough to finish the opening example. The remaining
-shims adapt the same argument registers to other small runtime services.
-Their restricted behavior matters when choosing C input; the separately
-compiled runtime will replace this collection for later builds.
+The `putchar` body is enough to finish the opening example. You can now
+run the [two-call checkpoint](#try-it), then return to
+[global fixups](#file-scope-globals-and-deferred-vaddr-fixups) to follow an
+address whose storage also waits for final placement. The remaining shims
+adapt the same argument registers to other small runtime services. Their
+restricted behavior matters when choosing C input; the separately compiled
+runtime will replace this collection for later builds.
 
 <details>
 <summary>Other runtime shims: streams, allocation, and strings</summary>

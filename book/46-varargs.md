@@ -6,6 +6,15 @@
 
 A variadic definition needs three additions: save incoming registers, validate a `va_list`, and emit the cursor operations requested by C intrinsics. The System V call sequence already supplies the arguments (Chapter 41); this layer replaces the hook that rejects variadic definitions. `cc-va-signature` retains the definition's signature even if a block-scope declaration changes parser state. `cc-va-register-slot` identifies the save area's base local slot.
 
+In `long sum(int n, ...)`, the ellipsis permits arguments after the named
+parameter `n`; it gives those later arguments no declared parameter types.
+The caller therefore cannot convert each one to a corresponding parameter
+type as it did for `add` in Chapter 41. The `L` suffixes in the opening
+call make those arguments `long`, matching each `va_arg(ap, long)` fetch.
+Unsuffixed `1` would have type `int`; an eight-byte argument slot would
+not by itself make it a `long`. The promotion and retrieval rules are
+separate from the slot's capacity.
+
 First place the opening call's arguments. Named parameter `n=8` uses
 RDI. Values 1 through 5 use the other five integer argument registers;
 values 6 through 8 arrive on the stack. Saving the registers gives
@@ -32,7 +41,8 @@ starts just after `va_start`:
 | 7 | `O + 8` | 48 | `O + 16` |
 | 8 | `O + 16` | 48 | `O + 24` |
 
-The initial GP offset is 8 because the named parameter already used RDI.
+The initial general-purpose (GP) offset is 8 because the named parameter
+already used RDI.
 Once the offset reaches 48, there is no seventh saved GP register to
 read: retrieval switches to the overflow pointer. Only the selected
 cursor advances. This is why the two pointers and offsets in a list must

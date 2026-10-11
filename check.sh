@@ -21,6 +21,10 @@ fi
     echo "check: no forth-bootstrap checkout at $src (git submodule update --init --recursive)" >&2
     exit 1
 }
+command -v node >/dev/null || {
+    echo "check: Node.js is required for reader/highlighting regression tests" >&2
+    exit 1
+}
 python3 -m unittest discover -s tools/tests -v
 tools/tangle.sh verify --strict
 if [[ "$mode" == --static ]]; then

@@ -422,6 +422,13 @@ The integer half rejects negation of the signed minimum unless arithmetic is bei
 
 ## Carry an address without knowing its final location
 
+Return to the checkpoint's `&arr[2]`: its record keeps `arr` as the symbol
+and 8 as the byte addend. If the next operator adds 1 to that `int *`, the
+addend becomes 12, because pointer arithmetic advances by `sizeof(int)`.
+The symbol stays unchanged and no array element is read. The evaluator
+can complete this part of the calculation even though only the linker
+will know where `arr` lives.
+
 Binary scratch state belongs to a completed pair of operands: `cc-const-left` and `cc-const-right` hold records, `cc-const-row` the operator, `cc-const-common` the working type, and `cc-const-a` and `cc-const-b` the converted values. Filling these only after recursion returns avoids overwriting an outer operation. `cc-const-op`, `cc-const-unsigned?`, and `cc-const-less` read that state. `cc-const-address?` recognizes both symbolic integers and pointer-typed constants (`forth-bootstrap/cc/125-cc-consteval.fth:295`):
 
 ```forth file=cc/125-cc-consteval.fth
@@ -928,4 +935,18 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-45-typed-
 
 **Trace (easy).** Follow `wrapped` through literal validation, common-type conversion, addition, and `cc-const-check-result`. Explain why delaying normalization until the final store would break a comparison of the sum with `2U`.
 
-**Verify (moderate).** Change `x` to select between its current initializer and an unselected division by zero. Run the checkpoint, then reverse the condition. Identify the word that suppresses arithmetic in the first run and the check that rejects the second.
+**Verify (moderate).** Give `x` the initializer
+`1 ? (sizeof(long) * 3 + (1 << 4)) : (1 / 0)`, then make a second version
+with condition `0`. Before running either, predict whether compilation
+succeeds and what a successfully compiled program returns. Run both
+versions and trace the parser state and arithmetic check responsible for
+each outcome. Account for how the parser reaches the declaration's end
+even when an arm does not supply its value.
+
+Run each version as a fresh complete block and record its shell status
+immediately afterward, for example with `status=$?`. Keep the existing
+compiler-failure guards: if compilation rejects an initializer, the block
+must stop before linking or running it, and its normal three result lines
+will be absent. Compare the diagnostic and status with your prediction;
+do not remove the guard to obtain a program result. Restore the successful
+source before testing an unrelated change.

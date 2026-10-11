@@ -6,7 +6,7 @@ Scope: Establish the compiler’s allocation regions and buffered input and outp
 
 Sources taught: `cc/020-cc-arena.fth 1-457`; `cc/030-cc-io.fth 1-287`
 
-Prerequisites: [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md)
+Prerequisites: [25 — Defining words and byte equality](25-lib-12-defining-words-and-bytes-eq.md)
 
 Checkpoint: TODO — the cumulative core checkpoint is Stage A at the end of the core compiler sequence.
 

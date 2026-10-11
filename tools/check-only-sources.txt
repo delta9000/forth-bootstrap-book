@@ -1,0 +1,4 @@
+# Check-only sources: source-path checkpoint-path, relative to forth-bootstrap/.
+# These numbered sources are regression-checked, not taught or tangled by the book.
+# The strict audit checks this mapping and file existence; it does not run checkpoints.
+forth/130-asm.fth tests/asm/hi-check.sh

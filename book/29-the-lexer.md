@@ -17,6 +17,14 @@ The lexer does not yet know that `w` names an array. That interpretation
 belongs to the declaration parser. The lexer's job is to make boundaries
 reliable: `intx` must remain one identifier, and `>=` must remain one operator.
 
+Keep Chapter 28's other result beside the declaration: `SQUARE(ROWS)`
+left the tokens of `((4) * (4))`. Each `4` now becomes a number token with
+value 4; `*` becomes punctuation with byte value 42, and each parenthesis
+is another punctuation token. There is still no value 16. We will follow
+this same expression through type selection and instruction emission,
+then let the parser choose those instructions in Chapter 33. This is a
+manual cross-layer trace; each checkpoint below tests its own loaded layer.
+
 We will keep the current token in a small record and leave names in the
 source buffer instead of copying them. A parser can then inspect a token,
 decline it, and put it back for its caller. That last operation is how the
@@ -1049,6 +1057,12 @@ Observed output:
 
 Kind 6 is `tk-kw` with `kw-int` (0); kind 1 is an identifier of length 1; kind 5 is punctuation carrying its byte; kind 2 is a number with value 4. `tk-eof` (0) ends the loop.
 
+The tiny `digit.` helper displays only values from 0 through 9. For
+example, replacing the bound with `16` would print `@` for its payload:
+the helper adds 48 and emits byte 64. That would be a display limitation,
+not the lexer's numeric result. Extend the printer before using this
+driver to inspect larger values, lengths, or keyword IDs.
+
 Then run the lexer layer test selected by `forth-bootstrap/test.sh:118`, the coverage check for this layer:
 
 <!-- tryit: expect "exit status: 0" -->
@@ -1080,4 +1094,14 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-29-lookah
 **Trace (easy).** Follow `cc-punct-dot` on `..` and on `...`, beginning just after the dispatcher consumes the first dot. For each input, identify the branch taken, the punctuation code stored, and the unread suffix. Explain why consuming the next dot before checking the following byte would break the shorter case.
 
 **Verify (moderate).** Add a local lexer probe that marks an identifier, reads the following punctuation, resets, and reads again. Check the token payload, source cursor and pending flag as well as the kind. Repeat with a token pending at the moment of the mark.
+
+Use a fresh probe in place of `cc/test-050-cc-lex.fth` at the end of the
+second pipeline. Initialize the source length, cursor and line as that
+test does. Also clear `cc-tok-pending` before the first advance, then use
+`cc-next-token-keep`. Keep assertions before the terminating `die`.
+
+After checking the one-line case, insert a newline byte between the
+identifier and punctuation. Predict the line and cursor at each advance
+and reset before rerunning. Check EOF too. A correct token kind with the
+wrong line is a failed restoration, even if the visible token text agrees.
 

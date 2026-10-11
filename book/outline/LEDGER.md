@@ -1,11 +1,11 @@
 # Ledger: concepts taught, by chapter
 
-One line per concept: `term | chapter | definition`, chapter as the new stub number and title.  Seeded from book/CONCEPTS.md (concept index) and book/WORD-INDEX.md (first section that defines or explains each word or idea), mapped from old chapters to new stubs with book/outline/MAPPING.md.  Chapter writers add their terms in their reports; the ledger is edited by hand, not by writers.
+One line per concept: `term | chapter | definition`, chapter as the stable stub number and displayed title. The number 26 identifies an assembler regression check, not a taught source; SUMMARY.md determines reading order.  Seeded from book/CONCEPTS.md (concept index) and book/WORD-INDEX.md (first section that defines or explains each word or idea), mapped from old chapters to new stubs with book/outline/MAPPING.md.  Chapter writers add their terms in their reports; the ledger is edited by hand, not by writers.
 
 term | chapter | definition
 --- | --- | ---
-Checkpoint | 01 Reading the book | a command and its observed result that test one specific operation
-Checkpoint working directory | 01 Reading the book | the forth-bootstrap checkout root, where checkpoint commands run
+Checkpoint | 01 Your first word | a command and its observed result that test one specific operation
+Checkpoint working directory | 01 Your first word | the forth-bootstrap checkout root, where checkpoint commands run
 Inherited executable | 03 Where this fits: routes and history | machine code already present when a bootstrap route begins (here, the 229-byte hex0-seed)
 Inherited source | 03 Where this fits: routes and history | upstream source that still needs a builder inside the route
 Cached-top pattern | 04 x86-64 encoding and the two-stack machine | `rdi` holds the top of the data stack; `rbp` points at the next value in memory, so a push stores the old top and moves `rbp` down
@@ -16,7 +16,7 @@ ModRM | 04 x86-64 encoding and the two-stack machine | the byte whose mod, reg a
 SIB | 04 x86-64 encoding and the two-stack machine | the scale/index/base byte that some memory-addressing forms add after ModRM
 REX | 04 x86-64 encoding and the two-stack machine | the 0100WRXB prefix: W selects a 64-bit operand; R, X and B extend the reg, index and base fields
 rel32 | 04 x86-64 encoding and the two-stack machine | a signed 32-bit displacement added to the address of the next instruction
-Linux syscall register convention | 04 x86-64 encoding and the two-stack machine | number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11
+Linux syscall register convention | 08 The seed’s Linux boundary | number in rax; arguments in rdi, rsi, rdx, r10, r8, r9; result in rax; syscall clobbers rcx and r11
 `_start` | 05 ELF, entry, and the memory map | seed label; `_start` at `0x400078`
 `jmp_repl` | 05 ELF, entry, and the memory map | seed label; `JMP repl` at `0x0B5`
 `sysvar_init` | 05 ELF, entry, and the memory map | seed label; The sysvar init at `0x085`
@@ -371,20 +371,8 @@ Fixup-on-the-stack | 24 Control-flow combinators | concept (Forth-level ideas); 
 `allot` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); `allot` in one line
 `bytes,` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); `s,`: names as data
 `bytes-eq` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); `bytes-eq`: stop at the first mismatch
-Self-contained assembler | 26 The M1 assembler and hex2 linker | 130-asm.fth runs on the seed and 010-lib.fth alone: load both, then asm-main
-Label table | 26 The M1 assembler and hex2 linker | records of name slice and address; newest-first slice lookup, newest declaration wins
-M1 macro | 26 The M1 assembler and hex2 linker | DEFINE name value: textual, non-recursive substitution before assembly
-Sigil | 26 The M1 assembler and hex2 linker | ! @ ~ % (relative, 1-4 bytes, from field end), $ & (absolute, 2 and 4 bytes); %a>b gives a - b
-Two-pass assembly | 26 The M1 assembler and hex2 linker | pass 1 counts bytes and records labels, pass 2 resolves and emits
-Prospective-size check | 26 The M1 assembler and hex2 linker | asm-check-cap: die with a code unless the size after an append fits
-Newest-first slice lookup | 26 The M1 assembler and hex2 linker | search records newest to oldest by length then bytes-eq; shared by labels and macros
-asm buffers and cursor | 26 The M1 assembler and hex2 linker | asm-src-* asm-exp-* asm-cur-* asm-use-src asm-use-exp asm-reset-pos asm-load-stdin asm-eof? asm-peek-char asm-next-char
-asm output | 26 The M1 assembler and hex2 linker | asm-out-* asm-emit-byte asm-emit-le asm-write-output (fixed path /tmp/asm-out)
-asm labels | 26 The M1 assembler and hex2 linker | asm-labels asm-rec asm-count asm-store-label asm-find-label asm-base asm-ip asm-pass
-asm numbers and bounds | 26 The M1 assembler and hex2 linker | asm-parse-number asm-dec-* asm-hex-char? hex-val asm-label-bounds asm-number-bounds asm-fit
-asm tokens and dispatch | 26 The M1 assembler and hex2 linker | asm-read-token asm-skip-ws asm-process-token asm-do-ref asm-do-pct-ref asm-do-hex asm-check-hex asm-do-label-decl asm-tok-err
-asm macros | 26 The M1 assembler and hex2 linker | asm-defs asm-def-store asm-def-find asm-is-define? asm-exp-bytes asm-exp-string-double asm-exp-string-single asm-expand-pass
-`asm-main` | 26 The M1 assembler and hex2 linker | load stdin, expand, pass 1, rewind, pass 2, write /tmp/asm-out, bye
+Prospective-size check | 27 Arena and I/O buffers | cc-check-cap checks the size an operation would produce against capacity before the operation; a size above capacity fails with cc-die
+Newest-first slice lookup | 27 Arena and I/O buffers | cc-name-find scans parallel address and length arrays from newest to oldest, comparing equal-length names with bytes-eq
 `create` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`); `create`'s runtime body
 `defer-code-size` | 25 Defining words and byte equality | Forth word (constant, `forth/010-lib.fth`); `defer` and `is`: a name now, a meaning later
 `defer` | 25 Defining words and byte equality | Forth word (`forth/010-lib.fth`); `defer` and `is`: a name now, a meaning later
@@ -398,67 +386,6 @@ asm macros | 26 The M1 assembler and hex2 linker | asm-defs asm-def-store asm-de
 Names as raw bytes (s,) | 25 Defining words and byte equality | idea; `s,`: names as data
 Deferred words | 25 Defining words and byte equality | idea; `defer` and `is`: a name now, a meaning later
 Deferred words (`defer`/`is`: call a word defined later) | 25 Defining words and byte equality | concept (Forth-level ideas); introduced in old Ch 12
-`asm-base` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); The label table
-`asm-cap` | 26 The M1 assembler and hex2 linker | assembler word (constant, `forth/130-asm.fth`); The label table
-`asm-check-cap` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-check-hex` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-count` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); The label table
-`asm-cp-addr` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Macro expansion
-`asm-cp-i` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Macro expansion
-`asm-cp-len` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Macro expansion
-`asm-cur-buf` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Buffers and a cursor
-`asm-cur-len` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Buffers and a cursor
-`asm-cur-pos` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Buffers and a cursor
-`asm-dec-addr` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Numbers
-`asm-dec-hex` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Numbers
-`asm-dec-i` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Numbers
-`asm-dec-len` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Numbers
-`asm-dec-neg` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Numbers
-`asm-dec-val` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Numbers
-`asm-def-cap` | 26 The M1 assembler and hex2 linker | assembler word (constant, `forth/130-asm.fth`); Macro expansion
-`asm-def-count` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Macro expansion
-`asm-def-find` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-def-rec-size` | 26 The M1 assembler and hex2 linker | assembler word (constant, `forth/130-asm.fth`); Macro expansion
-`asm-def-rec` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-def-store` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-deff-addr` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Macro expansion
-`asm-deff-len` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Macro expansion
-`asm-define-kw` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); Macro expansion
-`asm-defs` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); Macro expansion
-`asm-do-hex` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-do-label-decl` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-do-pct-ref` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-do-ref` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-emit-byte` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); The output side
-`asm-emit-le` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Numbers
-`asm-eof?` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-exp-buf` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); Buffers and a cursor
-`asm-exp-bytes` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-exp-cap` | 26 The M1 assembler and hex2 linker | assembler word (constant, `forth/130-asm.fth`); Buffers and a cursor
-`asm-exp-emit-byte` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-exp-len` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Buffers and a cursor
-`asm-exp-string-double` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-exp-string-single` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-expand-pass` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-find-addr` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); The label table
-`asm-find-gt` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-find-label` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); The label table
-`asm-find-len` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); The label table
-`asm-fit-hi` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); One token, one decision
-`asm-fit-lo` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); One token, one decision
-`asm-fit` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-gt-pos` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); One token, one decision
-`asm-half` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-hex-char?` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Numbers
-`asm-hex-digit` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-hex-i` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); One token, one decision
-`asm-init` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Two passes
-`asm-ip` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); The label table
-`asm-is-define?` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Macro expansion
-`asm-label-bounds` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-labels` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); The label table
-`asm-load-stdin` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-main` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); `asm-main`
 Native redirection | 27 Arena and I/O buffers | code: makes a fresh header; native! patches an old word's entry to JMP rel32 to the new body
 Inline/fallback compilation | 27 Arena and I/O buffers | emit native instructions when compiling, run the saved implementation when interpreting
 Buffered key handoff | 27 Arena and I/O buffers | prefetched input passes through key-drain before further reads
@@ -484,49 +411,6 @@ Shared escape decoder | 29 The lexer | cc-decode-escape returns a byte and the s
 Consume-peek-commit | 29 The lexer | consume the first punctuation byte, peek at the rest, consume a continuation only when it completes a longer token
 Lexer extension hook | 29 The lexer | cc-lex-extra-fwd may supply a token before ordinary classification (used by Chapter 47)
 Putback, mark and reset | 29 The lexer | putback re-offers the current token; mark/reset copy the whole lexer state block for lookahead
-`asm-next-char` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-nl-byte` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); The output side
-`asm-number-bounds` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-out-buf` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); The output side
-`asm-out-cap` | 26 The M1 assembler and hex2 linker | assembler word (constant, `forth/130-asm.fth`); The output side
-`asm-out-init` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); The output side
-`asm-out-path` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); `asm-main`
-`asm-out-pos` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); The output side
-`asm-parse-number` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Numbers
-`asm-pass-loop` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Two passes
-`asm-pass` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); The label table
-`asm-peek-char` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-process-token` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-quote-char` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Reading tokens
-`asm-read-bareword` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Reading tokens
-`asm-read-quoted` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Reading tokens
-`asm-read-token` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Reading tokens
-`asm-rec-size` | 26 The M1 assembler and hex2 linker | assembler word (constant, `forth/130-asm.fth`); The label table
-`asm-rec` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); The label table
-`asm-ref-name` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-reset-pos` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-scan-i` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); One token, one decision
-`asm-skip-rest-of-line` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Reading tokens
-`asm-skip-ws` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Reading tokens
-`asm-src-buf` | 26 The M1 assembler and hex2 linker | assembler word (create, `forth/130-asm.fth`); Buffers and a cursor
-`asm-src-cap` | 26 The M1 assembler and hex2 linker | assembler word (constant, `forth/130-asm.fth`); Buffers and a cursor
-`asm-src-len` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Buffers and a cursor
-`asm-store-label` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); The label table
-`asm-tok-err` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-tok-len` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Reading tokens
-`asm-tok-numeric?` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); One token, one decision
-`asm-tok-start` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); Reading tokens
-`asm-token-len-tmp` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); One token, one decision
-`asm-token-start-tmp` | 26 The M1 assembler and hex2 linker | assembler word (variable, `forth/130-asm.fth`); One token, one decision
-`asm-use-exp` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-use-src` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Buffers and a cursor
-`asm-write-output` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); The output side
-`hex-val` | 26 The M1 assembler and hex2 linker | assembler word (`forth/130-asm.fth`); Numbers
-Label table (name slice + address, newest wins) | 26 The M1 assembler and hex2 linker | concept (Assembler ideas (Part IV)); introduced in old Ch 33
-M1 macro (`DEFINE name value`, textual substitution) | 26 The M1 assembler and hex2 linker | concept (Assembler ideas (Part IV)); introduced in old Ch 33
-Self-contained program (depends on `010-lib.fth` only) | 26 The M1 assembler and hex2 linker | concept (Assembler ideas (Part IV)); introduced in old Ch 33
-Sigil (`! @ ~ % $ &`: field width, absolute or end-of-field relative) | 26 The M1 assembler and hex2 linker | concept (Assembler ideas (Part IV)); introduced in old Ch 33
-Two-pass assembly (pass 1 counts, pass 2 emits) | 26 The M1 assembler and hex2 linker | concept (Assembler ideas (Part IV)); introduced in old Ch 33
 `0=,` | 27 Arena and I/O buffers | compiler word (`cc/020-cc-arena.fth`); Arithmetic, input and a light optimizing compile
 `add-rbp-8,` | 27 Arena and I/O buffers | compiler word (`cc/020-cc-arena.fth`); Arithmetic, input and a light optimizing compile
 `and,` | 27 Arena and I/O buffers | compiler word (`cc/020-cc-arena.fth`); Arithmetic, input and a light optimizing compile
@@ -2289,8 +2173,8 @@ Compiler census | 52 GCC 4.0.4: stages C and D | the configured Makefile names t
 Source generator | 52 GCC 4.0.4: stages C and D | a build-time program whose output is compiled later; built by seed-cc rather than shipped
 Sysroot | 52 GCC 4.0.4: stages C and D | the directory tree holding the target headers and libraries the compiler's output uses
 Libgcc | 52 GCC 4.0.4: stages C and D | target support routines that generated code calls, built by the new GCC rather than seed-cc
-Compiler fixed point | 52 GCC 4.0.4: stages C and D | stage 2 = 3 = 4: successive GCC generations install the same files
-Archive member comparison | 52 GCC 4.0.4: stages C and D | archives that differ as wholes still match when member names, order and bytes agree
+Compiler fixed point | 52 GCC 4.0.4: stages C and D | stage 2 = 3 = 4 under the stated installed-output comparator, including its bounded archive-member exception
+Archive member comparison | 52 GCC 4.0.4: stages C and D | for readable archives with simple, unique member names, compare ordered names and each named payload while allowing container metadata to differ; repeated names need a separate audit
 Late tools | 52 GCC 4.0.4: stages C and D | make 4.4.1, bash 5.2, coreutils 9.5 and the rest, built by the fixed-point GCC with their own configure
 Sealed executable boundary | 53 The sealed host run | the prepared root starts with hex0-seed as its only executable file
 Executable publication | 53 The sealed host run | the host grants seed-forth's execute bit between entries; it supplies no program bytes

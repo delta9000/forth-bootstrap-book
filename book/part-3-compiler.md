@@ -5,11 +5,15 @@ Part 3 builds a C compiler in Forth. Its layers, `cc/020` through
 from standard input and write an executable or a relocatable object
 directly, without a C compiler on the host emitting those bytes.
 
-The assembler from Part 2 and this compiler are separate users of the
-Forth library. C compilation here emits machine bytes directly; it does
-not produce M1 for the assembler to consume. M1 reappears at the first
-major comparison because the program being compiled, M2-Planet, emits
-M1 as its own output.
+Start here after the library in Chapter 25. The loader selects compiler
+layers after `forth/010-lib.fth`
+(`forth-bootstrap/cc/compiler-layers.sh:2`); it does not load
+`forth/130-asm.fth`.
+
+At the first major comparison, the program being compiled is M2-Planet,
+a C compiler that emits textual M1 assembly. Stage A compares that text
+from two builds of M2-Planet; it does not assemble it. Chapter 38 explains
+the comparison and what it establishes.
 
 The Part has two halves. Chapters 27–38 build a compiler for the C subset
 that M2-Planet is written in. The first half ends with the Stage A
@@ -47,6 +51,14 @@ System V object route have different storage and call contracts; loading
 more source does not by itself select a target. Each checkpoint names its
 selection and prerequisites. Consult the [C subset](60-c-subset.md) when
 changing its C input.
+
+Alongside those checkpoints, keep one short expression in view.
+Chapter 28 expands `SQUARE(ROWS)`, with `ROWS` defined as 4, into the
+tokens of `((4) * (4))`. Chapters 29–33 follow those characters as tokens,
+typed operands and emitted instructions. That manual thread connects the
+representations; it does not claim each intermediate layer can compile a
+C program. The small layer-specific checkpoints isolate what is ready to
+run at each stop.
 
 By the end, you should be able to follow one expression from token to
 instruction and one external call from an undefined symbol to a patched

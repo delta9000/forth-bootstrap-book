@@ -90,6 +90,12 @@ M2-Planet is a different kind of test: a real compiler, large enough to
 exercise many of the paths we have just built. We need a comparison that
 does not require predicting its entire output by hand.
 
+M1 is the textual assembly format that M2-Planet writes: it can name
+byte sequences and symbolic destinations. For this test we need only its
+role as an output file. The Forth compiler directly produces a runnable
+M2-Planet executable; running that executable on C source produces M1
+text. Comparing those output bytes does not require an assembly step.
+
 A star on the terminal checks the entry path. Stage-A parity asks a larger, precise question: does M2-Planet built by the Forth compiler emit byte-identical M1 output to M2-Planet built by GCC when both compile the same M2-Planet source set for amd64?
 
 The test constructs the comparison in `forth-bootstrap/tests/cc/stage-a-check.sh:41`:
@@ -104,7 +110,10 @@ The monolith builder prepares the C input and feeds it after the Forth vocabular
 The comparison spans two compilation steps. The Forth compiler and GCC first
 produce two M2-Planet executables; each executable then produces an M1
 file. Those final files are what `cmp` compares. Different machine code
-in the two executables is compatible with identical assembly output.
+in the two executables is compatible with identical assembly output. The
+script stops at that comparison: it neither assembles the M1 files nor
+performs another M2-Planet self-hosting stage
+(`forth-bootstrap/tests/cc/stage-a-check.sh:12`).
 
 A match gives evidence that the Forth-built M2-Planet behaves like the
 reference on this source set and these options. It does not establish a
@@ -116,7 +125,15 @@ justify the next experiment without asking it to prove the entire chain.
 
 A bootstrap chain is a sequence in which tools built from source provide the means to build the next tools. Stage A is a comparison alongside that construction, not the downstream route itself. The current route in `forth-bootstrap/README.md:14` proceeds through `seed-cc`, the build tools, GCC, and Linux; the README distinguishes the host and kernel runs in `forth-bootstrap/README.md:81`.
 
-Part 4 follows that route: Chapter 50 builds `seed-cc`, Chapter 51 builds the tools, and Chapter 52 follows GCC. Chapter 53 audits the sealed host run; Chapter 54 introduces K0 and K1; Chapter 55 carries the chain to Linux. Chapter 39 begins the compiler extensions needed before that route. Stage A closes the core compiler sequence without claiming those later results.
+Part 4 follows that route: Chapter 50 builds `seed-cc`, Chapter 51 builds the tools, and Chapter 52 follows GCC. Chapter 53 audits the sealed host run; Chapter 54 introduces K0 and K1; Chapter 55 carries the chain to Linux. Stage A closes the core compiler sequence without claiming those later results.
+
+Before taking that route, the compiler needs a more precise account of
+storage. Consider `struct Item { char tag; long value; }` initialized with
+`{3, 7}`. Where must each store land, and how much room belongs between
+the fields? An eight-byte working register cannot answer those questions:
+the objects have their own sizes and alignment. [Chapter 39](39-lp64-storage-and-initializers.md)
+uses this record to connect LP64 field layout to initialization, beginning
+the extensions needed by the larger sources ahead.
 
 ## Try it
 

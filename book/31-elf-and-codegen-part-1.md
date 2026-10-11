@@ -624,6 +624,13 @@ The **binary-operation setup** leaves the left operand in `rdi` and the right in
 
 ```
 
+Apply that setup by hand to `((4) * (4))`, the text left by our macro
+example. Emit a load of 4 and a push, then a second load of 4. Move the
+right value to `rcx`, pop the left back into `rdi`, and emit multiplication.
+When those instructions run, `rdi` will hold 16. We are choosing emitter
+calls ourselves here; these words do not read the parentheses or `*`.
+Chapter 33 makes the parser choose this sequence from tokens.
+
 Subtraction keeps the same left/right order. Multiplication has the same register-level contract even though its instruction encoding selects operands differently (`forth-bootstrap/cc/090-cc-emit.fth:299`):
 
 ```forth file=cc/090-cc-emit.fth
@@ -765,6 +772,11 @@ Selecting the opcode is all the wrappers need to do (`forth-bootstrap/cc/090-cc-
 The final move delivers zero or one in `rdi`, suitable as a C expression value. The ordered comparisons here are signed; their names do not imply unsigned support.
 
 ## Branches and `rel32` placeholders
+
+Recall `if,` and `then,` from Chapter 24: reserve an unfinished field,
+remember where it is, and fill it when the destination is known. Here the
+field belongs to the output buffer and holds a relative displacement;
+the original library words kept an absolute destination in an inline cell.
 
 A conditional jump reads processor flags, so it needs a test of the expression value. `cc-emit-test-rdi` tests the accumulator without changing it (`forth-bootstrap/cc/090-cc-emit.fth:393`):
 

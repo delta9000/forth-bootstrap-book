@@ -376,6 +376,17 @@ exit status 0
   Explain why replacing the balancing `r>` with `r@` fails.
 - **Verify (easy).** Match each operand in the checkpoint disassembly to the
   `swap` trace above. Identify the instruction that preserves `a`.
+- **Trace (moderate).** On paper, let `A` name a writable eight-byte region
+  separate from both stacks and from code. Its initial bytes, in increasing
+  address order, are `01 02 03 04 05 06 07 08` in hexadecimal. Start with
+  logical data stack `91 0x1AB A`, top at the right: `rdi=A`, `rbp=p`,
+  `[p]=0x1AB`, and `[p+8]=91`. These are schematic values, not input tokens.
+  Take two independent trials, one executing `c!` and the other `!`.
+  Restore the initial bytes and stack before each trial. Write the eight
+  resulting bytes, the surviving stack, and the final `rbp`. Then consider
+  separate reads with `A` supplied afresh, because the store consumed it:
+  what would `c@` return, and what would `@` return? Which read distinguishes
+  the stores? Why does the byte store not consume fewer stack operands?
 
 <details>
 <summary>Hint for the return-stack trace</summary>
@@ -398,5 +409,38 @@ operation removes it, the enclosing word's `ret` takes `n` as an address.
 A correct copied value therefore does not establish a balanced return
 stack. For the first exercise, `swap drop` leaves `b` on top and
 `rbp=p+8`.
+
+</details>
+
+<details>
+<summary>Hint for the memory-width trace</summary>
+
+First mark the bytes selected by the store instruction. Then trace the
+cleanup instructions separately; do not use the memory-write width to
+choose the stack-pointer increment. For the reads, assemble a cell
+least-significant byte first and check whether the byte load sign-extends
+or zero-extends.
+
+</details>
+
+<details>
+<summary>Check the two memory-width trials</summary>
+
+`c!` leaves `AB 02 03 04 05 06 07 08`; `!` leaves
+`AB 01 00 00 00 00 00 00`. Both consume the value and its destination,
+leaving `91` cached in `rdi` and `rbp=p+16`. Their identical cleanup
+reloads the older cell after passing the value's slot.
+
+After either store, the byte read returns 171 in a complete cell.
+The result from `c@` cannot tell which store ran. Reading with `@`
+instead exposes the other seven bytes. After the byte store, the result
+is `0x08070605040302AB`; after the cell store, it is
+`0x00000000000001AB`. This observation distinguishes them.
+
+If you moved `rbp` by one byte for `c!`, revisit its two eight-byte cleanup
+increments. If you returned a negative value from `c@`, revisit its
+zero-extending `movzx`. If both full-cell results are `0x1AB`, revisit
+the seven bytes that a byte store leaves unchanged. A matching low byte
+alone does not establish that neighboring bytes were preserved.
 
 </details>

@@ -296,7 +296,7 @@ asm-check: k1-asm.fth's bytes equal as on its comments: 801 text bytes, 384 data
 direct-build-check: K1 is 221672 bytes, image 0x200000-0x283d48, entry 0x201000
 ```
 
-The guest checkpoint needs QEMU and uses KVM when `/dev/kvm` is writable. It recreates the disk images under `build-out/k1-direct-smoke` and records the console in `serial.log`; preserve earlier outputs before running it (`forth-bootstrap/kernel/k1/run-chain.sh:26`). On the recorded host it took about seventeen seconds with KVM.
+The guest checkpoint needs QEMU and uses KVM when `/dev/kvm` is writable. It recreates the disk images under `build-out/k1-direct-smoke` and records the console in `serial.log`; preserve earlier outputs before running it (`forth-bootstrap/kernel/k1/run-chain.sh:26`). On the recorded host it took about seventeen seconds with KVM. By default, this smoke run configures 3 GiB of guest RAM, plus host/QEMU overhead; the separate output disk has a 4 GiB logical size (`forth-bootstrap/kernel/k1/run-chain.sh:26–39`). Allow for both resources even though the recorded run was short.
 
 <!-- check-tryit: the scratch runner omits kernel/ and vendor/ and cannot launch this QEMU guest; QEMU and preferably KVM are host prerequisites. -->
 <!-- tryit: skip -->

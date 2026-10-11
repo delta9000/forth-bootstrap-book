@@ -392,6 +392,12 @@ Validated views and names (`forth-bootstrap/cc/140-cc-link.fth:241`):
 
 ## Resolve a name once
 
+Which `add` should a call reach if more than one object offers it?
+The name table chooses among definitions in objects already admitted to
+the link. An archive index does not admit all of its members. Keep that
+boundary in mind here; [archive selection](#turn-the-index-into-linker-demand)
+will show why a strong definition can remain outside the link entirely.
+
 `lnk-find` hashes `lnk-hname`/`lnk-hlen`, probes from `lnk-hash`, and returns `lnk-hslot`. Each occupied slot retains the selected symbol and its owning object
 (`forth-bootstrap/cc/140-cc-link.fth:264`):
 
@@ -1106,7 +1112,27 @@ ordinary object added afterward does not reopen a previously visited one.
 
 With `caller.o` registered, `add` is undefined and strong. The first indexed `add.o` supplies it; the duplicate stays unselected.
 
-A weak undefined name alone extracts nothing. A weak definition can satisfy strong demand, leaving an unneeded strong member untouched. Selection validates that member’s object metadata; unused payloads remain uninterpreted.
+A weak undefined name alone extracts nothing. A weak definition can
+satisfy strong demand, leaving an unneeded strong member untouched. To
+separate extraction from definition strength, consider two valid objects:
+`weak.o` defines `add` with weak binding, and `strong.o` defines it with
+strong binding. Assume neither exports another name or introduces a new
+reference. Start both manual traces after `caller.o` has made `add` a
+strong unresolved name:
+
+| Inputs after `caller.o` | Objects admitted | Selected definition of `add` |
+|---|---|---|
+| Add `weak.o`, then `strong.o` directly | Both objects | Strong: `lnk-register` replaces the admitted weak definition |
+| Visit an archive ordered `weak.o`, `strong.o` | Only `weak.o` | Weak: it satisfies the demand before the next member is considered |
+
+In the archive trace, `arc-member-needed` no longer sees an undefined
+`add` after the first extraction. A rescan cannot change that fact, so it
+does not extract `strong.o` merely to improve the binding strength. In
+the direct trace, adding `strong.o` admits it unconditionally and lets
+`lnk-register` compare the two definitions. Thus “strong wins” describes
+resolution among admitted objects, not a search through every available
+archive definition. Selection validates the chosen member's object
+metadata; unused payloads remain uninterpreted.
 
 ## Place bytes and zero-filled memory
 
@@ -1240,6 +1266,30 @@ The supported relocation kinds use those same three quantities:
 | `R_X86_64_PC32`, `R_X86_64_PLT32` | `S + A - P`, requiring sign extension |
 | `R_X86_64_32` | `S + A`, requiring zero extension |
 | `R_X86_64_32S` | `S + A`, requiring sign extension |
+
+For a different manual prediction, return to the original target at
+`0x401020`. Relink the same objects with the image base raised from
+`0x400000` to `0x600000`, preserving section order and alignment. Both
+the call field and its target move by `0x200000`: `P` becomes `0x601001`
+and `S` becomes `0x601020`. Adding the same amount to both addresses
+cancels in `S + A - P`, so the displacement remains `0x1B`.
+
+An eight-byte pointer to that target in `.data` behaves differently.
+With `R_X86_64_64` and addend zero, its value is `S`:
+
+| Patched field | Base `0x400000` | Base `0x600000` |
+|---|---|---|
+| Call instruction bytes | `E8 1B 00 00 00` | `E8 1B 00 00 00` |
+| Pointer bytes, low address first | `20 10 40 00 00 00 00 00` | `20 10 60 00 00 00 00 00` |
+
+The pointer changes from `0x401020` to `0x601020`, even though the
+relative call does not change. Here the virtual addresses move while
+the section file offsets stay fixed: the linker adds the image base
+when resolving a section-relative symbol
+(`forth-bootstrap/cc/140-cc-link.fth:408–414`). This is a new link at a
+new base. An unchanged call field does not make the complete executable
+position-independent; its absolute pointers and image headers still
+need the new addresses.
 
 Relocation cursors retain type, offset, width, target, patch position, and value. `lnk-signed32?` reconstructs sign extension to test representability without overflowing a signed comparison
 (`forth-bootstrap/cc/140-cc-link.fth:452`):
@@ -1559,5 +1609,20 @@ archive link returned 42
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-42-archive-demand-is-time-dependent).
 
-**Trace (easy).** Reverse the caller and archive additions. Explain which name is unresolved and why a second archive occurrence would repair the link.
+**Trace (easy).** Reverse the caller and archive additions, keeping the
+entry object first. List the unresolved strong names after each addition
+and predict whether the link succeeds. Then predict what changes if the
+archive appears again after the caller. Tie each member-selection decision
+to the demand present at that visit.
 
+**Trace (moderate).** Start again with the call opcode at `0x401000`,
+the target at `0x401020`, and an absolute eight-byte pointer to that
+target with addend zero. In a manual layout variation, move only the
+call instruction 16 bytes forward, leaving the target and pointer slot
+fixed. What are the new `P`, the four displacement bytes, and the stored
+pointer value? Explain why this differs from moving the entire image.
+Does an unchanged relative-call field establish that the whole executable
+is position-independent?
+
+For a second prediction, keep the moved call fixed and move only its
+target another 16 bytes forward. Which fields now change?

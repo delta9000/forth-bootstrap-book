@@ -1,0 +1,60 @@
+/* Seed-Forth only: explicit palettes are independent of mdBook's hljs themes.
+ * Every text color is >= 5.6:1 against its listing background (WCAG sRGB).
+ */
+:root, .light, .rust {
+    --forth-background: #f1f3ed;
+    --forth-foreground: #263c37;
+    --forth-comment: #526455;
+    --forth-definition: #793c8c;
+    --forth-control: #124f91;
+    --forth-meta: #754018;
+    --forth-number: #9b3e10;
+    --forth-string: #16634c;
+    --forth-reference: #793c8c;
+    --forth-builtin: #235f70;
+}
+.coal, .navy, .ayu {
+    --forth-background: #142023;
+    --forth-foreground: #dce4dc;
+    --forth-comment: #a6b5a9;
+    --forth-definition: #dfb5f2;
+    --forth-control: #92c9ff;
+    --forth-meta: #f0c38c;
+    --forth-number: #ffbc8c;
+    --forth-string: #9ed9ac;
+    --forth-reference: #dfb5f2;
+    --forth-builtin: #94d2df;
+}
+main pre code.language-forth.hljs {
+    background: var(--forth-background);
+    color: var(--forth-foreground);
+    font-size: 1.35rem;
+    line-height: 1.7;
+    white-space: pre;
+    overflow-x: auto;
+    tab-size: 4;
+}
+.language-forth .forth-comment { color: var(--forth-comment); font-style: italic; }
+.language-forth .forth-definition { color: var(--forth-definition); font-weight: 700; }
+.language-forth .forth-control { color: var(--forth-control); font-weight: 700; }
+.language-forth .forth-meta { color: var(--forth-meta); }
+.language-forth .forth-number { color: var(--forth-number); }
+.language-forth .forth-string { color: var(--forth-string); }
+.language-forth .forth-reference { color: var(--forth-reference); }
+.language-forth .forth-builtin { color: var(--forth-builtin); }
+@media (max-width: 600px) {
+    main pre code.language-forth.hljs { font-size: 1.25rem; }
+}
+@media print {
+    main pre code.language-forth.hljs,
+    main pre code.language-forth.hljs span {
+        color: #111 !important;
+        background: white !important;
+    }
+    main pre code.language-forth.hljs {
+        font-size: 8pt;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        overflow: visible;
+    }
+}

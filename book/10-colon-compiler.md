@@ -149,9 +149,10 @@ C3                                        ; ret
 ```
 
 After writing the opcode, the helper advances `rax` to the end of the
-call. It subtracts that address from the target in `rdi`, stores the
-result through `edi`, and commits `rax` to HERE. It then consumes the
-target from the data stack.
+call. It subtracts that address from the target in `rdi`, then stores the
+result's low 32 bits (`edi`) at `[rax-4]`, the displacement field just after
+the opcode. The value comes from `edi`; the destination comes from `rax`.
+Finally, it commits `rax` to HERE and consumes the target from the data stack.
 
 The body of `: twice letter letter ;` therefore consists of calls to
 `letter` followed by the return emitted by `;`. This is subroutine

@@ -6,14 +6,28 @@ for standard output. Simply assigning the descriptor would lose the
 character. The boundary word must first put the byte somewhere Linux
 can read it, then arrange the call, then recover the Forth stack.
 
-Recall the syscall register convention from Chapter 4. Follow each word
-through its preparation, kernel request, and final effect:
+## The Linux register boundary
+
+A **system call**, or **syscall**, asks the Linux kernel to perform an
+operation such as writing bytes or ending the process. The processor's
+`syscall` instruction enters the kernel; this is a different boundary
+from calling a Forth word and returning with `ret`.
+
+A **file descriptor** is a small integer identifying one of a process's
+open I/O channels. The standard descriptors are 0 for input (**stdin**),
+1 for output (**stdout**), and 2 for error output (**stderr**). A shell
+pipe connects the seed's stdin to the program on its left; stdin need
+not be a keyboard, and stdout need not be a screen.
+
+The Linux syscall register convention temporarily gives registers a different job. The syscall number goes in `rax` and arguments go, in order, in `rdi`, `rsi`, `rdx`, `r10`, `r8`, and `r9`. The result comes back in `rax`; `syscall` clobbers `rcx` and `r11`. The argument register after `rdx` is `r10`, not the C function-call convention's `rcx`.
+
+Follow each word through its preparation, kernel request, and final effect:
 
 | Word | Prepare | Ask Linux | Finish |
 |---|---|---|---|
 | `bye` | Select a successful exit | Terminate | Does not return |
 | `emit` | Copy the character into scratch storage | Write the byte | Consume the character |
-| `key` | Preserve the previous top | Read into scratch storage | Supply the byte or the EOF sentinel |
+| `key` | Preserve the previous top | Read into scratch storage | Supply the byte or an end-of-input marker |
 | `syscall6` | Transfer the caller’s operands to registers | Perform the selected call | Replace the operands with its result |
 
 The listings retain their dictionary headers so the source can be reconstructed. Chapter 9 explains those headers; follow the instructions after each `_code` comment here.
@@ -98,9 +112,14 @@ C3                                        ; ret
 
 Unlike `emit`, this word produces a value without consuming a caller operand. Its opening prepares `read(0, scratch, 1)`.
 
+**End of file**, or **EOF**, means that the input has ended. It is not
+an extra byte sent after the last character. For this one-byte request,
+Linux reports EOF by returning a byte count of zero; `key` must choose a
+Forth value to represent that condition.
+
 After the call, `test rax, rax` distinguishes EOF from a nonzero return. A zero result takes `.eof`, where `xor rdi, rdi` supplies the sentinel `0`. Otherwise, the byte at the buffer address becomes the new top through `movzx`, just as in `c@` from Chapter 6. Neither path needs to change `rsp`; the final `ret` uses the waiting return address.
 
-This is prepare–call–recover with a new top rather than a consumed one. The recovery has a limitation: an input NUL and EOF both produce `0`. There is also no separate error branch. A negative read result takes the buffer-load path and can expose the scratch byte’s previous contents. The primitive is a minimal byte interface, not a checked read operation.
+This is prepare–call–recover with a new top rather than a consumed one. The recovery has a limitation: an input NUL (byte zero) and EOF both produce `0`. There is also no separate error branch. A negative read result takes the buffer-load path and can expose the scratch byte’s previous contents. The primitive is a minimal byte interface, not a checked read operation.
 
 Chapter 9 follows the token reader’s use of `key`; Chapter 12 follows the REPL’s decision to stop.
 
@@ -143,7 +162,7 @@ At entry, the syscall number `n` occupies `rdi`. Saving it in `rax` must precede
 | `b` | `[rbp+32]` | `rsi` |
 | `a` | `[rbp+40]` | `rdi` |
 
-The deepest argument is loaded last. These loads leave the memory slots untouched, and `rbp` remains available throughout the call. The syscall’s clobbers, recalled from Chapter 4, do not destroy any state this primitive needs for recovery.
+The deepest argument is loaded last. These loads leave the memory slots untouched, and `rbp` remains available throughout the call. The syscall’s clobbers, listed above, do not destroy any state this primitive needs for recovery.
 
 On return, `add rbp, 48` releases the six argument cells. Moving `rax` into `rdi` replaces the syscall number with the kernel’s result. This is prepare–call–recover again, but the result is passed through without interpretation. Every call supplies all six argument cells because the primitive loads and removes them unconditionally. Supply zero in unused positions.
 

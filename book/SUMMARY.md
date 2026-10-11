@@ -2,10 +2,9 @@
 
 # Front matter
 
-- [Reading the book](01-reading-the-book.md)
-- [The lab companion](labs.md)
+- [Your first word](01-reading-the-book.md)
 - [Prologue: Seventeen hundred and seventy-two bytes](02-prologue.md)
-- [Where this fits: routes and history](03-where-this-fits.md)
+- [What builds the seed?](03-where-this-fits.md)
 
 # Part 1 — asm
 
@@ -36,7 +35,6 @@
 - [Immediacy and constants](23-lib-10-immediacy-and-constants.md)
 - [Control-flow combinators](24-lib-11-control-flow-combinators.md)
 - [Defining words and byte equality](25-lib-12-defining-words-and-bytes-eq.md)
-- [The M1 assembler and hex2 linker](26-m1-and-hex2.md)
 
 # Part 3 — compiler
 
@@ -78,12 +76,17 @@
 
 # Back matter
 
+- [The lab companion](labs.md)
 - [Appendix C: historical reproducibility routes](57-historical-reproducibility.md)
 - [Appendix D: worked exercises](58-worked-exercises.md)
 - [Appendix E: further reading](59-further-reading.md)
 - [Appendix F: the C subset](60-c-subset.md)
 - [Appendix G: compiler error codes](61-error-codes.md)
 - [Appendix H: exercise feedback](66-exercise-feedback.md)
+
+# Checks and references
+
+- [Assembler regression check](26-m1-and-hex2.md)
 - [Glossary](62-glossary.md)
 - [Concept index and dependencies](63-concepts.md)
 - [Word index](WORD-INDEX.md)

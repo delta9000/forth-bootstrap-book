@@ -1,137 +1,38 @@
-# Chapter 1 — Reading the book
+# Chapter 1 — Your first word
 
-In this chapter you will build a 1,772-byte program, give it a new word,
-and run that word. The rest of the book follows what becomes possible when
-each tool can build the next: a Forth library, a C compiler, a Unix
-toolchain, and a Linux kernel built from source.
+How much machinery does a program need before it can build something
+larger than itself? We will begin with a 1,772-byte program, teach it a
+new word, and call that word. The same way of adding words will eventually
+give us a C compiler. From there, the book follows the tools that build
+GCC and a Linux kernel from source.
 
-You work with a complete, pinned source checkout from the first chapter.
-The book opens that working system one mechanism at a time. Read to
-explain what changes; run a checkpoint to test the result; change a small
-input to find out whether your explanation holds.
-
-## Follow the route
-
-Chapter 2 introduces the starting artifact; Chapter 3 places it among
-source bootstrap projects. The four parts then climb this ladder:
-
-| Where | Capability gained | Artifact the next stage uses |
-|---|---|---|
-| [Part 1, Chapters 4–13](part-1-asm.md) | Turn annotated hexadecimal into a program that compiles and runs Forth words | `seed-forth`, built from `seed/000-seed.hex0` by the inherited `hex0-seed` |
-| [Part 2, Chapters 14–26](part-2-forth.md) | Express control flow, manage memory, and assemble a separate executable | `forth/010-lib.fth`, shared by the M1 assembler and the C compiler |
-| [Part 3, Chapters 27–49](part-3-compiler.md) | Compile C, write object files, resolve symbols, and supply a runtime | The Forth compiler, linker, target headers, and C runtime |
-| [Part 4, Chapters 50–53](part-4-bootstrap.md) | Build the command-line tools and repeat GCC's construction | `seed-cc`, `seed-ar`, build tools, and compared GCC 4.0.4 installations |
-| [Part 4, Chapters 54–55](54-k0-and-k1.md) | Rebuild the toolchain inside a guest, then build and boot Linux | K0, K1, GCC 10.5.0, and the Linux kernel |
-
-The Forth library is a source file loaded by a running seed. The compiler
-is also Forth source, loaded into that process. Keeping that distinction
-between a file and the program running it will make the later handoffs
-easier to follow.
-
-Choose a route according to the question you brought:
-
-- **Understand the whole construction.** Read in sidebar order. At each
-  part boundary, use its map to name the artifact you have gained and
-  the next thing it must build.
-- **See a compiler work, then open it up.** Establish the setup below,
-  read the [Forth notation](14-lib-01-stacks-and-words.md), then follow
-  the [expression checkpoint](34-expressions-part-2.md#try-it) and the
-  first [compiler-entry checkpoint](38-main-and-bootstrap-chain.md#try-it).
-  Return to Chapters 27–37 to explain each layer those commands load.
-- **Audit the bootstrap claim.** Read Chapters 2–3, the
-  [Stage A comparison](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof),
-  and Chapters 50–55. Track who builds each artifact, what gets compared,
-  and which host or guest runs it. The long runs have their own resource
-  requirements; reading their evidence does not require launching them.
-
-The [glossary](62-glossary.md) gives definitions, the
-[concept index](63-concepts.md) finds mechanisms, and the
-[word index](WORD-INDEX.md) finds individual Forth words. Use these as
-return paths when following a focused route.
-
-Appendix lettering starts at C to preserve references in the quoted
-source. The former primitive-reference and memory-map appendices are now
-Chapters 13 and 5.
-
-## Starting skills and tools
-
-The intended reader can follow a short function and wants to understand
-how source becomes an executable. No Forth or assembly-language experience
-is assumed. You should be able to edit a text file and use a shell's
-working directory, pipes (`|`), and redirection (`>`). Expect binary and
-hexadecimal notation: a byte is eight bits, and two hexadecimal digits
-represent one byte. For example, `0x10` is decimal 16, and `0xFF` is 255.
-Chapter 4 teaches the instruction fields; Chapter 6 gives the compact
-stack notation before Chapter 14 develops it fully.
-
-Part 3 adds a different reading task: recognizing the C declarations and
-expressions that the Forth compiler consumes. Its
-[C-reading bridge](part-3-compiler.md#reading-the-c-input) introduces the
-pointer, array, and record notation needed for that step, with a short
-self-check. No prior course in C implementation or calling conventions
-is needed. Use the
-[capability checks](63-concepts.md#capability-checks-at-the-transitions)
-when entering a later part or returning after a break; the sidebar is a
-reading sequence, not a test of what you already know.
-
-A quick self-check: from the book root, what file does
-`forth-bootstrap/seed-forth` name, and how many bytes do `48 83 ED 08`
-represent? The answers are the executable inside the source checkout and
-four bytes. If either is unfamiliar, use the working-directory section
-below and the opening of Chapter 4 before continuing. You can read and
-trace the listings while arranging the Linux environment for execution.
-
-Alongside Bash and ordinary shell utilities, the early inspection
-checkpoints use `objdump` and `readelf` from GNU binutils. These are host
-inspection tools: they display instructions and ELF fields in an already
-built file. They do not build the seed. Their checkpoints explain the
-options they use.
-
-## Read source, then run a checkpoint
-
-A source fragment answers “how does this work?” Its introduction names the file and line so you can locate it in the checkout. Read the surrounding explanation before following the instructions or definitions. A code block tagged `file=` or `chunk=` belongs to the book's source representation; it is not a shell command to paste into a terminal.
-
-A **checkpoint** answers “did this particular operation produce the stated result?” Paste its shell commands into a terminal and compare the output. Read the conditions next to the command: a result applies to that input and environment. Building the seed, for example, does not establish that the later compiler or Linux build works. Those checks belong with the chapters that introduce them.
-
-You can read a fragment without building what precedes it, but a checkpoint needs the setup its chapter names.
-
-For a useful reading session, stop at one mechanism and do three things:
-
-1. Name its input, the state it changes, and the result another layer uses.
-2. Predict the chapter's checkpoint before running it. Compare the output
-   and exit status with the stated result.
-3. Attempt one **Trace** or **Verify** exercise. Use the linked feedback
-   afterward to revise your explanation, then retry with a different input.
-
-You can stop after a short checkpoint and return later. Definitions live
-in one seed process; the next invocation starts fresh. The chapter's load
-commands recreate the library and compiler state they require, so there
-is no interactive session you must keep alive through the book.
-
-<details>
-<summary>Exit statuses and temporary paths in later checkpoints</summary>
-
-Some test programs deliberately return a nonzero value. Checkpoints capture
-that status before asserting it, so an inherited Bash `-e` setting does not
-mistake the expected result for an interrupted test. Generated-path examples
-use checked, short `/tmp/book-probe.XXXXXXXXXX` directories: the Forth `s,`
-reader accepts a single token, so shell quoting cannot make a path with
-spaces (or more than 255 token bytes) safe inside generated Forth source.
-Follow any fixed-output-path warning and do not run those examples concurrently.
-
-</details>
-
-## Choose the working directory
-
-The book repository and the source checkout have different roots. In this layout, the book lives in `book/`, and the source checkout lives at `./forth-bootstrap`. From the book repository root, enter it with `cd forth-bootstrap`. **Checkpoint commands run from the `forth-bootstrap` repository root**, unless a checkpoint explicitly changes directory. Paths such as `seed/000-seed.hex0` are relative to that root. Source citations include the `forth-bootstrap/` prefix to distinguish the checkout from the book.
-
-Use a Linux x86-64 environment for the seed checkpoints. If your machine uses another platform, provide that environment through a VM or emulation before running them. For the setup below, have Bash, the usual shell utilities, and the checked-out executable at `vendor/stage0-posix/bootstrap-seeds/POSIX/AMD64/hex0-seed` available. The repository's README gives the recursive submodule setup command. The build script reports a missing assembler and gives narrower setup instructions if it cannot find one. Further chapters introduce their own tool requirements.
+You do not need to know Forth or assembly language to start. If you can
+follow a short function, edit a text file, and use a shell, you have the
+starting skills. We will introduce the machine notation when we reach it.
 
 ## Try it: establish the setup
 
-After entering `forth-bootstrap`, run the following in Bash. The file check confirms that the working directory contains the seed source; the build creates `seed-forth` there using the assembler selected by the script (`forth-bootstrap/seed/build.sh:12`). The last line starts the new seed and stops it with `bye`.
+The commands need Linux on an x86-64 processor, Git, Bash, and ordinary
+shell utilities. On another platform, use a Linux x86-64 VM or emulation.
+You can also follow the example on the page and return to the commands
+when that environment is ready.
 
+If you do not have the book checkout, obtain it with
+`git clone https://github.com/delta9000/forth-bootstrap-book.git`, then
+enter it with `cd forth-bootstrap-book`. This is the **book root**, the
+directory containing `book.toml`.
+
+The book contains a second repository, `forth-bootstrap`, with the source
+we will study. The first command below initializes that source and its
+pinned dependencies; it may download missing checkouts. If that succeeds, the next command
+enters the source directory. The remaining commands build the seed and
+ask it to exit.
+
+<!-- Run this setup manually from the book root; it initializes dependencies and changes directory. -->
+<!-- tryit: skip -->
 ```sh
+git submodule update --init --recursive &&
+cd forth-bootstrap &&
 (
 set -euo pipefail
 basename "$PWD"
@@ -141,12 +42,23 @@ echo bye | ./seed-forth
 )
 ```
 
-The observed output follows. The first line is the working directory, which should be your `forth-bootstrap` checkout. The `test` command and the seed's `bye` produce no output.
+After any Git progress messages, the final output should be:
 
 ```text
 forth-bootstrap
 Built seed-forth (1772 bytes) using vendor/stage0-posix/bootstrap-seeds/POSIX/AMD64/hex0-seed
 ```
+
+The parentheses run the build checks in a subshell; `set -euo pipefail`
+stops that check if a command fails. The build uses the checked-out
+`hex0-seed` assembler (`forth-bootstrap/seed/build.sh:12`), which we will
+meet in Chapter 3. If it is missing, the script gives setup instructions.
+The seed's `bye` produces no output.
+
+Your shell is now in `forth-bootstrap`. **Later checkpoint commands run
+from this source directory unless they say otherwise.** Here,
+`./seed-forth` names the program we just built, and `seed/000-seed.hex0`
+names a source file inside its `seed` directory.
 
 Now give the seed a word it did not start with:
 
@@ -161,30 +73,79 @@ Observed output:
 Hi
 ```
 
-The colon starts the definition of `hello`; the semicolon finishes it.
-Each `[lit]` supplies the following decimal value, and `emit` writes that
-value as a byte: 72 is `H`, 105 is `i`, and 10 is the newline. The final
-`hello` calls the new word and `bye` exits. Chapters 8–12 open the seed
-mechanisms behind those steps.
+The shell's `printf` sends a line of text through the pipe, `|`, to the
+seed. The text between the single quotes is our first Forth program:
 
-The program has extended its vocabulary using only its own input. Part 2
-uses that same ability to load the library; Part 3 uses it to load the C
-compiler.
+- `: hello` starts a definition named `hello`.
+- Each `[lit]` puts the following decimal value into the definition.
+  When `hello` runs, that value is supplied to `emit`, which writes one
+  byte. Byte 72 is `H`, 105 is `i`, and 10 is a newline.
+- `;` finishes the definition. The following `hello` calls it, and `bye`
+  exits the seed.
 
-For later sessions, the [workshop](labs.md) collects useful short
-checkpoints. From the **book repository root**, use
-`python3 tools/book-lab.py list 1` to see this chapter's commands,
-`python3 tools/book-lab.py show 1.2` to inspect the `hello` checkpoint,
-and `python3 tools/book-lab.py run 1.2` to execute it and compare its
-output. The companion reads the chapter's code directly and runs it
-from the source checkout; it reports blocks that require manual setup
-or a longer build.
+A **word** is a named Forth operation. Some words, such as `emit`, are
+built in; `hello` is one we have added. The seed has turned our definition
+into instructions it can run. We did not rebuild its executable to do so.
+The new definition lives in this running process: start `./seed-forth`
+again and you must supply the definition again.
 
-## Exercise
-
-**Verify (easy).** After the checkpoint, find `seed-forth` relative to the book repository root and give its path from there. Then explain why a later command containing `./seed-forth`, run from the book repository root instead of `forth-bootstrap`, would name the wrong file.
+## Try a change
 
 **Modify (easy).** Change 105 to 111 in the `hello` definition. Predict
 the output using the fact that byte 111 is `o`, then run the whole command
 again. Explain why running only `hello` in a new seed process would not
 recover the definition from the earlier one.
+
+## What we will build from here
+
+The first question is how a program this small can read a name, remember
+a definition, and execute it. Part 1 opens the seed to answer that
+question. The later parts use the ability we have just tried:
+
+1. [The machine-code seed](part-1-asm.md). Follow bytes, stacks, and
+   names until you can trace `hello` through the whole program.
+2. [The Forth library](part-2-forth.md). Add words for loops, memory,
+   and writing bytes, giving the C compiler its working vocabulary.
+3. [The C compiler](part-3-compiler.md). Load more Forth definitions
+   that read C source and produce programs, then add linking and a runtime.
+4. [The bootstrap](part-4-bootstrap.md). Use those tools to build
+   larger tools, rebuild GCC, and build and boot Linux.
+
+The library and compiler begin as Forth source loaded into the seed,
+much as the `hello` definition was. The main path goes from the completed
+library in Chapter 25 straight to the compiler in Chapter 27. The former
+assembler chapter is retained as a [regression check](26-m1-and-hex2.md),
+so later chapter numbers keep their existing references. For now,
+Chapter 2 takes a closer look at the small executable we have in hand.
+
+## Reading and trying
+
+The book keeps the pinned source checkout nearby and explains its chosen
+seed, library and compiler files a piece at a time. The 34 files in
+`tools/canonical-sources.txt` form the book's source-coverage scope; the
+standalone assembler is outside it. A listing with a source path shows
+the implementation; a **Try it** checkpoint gives shell commands and a
+result to compare. Source listings
+are for reading, not shell commands to paste. Fences tagged `file=` or
+`chunk=` preserve the exact source, including its comments.
+
+At a checkpoint, predict the result before running it. Then try an
+exercise with a changed input. If your prediction differs from the
+result, use the chapter's trace and any linked hints or feedback to find
+the step that changed.
+You can stop after a short checkpoint; later commands reload the state
+they need, so there is no session you must keep alive through the book.
+
+The [lab companion](labs.md) is an optional way to run these same commands
+and return to short milestones. The [glossary](62-glossary.md),
+[concept index](63-concepts.md), and [word index](WORD-INDEX.md) are there
+when you need to find a term again. If you already know the lower layers,
+the [focused reading routes](63-concepts.md#focused-reading-routes) lead
+into the compiler and bootstrap chapters.
+
+## Exercise
+
+**Verify (easy).** After the checkpoint, find `seed-forth` relative to the
+book repository root and give its path from there. Then explain why a
+command containing `./seed-forth`, run from the book repository root
+instead of `forth-bootstrap`, would name the wrong file.

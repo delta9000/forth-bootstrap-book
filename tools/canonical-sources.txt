@@ -1,5 +1,6 @@
 # Required canonical sources. Every file must tangle byte-for-byte from published chapters.
-# Update deliberately when the numbered seed, Forth, or compiler inventory changes.
+# Check-only exceptions are listed separately in check-only-sources.txt.
+# Every numbered seed, Forth, or compiler source must belong to exactly one inventory.
 cc/020-cc-arena.fth
 cc/030-cc-io.fth
 cc/040-cc-prep.fth
@@ -33,5 +34,4 @@ cc/132-cc-long-double.fth
 cc/140-cc-link.fth
 cc/141-archive.fth
 forth/010-lib.fth
-forth/130-asm.fth
 seed/000-seed.hex0

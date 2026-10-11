@@ -1,17 +1,11 @@
-# Where this fits: routes and history
+# What builds the seed?
 
 Part: front matter
 
-Scope: Locate forth-bootstrap among source bootstrap projects. Treat the existing account of the older seed-forth routes as historical material awaiting a rewrite.
+Scope: Distinguish the builder hex0-seed, the source 000-seed.hex0, and the product seed-forth. Explain the inherited executable/source boundary before opening the seed. Keep ecosystem history and detailed comparison claims in Appendix C.
 
-Sources taught: None — this chapter organizes reading rather than teaching a source span.
+Sources taught: seed/build.sh; the project README and credits.
 
 Prerequisites: [02 — Prologue: Seventeen hundred and seventy-two bytes](02-prologue.md)
 
-Checkpoint: TODO — no chapter-specific checkpoint exists.
-
-Reuses: [where-this-fits.md](../03-where-this-fits.md) — Keep the ecosystem context; rewrite the older project’s route account.
-
-TODO:
-
-- TODO Rewrite the older project’s routes around the current forth-bootstrap chain.
+Checkpoint: Measure hex0-seed and seed-forth; identify the inherited builder and its product without treating their combined sizes as the full environment.

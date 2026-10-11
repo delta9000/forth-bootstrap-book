@@ -1,6 +1,13 @@
 # Chapter 37 — Functions and translation units
 
-A program whose `main` calls `add`, and whose `add` reads the global `bias`, needs names to remain available across statements and function bodies. Registering those names at file scope connects the bodies and lets deferred calls acquire their destinations. The result is a whole-program parser that supplies an entry stub and produces the program run in the checkpoint.
+`main` calls `add` before its definition, and `add` reads the global
+`bias`. To compile the checkpoint's program, we must keep some names
+available across function bodies while containing parameters and local
+names within their scopes. We must also remember a call whose destination
+has not been emitted yet.
+
+The statement parser can already compile each body. This chapter connects
+those bodies and supplies the entry stub that starts the program.
 
 ## Setup
 
@@ -13,10 +20,22 @@ int main(void) { return add(4); }
 int add(int n) { return n + bias; }
 ```
 
+`int add(int n);` is a **prototype**: a declaration describing a function's
+result and parameter types, with no body to execute. The later definition
+adds that body. The name `n` is a **parameter**, the local object that
+receives a call's value; `4` in `add(4)` is the **argument** supplied by
+this caller.
+
 The prototype lets the compiler accept the call before it has seen `add`'s
 body. It cannot supply the body's address. That is the problem a fixup list
 solves; the declaration and the later definition must meet at the same
 pending references.
+
+A **translation unit** is the source given to one compilation after
+preprocessing, including any text brought in by headers. Here it contains
+all four forms above. Later separate compilation will let another unit
+supply a missing function body; this core executable path still needs all
+referenced bodies before finalization.
 
 The call parser compiles an expression; the function parser supplies its enclosing scope and frame; the top-level parser selects declarations until end of input. `cc-parse-program` places the entry stub before those bodies and resolves the remaining destinations afterward.
 
@@ -90,7 +109,12 @@ create cc-main-name-bytes  s, main
 
 ## The call codegen
 
-A call must protect earlier argument values while later arguments are evaluated. The register convention is already established (Chapter 31); here the parser turns an argument list into the required transfers.
+A call must protect earlier argument values while later arguments are
+evaluated. As in Chapter 34's assignment trace, there are two lifetimes to
+keep separate: the compiler saves a callee identity and argument count,
+while the emitted program saves argument values. The register convention
+is already established (Chapter 31); here the parser turns an argument
+list into the required transfers.
 
 A known function address needs no pending symbol lookup. `cc-emit-call-vaddr` converts that destination into the displacement carried by the emitted call (`forth-bootstrap/cc/100-cc-expr.fth:453`):
 
@@ -144,6 +168,13 @@ Arguments are evaluated left to right and pushed in that order. `cc-emit-pops-fo
   drop ;
 
 ```
+
+Reuse the [distinguishing-test strategy from Chapter 22](22-lib-09-memory-and-cell-writers.md#exercise)
+at this call boundary. A balanced stack is only part of the contract:
+each value must reach its own parameter. With two arguments, the last
+pushed value goes to `rsi` before the first goes to `rdi`. A helper that
+adds its parameters would conceal a swap. Choose a result in which their
+positions matter; the final exercise uses a small decimal tag.
 
 <details>
 <summary>Native call defaults and indirect targets</summary>
@@ -698,6 +729,12 @@ Earlier references still belong to the prior prototype. Its call and address lis
 ```
 
 ### Entering and leaving the body
+
+For `add`, the pending call from `main` is now resolved. Next we must make
+`n` visible inside the body without letting it remain visible to the next
+function. The function entry sits outside the new scope; the parameter
+and body locals sit inside it. Closing that scope will remove `n` while
+leaving `add` and the earlier global `bias` available.
 
 A definition of `main` supplies the entry stub destination. The parser then resets local and control-flow state before pushing the scope that contains parameters and body declarations (`forth-bootstrap/cc/114-cc-func.fth:268`):
 
@@ -1851,6 +1888,12 @@ create cc-name-intptr_t  s, intptr_t
 
 ### Closing the translation unit
 
+Return to the two pending references in the opening program. The
+function definition has supplied `add`'s destination. Before placing the
+data for `bias`, the driver must finish any late shim bodies and check
+that no used function still lacks a destination. Only then is the end of
+code fixed and the global-address patching described above ready to run.
+
 An unused prototype is harmless; a used function with unresolved references is not. `cc-check-fns-defined` rejects remaining call or address fixups and then requires a definition of `main`, preventing executable output with unresolved destinations (`forth-bootstrap/cc/116-cc-prog.fth:855`):
 
 ```forth file=cc/116-cc-prog.fth
@@ -1955,3 +1998,22 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-37-resolv
 
 **Modify (moderate).** Move the definition of `add` before `main`, keeping the prototype. Predict which call-emission branch changes, then rerun the checkpoint and compare the exit status.
 
+**Verify (moderate).** In a copy of the checkpoint, replace the single C
+source token with this two-argument helper, keeping the wrapper and its
+compiler-status check:
+
+```forth
+s, int/**/tag(int/**/a,int/**/b);int/**/main(void){return/**/tag(3,4);}int/**/tag(int/**/a,int/**/b){return/**/10*a+b;}
+```
+
+Predict the result by hand, then update the copied expected-output
+annotation and final `program_status` assertion. Run it again with
+`tag(4,3)`. For each pair, move the definition before `main`, retaining
+the prototype, and repeat: four small programs in all. Keep the C source
+as one token for `s,`.
+
+Explain why these inputs can expose an observable argument swap, while
+replacing the helper's body with `return a+b;` cannot. Trace the two
+pushes, the destinations of the two pops, and the parameter spills.
+Does a pass establish the call convention for every program? Name one
+mistake these tests could still miss.

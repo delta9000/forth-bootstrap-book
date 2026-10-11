@@ -192,6 +192,18 @@ without being rebuilt. `is` assumes its name identifies a deferred word;
 it does not validate that layout. Replacements must also honor the stack
 contract their callers expect.
 
+A new definition with the same spelling does not perform this assignment.
+An ordinary compiled call keeps the code address selected when its caller
+was compiled. A deferred call keeps the wrapper's address, but reads its
+target cell each time. Defining another target with the same name changes
+later lookups; it leaves earlier calls and an already-filled target cell
+alone.
+
+Tick and `is` are ordinary words. In `: bind-next ' is ;`, they become
+calls, so they read no target names while `bind-next` is being compiled.
+Calling `bind-next` later consumes two following input tokens: tick reads
+the implementation name, and `is` reads the deferred name to update.
+
 ## `s,`: names as data
 
 A name used as data needs an address and a length, independently of whether
@@ -321,7 +333,11 @@ comparison succeeds without fetching either address. The checkpoint
 separates whole-range equality, a mismatch, an empty comparison, and a
 matching prefix of otherwise different names.
 
-Chapter 26 uses this vocabulary to build the M1 assembler and hex2 linker.
+The library is now complete. Continue to the [Part 3 map](part-3-compiler.md),
+then [Chapter 27](27-arena-and-io-buffers.md), which uses
+its defining words to give the compiler buffers and records, its byte
+comparison to look up names, and its deferred words to connect layers
+whose implementations arrive later.
 
 ## Try it
 
@@ -410,5 +426,57 @@ reads none; the length-three comparison reads three pairs except for
 `Xaple`, which stops at its first pair. Equal printed flags need not
 mean equal work. Recheck both stack cleanup and read distance when
 moving a mismatch.
+
+</details>
+
+**Trace (moderate).** Predict both output lines from this scratch input.
+Then run it in a fresh seed process after this chapter's complete library
+prefix (`head -n 469 forth/010-lib.fth`), as in the checkpoint. Which two
+tokens does each `bind-next` consume? For each character, identify whether
+the executed address came from an existing call, the deferred cell, or a
+new dictionary lookup.
+
+```forth
+skip-vm-pages
+: sound [char] A emit ;
+: direct sound ;
+defer selected
+: indirect selected ;
+: bind-next ( "target" "deferred" -- ) ' is ;
+bind-next sound selected
+: sound [char] B emit ;
+direct indirect sound nl emit
+bind-next sound selected
+direct indirect sound nl emit
+bye
+```
+
+<details>
+<summary>Hint: distinguish finding a name from following a saved address</summary>
+
+At the first assignment, there is only one `sound`. After the second
+definition, ask whether any instruction has changed `selected`'s cell.
+Expand `bind-next` in execution order; the two following names are input
+for its parsers.
+
+</details>
+
+<details>
+<summary>Check which addresses change</summary>
+
+The output is `AAB`, then `ABB`. `direct` keeps its call to the earlier
+`sound`. `indirect` keeps its call to `selected`; before the second
+assignment, that wrapper still fetches the earlier target. Top-level
+lookup of `sound` finds the newer definition and prints `B`.
+
+The second `bind-next` reads `sound` through tick, obtaining the newer
+execution token. Its `is` then reads `selected` and stores that token in
+the deferred cell. Only the middle character changes. Neither caller is
+recompiled.
+
+`BBB` would treat existing calls as repeated name searches. `ABB` on the
+first line would change the cell without an assignment. If your trace
+executes the names after `bind-next` separately, mark the tokens its two
+readers consume; after the second assignment, the REPL resumes at `direct`.
 
 </details>

@@ -131,6 +131,15 @@ Restoring the prior top afterward preserves the stack across the miss.
 There is no call to the decimal parser along this route: bare `42` is a
 name to look up, just like any other token.
 
+A miss during compilation takes this same recovery path. It does not
+reset STATE, remove the unfinished header, or emit a call for the missing
+word. Later tokens can therefore finish a definition with an operation
+missing from its body. Treat a `name?` diagnostic while loading definitions
+as a failed load, even if the process eventually exits with status zero.
+Check that name's spelling and whether its definition was loaded earlier,
+then restart the seed and reload the corrected input. Recovery keeps the
+reader running; it does not roll back a partly compiled word.
+
 A found word needs a dispatch decision. The tail in
 `forth-bootstrap/seed/000-seed.hex0:677` tests the IMMEDIATE flag before
 STATE and hands ordinary words to `compile_call` in compile mode; recall
@@ -202,8 +211,12 @@ come from the offsets and sizes printed by
 `python3 tools/check-numbers.py --dump`; `./check.sh` checks each row
 against the chunks its chapter defines.
 
-Chapter 13 collects the primitive contracts as a reference. Chapter 14
-begins using the seed to build the Forth library.
+We can now account for Chapter 1's `hello` without treating the input
+loop as a black box. The REPL dispatches `:`, which consumes the name;
+`[lit]` consumes each number; ordinary `emit` tokens become calls; and
+`;` closes the body. The later `hello` token finds and runs that body.
+The same loop will load the library's definitions in Part 2. Chapter 13
+collects the primitive contracts we will use to read them.
 
 ## Try it
 
@@ -280,3 +293,16 @@ exit status: 2
 - **Trace (moderate).** Move the stack reload in the miss path before
   `report_token` on paper. Explain why the reordered path fails to preserve
   the prior stack top.
+
+<details>
+<summary>Self-check: the reordered miss path</summary>
+
+The miss leaves `0` in `rdi` and the older top at `[rbp]`. Reloading it
+before the call is too early: `report_token` sets `edi` to `1` for
+stdout, overwriting the whole cached top. Advancing `rbp` restores the
+stack depth, but cannot recover that value. The original order reports
+first, then reloads `[rbp]` and advances `rbp`, preserving the older top
+(`forth-bootstrap/seed/000-seed.hex0:468–476`,
+`forth-bootstrap/seed/000-seed.hex0:672–676`).
+
+</details>

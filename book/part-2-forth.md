@@ -3,8 +3,8 @@
 Part 2 grows the seed's vocabulary in Forth source, one short group of
 definitions at a time, in `forth/010-lib.fth`. The seed reads the library
 as written: no assembler or compiler outside the seed runs in this Part.
-By the end, the library is large enough to carry an M1 assembler and a
-hex2 linker, which turn assembly text into a running executable.
+By the end, it supplies the memory, control flow and byte-writing words
+that the C compiler loads before its own definitions.
 
 - [Chapter 14](14-lib-01-stacks-and-words.md) introduces stack-effect
   notation and the conventions that open the library.
@@ -17,8 +17,8 @@ hex2 linker, which turn assembly text into a running executable.
   layers need: `open`, `read`, `write`, `close` and `die`.
 - [Chapters 19](19-lib-06-character-classification.md) and
   [20](20-lib-07-comparisons-from-division.md) build character classes and
-  signed comparisons. Neither uses a branch: both come from unsigned
-  division.
+  signed comparisons. Their range and sign tests use unsigned division
+  rather than branches.
 - [Chapters 21](21-lib-08-stack-shufflers.md) and
   [22](22-lib-09-memory-and-cell-writers.md) add stack shufflers, memory
   updates and little-endian writers.
@@ -29,17 +29,16 @@ hex2 linker, which turn assembly text into a running executable.
   and loops inside colon definitions.
 - [Chapter 25](25-lib-12-defining-words-and-bytes-eq.md) completes the
   library with defining words, buffers and byte comparison.
-- [Chapter 26](26-m1-and-hex2.md) uses the finished library to assemble and
-  link an M1 program that prints `hi` and exits with status 42.
 
 Chapter 14 starts with seed words alone. Later checkpoints load the
-needed library prefix before the chapter's own words; Chapter 26 loads
-the complete library and assembler. Each exercises only words introduced
-so far.
+needed library prefix before the chapter's own words; Chapter 25 uses
+the completed library. Each exercises only words introduced so far.
 
 The handoff to Part 3 is the library itself. Before proceeding, be able
 to trace a definition's stack effect and distinguish a word that emits
 an instruction from the instruction that eventually runs. The
 `if,`/`then,` pair in Chapter 24 is the key example: emit a branch,
 remember its unfinished destination, and patch it when that destination
-is known. The C compiler will reuse that pattern on a larger scale.
+is known. Continue to [Part 3](part-3-compiler.md), beginning with
+[Chapter 27](27-arena-and-io-buffers.md), where the C compiler will reuse
+that pattern on a larger scale.

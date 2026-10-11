@@ -1,10 +1,18 @@
 # Appendix H — Compiler and bootstrap exercise feedback
 
+This appendix covers the exercises in Chapters 27–56. For earlier material,
+use the worked examples in [Appendix D](58-worked-exercises.md) and the
+feedback beside the exercises in [Chapter 9](09-dictionary.md#exercises),
+[Chapter 15](15-lib-02-code-emission-and-here.md#exercise), and
+[Chapter 23](23-lib-10-immediacy-and-constants.md#exercise).
+
 Try the chapter's exercise before opening its answer. Start with the hint;
 then compare intermediate states, not only the final number. The answers
-are worked out from the source; a **Verify** exercise still asks for your
-own run. When you adapt a checkpoint, keep its layers and setup, and
-update its labels and expected results to match the changed program.
+are worked out from the source. Where an exercise asks for a run, its
+answer does not replace your own observed result; where it asks you to
+classify recorded evidence, no new build is required. When you adapt a
+checkpoint, keep its layers and setup, and update its labels and expected
+results to match the changed program.
 
 For a changed exercise, a useful self-check has three parts: what state
 must survive, which transition changes it, and what observation would
@@ -34,6 +42,9 @@ bytes `08 07 06 05 04 03 02 01` in increasing address order, and check that
 the output position is still 8. Preserve the test's Boolean accumulator.
 A different value with eight distinguishable bytes is equally useful.
 The patch API does not reserve a missing span, so emit it first.
+Run the copy in place of the original test; assertions after its final
+`die` are unreachable. A pass of the original test alone is not evidence
+that the added patch assertions ran.
 
 </details>
 
@@ -89,6 +100,14 @@ putback with pending=true: reset must restore true, so the first advance
 replays `abc` and leaves cursor 3, while the second reads `;`. Keep the
 source unchanged, and use separate buffers for nested marks. A check of
 token kind alone cannot establish complete restoration.
+
+With source bytes `abc`, newline, `;`, the saved identifier remains at
+cursor 3 on line 1. Reading the punctuation consumes the newline and
+reaches cursor 5 on line 2. Reset must restore cursor 3 and line 1.
+A pending replay keeps that restored line and cursor; the following
+advance reaches the punctuation on line 2. EOF then leaves cursor 5
+and line 2 unchanged. These assertions catch a partial reset that a
+one-line test would miss.
 
 </details>
 
@@ -198,6 +217,8 @@ join.
 
 **Hint.** Parentheses group an expression; they need not fetch the object
 it denotes. Distinguish postfix's returned value from its stored value.
+For the assignment chain, follow the recursive call before applying the
+saved `+=`; for each grouped case, inspect the inner expression's final kind.
 
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
@@ -215,6 +236,25 @@ Change the source token, displayed expression/label and wrapper's expected
 status from 7 to 9.
 Literal arms check selection, but cannot alone establish that side effects
 in an unselected arm would be skipped.
+
+**34.3.** `a += b = 7` groups as `a += (b = 7)`. The outer call saves
+`a`'s slot and the `+=` operator on the compiler return stack and emits
+a push of `a`'s old value. The inner call emits the store of 7 into `b`
+and supplies 7 to the outer operation. At runtime, that operation adds
+the saved 1 to 7, stores 8 into `a`, and supplies 8 as the expression
+value: `a=8`, `b=7`, result 8.
+
+`(a) = b` retains `a`'s local slot: it stores 2 into `a`, leaves `b=2`,
+and yields 2. In `(a += b) = 7`, the inner compound assignment finishes
+as `lv-value`. Parentheses preserve that kind, so the outer assignment
+fails with compiler error 120. There is no runtime result or executed
+store from this failed compilation.
+
+If the first answer is 7, check whether the old left value was discarded
+as though `+=` were `=`. If the rejected case is said to change `a` to 3,
+separate code emission from later execution, then trace where compilation
+stops. Keep destination metadata, saved runtime contents, and the inner
+assignment's returned value distinct.
 
 </details>
 
@@ -277,6 +317,10 @@ and would test a different program.
 **Hint.** A newer symbol can shadow a prototype without erasing fixup
 nodes already attached to the older row.
 
+For the argument test, make the two positions contribute differently.
+The last argument pushed is the first value popped, but it is not the
+first parameter.
+
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
 
@@ -292,6 +336,23 @@ mean its absolute symbol ID is not a useful fixed answer.
 makes the call find a known body address. It can emit the call immediately
 instead of queuing an unresolved site. The result is still `4+3=7`.
 Same result, different resolution path, is the intended comparison.
+
+**37.3.** With `10*a+b`, predict 34 for `(3,4)` and 43 for `(4,3)`.
+Both stay the same when the definition moves before `main`; only the
+call-resolution path changes. For `(3,4)`, the emitted pushes save 3 then
+4; the pops put 4 in `rsi`, then 3 in `rdi`. The parameter spills give
+`a` the first register's value in slot 0 and `b` the second in slot 1.
+An observable reversal would exchange the two results. Addition would
+return 7 for both orders and hide it.
+
+Record all four compiler/program results and explain why the chosen
+input distinguishes the proposed mistake. The four programs return the
+predicted statuses at this source pin. They cover this scalar two-argument
+path; they neither establish full ABI correctness nor exclude mutually
+cancelling caller/callee mistakes. A wrong result calls for tracing the
+transfer and calculation, rather than immediately blaming one emitter.
+If the order is unclear, sketch the stack with 4 on top before the pops,
+then label each destination register and local slot.
 
 </details>
 
@@ -337,6 +398,14 @@ its offset is 8 after seven padding bytes. It ends at 16; final rounding
 to maximum alignment 8 leaves size 16. These are object byte offsets,
 not parameter-slot indices.
 
+With the declarations reversed, `value` starts at 0 and `tag` at 8.
+The final field ends at byte 9; rounding to alignment 8 still gives size
+16. Adjacent array elements are 16 bytes apart, keeping both `value`
+fields aligned. Reverse the initializer too, to `{7, 3}`, so the values
+stay the same. The checkpoint still prints `LP64` plus newline and
+returns `8 + 6 + 16 + 3 + 7 = 40`. Nine is the end of the last field,
+not the completed record size.
+
 **39.2.** Move the ordinary, non-static declarations and their initializers
 into main. Predicted output remains `LP64` plus newline and status
 `8+6+16+3+7=40`. Automatic arrays/aggregates receive inline initialization,
@@ -369,6 +438,13 @@ field changes, so serialized file length stays unchanged. If you also
 add a symbol or name, metadata can increase file size. Keep that separate
 from BSS payload when interpreting your measurement.
 
+For example, inserting
+`cc-obj-bss cc-obj-use [lit] 37 cc-obj-reserve drop` before the write
+changes `.bss` from zero to 37 bytes (hexadecimal `25`). In the pinned
+checkpoint, both files measure 944 bytes. Print the byte count inside
+each block before cleanup; a missing file after the block ends reflects
+its temporary-file lifecycle, not the object writer's result.
+
 </details>
 
 ## Chapter 41: stack arguments and nested lifetimes
@@ -400,9 +476,12 @@ returned value alone does not show which mechanism preserved them.
 
 ## Chapter 42: archive demand is time-dependent
 
-[Return to the exercise](42-linker-and-archives.md#exercise).
+[Return to the exercises](42-linker-and-archives.md#exercise).
 
 **Hint.** List unresolved strong names at the moment the archive is visited.
+For the relocation trace, locate the first byte after `E8`: that is `P`.
+Apply `S + A - P` with `A=-4` to the call, and `S + 0` to the pointer.
+Change only the quantities the question moves.
 
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
@@ -413,6 +492,21 @@ but the completed archive visit is not automatically repeated. A second
 archive occurrence after caller now selects the member defining add.
 Startup's main reference is satisfied by caller; add is the relevant
 remaining demand. This assumes the checkpoint's other inputs stay fixed.
+
+**42.2.** The opcode is now `0x401010`, so `P=0x401011`.
+The displacement is `0x401020 - 4 - 0x401011 = 0x0B`; the field contains
+`0B 00 00 00`. The CPU continues from `0x401015` and adds 11 to reach
+`0x401020`. The absolute pointer remains `0x401020`, because its target
+did not move. A whole-image move changes both `S` and `P`, cancelling in
+the relative expression, but still changes absolute pointer values.
+Thus one unchanged call does not establish whole-image position independence.
+
+A displacement of `0x1B` incorrectly applies whole-image invariance when
+only the caller moved. `0x0F` loses the addend; subtracting four again
+from `0x0B` applies it twice. Moving the pointer's value by 16 confuses
+its target with the call field. In the second prediction, the target
+becomes `0x401030`: the call displacement returns to `0x1B`, and the
+pointer must now hold `0x401030`. These are manual layout derivations.
 
 </details>
 
@@ -472,8 +566,11 @@ The selected value remains 40; the other probes remain 29 and 0. The wrap
 probe returns success zero after checking its typed result internally. Skip
 state causes the dead binary division to bypass evaluation while its syntax is
 still parsed. Changing the condition to 0 selects division, reaches the
-zero-divisor check and predicts error 124; the compile step should stop
-before linking/running. This tests integer binary evaluation. It does not
+zero-divisor check: the pinned exercise run reports `cc: line 1: error 124`
+and exits with status 124. The compilation guard stops the block before
+linking or running, so no `x`, `pointer`, or `wrap` result lines appear.
+That is the expected rejection for this version, not a failed executable
+run. This tests integer binary evaluation. It does not
 establish that later floating casts suppress every range diagnostic in
 dead arms; Chapter 47 names that separate boundary.
 
@@ -519,6 +616,9 @@ check cursor independence internally and keep return 36.
 **Hint.** At a tie both adjacent values are equally near; inspect the low
 bit of the retained significand, not the decimal spelling's last digit.
 
+**Comparison hint.** Start from the unordered row. ZF alone cannot
+distinguish it from equality; PF supplies the missing distinction.
+
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
 
@@ -534,6 +634,17 @@ decimal 4607182418800017408. Change the C bit comparison
 and printed/expected bit-pattern labels to that encoding. The comparison
 still returns Boolean 1, so its numeric shell guard remains 1. The addition,
 comparison and unsigned-rounding probes remain 30, 1 and 1 respectively.
+
+**47.3.** With the quiet NaN, `q <= x` yields 0 but `!(q > x)` yields 1.
+Unordered gives ZF=1, PF=1, CF=1. The raw less-or-equal test sees CF-or-ZF
+and produces 1, but the PF-clear mask removes it. Greater-than requires
+CF and ZF both clear, so it produces 0; logical negation then produces 1.
+For 1.0 and 2.0, ZF=0, PF=0, CF=1: less-or-equal survives the orderedness
+mask, and greater-than is false, so both expressions yield 1.
+The finite example alone would miss the bad rewrite. Unorderedness is a
+fourth comparison outcome, so “not greater” need not mean “less or equal.”
+This is runtime reasoning; the chapter's separate constant-operation
+boundary still applies.
 
 </details>
 
@@ -570,7 +681,9 @@ than a printf runtime.
 [Return to the exercises](49-aggregate-abi.md#exercise).
 
 **Hint.** Classify the whole record before committing register consumption.
-An argument copy is not the caller's original object.
+An argument copy is not the caller's original object. For the pointer-field
+trace, draw two 16-byte records and one separate `long` object; keep the
+pointer field and the pointed-to object as different storage locations.
 
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
@@ -594,6 +707,20 @@ the last register because it could not fit there in full; removing one
 integer makes the pair consume two registers and pushes the tail out.
 Two sides compiled by this compiler check self-consistency; an independent
 host-compiled peer in both directions would test interoperability more strongly.
+
+**49.3.** The results are `10`, `40`, `&target`, and `30`. This `Parcel`
+is 16 bytes: `inside[0]` is the first INTEGER eightbyte, passed in RDI;
+the copied pointer is the second, passed in RSI. The callee reconstructs
+a distinct record. Its array element becomes 30 while the caller's stays
+10. Both pointer fields initially hold `&target`, so `*p.shared = 40`
+writes to the separate caller object. `p.shared = 0` changes only the
+callee's pointer field; it neither changes `original.shared` nor reverses
+the completed store.
+
+Leaving `target` unchanged would confuse copying a pointer with copying
+its pointee. Changing the original array to 30 would treat the record
+call as though an array pointer had been passed instead. Mark the byte
+range copied for the argument, then locate each assignment's destination.
 
 </details>
 
@@ -663,8 +790,8 @@ if the count of differing common-file contents is zero. A changed archive
 timestamp alone is accepted when ordered member names and extracted member
 bytes still match. Reordering distinguishable members fails the ordered
 `ar t` comparison. Changing an object's bytes fails the corresponding
-`ar p` comparison. These answers assume readable corresponding archives;
-they do not prove behavior for pathological duplicate member names or make
+`ar p` comparison. These answers assume readable corresponding archives
+with simple, unique member names; they do not prove behavior for duplicate names or make
 an invisible exchange of byte-identical members observable.
 
 </details>
@@ -694,6 +821,15 @@ removes its stored path, then emits its failure. Counting only literal
 `execve(` lines either misclassifies the unfinished attempt or loses the
 successful/failed result carried by the resumed line. There is one success
 and two failures in this changed example.
+
+With the resumed line removed, only `ok /hex0-seed` and
+`fail /usr/bin/arch` are emitted, in that order. PID 102's unfinished
+record leaves a pending bash path; nothing consumes it or reports a result.
+The awk command still exits successfully. That status says the filter ran,
+not that the trace is complete. Bash's absence from both lists does not
+establish either success or failure. Retain the unfinished record and seek
+its missing continuation; if it is unavailable, record the outcome as
+unknown rather than inventing a verdict.
 
 **53.2.** One recorded candidate is
 `//build-out/chain/stage-c/toolchain/as`. Under the prepared Linux root it
@@ -757,6 +893,8 @@ these answer descriptions are not a substitute for them.
 
 **Hint.** Mark each step as production, copying, machine-state preparation,
 or control transfer. Then bound what each success message can establish.
+For the compiler question, separate the incoming `CC`/`CXX` settings
+from the requested output languages.
 
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
@@ -794,6 +932,15 @@ not remove the embedded init.
 A root-scoped pin needs the corresponding root. A skipped check is not a
 match, one pin is not all pins, and an export marker is not a readback.
 Accept other accurate failure pairs if they respect the same evidence boundary.
+
+**55.3.** Stage 8 invokes `$W/g47/bin/g++` on `cxx-test.cc`; the proposed
+C-only output cannot supply that compiler. Stage 10 also passes
+`$W/g47/bin/g++` as the second argument to `build-gcc10.sh`, which uses
+it as the incoming `CXX`. In the actual intermediate build, `CXX=false`
+concerns the incoming configuration environment, while
+`--enable-languages=c,c++` selects the produced front ends. Confusing
+those roles would make the language bridge appear circular. This is a
+source-derived prediction, not an observed failed build.
 
 </details>
 

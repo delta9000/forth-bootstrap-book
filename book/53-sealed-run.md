@@ -142,6 +142,12 @@ sed -n 's/^fail //p' "$T/execve-joined.txt" | sort | uniq -c | sort -rn > "$T/ex
 
 The awk array remembers the path under `$1`, the process ID. A resumed record consumes that saved path. A complete record needs no saved state. Both forms become `ok PATH` when the result starts with zero and `fail PATH` otherwise.
 
+An unfinished call with no resumed record stays in that array and produces
+no row. The summary does not report pending entries at end of input.
+If tracing was interrupted or a raw log was truncated, a path missing
+from both result lists therefore has an unknown outcome. Check the raw
+records before treating the two lists as a complete classification.
+
 `execve-joined.txt` preserves the classified events in trace order. `execve-programs.txt` groups only successes by the literal path and sorts by frequency; `execve-failed.txt` does the same for failures. Different spellings of the same program can occupy different rows, so a distinct-path count is not a count of distinct executable contents.
 
 The first rows of `execve-programs.txt` from a recorded run:
@@ -337,7 +343,9 @@ fail /usr/bin/arch
 ok /build-out/plumbing/bin/bash
 ```
 
-For a full audit, fetching needs network access and the fetcher's curl, git, and xz tools (`forth-bootstrap/tools/fetch-archives.py:17`). Whole-cache hashing needs the fetched archives. The launcher additionally needs bwrap, strace, and working user namespaces (`forth-bootstrap/chain/plumbing-root.sh:6`). Its default root and trace directories are removed before preparation, so preserve any previous evidence first (`forth-bootstrap/chain/plumbing-root.sh:37`).
+For a full audit, reuse the completed root and traces from Chapter 52 if
+you have them. The following block starts a new run; it is not another
+prerequisite for inspecting that evidence. Fetching needs network access and the fetcher's curl, git, and xz tools (`forth-bootstrap/tools/fetch-archives.py:17`). Whole-cache hashing needs the fetched archives. The launcher additionally needs bwrap, strace, and working user namespaces (`forth-bootstrap/chain/plumbing-root.sh:6`). Its default root and trace directories are removed before preparation, so preserve any previous evidence first (`forth-bootstrap/chain/plumbing-root.sh:37`).
 
 <!-- check-tryit: requires network, pinned archives, bwrap/strace and user namespaces; a sustained build exceeds the runner timeout and its scratch checkout omits chain/ and tools/. -->
 <!-- tryit: skip -->
@@ -354,10 +362,24 @@ Inspect `build-out/plumbing-root.trace/execve-programs.txt` and
 traces and its producing recipe. The report from Chapter 52 establishes
 the build result; the audit identifies the executable paths that participated.
 
+If the launcher stops early, inspect the latest created `entryN.log` and
+matching `execveN.txt` in the trace directory before retrying. Entries
+1–3 stop the script on failure, before it creates the joined summaries;
+entry 4 saves its status and reaches the summary step even on failure
+(`forth-bootstrap/chain/plumbing-root.sh:28`,
+`forth-bootstrap/chain/plumbing-root.sh:69–87`). A missing summary is
+therefore not evidence that no program executed. Preserve the root and
+raw logs first, identify the failed entry, then correct its prerequisite
+or build failure. Starting the launcher again discards this evidence.
+
 ## Exercise
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-53-attempts-successful-execution-and-provenance).
 
 **Trace (easy).** Change the resumed result in the synthetic sample from success to `-1 ENOENT`. Predict the output before running the modified checkpoint. Explain why counting only lines containing `execve(` would misclassify or lose the interrupted call's result.
+
+Then return to the original sample and remove the resumed line entirely.
+Predict which rows remain. What can you conclude about bash, and which
+raw record prevents you from classifying its outcome?
 
 **Verify (moderate).** With a completed root and its traces, choose a successful path outside the plumbing bin directory. Identify the recipe that produced it and resolve its path inside the prepared root. Explain why a row in the failed list cannot serve as evidence that the named program ran.

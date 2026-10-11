@@ -19,9 +19,23 @@ appear in chapters:
   may intentionally lie inside a larger excerpt. Bounds checking cannot
   decide whether that mechanism supports the caption.
 
+The explicit book-taught scope is the 34 files listed in
+`tools/canonical-sources.txt`. It covers the seed, Forth library and
+numbered compiler layers, not every file in the upstream repository.
+`forth/130-asm.fth` stays in the pinned upstream checkout but is excluded
+from source tangling and teaching coverage. The
+[assembler regression check](26-m1-and-hex2.md#run-the-check) exercises
+that separate program without reproducing its implementation.
+
 When the source changes, move the submodule pin, then update every quoted
 fence and citation that the change touches. Commit the book side
 separately.
+
+Appendix lettering starts at C to preserve references in the quoted
+source. The former primitive-reference and memory-map appendices are now
+Chapters 13 and 5. The assembler regression check is unnumbered back
+matter after Appendix H. Its filename and lab selector retain 26 for
+compatibility, so the main chapter sequence goes from 25 to 27.
 
 ## Shape of a chapter
 
@@ -41,9 +55,9 @@ separately.
   Verify reconstruction after every rearrangement.
 - Keep the central mechanism visible. Supporting encodings, extension hooks,
   and repeated cases may use an expandable implementation section with a
-  specific summary. Teach its interface before the fold. All source remains
-  present; links must reveal their destinations, and printing must include
-  the complete manuscript.
+  specific summary. Teach its interface before the fold. All source within
+  the declared coverage scope remains present; links must reveal their
+  destinations, and printing must include the complete manuscript.
 - A concept already taught is recalled in one clause, as "(Chapter N)", at
   most once per chapter. Chapter numbers have no leading zeros.
 - A chapter ends with `## Try it`, the checkpoint, then `## Exercise`.
@@ -77,12 +91,15 @@ is not a substitute for explaining its mechanism.
 `./check.sh`, run from the repository root, must pass before publication.
 CI runs the same checks on every pull request, builds with mdBook 0.5.4 and
 checks the rendered links. The authoring checks require Python 3.11 or
-newer, including the packaging regression fixtures. Only `main` deploys.
+newer, including the packaging regression fixtures. When Node.js is
+available, the suite also executes focused reader-interface tests; without
+it, those cases report `SKIP`. They check script behavior, not browser
+layout or screen-reader output. Only `main` deploys.
 
 | Check | What it verifies |
 |---|---|
 | `python3 -m unittest discover -s tools/tests -v` | Regression fixtures for the checker and checkpoint failure paths |
-| `tools/tangle.sh verify --strict` | Published fences reconstruct every required file in `tools/canonical-sources.txt`, byte for byte; missing coverage fails |
+| `tools/tangle.sh verify --strict` | Published fences reconstruct the 34 book-taught files in `tools/canonical-sources.txt`, byte for byte; missing coverage fails |
 | `tools/check-numbers.py` | Recognized numeric/count forms and selected named Forth citations; all explicit `forth-bootstrap/PATH:LINE` citations have existing files and sensible in-bounds positions |
 | `tools/check-tryit.py` | Selected shell fences that pipe into the seed execute in scratch space, subject to reported skips; only recognized expectations are asserted |
 | `tools/gen-index.py --check` | Published name/concept targets exist and the [word index](WORD-INDEX.md) matches the generator |

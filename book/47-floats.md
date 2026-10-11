@@ -424,7 +424,38 @@ Mixed arithmetic needs a common precision. `cc-fp-common-type` chooses double if
   else, cc-expr-common-type-default then, ;
 ' cc-fp-common-type is cc-expr-common-type
 ```
-An unordered comparison sets flags that also resemble equality and less-than. `cc-fp-comparison-flags` masks those results with orderedness, or adds unorderedness for `!=`. Greater-than and greater-or-equal already exclude the unordered flag combination. `cc-fp-comparison` selects `ucomiss` or `ucomisd` (`forth-bootstrap/cc/127-cc-binary64.fth:223`):
+A comparison is **unordered** when either operand is NaN: neither less,
+equal, nor greater describes the pair. Only C's `!=` should then be true.
+This differs from using a NaN directly as a condition, which is true.
+Here a quiet NaN does not signal invalid operation in `ucomiss`/`ucomisd`;
+a signaling NaN does. Handling that exception is outside this trace.
+
+`ucomiss` or `ucomisd` compares XMM0 (left) with XMM1 (right). The zero
+flag ZF, parity flag PF, and carry flag CF encode four outcomes. Here PF
+identifies unorderedness; it is not counting bits in the floating payload.
+The [Intel instruction reference](https://cdrdv2-public.intel.com/671110/325383-sdm-vol-2abcd.pdf)
+gives these flag values:
+
+| Comparison outcome | ZF | PF | CF |
+|---|---:|---:|---:|
+| Left less than right | 0 | 0 | 1 |
+| Equal | 1 | 0 | 0 |
+| Left greater than right | 0 | 0 | 0 |
+| Unordered | 1 | 1 | 1 |
+
+`setcc` writes 0 or 1 according to its selected flag condition; AL and DL
+are the low bytes of RAX and RDX. For equality, `sete al` alone would
+mistake unordered for equal.
+`setnp dl` produces 1 only when PF is clear; `and al,dl` removes that
+false equality. Less-than starts from CF; less-or-equal starts from
+CF-or-ZF. Both need the same PF-clear mask.
+For inequality, `setne al` alone would miss unordered; `setp dl` followed
+by `or al,dl` includes it. Greater-than requires CF and ZF both clear,
+and greater-or-equal requires CF clear, so each already rejects unordered.
+
+`cc-fp-comparison-flags` emits these tests and returns the resulting 0 or
+1 through RDI; `cc-fp-comparison` selects the scalar comparison instruction
+(`forth-bootstrap/cc/127-cc-binary64.fth:223–244`):
 ```forth file=cc/127-cc-binary64.fth
 : cc-fp-comparison-flags ( op -- )
   dup [char] > = if, drop [lit] 151 else,
@@ -918,7 +949,32 @@ A halfway remainder increments only an odd retained quotient: round to nearest, 
 
 ## Select the destination before rounding
 
-The destination record selects fraction width, leading unit, exponent limits and sign mask before rounding; a suffixed float rounds directly to binary32 to avoid double rounding near a midpoint (`forth-bootstrap/cc/128-cc-float-literal.fth:278`):
+The first destination is the literal's own type: `f/F` selects binary32,
+while no suffix selects binary64. The type of a variable receiving the
+literal does not change that first choice
+(`forth-bootstrap/cc/125-cc-consteval.fth:67`). A later narrowing conversion
+rounds the already-decoded value; it cannot recover the original ratio.
+
+Why can two nearest-even roundings disagree with one? Use the exact
+mathematical value `x = 1 + 2^-24 + 2^-54`. The adjacent binary32 values
+are `1` and `1 + 2^-23`, with midpoint `m = 1 + 2^-24`. This is a manual
+comparison of two conversion routes:
+
+| Route | Rounding decision | Final binary32 value |
+|---|---|---|
+| Exact `x` → binary32 | `x` is just above `m`, so choose the upper neighbour | `1 + 2^-23` |
+| Exact `x` → binary64 → binary32 | First round to `m`; then the tie chooses unity's even significand | `1` |
+
+Near `m`, binary64 values are spaced `2^-52` apart. The extra `2^-54`
+is only a quarter of that spacing, so the first conversion in the second
+route loses the evidence that `x` was above the binary32 midpoint. More
+intermediate precision reduces rounding error, but does not always
+preserve which side of a later tie the exact input occupied.
+
+The destination record selects fraction width, leading unit, exponent
+limits and sign mask before rounding. A suffixed float therefore rounds
+its exact ratio directly to binary32, avoiding that extra rounding
+(`forth-bootstrap/cc/128-cc-float-literal.fth:278`):
 ```forth file=cc/128-cc-float-literal.fth
 \ A format names an encoding by its byte size: 8 selects binary64 and
 \ 4 binary32, and 16 extended precision. One exact ratio serves all three
@@ -1434,3 +1490,11 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-47-exact-
 **Trace (easy).** In `cc-f64-quotient`, follow an exact halfway remainder with an odd retained quotient, then with an even quotient. Explain why only the odd case increments.
 
 **Verify (moderate).** Replace the checkpoint's boundary literal with `1.00000000000000011102230246251565404236316680908203125`, the exact midpoint. Change the C bit comparison to the encoding of unity (`4607182418800017408UL`). Also change the shell's printed bit-pattern label and expected-output comment to `0x3ff0000000000000`. Predict the Boolean result, then run it; the shell should still expect 1 for a true comparison.
+
+**Trace (moderate).** A proposed source rewrite replaces `q <= x` with
+`!(q > x)`. For runtime values `q` equal to a quiet NaN and `x` equal to
+`1.0`, predict both results from the flag table and emitted tests. Then
+repeat with `q = 1.0` and `x = 2.0`. Is the rewrite valid for every
+floating input? Which flag distinguishes unordered from every ordered
+outcome?
+This is a manual prediction; keep the shell checkpoint unchanged.

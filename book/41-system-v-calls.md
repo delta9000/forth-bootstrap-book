@@ -1,6 +1,6 @@
 # Chapter 41 — System V calls and separate compilation
 
-A call to `add(&base, 1, 2, 3, 4, 5, 6, 7)` can cross from one C object into another and return `42`. Separate compilation requires the caller and callee to agree without seeing each other’s bodies. The System V target gives the compiler that agreement for integer and pointer values, then carries unresolved calls into relocatable objects.
+With `base` holding 14, the checkpoint's call to `add(&base, 1, 2, 3, 4, 5, 6, 7)` crosses from one C object into another and returns `42`. Separate compilation requires the caller and callee to agree without seeing each other’s bodies. The System V target gives the compiler that agreement for integer and pointer values, then carries unresolved calls into relocatable objects.
 
 ## Trace the call before tracing its parser
 
@@ -21,10 +21,10 @@ alignment rule.
 Argument evaluation first uses temporary staging cells. The emitter then
 allocates and aligns a separate outgoing block, copies the two stack
 arguments into its first 16 bytes, and loads the six registers. Padding
-lies beyond those arguments; it cannot precede argument 6 and shift its
+lies beyond those arguments; it cannot precede the value 6 and shift its
 ABI position. At this moment `rsp mod 16 = 0`. `call` pushes eight bytes,
-so argument 6 is now at entry `rsp + 8`; pushing the old RBP and adopting
-the new frame pointer puts saved RBP at +0, return address at +8, and that
+so that seventh argument is now at entry `rsp + 8`; pushing the old RBP
+and adopting the new frame pointer puts saved RBP at +0, return address at +8, and that
 argument at +16. These offsets follow from the two pushes, not from the
 callee's local-frame size.
 
@@ -34,9 +34,32 @@ before preparing the inner outgoing block, then restores it afterward.
 The detailed [live-value machinery](#keep-expression-temporaries-alive)
 implements this lifetime boundary.
 
+The source walkthrough is long because it also retains C declaration
+shapes. For a first pass, keep the same `add` call and follow four stops:
+
+1. [Retain its signature](#one-signature-two-places-to-use-it): what must
+   the caller know without seeing the body?
+2. [Stage its arguments](#keep-expression-temporaries-alive): where can
+   eight completed values wait while the call is prepared?
+3. [Receive them in the callee](#preserve-the-callers-register-values):
+   how do register and stack arguments become the body's parameter objects?
+4. [Finish the caller's object](#finish-the-translation-unit): what remains
+   to be done when `add` is still in another file?
+
+Those stops trace one complete boundary. Then return to the intervening
+declaration, compatibility, and symbolic-address sections to see how the
+compiler preserves it for richer source forms.
+
 ## One signature, two places to use it
 
 The implementation has three parts: retain a signature, lower both sides of a call from it, and export code with unresolved references. `cc-sysv-enable` selects this target explicitly; loading its definitions preserves the private all-stack target (Chapter 39). The signature describes C types, while the call emitter decides where their values travel.
+
+For `add`, retain a `long` result and eight fixed parameters: one
+`long *`, followed by seven `long` values, with no variadic tail. The
+caller's prototype omits parameter names; the definition names them
+`base`, then `a` through `g`. Names let the body refer to its parameters,
+but their types and order are what let the two files agree. The signature
+contains neither the address of `add` nor an assignment of registers.
 
 Target state and a tagged signature table keep that choice separate from loading the module (`forth-bootstrap/cc/121-cc-sysv.fth:1`):
 
@@ -144,6 +167,11 @@ defer cc-sysv-check-scalar
 ' cc-sysv-check-scalar-default is cc-sysv-check-scalar
 
 ```
+
+The accessors above are enough to describe the opening call. Follow that
+signature into [argument staging](#keep-expression-temporaries-alive) for
+the first-pass trace. The next sections preserve additional type shapes
+and declaration rules before call emission uses the completed signature.
 
 ## Preserve array shape in signatures
 
@@ -1300,6 +1328,14 @@ These symbol adapters expose the retained signature to existing expression hooks
 
 Arguments are evaluated before the register/stack split. Staging them keeps nested calls from destroying earlier arguments and gives the final call sequence a stable source vector.
 
+Return to `add(&base, 1, 2, 3, 4, 5, 6, 7)`. The prototype converts each
+integer literal to `long` before saving it. Once the vector has been
+reversed into parameter order, it holds `&base` followed by 1 through 7.
+These eight temporary cells are the source of the outgoing values; they
+are not yet the callee's stack arguments. `cc-sysv-prepare-call` will copy
+6 and 7 into a separate outgoing block and load the other six values into
+registers, producing the layout in the opening table.
+
 `cc-sysv-parse-args` converts fixed arguments to their prototype types, promotes unspecified arguments, checks arity, and reverses the staged vector into parameter order (`forth-bootstrap/cc/121-cc-sysv.fth:1001`):
 
 ```forth file=cc/121-cc-sysv.fth
@@ -1458,6 +1494,13 @@ defer cc-sysv-result-value-fwd
 
 ## Emit direct and indirect calls
 
+The argument locations are now settled, but `caller.c` still cannot name
+an instruction address for `add`. Its direct call therefore reserves a
+relative-displacement field and attaches that field to `add`'s fixup list.
+Staging answers how to send the values; the fixup records where control
+must eventually go. Object completion will turn that obligation into a
+[relocation request](#finish-the-translation-unit).
+
 A direct call either reaches a known address or joins a fixup list; a named function-pointer object instead stages its loaded target before evaluating arguments (`forth-bootstrap/cc/121-cc-sysv.fth:1123`):
 
 ```forth file=cc/121-cc-sysv.fth
@@ -1511,6 +1554,15 @@ An arbitrary callable expression uses the same staging and recovery, normalizes 
 ## Preserve the caller's register values
 
 The core prologue already preserves `rbp` (Chapter 31). This target also preserves `rbx`, the expression backend’s other used callee-saved register. Incoming arguments are copied into typed local slots so body expressions no longer depend on argument registers.
+
+In the separately compiled `add` definition, the parameter emitter uses
+the same signature to recover `base` from RDI and `a` through `e` from the
+next five GP registers. It recovers `f` and `g` from `[rbp + 16]` and
+`[rbp + 24]`, then copies them into local parameter slots too. The body
+dereferences its `base` pointer to obtain 14 and adds the seven local
+parameters: `14 + 1 + 2 + 3 + 4 + 5 + 6 + 7 = 42`. It returns a `long`
+in RAX; the caller's result hook moves that value back into its expression
+register. Neither side needed the other's source.
 
 The first local slot holds saved `rbx`; `cc-sysv-store-gp` dispatches register arguments to the matching local-store emitter (`forth-bootstrap/cc/121-cc-sysv.fth:1172`):
 
@@ -1618,6 +1670,12 @@ defer cc-sysv-return-check-fwd
 ```
 
 Chapter 46 supplies variadic definitions. Integer-only variadic calls can already report an empty vector-register argument set; that does not supply a variadic callee’s argument cursor.
+
+This completes the value path for `add`. On the first-pass route, continue
+to [object completion](#finish-the-translation-unit) to settle what the
+caller can export before the call has a destination. The intervening
+sections implement function-body setup and the persistent object records
+used there.
 
 ## Build the body from its retained signature
 
@@ -2310,6 +2368,21 @@ Postfix selection composes those operations, and `cc-om-const-address` returns t
 
 ## Finish the translation unit
 
+Return to `caller.o`. Its call already knows how to pass eight values and
+receive one `long`, but `add` still has no definition in this translation
+unit. `cc-om-function-calls` turns its pending call field into a
+`cc-obj-plt32` relocation with addend −4. Export gives `add` an undefined
+function symbol; the relocation names that symbol through the writer's
+stable handle. In `add.o`, the separately compiled definition supplies a
+symbol located in its text section.
+
+The two objects thus agree on value transport before either has a final
+load address. Linking selects `add`'s definition, places its text, and
+fills the caller's displacement field. Chapter 42 derives that last
+calculation; this chapter's checkpoint delegates it to the host linker.
+The signature, staging cells, and relocation have different jobs: C type
+agreement, temporary value storage, and an unfinished control-flow target.
+
 Tentative objects receive BSS storage before export; `cc-om-export-needed?` retains defined or referenced records, and unresolved function calls become PLT-relative relocations with the call-field adjustment (`forth-bootstrap/cc/123-cc-object-program.fth:452`):
 
 ```forth file=cc/123-cc-object-program.fth
@@ -2427,4 +2500,8 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-41-stack-
 
 **Trace (easy).** Follow `f` and `g` from `cc-sysv-parse-args` through `cc-sysv-prepare-call` into `cc-sysv-store-params-default`. Draw the caller’s outgoing block and the callee’s frame, including the return address and saved `rbp`. Explain why alignment padding cannot move either argument’s expected location.
 
-**Verify (moderate).** Change the checkpoint’s call to pass `add(&base, 1, 2, 3, 4, 5, 6, 7)` as its final argument to a second call of `add`. Predict the exit status before running it, then identify which outer staged values must survive the inner call.
+**Verify (moderate).** Replace only the checkpoint call's final argument
+with another `add(&base, 1, 2, 3, 4, 5, 6, 7)` call. Predict the exit status
+and update the final `test "$result"` assertion before running it. Identify
+which outer staged values must survive the inner call and where the
+emitted code preserves them.

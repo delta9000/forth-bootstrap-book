@@ -6,7 +6,7 @@ Scope: Frame the small executable as the starting artifact the reader will audit
 
 Sources taught: None — this chapter organizes reading rather than teaching a source span.
 
-Prerequisites: [01 — Reading the book](01-reading-the-book.md)
+Prerequisites: [01 — Your first word](01-reading-the-book.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 

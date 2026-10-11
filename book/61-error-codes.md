@@ -6,6 +6,12 @@ that reports the failure, its source location, and the chapter that
 explains the layer. The same number can belong to different checks,
 so retain the loaded layer and any diagnostic prefix alongside it.
 
+For example, code `248` can describe object-file publication, a floating
+literal failure, or a bitfield restriction. A `bitfield:` prefix sends you
+to `129-cc-bitfield.fth`; an unprefixed number alone does not. First retain
+the whole diagnostic and the command that selected the compiler layers,
+then use the matching row to inspect the failing condition.
+
 ## How the codes are organised
 
 The core compiler groups codes by source layer; later layers reuse numbers and add checks. The catalogue follows source files rather than treating a numeric range as a unique namespace. An absent number has no entry because these sources do not assign it a failure.
@@ -21,11 +27,47 @@ The core compiler groups codes by source layer; later layers reuse numbers and a
 | `cc-bf-die` | `bitfield: `, then `cc-die` | Prefix plus compiler form |
 | `cc-ag-die`, `cc-ld-die` | `aggregate-abi: ` or `long-double: `, then `cc-die` | Prefix plus compiler form |
 | `cc-f64-fail` | Literal reason, then `die` | `cc-f64-literal: REASON`; no compiler line |
-| Assembler helpers | `die` or `asm-tok-err` | Bare status, or offending token on stderr |
 
-The common reporter writes to stderr and exits with the supplied code (`forth-bootstrap/cc/020-cc-arena.fth:405`). The assembler and literal converter have separate reporting paths. Linker and archive errors share the common reporter, but its reader position is not an ELF byte offset.
+The common reporter writes to stderr and exits with the supplied code (`forth-bootstrap/cc/020-cc-arena.fth:405`). The literal converter has a separate reporting path. Linker and archive errors share the common reporter, but its reader position is not an ELF byte offset.
 
 For compiler input, the reported position is `cc-src-line` in the preprocessed text. The source reader increments it at newlines (`forth-bootstrap/cc/030-cc-io.fth:108`); preprocessing counts emitted newlines, then rewinds that reader (`forth-bootstrap/cc/040-cc-prep.fth:61,2339`). Includes change the flattened position. It need not equal a line in the original file. Logical source location tracking is separate; the implicit-function diagnostic can print that location before the flattened line (`forth-bootstrap/cc/121-cc-sysv.fth:937`).
+
+## From a diagnostic to a repair
+
+Consider this one-line C input under the core target used by the first
+[Chapter 38 checkpoint](38-main-and-bootstrap-chain.md#try-it):
+
+```c
+int main(void) { int total = 7; return totla; }
+```
+
+The observed compiler diagnostic is `cc: line 1: error 93`, and the
+compiler exits with status 93. Follow the failure inward:
+
+1. The `cc:` form identifies the compiler reporter. This is a compilation
+   failure, before there is a new program to execute.
+2. The row for 93 points to `cc-parse-ident` in `100-cc-expr.fth`. Its
+   failing condition is a negative symbol-lookup result, after the
+   target's unknown-name hook (`forth-bootstrap/cc/100-cc-expr.fth:886–892`).
+3. Compare the identifier being read with the declarations visible there.
+   The declaration introduced `total`; the return expression asks for
+   `totla`. The lexer accepted its spelling as an identifier, but the
+   symbol table has no declaration for that different name.
+4. Correct only the use to `return total;` and compile again. The observed
+   compiler status is now 0; the newly generated program exits with 7.
+   Those are results of two different processes.
+
+To repeat this diagnosis, substitute the input in Chapter 38's checkpoint
+and retain its setup and output-file protection. Expect the broken input
+to stop at compilation. After the repair, change the wrapper's final
+`program_status` comparison from 0 to 7 before running it. This program
+prints nothing; compare its exit-status report rather than expecting
+the original checkpoint's star.
+
+The number located the failed lookup; it did not identify a typo by
+itself. A declaration outside the current scope can produce the same
+code. Inspect the name and visible declarations before choosing a repair,
+and do not run an older output file after a failed compilation.
 
 ## Codes in detail
 
@@ -323,7 +365,7 @@ Each row gives the numbered call sites and the containing words. Read the meanin
 | 227 | `forth-bootstrap/cc/129-cc-bitfield.fth:189` | `cc-bf-initializer` → `cc-die` | Braced scalar initializer lacks `}`. | [Chapter 48](48-bitfields.md) |
 | 238 | `forth-bootstrap/cc/129-cc-bitfield.fth:91` | `cc-bf-member` → `cc-die` | Nested array member has no positive outer bound. | [Chapter 48](48-bitfields.md) |
 | 245 | `forth-bootstrap/cc/129-cc-bitfield.fth:86` | `cc-bf-layout-check` → `cc-die` | Record object size limit exceeded. | [Chapter 48](48-bitfields.md) |
-| 248 | `forth-bootstrap/cc/129-cc-bitfield.fth:9` | `cc-bf-die` → `cc-die` | Unsupported bitfield type, width, or named zero-width field. | [Chapter 48](48-bitfields.md) |
+| 248 | `forth-bootstrap/cc/129-cc-bitfield.fth:9` | `cc-bf-die` → `cc-die` | Unsupported bitfield type, width, or named zero-width field; also taking a bitfield's address or applying `sizeof` to a bitfield expression. | [Chapter 48](48-bitfields.md) |
 
 ### 131-cc-aggregate-abi.fth
 
@@ -383,33 +425,6 @@ The archive reader also raises metadata errors through `lnk-need` and `lnk-bad`;
 | `249` | `forth-bootstrap/cc/131-cc-aggregate-abi.fth:408,474,535,543` | `cc-ld-die` | Invalid long-double scalar use, cast, or mapped static initializer. | [Chapter 49](49-aggregate-abi.md) |
 | `249` | `forth-bootstrap/cc/132-cc-long-double.fth:51,79,109,121,135,178,202` | `cc-ld-die` | Incompatible conversion, integer-only operator, or mapped static use. | [Chapter 49](49-aggregate-abi.md) |
 
-## The assembler's codes
-
-The following table belongs to the separate M1/hex2 program (Chapter 26). Its overlapping codes do not denote System V or object-writer failures. Capacity and output-open failures exit without a compiler diagnostic. `asm-tok-err` writes the offending token to stderr; undefined references, field-fit failures and malformed hex tokens use it (`forth-bootstrap/forth/130-asm.fth:412`).
-
-### 130-asm.fth
-
-| Code | Numbered site | Containing word → raising helper | Meaning | Layer chapter |
-|---:|---|---|---|---|
-| 230 | `forth-bootstrap/forth/130-asm.fth:145` | `asm-write-output` → `die` | Output path could not be opened. | [Chapter 26](26-m1-and-hex2.md) |
-| 231 | `forth-bootstrap/forth/130-asm.fth:593` | `asm-process-token` → `asm-do-ref` | Absolute `&label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 232 | `forth-bootstrap/forth/130-asm.fth:535` | `asm-do-pct-ref` → `asm-tok-err` | Relative `%target>base` base undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 233 | `forth-bootstrap/forth/130-asm.fth:529` | `asm-do-pct-ref` → `asm-tok-err` | Relative `%target>base` target undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 234 | `forth-bootstrap/forth/130-asm.fth:541` | `asm-do-pct-ref` → `asm-do-ref` | Relative `%label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 235 | `forth-bootstrap/forth/130-asm.fth:588` | `asm-process-token` → `asm-do-ref` | Relative `!label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 236 | `forth-bootstrap/forth/130-asm.fth:589` | `asm-process-token` → `asm-do-ref` | Relative `@label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 237 | `forth-bootstrap/forth/130-asm.fth:590` | `asm-process-token` → `asm-do-ref` | Relative `~label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 238 | `forth-bootstrap/forth/130-asm.fth:592` | `asm-process-token` → `asm-do-ref` | Absolute `$label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 239 | `forth-bootstrap/forth/130-asm.fth:95` | `asm-load-stdin` → `asm-check-cap` | Source buffer full. | [Chapter 26](26-m1-and-hex2.md) |
-| 240 | `forth-bootstrap/forth/130-asm.fth:117` | `asm-exp-emit-byte` → `asm-check-cap` | Macro expansion buffer full. | [Chapter 26](26-m1-and-hex2.md) |
-| 241 | `forth-bootstrap/forth/130-asm.fth:132` | `asm-emit-byte` → `asm-check-cap` | Output buffer full. | [Chapter 26](26-m1-and-hex2.md) |
-| 242 | `forth-bootstrap/forth/130-asm.fth:181` | `asm-store-label` → `asm-check-cap` | Label table full. | [Chapter 26](26-m1-and-hex2.md) |
-| 243 | `forth-bootstrap/forth/130-asm.fth:631` | `asm-def-store` → `asm-check-cap` | DEFINE table full. | [Chapter 26](26-m1-and-hex2.md) |
-| 244 | `forth-bootstrap/forth/130-asm.fth:513` | `asm-do-ref` → `asm-fit` | Label value does not fit its reference field. | [Chapter 26](26-m1-and-hex2.md) |
-| 245 | `forth-bootstrap/forth/130-asm.fth:504` | `asm-do-ref` → `asm-fit` | Numeric value does not fit its reference field. | [Chapter 26](26-m1-and-hex2.md) |
-| 246 | `forth-bootstrap/forth/130-asm.fth:553` | `asm-check-hex` → `asm-tok-err` | Bare token contains non-hexadecimal characters. | [Chapter 26](26-m1-and-hex2.md) |
-| 247 | `forth-bootstrap/forth/130-asm.fth:558` | `asm-check-hex` → `asm-tok-err` | Hexadecimal token has an odd digit count. | [Chapter 26](26-m1-and-hex2.md) |
-
 ## The build controller's codes
 
 The `seed-cc-start.fth` table below describes the Forth build controller in [Chapter 50](50-seed-cc-fixed-point.md). Those bare `die` codes identify controller failures, not C parser checks. Its successful completion uses status `0` (`forth-bootstrap/cc/driver/seed-cc-start.fth:351`).
@@ -468,7 +483,7 @@ Its emitted exit status and conditional registration are at `forth-bootstrap/cc/
 
 ## Why a number and a line, not a message?
 
-A per-site message needs per-site text. The common code leaves most checks as a small numbered call and keeps formatting in the reporter. The number identifies the check; the line identifies the input position. Some later layers add a prefix or reason when the shared form cannot distinguish their failures.
+A per-site message needs per-site text. The common code leaves most checks as a small numbered call and keeps formatting in the reporter. The number narrows the checks to inspect; the line identifies the input position. Some later layers add a prefix or reason when the shared form cannot distinguish their failures.
 
 For a particular diagnostic, search the owning source file for its literal code and inspect the surrounding condition. A code passed to a shared helper may appear where a buffer or sink is configured rather than where it overflows. Keep both locations when investigating it.
 
