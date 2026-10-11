@@ -116,7 +116,15 @@ justify the next experiment without asking it to prove the entire chain.
 
 A bootstrap chain is a sequence in which tools built from source provide the means to build the next tools. Stage A is a comparison alongside that construction, not the downstream route itself. The current route in `forth-bootstrap/README.md:14` proceeds through `seed-cc`, the build tools, GCC, and Linux; the README distinguishes the host and kernel runs in `forth-bootstrap/README.md:81`.
 
-Part 4 follows that route: Chapter 50 builds `seed-cc`, Chapter 51 builds the tools, and Chapter 52 follows GCC. Chapter 53 audits the sealed host run; Chapter 54 introduces K0 and K1; Chapter 55 carries the chain to Linux. Chapter 39 begins the compiler extensions needed before that route. Stage A closes the core compiler sequence without claiming those later results.
+Part 4 follows that route: Chapter 50 builds `seed-cc`, Chapter 51 builds the tools, and Chapter 52 follows GCC. Chapter 53 audits the sealed host run; Chapter 54 introduces K0 and K1; Chapter 55 carries the chain to Linux. Stage A closes the core compiler sequence without claiming those later results.
+
+Before taking that route, the compiler needs a more precise account of
+storage. Consider `struct Item { char tag; long value; }` initialized with
+`{3, 7}`. Where must each store land, and how much room belongs between
+the fields? An eight-byte working register cannot answer those questions:
+the objects have their own sizes and alignment. [Chapter 39](39-lp64-storage-and-initializers.md)
+uses this record to connect LP64 field layout to initialization, beginning
+the extensions needed by the larger sources ahead.
 
 ## Try it
 

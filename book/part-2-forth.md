@@ -17,8 +17,8 @@ hex2 linker, which turn assembly text into a running executable.
   layers need: `open`, `read`, `write`, `close` and `die`.
 - [Chapters 19](19-lib-06-character-classification.md) and
   [20](20-lib-07-comparisons-from-division.md) build character classes and
-  signed comparisons. Neither uses a branch: both come from unsigned
-  division.
+  signed comparisons. Their range and sign tests use unsigned division
+  rather than branches.
 - [Chapters 21](21-lib-08-stack-shufflers.md) and
   [22](22-lib-09-memory-and-cell-writers.md) add stack shufflers, memory
   updates and little-endian writers.

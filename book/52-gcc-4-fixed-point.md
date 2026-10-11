@@ -289,7 +289,7 @@ The build routine puts the same binutils first in `PATH`, so configure's assembl
 
 The source path, build path, and configured prefix stay the same between generations; otherwise embedded paths could create differences unrelated to code generation (`forth-bootstrap/chain/gcc-direct/stage-d.sh:21`). `DESTDIR` relocates the later installations without changing that configured prefix (`forth-bootstrap/chain/gcc-direct/stage-d.sh:120`).
 
-The calls below implement the ancestry table from the start of the
+The calls below implement the generation diagram from the start of the
 chapter. Notice the compiler argument to each `build`: the preceding
 generation becomes the next builder. Only after all three builds does
 the script compare their installations

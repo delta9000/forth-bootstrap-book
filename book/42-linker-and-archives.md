@@ -392,6 +392,12 @@ Validated views and names (`forth-bootstrap/cc/140-cc-link.fth:241`):
 
 ## Resolve a name once
 
+Which `add` should a call reach if more than one object offers it?
+The name table chooses among definitions in objects already admitted to
+the link. An archive index does not admit all of its members. Keep that
+boundary in mind here; [archive selection](#turn-the-index-into-linker-demand)
+will show why a strong definition can remain outside the link entirely.
+
 `lnk-find` hashes `lnk-hname`/`lnk-hlen`, probes from `lnk-hash`, and returns `lnk-hslot`. Each occupied slot retains the selected symbol and its owning object
 (`forth-bootstrap/cc/140-cc-link.fth:264`):
 
@@ -1106,7 +1112,27 @@ ordinary object added afterward does not reopen a previously visited one.
 
 With `caller.o` registered, `add` is undefined and strong. The first indexed `add.o` supplies it; the duplicate stays unselected.
 
-A weak undefined name alone extracts nothing. A weak definition can satisfy strong demand, leaving an unneeded strong member untouched. Selection validates that member’s object metadata; unused payloads remain uninterpreted.
+A weak undefined name alone extracts nothing. A weak definition can
+satisfy strong demand, leaving an unneeded strong member untouched. To
+separate extraction from definition strength, consider two valid objects:
+`weak.o` defines `add` with weak binding, and `strong.o` defines it with
+strong binding. Assume neither exports another name or introduces a new
+reference. Start both manual traces after `caller.o` has made `add` a
+strong unresolved name:
+
+| Inputs after `caller.o` | Objects admitted | Selected definition of `add` |
+|---|---|---|
+| Add `weak.o`, then `strong.o` directly | Both objects | Strong: `lnk-register` replaces the admitted weak definition |
+| Visit an archive ordered `weak.o`, `strong.o` | Only `weak.o` | Weak: it satisfies the demand before the next member is considered |
+
+In the archive trace, `arc-member-needed` no longer sees an undefined
+`add` after the first extraction. A rescan cannot change that fact, so it
+does not extract `strong.o` merely to improve the binding strength. In
+the direct trace, adding `strong.o` admits it unconditionally and lets
+`lnk-register` compare the two definitions. Thus “strong wins” describes
+resolution among admitted objects, not a search through every available
+archive definition. Selection validates the chosen member's object
+metadata; unused payloads remain uninterpreted.
 
 ## Place bytes and zero-filled memory
 

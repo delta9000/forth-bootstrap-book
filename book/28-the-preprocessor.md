@@ -310,6 +310,13 @@ The shadow mapping is allocated on demand and reused. Pasting marked text is rej
 
 ## The macro table
 
+The opening definitions must survive more than one invocation. `ROWS`
+keeps the body `4`; `SQUARE` keeps a body with two references to its one
+parameter. A call's argument text belongs in scratch, but those stored
+definitions must still exist after that scratch is released. This is why
+the macro table and its text pool have a different lifetime from the
+temporary sinks just built.
+
 A macro number indexes parallel arrays for its name, body, parameter count and busy flag. Names and bodies must outlive the source region that supplied them (`forth-bootstrap/cc/040-cc-prep.fth:189`):
 
 ```forth file=cc/040-cc-prep.fth
@@ -1433,6 +1440,11 @@ The closing parenthesis finishes the final argument only when the nested depth r
 
 ### Raw and expanded arguments
 
+For `SQUARE(ROWS)`, collection has found one slice, `ROWS`, and left the
+source cursor after the call's closing parenthesis. Prescan will produce
+the text containing `4`. Substitution must be able to use that completed
+text twice without advancing or destroying it after the first `x`.
+
 Ordinary substitution needs expanded arguments, while stringification and pasting need raw spelling. The duplicated record block preserves the original slices before expansion replaces their addresses and lengths (`forth-bootstrap/cc/040-cc-prep.fth:1038`):
 
 ```forth file=cc/040-cc-prep.fth
@@ -1492,6 +1504,12 @@ variable cc-pp-sub-n
 ```
 
 ### Stringification
+
+Our legacy `SQUARE` uses the expanded record at both parameter positions.
+The next direct-profile branches explain why the raw record is retained
+too: stringifying that same argument needs the spelling `ROWS`, not the
+replacement `4`. Keep the two records distinct as the substitution code
+chooses between them; the legacy checkpoint does not exercise `#` or `##`.
 
 Stringification needs its own cursor and quote state because it reads raw argument spelling. Edge trimming serves paste operands; the string-byte writer escapes quotes and backslashes for the new C literal (`forth-bootstrap/cc/040-cc-prep.fth:1086`):
 
@@ -1903,6 +1921,13 @@ The substituted body is built in a temporary sink, then rescanned with the macro
   [lit] 0 cc-pp-location-begin cc-pp-expand-call-body cc-pp-location-end ;
 
 ```
+
+The opening expansion can now finish. Argument prescan leaves the text
+containing `4` in scratch; substitution copies it into both parameter
+positions in another temporary. Rescanning that temporary writes the
+tokens of `((4) * (4))` into the caller's sink. Only then can the saved
+scratch top be restored. The result survives because its bytes have been
+copied out, and the suspended source resumes after `SQUARE(ROWS)`.
 
 ### Unavailable tokens across rescans
 
@@ -2692,6 +2717,12 @@ The requested number applies to the following physical line. Updating an offset 
 </details>
 
 ## `#define` and `#undef`
+
+We have followed a call using an already stored body. Now complete the
+other half: how did `#define SQUARE(x) ((x) * (x))` create that body?
+Definition processing recognizes `x` as a parameter and records its
+index at both occurrences. It leaves the choice of argument text to the
+later invocation, which is why one stored definition can serve many calls.
 
 A function-like definition records parameter names while its body is encoded. Those names live only until body copying finishes; the stored macro body uses parameter markers instead (`forth-bootstrap/cc/040-cc-prep.fth:1991`):
 

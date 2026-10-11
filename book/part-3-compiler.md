@@ -48,6 +48,14 @@ more source does not by itself select a target. Each checkpoint names its
 selection and prerequisites. Consult the [C subset](60-c-subset.md) when
 changing its C input.
 
+Alongside those checkpoints, keep one short expression in view.
+Chapter 28 expands `SQUARE(ROWS)`, with `ROWS` defined as 4, into the
+tokens of `((4) * (4))`. Chapters 29–33 follow those characters as tokens,
+typed operands and emitted instructions. That manual thread connects the
+representations; it does not claim each intermediate layer can compile a
+C program. The small layer-specific checkpoints isolate what is ready to
+run at each stop.
+
 By the end, you should be able to follow one expression from token to
 instruction and one external call from an undefined symbol to a patched
 address. Part 4 treats that machinery as a working compiler and asks a

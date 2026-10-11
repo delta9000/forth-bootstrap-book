@@ -75,7 +75,12 @@ defer cc-parse-stmt-fwd
 
 ```
 
-A compound block repeats that recursive call until the closing brace. Its scope encloses every declaration encountered along the way (`forth-bootstrap/cc/112-cc-stmt.fth:19`):
+A compound block repeats that recursive call until the closing brace.
+Its scope controls which names lookup can find: closing the block removes
+its local declarations from the symbol table. It does not reclaim their
+core frame slots; Chapter 35's allocator keeps those reserved for the
+function. This is a compiler-side scope change, not an emitted stack pop
+(`forth-bootstrap/cc/112-cc-stmt.fth:19`):
 
 ```forth file=cc/112-cc-stmt.fth
 \ cc-parse-compound ( -- )  '{' (stmt | decl)* '}'
@@ -589,6 +594,11 @@ The continue list lands immediately before the trailing condition. A nonzero res
 
 ## `switch` with deferred dispatch
 
+A loop patches several jumps to a shared exit. A switch must additionally
+remember several possible entry points, one for each case. The same
+separation between source order and execution order helps here: discover
+the case destinations first, then emit the code that chooses among them.
+
 Case addresses become known while parsing the body. Emitting that body before the comparisons avoids holding its generated code elsewhere: the initial jump skips forward to dispatch, and dispatch jumps backward to the selected case (`forth-bootstrap/cc/112-cc-stmt.fth:402`):
 
 ```forth file=cc/112-cc-stmt.fth
@@ -884,7 +894,14 @@ Breaks converge before `pop rbx`, so every ordinary switch exit restores the sav
 
 ## Labels and `goto`
 
-Named jumps need destinations independent of block nesting. The label table keeps names, addresses, pending jumps, and lexical switch depths for a function; `cc-label-cap` reads the active bound from `cc-label-limit` (`forth-bootstrap/cc/112-cc-stmt.fth:638`):
+A loop or switch supplies a destination from its enclosing syntax. A
+`goto` names its destination instead, and that label may appear later in
+the function. The parser therefore needs a per-function name table as well
+as a pending-jump list.
+
+The label table keeps names, addresses, pending jumps, and lexical switch
+depths; `cc-label-cap` reads the active bound from `cc-label-limit`
+(`forth-bootstrap/cc/112-cc-stmt.fth:638`):
 
 ```forth file=cc/112-cc-stmt.fth
 \ ===========================================================================

@@ -1,10 +1,18 @@
 # Appendix H — Compiler and bootstrap exercise feedback
 
+This appendix covers the exercises in Chapters 27–56. For earlier material,
+use the worked examples in [Appendix D](58-worked-exercises.md) and the
+feedback beside the exercises in [Chapter 9](09-dictionary.md#exercises),
+[Chapter 15](15-lib-02-code-emission-and-here.md#exercise), and
+[Chapter 23](23-lib-10-immediacy-and-constants.md#exercise).
+
 Try the chapter's exercise before opening its answer. Start with the hint;
 then compare intermediate states, not only the final number. The answers
-are worked out from the source; a **Verify** exercise still asks for your
-own run. When you adapt a checkpoint, keep its layers and setup, and
-update its labels and expected results to match the changed program.
+are worked out from the source. Where an exercise asks for a run, its
+answer does not replace your own observed result; where it asks you to
+classify recorded evidence, no new build is required. When you adapt a
+checkpoint, keep its layers and setup, and update its labels and expected
+results to match the changed program.
 
 For a changed exercise, a useful self-check has three parts: what state
 must survive, which transition changes it, and what observation would

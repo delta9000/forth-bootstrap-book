@@ -624,6 +624,13 @@ The **binary-operation setup** leaves the left operand in `rdi` and the right in
 
 ```
 
+Apply that setup by hand to `((4) * (4))`, the text left by our macro
+example. Emit a load of 4 and a push, then a second load of 4. Move the
+right value to `rcx`, pop the left back into `rdi`, and emit multiplication.
+When those instructions run, `rdi` will hold 16. We are choosing emitter
+calls ourselves here; these words do not read the parentheses or `*`.
+Chapter 33 makes the parser choose this sequence from tokens.
+
 Subtraction keeps the same left/right order. Multiplication has the same register-level contract even though its instruction encoding selects operands differently (`forth-bootstrap/cc/090-cc-emit.fth:299`):
 
 ```forth file=cc/090-cc-emit.fth

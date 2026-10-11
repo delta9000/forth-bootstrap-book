@@ -328,7 +328,7 @@ state, and from that state to a running system.
 
 ## Try it
 
-Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and 24 GiB of free host RAM for the guest. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:182`, `forth-bootstrap/README.md:239`). The wrapper defaults to that memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
+Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and room on the host for a 24 GiB guest plus QEMU's own overhead. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:182`, `forth-bootstrap/README.md:239`). The wrapper defaults to that guest memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
 
 The command recreates the input and output images under `build-out/k1-direct-linux` and writes `serial.log` there. Preserve earlier results before starting; the output disk is replaced (`forth-bootstrap/kernel/k1/run-chain.sh:28`, `forth-bootstrap/kernel/k1/run-chain.sh:38`).
 

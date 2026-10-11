@@ -179,7 +179,13 @@ The final instruction is an indirect tail jump. It leaves the caller's return ad
 
 ## `read_word`, the token reader
 
-The reader's path is **skip whitespace → collect bytes → recognize comments → return the token**. `read_word` is an internal routine, not a named dictionary entry. Its `( -- c-addr u )` result fits `find`'s input exactly. The address refers to the shared token buffer from Chapter 5, so reading another token overwrites the old bytes.
+Lookup can now turn a name into a code address. But the input stream
+contains a whole program, not a ready-made name slice. `read_word`
+extracts the next name by following **skip whitespace → collect bytes →
+recognize comments → return the token**. It is an internal routine, not a
+named dictionary entry. Its `( -- c-addr u )` result fits `find`'s input
+exactly. The address refers to the shared token buffer from Chapter 5,
+so reading another token overwrites the old bytes.
 
 Leading whitespace contributes no token bytes. `read_word` resets the token length, then skips that whitespace (`forth-bootstrap/seed/000-seed.hex0:398`).
 
@@ -427,7 +433,7 @@ The first input line uses tick to skip a parenthesized comment, find `dup`, and 
 ```sh
 printf '%s\n' "' ( skipped ) dup c@ ' emit execute" \
   "' absent ' dup c@ + emit" \
-  "here dup ' dup c@ , @ emit" \
+  "here ' dup c@ , @ emit" \
   "' \ skipped" \
   "dup c@ emit bye" | ./seed-forth
 # prints "HHHH"
@@ -444,3 +450,38 @@ HHHH
 - **Trace (easy).** Trace a lookup with a matching length but a different final byte. Which registers still identify the original input when `.skip` follows the next link?
 - **Trace (easy).** Compare the inputs `' (skipped` and `' ( skipped ) dup`. Which name does tick pass to lookup in each case, and which result is safe to pass to `execute`?
 - **Trace (moderate).** In the checkpoint's allocation command, track the saved address through `,` and `@`. Why does the store change `HERE` without adding a searchable word?
+
+<details>
+<summary>Hint: keep the input separate from the candidate</summary>
+
+For lookup, distinguish the unchanged input address and length from the
+pointers that advance through a candidate name. For comments, ask whether
+the entire token is a comment opener. For allocation, name the initial
+cursor `A` and recall that `,` consumes a value, not an address.
+
+</details>
+
+<details>
+<summary>Check the three traces</summary>
+
+On a final-byte mismatch, `rsi` still holds the original input address
+and `rdi` its length. `rcx` still identifies the rejected header until
+`.skip` replaces it with that header's older link. At the next candidate
+of matching length, the code resets `rdx`, `r8`, and `r9`; it must not
+continue from the previous candidate's final byte.
+
+Tick passes `(skipped` to lookup in the first input. That whole token
+is not a comment opener, and the unextended seed has no word by that
+name, so the result is zero. In the second input, the reader discards
+`( skipped )` and tick looks up `dup`. Its nonzero result names executable
+code; calling it still requires an operand for `dup`. Passing the zero
+result to `execute` would jump to address zero, not do nothing.
+
+Write `S` for the older stack. The allocation command traces
+`S` → `S A` after `here` → `S A xt-dup` after tick → `S A 72`
+after `c@` → `S A` after `,` → `S 72` after `@` → `S` after `emit`.
+The comma stores 72 at `A` and advances HERE to `A+8`; the saved `A`
+remains available to `@`. No header or name was written, and LATEST
+was not changed, so lookup has gained no new word.
+
+</details>

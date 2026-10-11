@@ -402,7 +402,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Stack-buffer pattern** — A pushed value supplies temporary buffer storage for byte I/O. [Chapter 32](32-codegen-part-2.md).
 
-**Stage-A parity proof** — Forth-built and GCC-built M2-Planet emit identical M1 for the same M2-Planet inputs; this checks assembly parity rather than correctness for all C. [Chapter 38](38-main-and-bootstrap-chain.md).
+**Stage-A parity comparison** — Forth-built and GCC-built M2-Planet emit identical M1 for the same M2-Planet inputs; this checks assembly parity rather than correctness for all C. [Chapter 38](38-main-and-bootstrap-chain.md).
 
 **Static initializer lowering** — Queued initialization routines reuse expression fixups and run before main. [Chapter 39](39-lp64-storage-and-initializers.md).
 
@@ -458,17 +458,21 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Direct Linux recipe** — The guest recipe extending tool construction through the compiler climb, Linux build, export and handover. [Chapter 55](55-linux-and-kexec.md).
 
+**Direct map** — A kernel mapping in which adding a fixed base to a physical address gives a virtual address for the same memory. The address arithmetic requires matching page tables. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).
+
 **Direct recipes** — The first Makefiles run commands without a shell interpreting them. [Chapter 51](51-owning-the-tools.md).
 
 **Embedded initramfs** — An initial filesystem archive carried inside the kernel image. Here it supplies the static `/init` program and a console device node. [Chapter 55](55-linux-and-kexec.md).
 
 **Executable publication** — The host grants seed-forth's execute bit between entries; it supplies no program bytes. [Chapter 53](53-sealed-run.md).
 
-**Execve trace audit** — Every successful execve path must resolve to hex0-seed, the host's bwrap, or a program the chain built. [Chapter 53](53-sealed-run.md).
+**Execve trace audit** — Account for each successful execve path using the starting executable, the host's bwrap entry, a chain-built program, or a script interpreted by the built shell. Failed attempts are separate evidence. [Chapter 53](53-sealed-run.md).
 
 **Fixed configuration** — Hand-written config.h answers replace running configure for the first tools. [Chapter 51](51-owning-the-tools.md).
 
 **Guarded configure probes** — Explicit tool settings and failing guard scripts keep configure from finding host tools. [Chapter 51](51-owning-the-tools.md).
+
+**Identity map** — A mapping in which a virtual address translates to the same numeric physical address. It does not change addresses already held in registers. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).
 
 **Interrupted execve join** — Pairing a trace’s unfinished and resumed syscall records by process identity before classifying the result. [Chapter 53](53-sealed-run.md).
 
@@ -492,6 +496,8 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Output pin scope** — An artifact digest may apply at any build path or only at the declared root when outputs embed configured paths. [Chapter 55](55-linux-and-kexec.md).
 
+**Physical address** — The memory address reached after translation through page tables, distinct from the virtual address used by an instruction. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).
+
 **RAM-tree import** — K1 imports hda as its RAM root and keeps K0's files under /k0/. [Chapter 54](54-k0-and-k1.md).
 
 **Reproducible build** — A build whose repeated inputs and conditions yield byte-identical outputs. [Chapter 52](52-gcc-4-fixed-point.md).
@@ -509,3 +515,5 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 **Sysroot** — The directory tree holding the target headers and libraries the compiler's output uses. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Temporary scanner bootstrap** — Heirloom lex builds an intermediate flex that then generates flex's own scanner. [Chapter 51](51-owning-the-tools.md).
+
+**Virtual address** — The address a program uses for a memory access. Page tables translate it and determine whether the access is permitted; distinct virtual addresses can reach the same physical byte. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).

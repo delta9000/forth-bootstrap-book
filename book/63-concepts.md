@@ -246,7 +246,7 @@ when returning after a break.
 - Stable object record — [Chapter 41](41-system-v-calls.md)
 - Stable symbol handle — [Chapter 40](40-objects-and-relocations.md)
 - Stack-buffer pattern — [Chapter 32](32-codegen-part-2.md)
-- Stage-A parity proof — [Chapter 38](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof)
+- Stage-A parity comparison — [Chapter 38](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof)
 - Static initializer lowering — [Chapter 39](39-lp64-storage-and-initializers.md#initializers-reuse-expression-fixups)
 - Static local storage — [Chapter 35](35-declarations-types-globals.md)
 - Sticky-half unsigned conversion — [Chapter 47](47-floats.md)
@@ -277,12 +277,14 @@ when returning after a break.
 - Compiler driver stream — [Chapter 50](50-seed-cc-fixed-point.md)
 - Compiler fixed point — [Chapter 52](52-gcc-4-fixed-point.md)
 - Direct Linux recipe — [Chapter 55](55-linux-and-kexec.md)
+- Direct map — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 - Direct recipes — [Chapter 51](51-owning-the-tools.md)
 - Embedded initramfs — [Chapter 55](55-linux-and-kexec.md)
 - Executable publication — [Chapter 53](53-sealed-run.md)
 - Execve trace audit — [Chapter 53](53-sealed-run.md)
 - Fixed configuration — [Chapter 51](51-owning-the-tools.md)
 - Guarded configure probes — [Chapter 51](51-owning-the-tools.md)
+- Identity map — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 - Interrupted execve join — [Chapter 53](53-sealed-run.md)
 - K0 serialized fork — [Chapter 54](54-k0-and-k1.md)
 - K0 syscall fallbacks — [Chapter 54](54-k0-and-k1.md)
@@ -294,6 +296,7 @@ when returning after a break.
 - Libgcc — [Chapter 52](52-gcc-4-fixed-point.md)
 - Linux boot parameters — [Chapter 55](55-linux-and-kexec.md)
 - Output pin scope — [Chapter 55](55-linux-and-kexec.md)
+- Physical address — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 - RAM-tree import — [Chapter 54](54-k0-and-k1.md)
 - Reproducible build — [Chapter 52](52-gcc-4-fixed-point.md)
 - Result export — [Chapter 55](55-linux-and-kexec.md)
@@ -303,6 +306,7 @@ when returning after a break.
 - Source generator — [Chapter 52](52-gcc-4-fixed-point.md)
 - Sysroot — [Chapter 52](52-gcc-4-fixed-point.md)
 - Temporary scanner bootstrap — [Chapter 51](51-owning-the-tools.md)
+- Virtual address — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 
 ### Appendix references
 
@@ -370,11 +374,11 @@ chapter's matching `book/outline/NN-*.md` file. Most of these are editorial
 reading-order edges: following the chain recovers the recommended first
 pass, not a demonstrated minimum set of skills for every later task. Use
 the capability checks above to select a repair or a familiar entry point.
-The last column is an inventory of earlier chapter references, not an
+The last column selects earlier explanations to revisit, not an
 additional set of requirements. A reference can be a comparison or an
 optional consultation; a forward pointer alone does not add a dependency.
 
-| Chapter | Prerequisites from outline | Earlier chapters named in prose |
+| Chapter | Prerequisites from outline | Selected earlier explanations |
 |---|---|---|
 | [4 — x86-64 encoding and the two-stack machine](04-x86-64-and-two-stacks.md) | [3](03-where-this-fits.md) | — |
 | [5 — ELF, entry, and the memory map](05-elf-and-entry.md) | [4](04-x86-64-and-two-stacks.md) | [4](04-x86-64-and-two-stacks.md) |

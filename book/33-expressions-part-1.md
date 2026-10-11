@@ -10,6 +10,13 @@ instructions inherit that order. No expression tree is needed. First
 follow this one expression through compilation and execution; then we can
 turn its steps into a reusable parser loop.
 
+Our earlier `SQUARE(ROWS)` expansion, `((4) * (4))`, needs one multiply
+using the loads and operand save traced in Chapter 31. Its parentheses
+already make the grouping explicit. The new `2 + 3 * 4` example exposes
+the extra decision that trace could not: which parser must finish before
+addition may emit? Keep both in view; the machinery should explain the
+old product as well as the new precedence choice.
+
 ## The cascade in motion
 
 The emitter's result register is `rdi`; binary arithmetic takes its second
@@ -1012,6 +1019,15 @@ The baseline `cc-binop-apply` needs only the saved left value, the current right
 ```
 
 Its machine-code sequence moves the right value to `rcx`, restores the left into `rdi`, and emits `left OP right`. Materialization requests a value from a possibly pending address; marking clears assignability. Chapter 34 explains those mechanisms.
+
+This closes the operation part of the macro trace. In an ordinary runtime
+expression, the `*` token from `((4) * (4))` selects the multiplication
+row's emitter, `cc-emit-imul-rdi-rcx`. The generated program will compute
+16; the compiler has not called the row's Forth evaluator to compute it.
+Chapter 34 supplies the parenthesized operands and the separate
+constant-expression path that does use evaluators. The same spelling can
+therefore lead to runtime instructions or a compile-time value, depending
+on the parser's job.
 
 ## Forward references for mutual recursion
 

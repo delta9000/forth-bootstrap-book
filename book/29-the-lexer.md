@@ -17,6 +17,14 @@ The lexer does not yet know that `w` names an array. That interpretation
 belongs to the declaration parser. The lexer's job is to make boundaries
 reliable: `intx` must remain one identifier, and `>=` must remain one operator.
 
+Keep Chapter 28's other result beside the declaration: `SQUARE(ROWS)`
+left the tokens of `((4) * (4))`. Each `4` now becomes a number token with
+value 4; `*` becomes punctuation with byte value 42, and each parenthesis
+is another punctuation token. There is still no value 16. We will follow
+this same expression through type selection and instruction emission,
+then let the parser choose those instructions in Chapter 33. This is a
+manual cross-layer trace; each checkpoint below tests its own loaded layer.
+
 We will keep the current token in a small record and leave names in the
 source buffer instead of copying them. A parser can then inspect a token,
 decline it, and put it back for its caller. That last operation is how the

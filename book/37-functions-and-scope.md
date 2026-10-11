@@ -1,6 +1,13 @@
 # Chapter 37 — Functions and translation units
 
-A program whose `main` calls `add`, and whose `add` reads the global `bias`, needs names to remain available across statements and function bodies. Registering those names at file scope connects the bodies and lets deferred calls acquire their destinations. The result is a whole-program parser that supplies an entry stub and produces the program run in the checkpoint.
+`main` calls `add` before its definition, and `add` reads the global
+`bias`. To compile the checkpoint's program, we must keep some names
+available across function bodies while containing parameters and local
+names within their scopes. We must also remember a call whose destination
+has not been emitted yet.
+
+The statement parser can already compile each body. This chapter connects
+those bodies and supplies the entry stub that starts the program.
 
 ## Setup
 
@@ -90,7 +97,12 @@ create cc-main-name-bytes  s, main
 
 ## The call codegen
 
-A call must protect earlier argument values while later arguments are evaluated. The register convention is already established (Chapter 31); here the parser turns an argument list into the required transfers.
+A call must protect earlier argument values while later arguments are
+evaluated. As in Chapter 34's assignment trace, there are two lifetimes to
+keep separate: the compiler saves a callee identity and argument count,
+while the emitted program saves argument values. The register convention
+is already established (Chapter 31); here the parser turns an argument
+list into the required transfers.
 
 A known function address needs no pending symbol lookup. `cc-emit-call-vaddr` converts that destination into the displacement carried by the emitted call (`forth-bootstrap/cc/100-cc-expr.fth:453`):
 
@@ -698,6 +710,12 @@ Earlier references still belong to the prior prototype. Its call and address lis
 ```
 
 ### Entering and leaving the body
+
+For `add`, the pending call from `main` is now resolved. Next we must make
+`n` visible inside the body without letting it remain visible to the next
+function. The function entry sits outside the new scope; the parameter
+and body locals sit inside it. Closing that scope will remove `n` while
+leaving `add` and the earlier global `bias` available.
 
 A definition of `main` supplies the entry stub destination. The parser then resets local and control-flow state before pushing the scope that contains parameters and body declarations (`forth-bootstrap/cc/114-cc-func.fth:268`):
 
@@ -1850,6 +1868,12 @@ create cc-name-intptr_t  s, intptr_t
 ```
 
 ### Closing the translation unit
+
+Return to the two pending references in the opening program. The
+function definition has supplied `add`'s destination. Before placing the
+data for `bias`, the driver must finish any late shim bodies and check
+that no used function still lacks a destination. Only then is the end of
+code fixed and the global-address patching described above ready to run.
 
 An unused prototype is harmless; a used function with unresolved references is not. `cc-check-fns-defined` rejects remaining call or address fixups and then requires a definition of `main`, preventing executable output with unresolved destinations (`forth-bootstrap/cc/116-cc-prog.fth:855`):
 

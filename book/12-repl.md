@@ -202,8 +202,12 @@ come from the offsets and sizes printed by
 `python3 tools/check-numbers.py --dump`; `./check.sh` checks each row
 against the chunks its chapter defines.
 
-Chapter 13 collects the primitive contracts as a reference. Chapter 14
-begins using the seed to build the Forth library.
+We can now account for Chapter 1's `hello` without treating the input
+loop as a black box. The REPL dispatches `:`, which consumes the name;
+`[lit]` consumes each number; ordinary `emit` tokens become calls; and
+`;` closes the body. The later `hello` token finds and runs that body.
+The same loop will load the library's definitions in Part 2. Chapter 13
+collects the primitive contracts we will use to read them.
 
 ## Try it
 

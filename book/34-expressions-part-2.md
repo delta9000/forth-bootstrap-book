@@ -682,6 +682,11 @@ The final store puts the value in `rdi` and the address in `rcx`, selecting byte
 
 ## Struct-field lookup
 
+Assignment can now consume a destination without losing it. We can turn
+back to the operand forms that supply one: fields, subscripts, names, and
+unary dereferences. Each must leave both the right runtime result and the
+metadata needed by its next consumer.
+
 A field lookup must return both an offset and enough metadata for the next postfix operation; the `cc-ff-*` cells hold the search name, descriptor, and matched results
 (`forth-bootstrap/cc/100-cc-expr.fth:298`):
 ```forth chunk=expr-struct-field
@@ -863,7 +868,10 @@ Generated code saves the base, evaluates and scales the index, then forms an add
 
 ## Primary expressions
 
-The primary family is assembled in dependency order, with handlers before the dispatch loop that calls them
+A primary starts with an operand, then lets suffixes refine its result.
+We will read the dispatch loop first so each handler has a place in that
+process. The source itself assembles the handlers before the loop that
+calls them
 (`forth-bootstrap/cc/100-cc-expr.fth:674`):
 ```forth chunk=expr-primary
 <<expr-primary-literals>>
@@ -1330,6 +1338,12 @@ The operand dispatcher asks `cc-try-cast-fwd` before taking this grouping path. 
 
 ### Increment and decrement
 
+Mutation adds a second question to the destination contract: which value
+should the expression supply afterward? Both `++x` and `x++` change the
+same object. Prefix supplies the changed value; postfix must preserve the
+old value while performing the store. The native path shares one updater
+and makes that choice explicit.
+
 The `cc-change-*` cells record the operand metadata, direction, and prefix/postfix choice; the default check validates integer use, and the default update scales pointers before converting back to the stored type
 (`forth-bootstrap/cc/100-cc-expr.fth:977`):
 ```forth chunk=expr-primary-postfix-incdec
@@ -1609,6 +1623,11 @@ A recursive unary operand supports chains such as `**p`; the header describes th
 ```
 
 ### Measuring an operand
+
+`sizeof` asks about the operand's storage rather than its contents. For
+an array, that means retaining its shape instead of treating it as a
+pointer. For a native expression operand, it also means learning the type
+without leaving code that evaluates the expression at runtime.
 
 The legacy `sizeof` dispatcher keeps its answer in `cc-sizeof-bytes`, so each branch can update the same cell
 (`forth-bootstrap/cc/100-cc-expr.fth:1235`):
@@ -2179,7 +2198,14 @@ not a feature. The core profile has no comma operator at all. See
 
 ## Constant expressions
 
-Compile-time expressions return a Forth value instead of emitting a runtime calculation; `cc-cx-pp`, `cc-cx-skip`, and `cc-cx-unsigned` track preprocessing mode, dead arms, and signedness
+An array bound must be known when the compiler reserves storage; a case
+label must be known when it builds dispatch. Neither can wait for the
+generated program to run. Constant parsing reuses the operator table and
+precedence levels but computes a Forth value instead of emitting a runtime
+calculation.
+
+`cc-cx-pp`, `cc-cx-skip`, and `cc-cx-unsigned` track preprocessing mode,
+dead arms, and signedness
 (`forth-bootstrap/cc/100-cc-expr.fth:2444`):
 ```forth chunk=expr-top
 \ ===========================================================================

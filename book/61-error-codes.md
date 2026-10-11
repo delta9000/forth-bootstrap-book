@@ -6,6 +6,12 @@ that reports the failure, its source location, and the chapter that
 explains the layer. The same number can belong to different checks,
 so retain the loaded layer and any diagnostic prefix alongside it.
 
+For example, code `248` can describe object-file publication, a floating
+literal failure, or a bitfield restriction. A `bitfield:` prefix sends you
+to `129-cc-bitfield.fth`; an unprefixed number alone does not. First retain
+the whole diagnostic and the command that selected the compiler layers,
+then use the matching row to inspect the failing condition.
+
 ## How the codes are organised
 
 The core compiler groups codes by source layer; later layers reuse numbers and add checks. The catalogue follows source files rather than treating a numeric range as a unique namespace. An absent number has no entry because these sources do not assign it a failure.
@@ -468,7 +474,7 @@ Its emitted exit status and conditional registration are at `forth-bootstrap/cc/
 
 ## Why a number and a line, not a message?
 
-A per-site message needs per-site text. The common code leaves most checks as a small numbered call and keeps formatting in the reporter. The number identifies the check; the line identifies the input position. Some later layers add a prefix or reason when the shared form cannot distinguish their failures.
+A per-site message needs per-site text. The common code leaves most checks as a small numbered call and keeps formatting in the reporter. The number narrows the checks to inspect; the line identifies the input position. Some later layers add a prefix or reason when the shared form cannot distinguish their failures.
 
 For a particular diagnostic, search the owning source file for its literal code and inspect the surrounding condition. A code passed to a shared helper may appear where a buffer or sink is configured rather than where it overflows. Keep both locations when investigating it.
 

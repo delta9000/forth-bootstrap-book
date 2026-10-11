@@ -146,3 +146,17 @@ These results do not establish that the sources are correct for all inputs, or t
 ## Exercise
 
 **Trace (easy).** Choose a row from the recorded Results table above. Identify its comparison point, its execution boundary and the source that records the outcome. Then find its corresponding quick check or opt-in branch in `check-all.sh`. Explain why an `OK` from a different branch would not establish the same claim.
+
+<details>
+<summary>Check the scope of your evidence</summary>
+
+For the sealed host chain, compare the installed Stage D files under the
+archive rule from Chapter 52. Execution stays inside the prepared root
+on the host kernel; the row cites the recorded outcome in the README.
+`CHECK_CHAIN=1` selects that long branch. A successful driver-rebuild check
+compares seed-cc and seed-ar instead, so it supplies no new GCC fixed-point
+result. For another row, name its own artifacts and boundary with the same
+precision. A recorded outcome describes that earlier run; selecting a
+branch tells you how to request a new check, not that you have run it.
+
+</details>

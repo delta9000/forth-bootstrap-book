@@ -137,6 +137,11 @@ An array node records its element and dimension information separately from the 
 
 The inner link preserves nested dimensions. Qualifiers sit beside the type word, so the same base and pointer depth can describe differently qualified elements. An array of `int` stores its element count separately from that type; adding `const` changes qualification, not pointer depth. Chapter 35 builds declarations from these records.
 
+For `int w[4];` from the lexer chapter, the four is a count, not part of
+the scalar `int` encoding. A declaration parser will have to retain both
+facts: which elements `w` contains and how many. These helpers supply
+places to keep them; they do not yet interpret the declaration's tokens.
+
 ## Packing types and choosing scalar storage
 
 Storage depends on the selected target. `cc-target-lp64` defaults off; `cc-bootstrap-floatbits` independently enables a restricted floating-storage approximation when LP64 is selected, without supplying floating arithmetic (`forth-bootstrap/cc/060-cc-types.fth:54`):
@@ -350,6 +355,13 @@ Without a long suffix, `U` chooses between `uint` and `ulong`. Without any suffi
 ```
 
 The unsigned divisions compare magnitudes without treating the high bit as a negative sign. A decimal value beyond signed-long range gets `ulong` as a bootstrap extension. The final `ty-make` encodes the selected base with pointer depth zero.
+
+Return to the two `4` tokens in `((4) * (4))`. Each has a small decimal
+value and no suffix, so each receives `ty-int` with pointer depth zero in
+either target model. That agreement does not make the models' object
+sizes equal: the core gives `int` eight bytes and LP64 gives it four.
+Nor has selecting those types multiplied the values. The emitter needs
+an operation as well as operands; that is the next part of the journey.
 
 ## Record descriptors: stable identity, movable fields
 

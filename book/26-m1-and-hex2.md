@@ -5,6 +5,12 @@ has not been calculated. Macro substitution followed by two-pass assembly
 turns that text into executable bytes. The completed assembler runs on the
 seed and library alone and produces the program exercised at the end.
 
+For a first run before the longer source walkthrough, use the
+[checkpoint](#try-it) to assemble a program that prints `hi` and exits
+with status 42. Then return to the small fragment below: it keeps the
+same macro, label, and string mechanisms while leaving the ELF header
+out of the trace.
+
 ## M1 and hex2 in brief
 
 The implementation has this shape:
@@ -772,6 +778,12 @@ The public reader chooses the scan from the opening character in
 address and clears the token length. Its EOF result is `0 0`; every real
 token has positive length. Consumers use that length to end their loops.
 
+For our small input, this reader first returns slices for `DEFINE`,
+`hop`, and `EB`. The expansion pass will give those slices their macro
+meaning. Later, with the expanded buffer selected, the same reader
+returns `:base`, `EB`, and `!target` to the assembly passes. Reading a
+slice does not yet decide whether it names a macro, a label, or bytes.
+
 ## One token, one decision
 
 Assembly saves the current token in scratch cells so every handler can
@@ -1026,6 +1038,12 @@ before emission. At `over asm-emit-le`, the duplicate width lets the
 emitter consume `v width` while the original width remains for the final
 IP update. Undefined labels exit with the sigil's supplied error code.
 
+This is the handler behind our opening `!target`: width 1 reserves one
+byte in pass 1, and the saved label address produces displacement 2 in
+pass 2. The same handler processes `&message` with width 4 and a false
+relativity flag, so it emits the address without subtracting IP. One
+piece of code accounts for the two different fields in that fragment.
+
 A difference between named addresses supplies file offsets and sizes without using the current IP in
 `forth-bootstrap/forth/130-asm.fth:519`:
 
@@ -1186,9 +1204,11 @@ emission, IP equals the base plus the output position after each token.
 
 ## Macro expansion: definitions
 
-An M1 macro is textual substitution of a name by a stored body slice.
-The expander builds a separate text buffer before assembly begins, so
-neither assembly pass needs to know that a byte sequence had a mnemonic.
+We have followed the expanded stream through layout and emission. Now
+return to the earlier step that changed `hop` into `EB`. An M1 macro
+is textual substitution of a name by a stored body slice. The expander
+builds its separate text buffer before either assembly pass begins;
+neither pass needs to know that a byte sequence once had a mnemonic.
 
 Macro records keep both name and replacement slices in
 `forth-bootstrap/forth/130-asm.fth:611`:

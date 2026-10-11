@@ -422,6 +422,13 @@ The integer half rejects negation of the signed minimum unless arithmetic is bei
 
 ## Carry an address without knowing its final location
 
+Return to the checkpoint's `&arr[2]`: its record keeps `arr` as the symbol
+and 8 as the byte addend. If the next operator adds 1 to that `int *`, the
+addend becomes 12, because pointer arithmetic advances by `sizeof(int)`.
+The symbol stays unchanged and no array element is read. The evaluator
+can complete this part of the calculation even though only the linker
+will know where `arr` lives.
+
 Binary scratch state belongs to a completed pair of operands: `cc-const-left` and `cc-const-right` hold records, `cc-const-row` the operator, `cc-const-common` the working type, and `cc-const-a` and `cc-const-b` the converted values. Filling these only after recursion returns avoids overwriting an outer operation. `cc-const-op`, `cc-const-unsigned?`, and `cc-const-less` read that state. `cc-const-address?` recognizes both symbolic integers and pointer-typed constants (`forth-bootstrap/cc/125-cc-consteval.fth:295`):
 
 ```forth file=cc/125-cc-consteval.fth

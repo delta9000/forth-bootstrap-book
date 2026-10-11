@@ -13,7 +13,9 @@ The contracts separate updates from appends:
 | `,4` | `( v -- )` | Append the low four bytes of `v` at HERE |
 | `,8` | `( v -- )` | Append all eight bytes of `v` at HERE |
 
-## `+!` and `-!`: idiomatic increment
+<a id="-and---idiomatic-increment"></a>
+
+## `+!` and `-!`: update a stored value
 
 An update must keep the destination address available while it calculates
 the replacement value. The read-modify-write helpers in

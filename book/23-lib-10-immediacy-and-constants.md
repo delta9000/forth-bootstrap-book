@@ -180,9 +180,11 @@ This keeps the emitter independent of the primitive's position in the seed.
 
 ## `char` and `[char]`: read now, push later
 
-A character's spelling must be consumed while the definition is being
-compiled. The token-buffer accessor and reader in
-`forth-bootstrap/forth/010-lib.fth:240` provide the input side:
+A character literal inside a definition needs two actions: read its
+spelling now, then arrange for its value to appear when the word runs.
+Start with the reader. The token-buffer accessor and `char` in
+`forth-bootstrap/forth/010-lib.fth:240` supply the value on the current
+stack, without emitting anything:
 
 ```forth file=forth/010-lib.fth
 \ tib ( -- a )  the seed's token buffer, where its reader leaves the token
@@ -284,3 +286,48 @@ from the embedded value `65`.
 Which word reads each semicolon? Track the character value and the
 execution token through `[char]`'s body, and explain why neither remains
 on the compilation-time data stack.
+
+<details>
+<summary>Hint 1: identify who owns the next token</summary>
+
+The REPL reads `[char]` and executes it because it is immediate. While
+that word runs, the REPL is waiting. Follow `char` into tick to find who
+reads the next input token.
+
+</details>
+
+<details>
+<summary>Hint 2: distinguish the two execution tokens</summary>
+
+Tick finds the first semicolon's execution token, but `char` drops it.
+The later `lit-xt` supplies a different token: the address of `lit`.
+Trace which of those addresses is merely found and which is compiled
+into the new body.
+
+</details>
+
+<details>
+<summary>Check the consumed semicolon and the closing semicolon</summary>
+
+The REPL reads `:`; that word consumes `semi` as the name and sets STATE
+to 1. The REPL next reads `[char]` and executes it. Its `char` calls tick,
+which consumes the first `;` and finds its code address without executing
+it. `drop` removes that lookup result; `tib c@` leaves 59, the byte for
+`;`. STATE is still 1: this semicolon has been consumed as input data.
+
+With `S` naming the older compilation-time stack, the rest of `[char]`
+traces `S 59` → `S 59 xt-lit` after `lit-xt` → `S 59` after `call,`
+→ `S` after `,`. The emitter writes a five-byte call to `lit` followed
+by the eight-byte value 59. Neither value is left on the current stack.
+
+The REPL resumes at `emit`, compiles its call, then reads the final `;`.
+This time the REPL dispatches the semicolon itself: it appends `ret`
+and resets STATE to 0. Calling `semi` later pushes 59, emits `;`, and
+returns. The checkpoint above executes this exact definition and prints
+`;` as the first character of its second output line.
+
+If your trace closed the definition at the first semicolon, separate
+finding a word from executing it. If it left 59 on the compile-time
+stack, include the final comma's consumption of its operand.
+
+</details>

@@ -29,7 +29,8 @@ labels it as recorded.
   build.
 - [Chapter 52](52-gcc-4-fixed-point.md) builds binutils and GCC 4.0.4. It
   then rebuilds GCC until the installed files of stages 2, 3 and 4 agree,
-  and builds the late tools with that compiler.
+  and follows the late-tool recipe that the guest route runs with that
+  compiler.
 - [Chapter 53](53-sealed-run.md) audits that run. It starts in a root whose
   only executable is `hex0-seed`, and every `execve` is traced.
 - [Chapter 54](54-k0-and-k1.md) moves the route off the host kernel. QEMU
