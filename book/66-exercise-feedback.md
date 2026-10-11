@@ -217,6 +217,8 @@ join.
 
 **Hint.** Parentheses group an expression; they need not fetch the object
 it denotes. Distinguish postfix's returned value from its stored value.
+For the assignment chain, follow the recursive call before applying the
+saved `+=`; for each grouped case, inspect the inner expression's final kind.
 
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
@@ -234,6 +236,25 @@ Change the source token, displayed expression/label and wrapper's expected
 status from 7 to 9.
 Literal arms check selection, but cannot alone establish that side effects
 in an unselected arm would be skipped.
+
+**34.3.** `a += b = 7` groups as `a += (b = 7)`. The outer call saves
+`a`'s slot and the `+=` operator on the compiler return stack and emits
+a push of `a`'s old value. The inner call emits the store of 7 into `b`
+and supplies 7 to the outer operation. At runtime, that operation adds
+the saved 1 to 7, stores 8 into `a`, and supplies 8 as the expression
+value: `a=8`, `b=7`, result 8.
+
+`(a) = b` retains `a`'s local slot: it stores 2 into `a`, leaves `b=2`,
+and yields 2. In `(a += b) = 7`, the inner compound assignment finishes
+as `lv-value`. Parentheses preserve that kind, so the outer assignment
+fails with compiler error 120. There is no runtime result or executed
+store from this failed compilation.
+
+If the first answer is 7, check whether the old left value was discarded
+as though `+=` were `=`. If the rejected case is said to change `a` to 3,
+separate code emission from later execution, then trace where compilation
+stops. Keep destination metadata, saved runtime contents, and the inner
+assignment's returned value distinct.
 
 </details>
 
@@ -376,6 +397,14 @@ record's extent to its maximum alignment.
 its offset is 8 after seven padding bytes. It ends at 16; final rounding
 to maximum alignment 8 leaves size 16. These are object byte offsets,
 not parameter-slot indices.
+
+With the declarations reversed, `value` starts at 0 and `tag` at 8.
+The final field ends at byte 9; rounding to alignment 8 still gives size
+16. Adjacent array elements are 16 bytes apart, keeping both `value`
+fields aligned. Reverse the initializer too, to `{7, 3}`, so the values
+stay the same. The checkpoint still prints `LP64` plus newline and
+returns `8 + 6 + 16 + 3 + 7 = 40`. Nine is the end of the last field,
+not the completed record size.
 
 **39.2.** Move the ordinary, non-static declarations and their initializers
 into main. Predicted output remains `LP64` plus newline and status
@@ -652,7 +681,9 @@ than a printf runtime.
 [Return to the exercises](49-aggregate-abi.md#exercise).
 
 **Hint.** Classify the whole record before committing register consumption.
-An argument copy is not the caller's original object.
+An argument copy is not the caller's original object. For the pointer-field
+trace, draw two 16-byte records and one separate `long` object; keep the
+pointer field and the pointed-to object as different storage locations.
 
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
@@ -676,6 +707,20 @@ the last register because it could not fit there in full; removing one
 integer makes the pair consume two registers and pushes the tail out.
 Two sides compiled by this compiler check self-consistency; an independent
 host-compiled peer in both directions would test interoperability more strongly.
+
+**49.3.** The results are `10`, `40`, `&target`, and `30`. This `Parcel`
+is 16 bytes: `inside[0]` is the first INTEGER eightbyte, passed in RDI;
+the copied pointer is the second, passed in RSI. The callee reconstructs
+a distinct record. Its array element becomes 30 while the caller's stays
+10. Both pointer fields initially hold `&target`, so `*p.shared = 40`
+writes to the separate caller object. `p.shared = 0` changes only the
+callee's pointer field; it neither changes `original.shared` nor reverses
+the completed store.
+
+Leaving `target` unchanged would confuse copying a pointer with copying
+its pointee. Changing the original array to 30 would treat the record
+call as though an array pointer had been passed instead. Mark the byte
+range copied for the argument, then locate each assignment's destination.
 
 </details>
 

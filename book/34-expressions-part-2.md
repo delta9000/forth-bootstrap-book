@@ -359,11 +359,16 @@ defer cc-array-decay-fwd
 
 ## Assignment: snapshot, recurse, store
 
-The left operand parser has done its job: it has identified a destination.
-For now, take the operand and ternary parsers as tools that produce the
-record just described. Assignment protects that record while asking for
-the right side. The detailed trace shows exactly what must be saved and
-which stack owns it.
+The left operand parser has obtained an expression, but that does not
+promise a place to store. In the core path, local `a` retains its slot;
+`*p` retains an address. The sum `a + 1` is different: the binary fold
+marks it `lv-value`, with no destination. Assignment saves the result's
+kind and slot. If an assignment operator follows, the saved kind must
+describe a destination; `a + 1 = 7` therefore fails with error 120.
+Otherwise the parser discards the snapshot and returns the lookahead
+token. For an accepted destination, it protects that record while parsing
+the right side. The detailed trace shows what must be saved and which
+stack owns it.
 
 ### A two-stack assignment trace
 
@@ -679,6 +684,20 @@ The final store puts the value in `rdi` and the address in `rcx`, selecting byte
   then, ;
 
 ```
+
+Assignment's recursive call also chooses its grouping. With distinct
+core integer locals, `a = b = 7` means `a = (b = 7)`: the outer call
+saves `a`'s slot while the inner call emits a store into `b`. That inner
+assignment supplies 7 for the outer store. Both assignments finish as
+`lv-value`; the outer store works because its own destination was saved
+before recursion. Chapter 33's subtraction loop instead combines the
+left pair before handling another minus.
+
+Parentheses preserve whatever kind the inner parse produced. They retain
+an existing destination, but cannot turn a completed assignment's value
+into a new destination. If that outer assignment is rejected, any inner
+store emitted so far is still only an instruction in an unfinished output
+buffer. It has not changed the C program's storage.
 
 ## Struct-field lookup
 
@@ -2551,3 +2570,14 @@ assertion to match that prediction, then run it. Keep the compiler-status
 check at zero: successful compilation and the generated program's answer
 are separate results.
 
+
+**Trace (moderate).** Assume distinct writable core-integer locals `a`
+and `b`, initially 1 and 2. Treat each expression independently:
+`a += b = 7`, `(a) = b`, and `(a += b) = 7`. Predict which compile.
+For each accepted expression, give both stored values and the expression
+value. In the compound chain, identify what the compiler must preserve
+while parsing `b = 7`: which facts describe the destination, and which
+emitted instruction saves an old runtime value? Explain why the rejected
+case executes no store even if a store instruction has already been
+emitted. This is a source trace; this chapter's checkpoint does not
+install local declarations.

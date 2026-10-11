@@ -581,6 +581,17 @@ member alignment is eight, so completion needs no further tail padding in
 this example. These decisions use each field's object type, even though
 both values can pass through the same eight-byte expression register.
 
+For a paper variation, reverse the fields:
+`struct Item { long value; char tag; };`. Now `value` occupies offsets
+0–7 and `tag` occupies offset 8. The last field ends at byte 9, but
+completion rounds the size to 16. Why keep seven bytes after the field?
+Imagine `struct Item rows[2]` beginning at an eight-byte-aligned address
+`B`. The second element starts at `B + sizeof(struct Item)`, putting its
+`value` at `B + 16`, also aligned. A nine-byte stride would put that
+`long` at `B + 9`. Tail padding makes the completed size a usable array
+stride. It belongs to `sizeof(struct Item)` even for a single object,
+and consumes no initializer value.
+
 Growing a field table changes record addresses, so qualifier entries must follow the moved records (`forth-bootstrap/cc/115-cc-native.fth:393`):
 
 ```forth file=cc/115-cc-native.fth
@@ -1747,6 +1758,12 @@ The printed bytes come from the initialized character array. The exit sum combin
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-39-object-layout-and-initializer-timing).
 
 **Trace (easy).** Follow `cc-nadd-field` for `struct Item` in the checkpoint. Explain why the `long` member does not immediately follow the `char`, and where the final record extent is rounded.
+
+Then reverse the member declarations and change the initializer to
+`{7, 3}` so the field values stay the same. Predict the new field offsets,
+`sizeof(item)`, and the byte distance between adjacent elements of
+`struct Item rows[2]`. Does the checkpoint's output or exit sum change?
+Explain why adding only the member widths gives the wrong record size.
 
 **Verify (moderate).** Move `label` and `item` inside `main`, keeping their initializers. Predict whether the output and exit sum change. Run the modified checkpoint, then explain which initialization code stays inline instead of entering `cc-ni-queue`.
 

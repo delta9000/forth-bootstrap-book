@@ -38,6 +38,15 @@ of this by-value interface. The private snapshot supplies a stable value;
 classification then decides where its bytes travel. Read those as two
 decisions even when both happen in the same call-emission routine.
 
+The snapshot stops at the record's byte boundary. An array member lies
+inside it, so its elements are copied with the record. A pointer member
+contributes its address value; the object it points to is not copied.
+Caller and callee have separate pointer fields that can still point to
+the same object. Assigning the callee's pointer field changes only its
+local record; storing through it can change the shared object. This also
+explains why classification can stop at a pointer without walking its
+pointee.
+
 The target gate keeps this value contract in explicit System V mode, so the private all-stack target is unaffected; every refused shape exits with error 232 (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:1`):
 ```forth file=cc/131-cc-aggregate-abi.fth
 \ 131-cc-aggregate-abi.fth -- shared INTEGER/binary32/binary64/X87/MEMORY SysV ABI.
@@ -1221,3 +1230,28 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-49-whole-
 the prototype too. Predict where the pair and `tail` now travel, then
 change the expected sum and rerun. The value check verifies that caller
 and callee still agree; explain the register/stack change from the plan.
+
+**Trace (moderate).** This paper example uses the same System V path as
+`Pair`; it does not require changing the checkpoint:
+
+```c
+struct Parcel { long inside[1]; long *shared; };
+long revise(struct Parcel p) {
+    p.inside[0] = 30;
+    *p.shared = 40;
+    p.shared = 0;
+    return p.inside[0];
+}
+```
+
+The caller executes:
+
+```c
+long target = 20;
+struct Parcel original = {{10}, &target};
+long result = revise(original);
+```
+
+Predict `original.inside[0]`, `target`, `original.shared`, and `result`.
+Identify the two INTEGER eightbytes at the call boundary. Why does
+setting `p.shared` to zero not undo the earlier write to `target`?
