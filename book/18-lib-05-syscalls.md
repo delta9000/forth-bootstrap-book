@@ -168,4 +168,42 @@ would print `X`; its absence checks that execution stopped.
 **Trace (easy).** Start with `saved fd` and trace `close` through its
 padding and syscall number. Show the stack just before `syscall6` and
 just after it returns. Which value survives beneath the result? Explain
-what would go wrong if the wrapper omitted a padding zero.
+what would go wrong if the wrapper omitted a padding zero. Keep that
+broken-wrapper experiment on paper: it could close the descriptor named
+by `saved` instead of the intended one.
+
+**Verify (easy).** Keep the original `close` and the checkpoint's library
+prefix. In a fresh input stream, push `[lit] 83` as the saved character
+`S`, then construct descriptor `-1` as `[lit] 0 [lit] 1 -` and call
+`close`. Reuse the checkpoint's error check, which prints `0` for result
+`-9`, then emit the saved character. Predict both output characters
+before running. This invalid descriptor tests the returning path without
+closing an open descriptor.
+
+<details>
+<summary>Hint: label all six argument positions</summary>
+
+Start from `saved fd 0 0 0 0 0 3`, top at the right. Number the six
+positions beneath the syscall number from `a` to `f`. Remove one zero
+on paper, then number those positions again; the bridge does not know
+that this wrapper intended to supply only one meaningful argument.
+
+</details>
+
+<details>
+<summary>Check the preserved value and the shifted arguments</summary>
+
+The complete wrapper gives `syscall6` the stack
+`older saved fd 0 0 0 0 0 3`, with `older` naming the deeper stack.
+It returns `older saved result`. With one zero missing, `saved` occupies
+argument `a` and `fd` occupies argument `b`; Linux close uses `a`.
+The bridge also consumes `saved`, so it is no longer beneath the result.
+The fixed six-argument contract does not shrink for a one-argument syscall.
+
+The safe check is `[lit] 83 [lit] 0 [lit] 1 - close [lit] 9 + 0=
+[lit] 49 + emit emit`, after loading the prefix and before `bye`.
+It prints `0S`: the first character checks the error value, the second
+checks that `saved` survived. If only the error check matches, include
+that second observation before accepting the wrapper's stack contract.
+
+</details>

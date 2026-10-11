@@ -942,3 +942,11 @@ succeeds and what a successfully compiled program returns. Run both
 versions and trace the parser state and arithmetic check responsible for
 each outcome. Account for how the parser reaches the declaration's end
 even when an arm does not supply its value.
+
+Run each version as a fresh complete block and record its shell status
+immediately afterward, for example with `status=$?`. Keep the existing
+compiler-failure guards: if compilation rejects an initializer, the block
+must stop before linking or running it, and its normal three result lines
+will be absent. Compare the diagnostic and status with your prediction;
+do not remove the guard to obtain a program result. Restore the successful
+source before testing an unrelated change.

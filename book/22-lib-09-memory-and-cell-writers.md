@@ -174,3 +174,55 @@ checks both halves of the full-cell writer.
 **Trace (easy).** In `-!`, remove the `swap` immediately before `-`.
 Trace the changed body with `n` smaller than the stored value. Which
 subtraction does it perform, and does it still store at the correct address?
+
+**Verify (moderate).** Check that diagnosis without editing the library.
+Keep this chapter's prefix and define the altered body under the scratch
+name `reversed-!` before allocating any data. First trace the final store
+address; run only once you have shown that it remains the allocated cell.
+Reserve and initialize a cell with `here [lit] 67 ,8`, which leaves its
+address available. Apply amount 2, fetch the result, and compare it with
+the value you predicted. Reset or allocate a fresh cell before trying
+another amount.
+
+Use `=` followed by `0= [lit] 49 + emit` to print `1` for a matching
+result. Construct a negative expected value with subtraction; the seed
+cannot read `[lit] -65`. Repeat with amount 67. Which of these tests
+cannot distinguish the altered word from the original `-!`? Finally restore
+the missing exchange in your scratch word and predict both results again.
+
+<details>
+<summary>Hint: track the address separately from the two arithmetic operands</summary>
+
+After `swap over @`, the stack is `addr n old`. The missing exchange
+changes which of `n` and `old` is beneath the other, but does not remove
+`addr`. Keep a copy of the cell address for the fetch after the update;
+the updater itself consumes its two arguments.
+
+</details>
+
+<details>
+<summary>Check the faulty update and choose a distinguishing test</summary>
+
+The altered body is `swap over @ - swap !`. It computes `n-old`, then
+stores that result at the original `addr`. From initial value 67 and
+amount 2, it stores `-65`; the intended word stores `65`. Equal operands
+are a weak test: with amount 67, both orders store zero.
+
+Define `: reversed-! swap over @ - swap ! ;` after loading the prefix.
+One check, entered afterward in that same fresh stream, is:
+
+```forth
+here [lit] 67 ,8
+[lit] 2 over reversed-!
+@ [lit] 0 [lit] 65 - = 0= [lit] 49 + emit
+```
+
+It prints `1`, confirming the predicted faulty value, not a correct
+subtractor. After repairing the body, change the expected value to 65;
+keep the unequal operands as the test that distinguishes the versions.
+If the run reports an unknown name, correct the load or spelling and
+start a fresh process before trusting any result. If you lost the address
+for `@`, return to the updater's `( n addr -- )` contract rather than
+adding an unaccounted-for fetch.
+
+</details>

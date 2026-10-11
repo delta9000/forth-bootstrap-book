@@ -426,6 +426,11 @@ either mark, even though the generated return leaves the loop at runtime.
 conditional. Draw the order of its fixups before running it, then supply
 flags that exercise every arm. Give each arm a distinct output character
 and state one runtime stack contract that every path must satisfy.
+Use a copy of this chapter's input stream, keeping its library prefix,
+and run the changed definition in a fresh seed process. Replace the old
+one-flag calls as well as the definition: a two-flag contract needs two
+explicit inputs at every call. Do not let the seed's initialized cached
+zero stand in for a missing operand.
 
 <details>
 <summary>Hint: separate emitted control flow from the current marks</summary>
@@ -458,5 +463,18 @@ and `(0,0)`; predict `A`, `B`, `C`, `C`. Keep a distinct older character
 beneath the two flags and emit it after each call to check stack depth,
 not just branch selection. Other declared contracts are valid if their
 paths and tests agree.
+
+For example, using `!` as the older character, the first call is
+`[lit] 33 [lit] 1 [lit] 1 choose emit`. The four calls should print
+`A!B!C!C!`. If the outer-false calls print `C` followed by a control
+character instead of `!`, inspect the unused inner flag: the false arm
+must discard it. If `(0,1)` prints `C`, recheck which flag is on top;
+that is the outer test's input.
+
+A leftover compile-time mark is a different fault from a runtime flag
+left behind. Reconcile the mark trace before executing the generated
+word: a missing or misplaced closer can patch the wrong address.
+After a definition-loading diagnostic, correct the input and restart
+from the prefix rather than continuing with the partly built word.
 
 </details>

@@ -42,6 +42,9 @@ bytes `08 07 06 05 04 03 02 01` in increasing address order, and check that
 the output position is still 8. Preserve the test's Boolean accumulator.
 A different value with eight distinguishable bytes is equally useful.
 The patch API does not reserve a missing span, so emit it first.
+Run the copy in place of the original test; assertions after its final
+`die` are unreachable. A pass of the original test alone is not evidence
+that the added patch assertions ran.
 
 </details>
 
@@ -97,6 +100,14 @@ putback with pending=true: reset must restore true, so the first advance
 replays `abc` and leaves cursor 3, while the second reads `;`. Keep the
 source unchanged, and use separate buffers for nested marks. A check of
 token kind alone cannot establish complete restoration.
+
+With source bytes `abc`, newline, `;`, the saved identifier remains at
+cursor 3 on line 1. Reading the punctuation consumes the newline and
+reaches cursor 5 on line 2. Reset must restore cursor 3 and line 1.
+A pending replay keeps that restored line and cursor; the following
+advance reaches the punctuation on line 2. EOF then leaves cursor 5
+and line 2 unchanged. These assertions catch a partial reset that a
+one-line test would miss.
 
 </details>
 
@@ -377,6 +388,13 @@ field changes, so serialized file length stays unchanged. If you also
 add a symbol or name, metadata can increase file size. Keep that separate
 from BSS payload when interpreting your measurement.
 
+For example, inserting
+`cc-obj-bss cc-obj-use [lit] 37 cc-obj-reserve drop` before the write
+changes `.bss` from zero to 37 bytes (hexadecimal `25`). In the pinned
+checkpoint, both files measure 944 bytes. Print the byte count inside
+each block before cleanup; a missing file after the block ends reflects
+its temporary-file lifecycle, not the object writer's result.
+
 </details>
 
 ## Chapter 41: stack arguments and nested lifetimes
@@ -480,8 +498,11 @@ The selected value remains 40; the other probes remain 29 and 0. The wrap
 probe returns success zero after checking its typed result internally. Skip
 state causes the dead binary division to bypass evaluation while its syntax is
 still parsed. Changing the condition to 0 selects division, reaches the
-zero-divisor check and predicts error 124; the compile step should stop
-before linking/running. This tests integer binary evaluation. It does not
+zero-divisor check: the pinned exercise run reports `cc: line 1: error 124`
+and exits with status 124. The compilation guard stops the block before
+linking or running, so no `x`, `pointer`, or `wrap` result lines appear.
+That is the expected rejection for this version, not a failed executable
+run. This tests integer binary evaluation. It does not
 establish that later floating casts suppress every range diagnostic in
 dead arms; Chapter 47 names that separate boundary.
 
@@ -702,6 +723,15 @@ removes its stored path, then emits its failure. Counting only literal
 `execve(` lines either misclassifies the unfinished attempt or loses the
 successful/failed result carried by the resumed line. There is one success
 and two failures in this changed example.
+
+With the resumed line removed, only `ok /hex0-seed` and
+`fail /usr/bin/arch` are emitted, in that order. PID 102's unfinished
+record leaves a pending bash path; nothing consumes it or reports a result.
+The awk command still exits successfully. That status says the filter ran,
+not that the trace is complete. Bash's absence from both lists does not
+establish either success or failure. Retain the unfinished record and seek
+its missing continuation; if it is unavailable, record the outcome as
+unknown rather than inventing a verdict.
 
 **53.2.** One recorded candidate is
 `//build-out/chain/stage-c/toolchain/as`. Under the prepared Linux root it

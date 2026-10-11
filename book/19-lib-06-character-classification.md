@@ -196,3 +196,54 @@ vertical tab, form feed, and `X`.
 and accumulated flag at each step. If the final `swap` were replaced by
 `over`, which extra value would remain beneath the result? Explain why
 the printed classification alone would miss that stack error.
+
+**Extend (moderate).** Define a scratch `hex-digit? ( c -- flag )` that
+accepts exactly `0`–`9`, `A`–`F`, and `a`–`f`. Reuse `digit?` and the
+range-check/preserve-and-combine patterns; the new ranges are ASCII
+65–70 and 97–102. Use only the vocabulary loaded by this chapter.
+
+Work in a copy of the checkpoint: keep `head -n 96` and `show-flag`,
+insert your definition before the test calls, and replace those calls
+with tests of 47, 48, 57, 58; 64, 65, 70, 71; and 96, 97, 102, 103.
+Predict the twelve flags, then run in a fresh seed process. For an
+accepted and a rejected input, also keep `[lit] 83` beneath the character
+and call `emit` after `show-flag` to check that the older `S` survives.
+
+<details>
+<summary>Hint: keep the character until the last component test</summary>
+
+For the tab trace, start with `9` and retain both the character and the
+accumulated flag until the CR test. For the new predicate, keep the same
+`character accumulated-flag` shape after combining the first two ranges.
+Each letter range has six characters; a gap between ranges must fail.
+
+</details>
+
+<details>
+<summary>Check the trace, the new predicate, and its boundaries</summary>
+
+For a tab, the original `space?` passes through `9 0`, `9 -1`, `9 -1`,
+then `-1` after its four tests. Replacing its final `swap` with `over`
+leaves `9 -1`. A printed `1` still looks correct, but the tab remains
+where the caller expects its older value.
+
+One scratch solution applies the same pattern to three ranges:
+
+```forth
+: hex-digit? ( c -- flag )
+  dup digit?
+  over [lit] 65 - [lit] 6 / 0= or
+  swap [lit] 97 - [lit] 6 / 0= or ;
+```
+
+The twelve tests print `011001100110` through `show-flag`. The sentinel
+checks print `1S` for an accepted input and `0S` for a rejected one.
+If `G` or `g` passes, check the range size; if `@` or the backtick passes,
+recheck unsigned division below the lower bound. If the flags match but
+`S` does not, trace where the original character is finally consumed.
+
+Passing these selected boundaries is evidence for those inputs, not an
+exhaustive byte test. To reattempt independently, design a predicate for
+`A`–`F` and `a`–`f` only, and choose a digit that must now fail.
+
+</details>

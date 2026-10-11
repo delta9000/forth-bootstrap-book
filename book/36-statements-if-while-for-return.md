@@ -1362,3 +1362,8 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-36-leavin
 **Trace (easy).** Trace the checkpoint’s continue and break placeholders to their patch sites. Explain why exchanging the destinations would terminate the loop early or fail to leave it at the break.
 
 **Modify (moderate).** Wrap the continue test in a switch on `i`, using a case for the skipped item. Keep the break test outside the switch. Predict the sum, then rerun the probe and trace which saved register must be restored before continuing.
+
+Keep the source after `s,` a single Forth token. Use `/**/` wherever the
+inserted C needs whitespace, including between `case` and its number.
+If the driver fails before printing a loop sum, first check that the whole
+C block reached the parser; that is different from a wrong jump target.

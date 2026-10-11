@@ -1095,3 +1095,13 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-29-lookah
 
 **Verify (moderate).** Add a local lexer probe that marks an identifier, reads the following punctuation, resets, and reads again. Check the token payload, source cursor and pending flag as well as the kind. Repeat with a token pending at the moment of the mark.
 
+Use a fresh probe in place of `cc/test-050-cc-lex.fth` at the end of the
+second pipeline. Initialize the source length, cursor and line as that
+test does. Also clear `cc-tok-pending` before the first advance, then use
+`cc-next-token-keep`. Keep assertions before the terminating `die`.
+
+After checking the one-line case, insert a newline byte between the
+identifier and punctuation. Predict the line and cursor at each advance
+and reset before rerunning. Check EOF too. A correct token kind with the
+wrong line is a failed restoration, even if the visible token text agrees.
+

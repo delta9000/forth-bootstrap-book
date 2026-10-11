@@ -963,4 +963,14 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-40-identi
 
 **Trace (easy).** In the writer checkpoint, follow the handle returned for `external` through `cc-obj-reloc`, both symbol passes, and `cc-obj-emit-relocs`. Explain why inserting `value` last does not change the relocation target, even though it changes the target's ELF index.
 
-**Verify (moderate).** Add a reservation in `.bss` before writing the object. Inspect its section size and compare the file sizes before and after. Explain why reserved memory does not become an equally large payload in the file.
+**Verify (moderate).** Add a positive reservation of your choice in
+`.bss` before writing the object. For this comparison, change only the
+selected section and its reserved count: keep symbols, names, relocations
+and alignment unchanged. Predict the section-size and file-size changes.
+
+Record the `.bss` row and `wc -c < "$work/writer.o"` from the baseline and
+modified runs before each block's exit trap removes its temporary files.
+Use `cc-obj-reserve`'s stack effect to account for its returned offset.
+Explain why reserved memory does not become an equally large payload in
+the file. If the file grows, check whether the edit added metadata as well
+as the reservation before blaming `.bss` serialization.

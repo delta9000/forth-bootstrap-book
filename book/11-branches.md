@@ -181,6 +181,33 @@ YANBYC
   stack. Follow a zero flag and then a nonzero flag through `zbranch_code`.
   Record `rax`, the return-stack top, and the instruction pointer just
   before and just after the final `ret`.
-- **Verify (easy).** In the checkpoint, replace the nonzero flag with
-  `[lit] 89`. Predict the output before running it. Explain why the flag
-  itself is never printed.
+- **Verify (easy).** In a copy of the checkpoint, replace `[lit] 1`
+  immediately before the second call to `choose` with `[lit] 89`.
+  Keep the older `66` beneath it. Predict the output before running it
+  in a fresh seed process. Explain why the flag itself is never printed.
+
+<details>
+<summary>Hint: separate the selected address from the remaining stack</summary>
+
+Name the cell's contents `target`. Follow the flag's consumption before
+following `pop rax`; the data stack and return stack change independently.
+A nonzero flag selects a path, not an output character.
+
+</details>
+
+<details>
+<summary>Check the return and the changed flag</summary>
+
+Just before the final `ret`, `rax` and the return-stack top both hold
+`target` for zero or `slot+8` for nonzero. The instruction pointer still
+names that `ret`. Just afterward, the instruction pointer is the selected
+address and the return-stack top is `caller-return`; `rax` is unchanged.
+
+The changed checkpoint still prints `YANBYC`. The flag `89` is consumed
+before the branch decision, so the second call prints `N`, then its caller
+prints the preserved `B`. If you predicted `Y` because 89 is its character
+code, find the operation that would have to emit it: there is none.
+As a further prediction, replace that flag with `[lit] 256`. The whole
+cell is tested, so a zero low byte does not make the flag false.
+
+</details>

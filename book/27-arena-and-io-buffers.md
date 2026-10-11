@@ -1423,7 +1423,15 @@ passed as the prospective size to `cc-check-cap`. Then explain why
 rounding the request preserves the base's alignment without proving that
 the base itself is aligned.
 
-**Verify (moderate).** Extend the I/O test locally to patch a full cell
-through `cc-out-patch-8le`. Check every resulting byte and check that
-`cc-out-pos` is unchanged. Use only the library and layers loaded above.
+**Verify (moderate).** Extend a scratch copy of `cc/test-030-cc-io.fth`
+to patch a full cell through `cc-out-patch-8le`. Choose a value with eight
+distinguishable bytes. Predict their address order, then check every byte
+and check that `cc-out-pos` is unchanged. Use only the library and layers
+loaded above.
+
+Insert the new assertions after the eight-byte emitter checks and before
+`0= die`, preserving the Boolean accumulator. Replace the original test's
+pathname in the I/O pipeline with your copy; appending a second test after
+`die` will not run it. If a check fails, separate byte-order assertions
+from the position assertion before changing the patch operation.
 

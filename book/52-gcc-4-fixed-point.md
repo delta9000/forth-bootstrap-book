@@ -429,6 +429,13 @@ no recorded host-side late-tools checkpoint.
 
 Run from the forth-bootstrap checkout root. Fetching verifies the pinned archives before use (`forth-bootstrap/tools/fetch-archives.py:2`). The full checkpoint requires those archives, bwrap, strace, and working user namespaces; the launcher executes the plumbing controller inside its prepared root (`forth-bootstrap/chain/plumbing-root.sh:60`). Allow a sustained build: the recorded host run took 18 minutes (`forth-bootstrap/README.md:237`). Chapter 53 audits that root and its execution traces.
 
+This launcher starts a fresh run: it removes both
+`build-out/plumbing-root` and `build-out/plumbing-root.trace` before
+preparing them (`forth-bootstrap/chain/plumbing-root.sh:37`). Preserve
+any earlier results outside those directories before starting or retrying.
+Keep the completed root and traces for Chapter 53; its audit can reuse
+this run without rebuilding GCC.
+
 <!-- check-tryit: the scratch checkout lacks chain/, pinned archives, and build-out/; this sustained build also requires bwrap, strace, and user namespaces. -->
 <!-- tryit: skip -->
 ```sh
