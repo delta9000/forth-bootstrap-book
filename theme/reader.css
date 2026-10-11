@@ -158,6 +158,7 @@ main details > :last-child { margin-bottom: 0.6rem; }
 
 /* Mechanism diagrams: native text stays selectable and reflows on phones. */
 main .mechanism {
+    container: mechanism / inline-size;
     margin: 2.6rem 0; padding: 2rem;
     border: 1px solid var(--book-rule); border-radius: 6px;
     font-family: var(--book-ui); font-size: 1.4rem; line-height: 1.55;
@@ -193,7 +194,7 @@ main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top
     .diagram-merge + .diagram-result { margin-top: 1rem; }
 }
 @media print {
-    main .mechanism { font-size: 9pt; background: white; color: #111; padding: 12pt; border-color: #aaa; }
+    main .mechanism { font-size: 9pt; background: white; color: #111; padding: 12pt; border-color: #aaa; break-inside: avoid; }
     .mechanism .diagram-accent, .mechanism .diagram-result { border-color: #777 !important; }
     .mechanism .diagram-merge, .mechanism .diagram-flow li::after, .mechanism .diagram-aliases > div::after { color: #111; }
     .mechanism-title { break-after: avoid; }
@@ -213,3 +214,21 @@ main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top
     .memory-map > div > span { grid-column: 1; }
 }
 @media print { .memory-map > div, .memory-cell { break-inside: avoid; } }
+
+/* Field positions stay aligned across argument and return registers. */
+.diagram-registers { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin: .5rem 0 1rem; }
+.diagram-registers > span { padding: .7rem; border-left: 2px solid var(--quote-border); }
+.diagram-registers code, .diagram-registers strong { display: block; }
+.diagram-registers strong { margin-top: .4rem; }
+.diagram-comparisons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.8rem; border-top: 1px solid var(--book-rule); padding-top: 1.4rem; }
+.diagram-comparisons > div { padding: 1rem; border-left: 3px solid var(--quote-border); background: var(--book-panel); }
+@container mechanism (min-width: 640px) {
+    main .diagram-generations { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2rem; max-width: none; }
+    .diagram-generations li { padding: 1rem; }
+    .diagram-generations li:not(:last-child)::after { content: '→'; left: auto; right: -1.8rem; bottom: auto; top: calc(50% - 1.4rem); }
+}
+@media (max-width: 600px) { .diagram-comparisons { grid-template-columns: 1fr; } }
+@media print {
+    .diagram-comparisons > div { background: white; border-color: #777; break-inside: avoid; }
+    .diagram-registers > span { border-color: #777; }
+}

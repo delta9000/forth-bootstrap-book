@@ -16,14 +16,14 @@ Follow the builder named above each generation; the two comparison pairs are sho
 
 <figure class="mechanism" aria-labelledby="generation-caption">
 <div class="mechanism-title">Who builds each generation?</div>
-<ol class="diagram-flow">
+<ol class="diagram-flow diagram-generations">
 <li><span class="diagram-label">Built by seed-cc / Forth</span><strong>Stage C GCC</strong><span>The first GCC executable.</span></li>
 <li class="diagram-accent"><span class="diagram-label">Built by Stage C GCC</span><strong>Stage 2 GCC</strong><span>First GCC-built generation.</span></li>
-<li class="diagram-accent"><span class="diagram-label">Built by Stage 2 GCC</span><strong>Stage 3 GCC</strong><span>Compare its installation with Stage 2.</span></li>
-<li class="diagram-accent"><span class="diagram-label">Built by Stage 3 GCC</span><strong>Stage 4 GCC</strong><span>Compare its installation with Stage 3.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Built by Stage 2 GCC</span><strong>Stage 3 GCC</strong><span>Another GCC-built generation.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Built by Stage 3 GCC</span><strong>Stage 4 GCC</strong><span>Tests reproduction by Stage 3.</span></li>
 </ol>
-<div class="diagram-result"><strong>Two comparisons must pass:</strong> Stage 2 ↔ Stage 3 and Stage 3 ↔ Stage 4.</div>
-<figcaption id="generation-caption">Arrows mean “builds the next generation,” not “has identical bytes.” The comparison checks the installed files selected by Stage D; the archive qualifications below still apply. A fixed point establishes reproduction, not correctness.</figcaption>
+<div class="diagram-comparisons"><div><span class="diagram-label">Comparison A · stability appears</span><strong>Stage 2 ↔ Stage 3</strong></div><div><span class="diagram-label">Comparison B · stability persists</span><strong>Stage 3 ↔ Stage 4</strong></div></div>
+<figcaption id="generation-caption">Read the build chain left to right, or downward on a phone. Its arrows mean “builds the next generation.” Both comparison pairs must pass. They check the installed files selected by Stage D, with the archive qualifications described below. A fixed point establishes reproduction, not correctness.</figcaption>
 </figure>
 
 Stage 3 versus Stage 4 tests reproduction by GCC-built GCC. Stage 2 versus

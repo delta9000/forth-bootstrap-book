@@ -21,13 +21,13 @@ also checks that `original` is still `{20,30}`.
 <figure class="mechanism" aria-labelledby="value-caption">
 <div class="mechanism-title">A value crosses the call boundary</div>
 <ol class="diagram-flow">
-<li><span class="diagram-label">Caller · capture</span><strong>original = {20, 30}</strong><span>Snapshot the object's 16 bytes into private argument storage.</span></li>
-<li class="diagram-accent"><span class="diagram-label">Call · transport</span><strong>RDI = 20 · RSI = 30</strong><span>The separate argument 3.0 travels in XMM0.</span></li>
+<li><span class="diagram-label">Caller · capture</span><strong>Private snapshot: {20, 30}</strong><span>Capture 16 bytes from original before evaluating later arguments.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Call · transport</span><div class="diagram-registers"><span><code>RDI</code><strong>left = 20</strong></span><span><code>RSI</code><strong>right = 30</strong></span></div><span>Separate scalar argument: XMM0 = 3.0.</span></li>
 <li><span class="diagram-label">Callee · reconstruct and change</span><strong>p: {20, 30} → {23, 32}</strong><span>The callee changes its own local object.</span></li>
-<li class="diagram-accent"><span class="diagram-label">Return · collect</span><strong>RAX = 23 · RDX = 32</strong><span>The caller collects these bytes into answer.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Return · collect</span><div class="diagram-registers"><span><code>RAX</code><strong>left = 23</strong></span><span><code>RDX</code><strong>right = 32</strong></span></div><span>Collect both eightbytes into answer.</span></li>
 </ol>
 <div class="diagram-result"><strong>After the call:</strong> original = {20, 30}; answer = {23, 32}.</div>
-<figcaption id="value-caption">The checkpoint's shift(original, 3.0), in System V mode. Arrows follow object bytes across the boundary. The source address identifies the bytes to capture; it is not the parameter value sent in RDI.</figcaption>
+<figcaption id="value-caption">The checkpoint's shift(original, 3.0), in System V mode. Read downward through capture, call, mutation and return. Matching field positions show where each eightbyte travels. The source address identifies the bytes to capture; it is not the parameter value sent in RDI.</figcaption>
 </figure>
 
 This manual route through the call explains the staging code that
