@@ -189,7 +189,7 @@ for which chapter depends on which, the
 - `bo-level` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `bo-op` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `bo-size` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
-- **Bootstrap chain** — [Ch 38, The wider chain](38-main-and-bootstrap-chain.md#the-wider-chain) · [Ch 57, What forth-bootstrap checks today](57-historical-reproducibility.md#what-forth-bootstrap-checks-today)
+- **Bootstrap chain** — [Ch 38, The wider chain](38-main-and-bootstrap-chain.md#the-wider-chain) · [App. C, What forth-bootstrap checks today](57-historical-reproducibility.md#what-forth-bootstrap-checks-today)
 - `bracket_lit_code` — *seed label* — [Ch 10, `bracket_lit_code`: write what `lit_code` will read](10-colon-compiler.md#bracket_lit_code-write-what-lit_code-will-read)
 - `branch` — *seed primitive* — [Ch 11, `branch_code`: replace the return address](11-branches.md#branch_code-replace-the-return-address) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `branch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 24, `branch-xt` and `0branch-xt`: a load-time snapshot](24-lib-11-control-flow-combinators.md#branch-xt-and-0branch-xt-a-load-time-snapshot)
@@ -202,7 +202,7 @@ for which chapter depends on which, the
 
 ## C
 
-- **C subset (what is supported)** — [Ch 60, Types](60-c-subset.md#types) · [Ch 60, What an ISO C programmer should expect not to find](60-c-subset.md#what-an-iso-c-programmer-should-expect-not-to-find)
+- **C subset (what is supported)** — [App. F, Types](60-c-subset.md#types) · [App. F, What an ISO C programmer should expect not to find](60-c-subset.md#what-an-iso-c-programmer-should-expect-not-to-find)
 - `c!` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `c!`: narrow the store, preserve the cleanup](06-stack-primitives.md#c-narrow-the-store-preserve-the-cleanup) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `c,` — *Forth word (`forth/010-lib.fth`)* — [Ch 15, `c,` and the workhorse pattern](15-lib-02-code-emission-and-here.md#c-and-the-workhorse-pattern)
 - `c@` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `c@`: widen a byte into a cell](06-stack-primitives.md#c-widen-a-byte-into-a-cell) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
@@ -2397,8 +2397,8 @@ for which chapter depends on which, the
 - **Dictionary header layout** — [Ch 9, The header layout](09-dictionary.md#the-header-layout)
 - `die` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
 - `digit?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, The range-check trick: `digit?`](19-lib-06-character-classification.md#the-range-check-trick-digit)
-- **Direct TinyCC bootstrap** — [Ch 57, Routes retained in seed-forth](57-historical-reproducibility.md#routes-retained-in-seed-forth)
-- **Diverse double-compiling** — [Ch 57, Diverse double-compiling](57-historical-reproducibility.md#diverse-double-compiling)
+- **Direct TinyCC bootstrap** — [App. C, Routes retained in seed-forth](57-historical-reproducibility.md#routes-retained-in-seed-forth)
+- **Diverse double-compiling** — [App. C, Diverse double-compiling](57-historical-reproducibility.md#diverse-double-compiling)
 - `divide_code` — *seed label* — [Ch 7, Unsigned division contract](07-arithmetic-and-logic.md#unsigned-division-contract)
 - **Division as a right shift** — [Ch 22, Why divide by 256?](22-lib-09-memory-and-cell-writers.md#why-divide-by-256)
 - `drop` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `drop`: replace the old top](06-stack-primitives.md#drop-replace-the-old-top) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
@@ -2417,7 +2417,7 @@ for which chapter depends on which, the
 - **Entry point (_start)** — [Ch 5, Give the registers their starting values](05-elf-and-entry.md#give-the-registers-their-starting-values)
 - **Entry stub** — [Ch 37, The entry stub and the top-level driver](37-functions-and-scope.md#the-entry-stub-and-the-top-level-driver)
 - **Enums and typedefs** — [Ch 37, Enums and typedefs](37-functions-and-scope.md#enums-and-typedefs)
-- **Error codes and cc-die** — [Ch 27, Failing: `cc-die`](27-arena-and-io-buffers.md#failing-cc-die) · [Ch 61, How the codes are organised](61-error-codes.md#how-the-codes-are-organised)
+- **Error codes and cc-die** — [Ch 27, Failing: `cc-die`](27-arena-and-io-buffers.md#failing-cc-die) · [App. G, How the codes are organised](61-error-codes.md#how-the-codes-are-organised)
 - **Escape decoding (string literals)** — [Ch 32, String-literal bytes with C-escape decoding](32-codegen-part-2.md#string-literal-bytes-with-c-escape-decoding)
 - `execute` — *seed primitive* — [Ch 9, `execute`: enter the code address](09-dictionary.md#execute-enter-the-code-address) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `execute-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
@@ -2460,7 +2460,7 @@ for which chapter depends on which, the
 
 ## G
 
-- **GCC-free build** — [Ch 57, The GCC-free build](57-historical-reproducibility.md#the-gcc-free-build)
+- **GCC-free build** — [App. C, The GCC-free build](57-historical-reproducibility.md#the-gcc-free-build)
 - **Global-address fixups** — [Ch 32, File-scope globals and deferred vaddr fixups](32-codegen-part-2.md#file-scope-globals-and-deferred-vaddr-fixups) · [Ch 37, File-scope globals](37-functions-and-scope.md#file-scope-globals)
 
 ## H
@@ -2553,7 +2553,7 @@ for which chapter depends on which, the
 - **Labels and goto** — [Ch 36, Labels and `goto`](36-statements-if-while-for-return.md#labels-and-goto)
 - `latest` — *seed primitive* — [Ch 9, `state` and `latest`: addresses of system variables](09-dictionary.md#state-and-latest-addresses-of-system-variables) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `latest_code` — *seed label* — [Ch 9, `state` and `latest`: addresses of system variables](09-dictionary.md#state-and-latest-addresses-of-system-variables)
-- **Left associativity** — [Ch 33, `cc-parse-add`: just like `mul`, looser](33-expressions-part-1.md#cc-parse-add-just-like-mul-looser) · [Ch 58, Where left-associativity comes from](58-worked-exercises.md#where-left-associativity-comes-from)
+- **Left associativity** — [Ch 33, `cc-parse-add`: just like `mul`, looser](33-expressions-part-1.md#cc-parse-add-just-like-mul-looser) · [App. D, Where left-associativity comes from](58-worked-exercises.md#where-left-associativity-comes-from)
 - `level-add` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `level-bit-and` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `level-bit-or` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
@@ -2950,7 +2950,7 @@ for which chapter depends on which, the
 - `tok-str-addr` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, The lexer's state block](27-arena-and-io-buffers.md#the-lexers-state-block)
 - `tok-str-len` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, The lexer's state block](27-arena-and-io-buffers.md#the-lexers-state-block)
 - `token` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `s,`: names as data](25-lib-12-defining-words-and-bytes-eq.md#s-names-as-data)
-- **Token errors: lookup recovery and fatal literal conversion** — [Ch 9, `report_token` and `fatal_token`: failing out loud](09-dictionary.md#report_token-and-fatal_token-failing-out-loud) · [Ch 61, The seed's own code](61-error-codes.md#the-seeds-own-code)
+- **Token errors: lookup recovery and fatal literal conversion** — [Ch 9, `report_token` and `fatal_token`: failing out loud](09-dictionary.md#report_token-and-fatal_token-failing-out-loud) · [App. G, The seed's own code](61-error-codes.md#the-seeds-own-code)
 - **Token kinds** — [Ch 29, Token kinds and punctuation IDs](29-the-lexer.md#token-kinds-and-punctuation-ids)
 - **Token reader and comment skipping** — [Ch 9, `read_word`, the token reader](09-dictionary.md#read_word-the-token-reader)
 - `top-fndef` — *compiler word (constant, `cc/116-cc-prog.fth`)* — [Ch 37, Top-level elision](37-functions-and-scope.md#top-level-elision)

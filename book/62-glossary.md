@@ -436,7 +436,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **AMD64 recipe runner** — The guest program that executes recipe operations with explicit paths and checked process status. [Chapter 54](54-k0-and-k1.md).
 
-**Archive member comparison** — Archives that differ as wholes still match when member names, order and bytes agree. [Chapter 52](52-gcc-4-fixed-point.md).
+**Archive member comparison** — For readable archives with simple, unique member names, compare ordered names and each named member's bytes while permitting container metadata to differ. Repeated names need a separate audit because named extraction does not identify each occurrence. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Archive pin agreement** — Agreement between stage-specific source digests and the central input manifest. [Chapter 53](53-sealed-run.md).
 
@@ -446,7 +446,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Compiler driver stream** — Each compilation's input is the compiler layers, a fixed driver and one C source. [Chapter 50](50-seed-cc-fixed-point.md).
 
-**Compiler fixed point** — Successive generations agree under the stated installed-output comparator. This route compares bytes first, then permits archive-container differences when member names, order and bytes agree. [Chapter 52](52-gcc-4-fixed-point.md).
+**Compiler fixed point** — Successive generations agree under the stated installed-output comparator. This route compares bytes first, then permits archive-container differences under the bounded **Archive member comparison** above. [Chapter 52](52-gcc-4-fixed-point.md).
 
 **Direct Linux recipe** — The guest recipe extending tool construction through the compiler climb, Linux build, export and handover. [Chapter 55](55-linux-and-kexec.md).
 

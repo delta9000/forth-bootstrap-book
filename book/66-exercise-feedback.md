@@ -692,8 +692,8 @@ if the count of differing common-file contents is zero. A changed archive
 timestamp alone is accepted when ordered member names and extracted member
 bytes still match. Reordering distinguishable members fails the ordered
 `ar t` comparison. Changing an object's bytes fails the corresponding
-`ar p` comparison. These answers assume readable corresponding archives;
-they do not prove behavior for pathological duplicate member names or make
+`ar p` comparison. These answers assume readable corresponding archives
+with simple, unique member names; they do not prove behavior for duplicate names or make
 an invisible exchange of byte-identical members observable.
 
 </details>

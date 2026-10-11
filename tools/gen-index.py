@@ -181,10 +181,17 @@ class Chapter:
         with open(path, encoding="utf-8") as source:
             self.lines = source.read().split("\n")
         stem = self.file.split("-", 1)[0]
+        title = next((line for line in self.lines if line.startswith("# ")), "")
+        appendix = re.match(r"# Appendix ([A-Z])\b", title)
         if self.file == "26-m1-and-hex2.md":
             # The stable filename now holds a check, not a teaching chapter.
             self.label = "Check"
             self.order = 109
+        elif appendix:
+            # Published appendix letters differ from their stable numeric filenames.
+            letter = appendix.group(1)
+            self.label = "App. " + letter
+            self.order = 101 + ord(letter) - ord("A")
         elif stem.startswith("A"):
             self.label = "App. " + chr(ord("A") + int(stem[1:]) - 1)
             self.order = 100 + int(stem[1:])

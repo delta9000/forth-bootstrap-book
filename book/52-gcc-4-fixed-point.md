@@ -355,7 +355,7 @@ compare() {
 
 The script also reports paths present in only one tree. Its success condition requires identical path lists as well as no differing contents (`forth-bootstrap/chain/gcc-direct/stage-d.sh:159`). A missing installed file cannot disappear from the verdict merely because the common files match.
 
-Archive member timestamps can vary without changing the objects the linker reads. The fallback therefore compares member names in order, then each member's bytes (`forth-bootstrap/chain/gcc-direct/stage-d.sh:133`):
+Archive member timestamps can vary without changing the objects the linker reads. The fallback therefore compares member names in order, then the output of `ar p` for each listed name (`forth-bootstrap/chain/gcc-direct/stage-d.sh:133`):
 
 ```sh
 same_archive() {
@@ -370,7 +370,17 @@ same_archive() {
 }
 ```
 
-This is narrower than raw archive equality and stronger than comparing an unordered set of objects. A changed member order fails too. The report prints its fixed-point verdict only when both installation comparisons pass (`forth-bootstrap/chain/gcc-direct/stage-d.sh:181`).
+For readable archives with simple, unique member names, this compares every
+member's bytes while permitting container metadata to differ. Here “simple”
+means an ordinary object basename made of letters, digits, underscores,
+periods or hyphens, with no leading hyphen. The loop leaves command
+substitution unquoted and does not protect option-like names from `ar`.
+Reordering distinguishable names fails too. The loop selects by name, not by occurrence:
+repeated member names require a separate audit, because checking the same
+name again does not identify the next occurrence. The source comment's
+“same members” description should be read with that limit. The report prints
+its fixed-point verdict only when both installation comparisons pass
+(`forth-bootstrap/chain/gcc-direct/stage-d.sh:181`).
 
 ## Build the late tools with the stable compiler
 
@@ -458,4 +468,4 @@ The recorded run likewise reports stage 2 = 3 = 4, with 54 files in each install
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-52-the-comparison-relation).
 
-**Trace (easy).** Follow `compare` and `same_archive` in Stage D. Predict the verdict for each change: an installed header disappears, an archive timestamp changes, an archive member changes position, or a member's object bytes change. Identify the condition that accepts or rejects each case.
+**Trace (easy).** Follow `compare` and `same_archive` in Stage D. Assume readable archives with simple, unique member names. Predict the verdict for each change: an installed header disappears, an archive timestamp changes, an archive member changes position, or a member's object bytes change. Identify the condition that accepts or rejects each case.

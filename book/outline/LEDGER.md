@@ -2173,8 +2173,8 @@ Compiler census | 52 GCC 4.0.4: stages C and D | the configured Makefile names t
 Source generator | 52 GCC 4.0.4: stages C and D | a build-time program whose output is compiled later; built by seed-cc rather than shipped
 Sysroot | 52 GCC 4.0.4: stages C and D | the directory tree holding the target headers and libraries the compiler's output uses
 Libgcc | 52 GCC 4.0.4: stages C and D | target support routines that generated code calls, built by the new GCC rather than seed-cc
-Compiler fixed point | 52 GCC 4.0.4: stages C and D | stage 2 = 3 = 4: successive GCC generations install the same files
-Archive member comparison | 52 GCC 4.0.4: stages C and D | archives that differ as wholes still match when member names, order and bytes agree
+Compiler fixed point | 52 GCC 4.0.4: stages C and D | stage 2 = 3 = 4 under the stated installed-output comparator, including its bounded archive-member exception
+Archive member comparison | 52 GCC 4.0.4: stages C and D | for readable archives with simple, unique member names, compare ordered names and each named payload while allowing container metadata to differ; repeated names need a separate audit
 Late tools | 52 GCC 4.0.4: stages C and D | make 4.4.1, bash 5.2, coreutils 9.5 and the rest, built by the fixed-point GCC with their own configure
 Sealed executable boundary | 53 The sealed host run | the prepared root starts with hex0-seed as its only executable file
 Executable publication | 53 The sealed host run | the host grants seed-forth's execute bit between entries; it supplies no program bytes
