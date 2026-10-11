@@ -181,7 +181,11 @@ class Chapter:
         with open(path, encoding="utf-8") as source:
             self.lines = source.read().split("\n")
         stem = self.file.split("-", 1)[0]
-        if stem.startswith("A"):
+        if self.file == "26-m1-and-hex2.md":
+            # Keep the former chapter's URL while publishing it as Appendix I.
+            self.label = "App. I"
+            self.order = 109
+        elif stem.startswith("A"):
             self.label = "App. " + chr(ord("A") + int(stem[1:]) - 1)
             self.order = 100 + int(stem[1:])
         else:
@@ -497,7 +501,7 @@ def render(chapters):
         "- *Forth word*: `forth/010-lib.fth` (Part 2);",
         "- *compiler word*: the C compiler, `cc/020-cc-arena.fth` to",
         "  `cc/141-archive.fth` (Part 3);",
-        "- *assembler word*: `forth/130-asm.fth`.",
+        "- *assembler word*: `forth/130-asm.fth` (Appendix I).",
         "",
         "A kind in parentheses other than the file is the defining word used",
         "(`variable`, `constant`, `create`, `defer`); plain colon definitions",

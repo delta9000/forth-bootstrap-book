@@ -105,16 +105,18 @@ question. The later parts use the ability we have just tried:
 1. [The machine-code seed](part-1-asm.md). Follow bytes, stacks, and
    names until you can trace `hello` through the whole program.
 2. [The Forth library](part-2-forth.md). Add words for loops, memory,
-   and writing bytes; use them to assemble a separate executable.
+   and writing bytes, giving the C compiler its working vocabulary.
 3. [The C compiler](part-3-compiler.md). Load more Forth definitions
    that read C source and produce programs, then add linking and a runtime.
 4. [The bootstrap](part-4-bootstrap.md). Use those tools to build
    larger tools, rebuild GCC, and build and boot Linux.
 
 The library and compiler begin as Forth source loaded into the seed,
-much as the `hello` definition was. We will follow that handoff in detail
-when each part reaches it. For now, Chapter 2 takes a closer look at the
-small executable we have in hand.
+much as the `hello` definition was. The main path goes from the completed
+library in Chapter 25 straight to the compiler in Chapter 27; the separate
+M1/hex2 assembler is an optional [Appendix I](26-m1-and-hex2.md). Later
+chapter numbers keep their existing references. For now, Chapter 2 takes
+a closer look at the small executable we have in hand.
 
 ## Reading and trying
 

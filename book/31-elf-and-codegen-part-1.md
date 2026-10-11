@@ -773,6 +773,11 @@ The final move delivers zero or one in `rdi`, suitable as a C expression value. 
 
 ## Branches and `rel32` placeholders
 
+Recall `if,` and `then,` from Chapter 24: reserve an unfinished field,
+remember where it is, and fill it when the destination is known. Here the
+field belongs to the output buffer and holds a relative displacement;
+the original library words kept an absolute destination in an inline cell.
+
 A conditional jump reads processor flags, so it needs a test of the expression value. `cc-emit-test-rdi` tests the accumulator without changing it (`forth-bootstrap/cc/090-cc-emit.fth:393`):
 
 ```forth file=cc/090-cc-emit.fth

@@ -8,7 +8,10 @@ resume afterward.
 
 ## A worked expansion before the machinery
 
-Consider these definitions and a use of the second one:
+A C **macro** associates a name with replacement text before the lexer
+reads the program. A `#define` directive records that association. An
+object-like macro needs only its name; a function-like macro also takes
+arguments to substitute into its replacement. Consider one of each:
 
 ```c
 #define ROWS 4
@@ -38,7 +41,11 @@ three things is the central operation of the chapter.
 There is one more guard: a macro is marked busy while its replacement is
 scanned, so it cannot keep expanding itself. Quoted strings and comments
 have their own walkers. Change the argument to `","` and collection must
-still find one argument; that comma is inside a string.
+still find one argument; that comma is inside a string. These are C
+preprocessing rules. The optional M1 walkthrough in
+[Appendix I](26-m1-and-hex2.md) has a different `DEFINE` mechanism: it
+substitutes a stored body without rescanning it for further macros. No
+part of that assembler is used here.
 
 The implementation also supports a direct profile with different include
 and substitution rules. We will identify those branches as they appear.

@@ -8,13 +8,24 @@ each a home makes the rest of the compiler easier to reason about.
 
 ## Part 3: from storage to a C compiler
 
+The completed library supplies the prerequisites (Chapter 25): `create`
+names a data address, `allot` reserves bytes, and `variable` adds a
+zero-initialized cell. The compiler uses those words directly. Its first
+layers are `cc/020-cc-arena.fth` and `cc/030-cc-io.fth`, loaded after
+`forth/010-lib.fth`; no assembler layer intervenes.
+
 | Storage | What lives there | When it is needed |
 |---|---|---|
 | Input and source buffers | Raw C text, then preprocessed text | While tokens and names refer to it |
 | Output buffer | Headers, instructions, and data being assembled | Until the completed image is written |
 | Arena | Variable-size compiler records | While compilation can still refer to them |
 
-The arena needs no individual `free`. Consider its first allocation by
+A buffer's **capacity** is the number of bytes reserved for it; its used
+length says how many bytes currently hold input or output. A **cursor**
+records the next position to read or write within that storage. Resetting
+a cursor does not clear the bytes or change the capacity.
+
+The arena is a region for successive allocations, with no individual `free`. Consider its first allocation by
 hand: with the next free address at `p`, a request for 16 bytes reserves
 `p` through `p + 15`, returns `p`, and advances the cursor to `p + 16`.
 The following request starts there. Before advancing, the allocator checks
@@ -25,6 +36,9 @@ The output cursor has a different job. It identifies the next byte in a
 future file. A parser can reserve a field there, keep its offset in an
 arena record, and patch it after the destination becomes known. The arena
 record stays with the compiler; the patched bytes go into the executable.
+This is the emit–remember–patch pattern from Chapter 24: a **fixup**
+remembers an unfinished field until the information needed to fill it
+exists.
 
 There is also a handoff to get right before the C reader starts. Forth
 definitions and C source arrive through the same input stream. The seed
@@ -741,7 +755,9 @@ printer and does not allocate from the arena.
 `cc-die-where`, `cc-die-what` and `cc-die-end` hold the location prefix,
 error separator and newline. `cc-die` combines them with the current line
 and the caller's code, then exits with that same code. `cc-check-cap`
-connects the existing prospective-size guard to this diagnostic (`forth-bootstrap/cc/020-cc-arena.fth:397`):
+provides a **prospective-size check**: compare the size an operation would
+produce with the capacity before performing that operation, and use
+`cc-die` if it would be too large (`forth-bootstrap/cc/020-cc-arena.fth:397–417`):
 
 ```forth file=cc/020-cc-arena.fth
 create cc-die-where  s, cc: bl c, s, line bl c,       \ "cc: line "  9 bytes
@@ -1175,6 +1191,11 @@ this operation to the compiler entry point.
 
 ## Shared helpers for C names
 
+A **name slice** is an address and a byte length. For the name `ROWS` at
+address `p`, the pair is `p 4`; it refers to the existing four bytes
+without copying them or adding a terminator. The buffer that owns those
+bytes must remain alive while the slice is used.
+
 Identifier spelling and table addressing recur across compiler layers.
 `ident-start?` accepts a letter or underscore; `ident-cont?` also accepts a
 digit. `cell[]` converts an entry index and an array base into the address
@@ -1199,8 +1220,11 @@ of the corresponding cell (`forth-bootstrap/cc/030-cc-io.fth:198`):
 
 ```
 
-`cc-name-find` applies newest-first slice lookup to parallel address and
-length arrays. `cc-nf-a` and `cc-nf-u` retain the query;
+Two **parallel arrays** keep one column of addresses and one of lengths:
+index `i` selects the address and length of the same name. `cc-name-find`
+searches these rows from newest to oldest, checking length and then bytes,
+so a later matching entry hides an earlier one. This is **newest-first
+slice lookup**. `cc-nf-a` and `cc-nf-u` retain the query;
 `cc-nf-addrs` and `cc-nf-lens` retain the arrays while the entry index
 counts down (`forth-bootstrap/cc/030-cc-io.fth:214`):
 

@@ -24,9 +24,9 @@ labels it as recorded.
 - [Chapter 50](50-seed-cc-fixed-point.md) builds `seed-cc` and `seed-ar`,
   the command-line driver and archiver around the Forth compiler, from the
   seed alone.
-- [Chapter 51](51-owning-the-tools.md) uses them to build kaem, make, the
-  parser generators and bash 2.05b, and so owns the tools that run GCC's
-  build.
+- [Chapter 51](51-owning-the-tools.md) uses them to build kaem, the file
+  utilities from mescc-tools-extra, make, the parser generators and bash
+  2.05b, and so owns the tools that run GCC's build.
 - [Chapter 52](52-gcc-4-fixed-point.md) builds binutils and GCC 4.0.4. It
   then rebuilds GCC until the installed files of stages 2, 3 and 4 agree,
   and follows the late-tool recipe that the guest route runs with that

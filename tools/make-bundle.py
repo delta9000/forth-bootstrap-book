@@ -9,6 +9,7 @@ Writes book/bundles/NN/ (gitignored), everything a chapter writer reads:
                a `Target:` line naming the chapter file, book/NN-<slug>.md
   spine.md     every stub in reading order, two or three lines each
   ledger.md    the lines of book/outline/LEDGER.md for chapters before NN
+               in SUMMARY.md reading order, not numeric filename order
   replaces.txt the old chapter files this chapter replaces: those it
                reuses that no earlier stub reuses (each old file is
                replaced by exactly one new chapter, the first that mines it)
@@ -45,12 +46,36 @@ def field(text, name):
 
 
 def stubs():
-    for p in sorted(glob.glob(os.path.join(OUTLINE, "[0-9][0-9]-*.md"))):
-        yield os.path.basename(p)[:2], p, open(p).read()
+    """Stable numeric IDs, ordered by the published book rather than the ID."""
+    with open(os.path.join(BOOK, "SUMMARY.md"), encoding="utf-8") as source:
+        summary = source.read()
+    order = []
+    for name in re.findall(r"\]\(([^)#]+\.md)\)", summary):
+        match = re.match(r"(\d\d)-", name)
+        nn = match[1] if match else {"WORD-INDEX.md": "64"}.get(name)
+        if nn is not None and nn not in order:
+            order.append(nn)
+    rank = {nn: i for i, nn in enumerate(order)}
+    paths = glob.glob(os.path.join(OUTLINE, "[0-9][0-9]-*.md"))
+    for p in sorted(paths, key=lambda p: (rank.get(os.path.basename(p)[:2], len(rank)),
+                                         os.path.basename(p))):
+        with open(p, encoding="utf-8") as source:
+            text = source.read()
+        yield os.path.basename(p)[:2], p, text
+
+
+def prior_chapters(nn):
+    """Outline IDs preceding this target in the published reading order."""
+    result = set()
+    for candidate, _, _ in stubs():
+        if candidate == nn:
+            return result
+        result.add(candidate)
+    raise ValueError(f"no outline for chapter {nn}")
 
 
 def spine():
-    out = ["# Spine: every chapter of the book in reading order", ""]
+    out = ["# Spine: published reading order, then any unpublished outline stubs", ""]
     for nn, p, t in stubs():
         title = t.splitlines()[0].lstrip("# ").strip()
         part = field(t, "Part")
@@ -122,8 +147,9 @@ def main():
     open(os.path.join(out, "spine.md"), "w").write(spine())
     ledger = open(os.path.join(OUTLINE, "LEDGER.md")).read().split("\n")
     head = ledger[:ledger.index("--- | --- | ---") + 1]
+    earlier = prior_chapters(nn)
     rows = [l for l in ledger[len(head):] if re.match(r".* \| (\d\d) ", l)
-            and int(re.match(r".* \| (\d\d) ", l).group(1)) < int(nn)]
+            and re.match(r".* \| (\d\d) ", l).group(1) in earlier]
     open(os.path.join(out, "ledger.md"), "w").write(
         "\n".join(head[:2] + [f"Only the concepts of chapters before {nn}; spine.md shows what later "
                                "chapters teach.", ""] + head[2:] + rows) + "\n")
@@ -170,4 +196,5 @@ def main():
           f"{len(blocks)} chunk(s), {len(fences)} fence span(s)")
 
 
-main()
+if __name__ == "__main__":
+    main()

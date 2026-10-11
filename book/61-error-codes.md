@@ -391,30 +391,30 @@ The archive reader also raises metadata errors through `lnk-need` and `lnk-bad`;
 
 ## The assembler's codes
 
-The following table belongs to the separate M1/hex2 program (Chapter 26). Its overlapping codes do not denote System V or object-writer failures. Capacity and output-open failures exit without a compiler diagnostic. `asm-tok-err` writes the offending token to stderr; undefined references, field-fit failures and malformed hex tokens use it (`forth-bootstrap/forth/130-asm.fth:412`).
+The following table belongs to the separate M1/hex2 program in optional [Appendix I](26-m1-and-hex2.md). Its overlapping codes do not denote System V or object-writer failures. Capacity and output-open failures exit without a compiler diagnostic. `asm-tok-err` writes the offending token to stderr; undefined references, field-fit failures and malformed hex tokens use it (`forth-bootstrap/forth/130-asm.fth:412`).
 
 ### 130-asm.fth
 
 | Code | Numbered site | Containing word → raising helper | Meaning | Layer chapter |
 |---:|---|---|---|---|
-| 230 | `forth-bootstrap/forth/130-asm.fth:145` | `asm-write-output` → `die` | Output path could not be opened. | [Chapter 26](26-m1-and-hex2.md) |
-| 231 | `forth-bootstrap/forth/130-asm.fth:593` | `asm-process-token` → `asm-do-ref` | Absolute `&label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 232 | `forth-bootstrap/forth/130-asm.fth:535` | `asm-do-pct-ref` → `asm-tok-err` | Relative `%target>base` base undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 233 | `forth-bootstrap/forth/130-asm.fth:529` | `asm-do-pct-ref` → `asm-tok-err` | Relative `%target>base` target undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 234 | `forth-bootstrap/forth/130-asm.fth:541` | `asm-do-pct-ref` → `asm-do-ref` | Relative `%label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 235 | `forth-bootstrap/forth/130-asm.fth:588` | `asm-process-token` → `asm-do-ref` | Relative `!label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 236 | `forth-bootstrap/forth/130-asm.fth:589` | `asm-process-token` → `asm-do-ref` | Relative `@label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 237 | `forth-bootstrap/forth/130-asm.fth:590` | `asm-process-token` → `asm-do-ref` | Relative `~label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 238 | `forth-bootstrap/forth/130-asm.fth:592` | `asm-process-token` → `asm-do-ref` | Absolute `$label` undefined. | [Chapter 26](26-m1-and-hex2.md) |
-| 239 | `forth-bootstrap/forth/130-asm.fth:95` | `asm-load-stdin` → `asm-check-cap` | Source buffer full. | [Chapter 26](26-m1-and-hex2.md) |
-| 240 | `forth-bootstrap/forth/130-asm.fth:117` | `asm-exp-emit-byte` → `asm-check-cap` | Macro expansion buffer full. | [Chapter 26](26-m1-and-hex2.md) |
-| 241 | `forth-bootstrap/forth/130-asm.fth:132` | `asm-emit-byte` → `asm-check-cap` | Output buffer full. | [Chapter 26](26-m1-and-hex2.md) |
-| 242 | `forth-bootstrap/forth/130-asm.fth:181` | `asm-store-label` → `asm-check-cap` | Label table full. | [Chapter 26](26-m1-and-hex2.md) |
-| 243 | `forth-bootstrap/forth/130-asm.fth:631` | `asm-def-store` → `asm-check-cap` | DEFINE table full. | [Chapter 26](26-m1-and-hex2.md) |
-| 244 | `forth-bootstrap/forth/130-asm.fth:513` | `asm-do-ref` → `asm-fit` | Label value does not fit its reference field. | [Chapter 26](26-m1-and-hex2.md) |
-| 245 | `forth-bootstrap/forth/130-asm.fth:504` | `asm-do-ref` → `asm-fit` | Numeric value does not fit its reference field. | [Chapter 26](26-m1-and-hex2.md) |
-| 246 | `forth-bootstrap/forth/130-asm.fth:553` | `asm-check-hex` → `asm-tok-err` | Bare token contains non-hexadecimal characters. | [Chapter 26](26-m1-and-hex2.md) |
-| 247 | `forth-bootstrap/forth/130-asm.fth:558` | `asm-check-hex` → `asm-tok-err` | Hexadecimal token has an odd digit count. | [Chapter 26](26-m1-and-hex2.md) |
+| 230 | `forth-bootstrap/forth/130-asm.fth:145` | `asm-write-output` → `die` | Output path could not be opened. | [Appendix I](26-m1-and-hex2.md) |
+| 231 | `forth-bootstrap/forth/130-asm.fth:593` | `asm-process-token` → `asm-do-ref` | Absolute `&label` undefined. | [Appendix I](26-m1-and-hex2.md) |
+| 232 | `forth-bootstrap/forth/130-asm.fth:535` | `asm-do-pct-ref` → `asm-tok-err` | Relative `%target>base` base undefined. | [Appendix I](26-m1-and-hex2.md) |
+| 233 | `forth-bootstrap/forth/130-asm.fth:529` | `asm-do-pct-ref` → `asm-tok-err` | Relative `%target>base` target undefined. | [Appendix I](26-m1-and-hex2.md) |
+| 234 | `forth-bootstrap/forth/130-asm.fth:541` | `asm-do-pct-ref` → `asm-do-ref` | Relative `%label` undefined. | [Appendix I](26-m1-and-hex2.md) |
+| 235 | `forth-bootstrap/forth/130-asm.fth:588` | `asm-process-token` → `asm-do-ref` | Relative `!label` undefined. | [Appendix I](26-m1-and-hex2.md) |
+| 236 | `forth-bootstrap/forth/130-asm.fth:589` | `asm-process-token` → `asm-do-ref` | Relative `@label` undefined. | [Appendix I](26-m1-and-hex2.md) |
+| 237 | `forth-bootstrap/forth/130-asm.fth:590` | `asm-process-token` → `asm-do-ref` | Relative `~label` undefined. | [Appendix I](26-m1-and-hex2.md) |
+| 238 | `forth-bootstrap/forth/130-asm.fth:592` | `asm-process-token` → `asm-do-ref` | Absolute `$label` undefined. | [Appendix I](26-m1-and-hex2.md) |
+| 239 | `forth-bootstrap/forth/130-asm.fth:95` | `asm-load-stdin` → `asm-check-cap` | Source buffer full. | [Appendix I](26-m1-and-hex2.md) |
+| 240 | `forth-bootstrap/forth/130-asm.fth:117` | `asm-exp-emit-byte` → `asm-check-cap` | Macro expansion buffer full. | [Appendix I](26-m1-and-hex2.md) |
+| 241 | `forth-bootstrap/forth/130-asm.fth:132` | `asm-emit-byte` → `asm-check-cap` | Output buffer full. | [Appendix I](26-m1-and-hex2.md) |
+| 242 | `forth-bootstrap/forth/130-asm.fth:181` | `asm-store-label` → `asm-check-cap` | Label table full. | [Appendix I](26-m1-and-hex2.md) |
+| 243 | `forth-bootstrap/forth/130-asm.fth:631` | `asm-def-store` → `asm-check-cap` | DEFINE table full. | [Appendix I](26-m1-and-hex2.md) |
+| 244 | `forth-bootstrap/forth/130-asm.fth:513` | `asm-do-ref` → `asm-fit` | Label value does not fit its reference field. | [Appendix I](26-m1-and-hex2.md) |
+| 245 | `forth-bootstrap/forth/130-asm.fth:504` | `asm-do-ref` → `asm-fit` | Numeric value does not fit its reference field. | [Appendix I](26-m1-and-hex2.md) |
+| 246 | `forth-bootstrap/forth/130-asm.fth:553` | `asm-check-hex` → `asm-tok-err` | Bare token contains non-hexadecimal characters. | [Appendix I](26-m1-and-hex2.md) |
+| 247 | `forth-bootstrap/forth/130-asm.fth:558` | `asm-check-hex` → `asm-tok-err` | Hexadecimal token has an odd digit count. | [Appendix I](26-m1-and-hex2.md) |
 
 ## The build controller's codes
 

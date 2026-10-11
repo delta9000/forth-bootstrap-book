@@ -25,7 +25,9 @@ separately.
 
 Appendix lettering starts at C to preserve references in the quoted
 source. The former primitive-reference and memory-map appendices are now
-Chapters 13 and 5.
+Chapters 13 and 5. The optional M1/hex2 walkthrough is
+[Appendix I](26-m1-and-hex2.md); its filename and lab selector retain 26
+for compatibility, so the main chapter sequence goes from 25 to 27.
 
 ## Shape of a chapter
 

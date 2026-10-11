@@ -6,7 +6,7 @@ Scope: Keep lookup entries for Forth words, primitive labels, and compiler conce
 
 Sources taught: None — this chapter organizes reading rather than teaching a source span.
 
-Prerequisites: [26 — The M1 assembler and hex2 linker](26-m1-and-hex2.md); [38 — Compiler entry and Stage A](38-main-and-bootstrap-chain.md)
+Prerequisites: [38 — Compiler entry and Stage A](38-main-and-bootstrap-chain.md)
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 

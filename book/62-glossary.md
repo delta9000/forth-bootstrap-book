@@ -1,6 +1,6 @@
 # Glossary
 
-Definitions are grouped by the Part that introduces each concept, then alphabetically. Each entry links to its teaching chapter; individual seed names and Forth words belong in the [word index](WORD-INDEX.md). For C APIs, use the teaching chapter or book search; the generated index does not enumerate C functions.
+Definitions are grouped by the Part or optional appendix that introduces each concept, then alphabetically. Each entry links to its teaching page; individual seed names and Forth words belong in the [word index](WORD-INDEX.md). For C APIs, use the teaching chapter or book search; the generated index does not enumerate C functions.
 
 ## Part 1: Machine and seed
 
@@ -106,7 +106,9 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **xt** — See **Execution token (xt)**. [Chapter 9](09-dictionary.md).
 
-## Part 2: Forth library and assembler
+<a id="part-2-forth-library-and-assembler"></a>
+
+## Part 2: Forth library
 
 **Back-patching** — See **Emit, remember, patch**. [Chapter 24](24-lib-11-control-flow-combinators.md).
 
@@ -138,15 +140,7 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Functional completeness of NAND** — NAND constructions express every Boolean function. [Chapter 16](16-lib-03-logic-from-nand.md).
 
-**hex2** — A hexadecimal assembly format with named labels and sized absolute or relative references. [Chapter 26](26-m1-and-hex2.md).
-
-**Label table** — Records of name slice and address; newest-first slice lookup, newest declaration wins. [Chapter 26](26-m1-and-hex2.md).
-
 **Little-endian cell writers** — Emit a value from its least significant byte upward. [Chapter 22](22-lib-09-memory-and-cell-writers.md).
-
-**M1** — Macro assembly text whose substitutions, numeric references and strings are expanded before label resolution. [Chapter 26](26-m1-and-hex2.md).
-
-**M1 macro** — DEFINE name value: textual, non-recursive substitution before assembly. [Chapter 26](26-m1-and-hex2.md).
 
 **Pad-and-call** — Caller arguments, zero padding, a fixed syscall number, then syscall6. [Chapter 18](18-lib-05-syscalls.md).
 
@@ -162,8 +156,6 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 
 **Self-NAND** — `dup nand` complements a cell. [Chapter 16](16-lib-03-logic-from-nand.md).
 
-**Sigil** — The initial character of an M1 or hex2 reference token; it selects the field width and absolute or relative interpretation. [Chapter 26](26-m1-and-hex2.md).
-
 **Sign test by division** — Unsigned division by the value of the high bit isolates that bit, allowing a signed-negative test. [Chapter 20](20-lib-07-comparisons-from-division.md).
 
 **Signed-overflow domain** — The subtraction-based signed comparison is valid only when the operand difference does not overflow. [Chapter 20](20-lib-07-comparisons-from-division.md).
@@ -175,8 +167,6 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 **Store-and-advance** — Write a payload at HERE, then advance HERE by the payload's width. [Chapter 15](15-lib-02-code-emission-and-here.md).
 
 **Two's complement** — A signed `w`-bit field with its high bit set represents its unsigned value minus `2^w`; [Chapter 4](04-x86-64-and-two-stacks.md#reading-a-negative-displacement) applies that rule to displacements. Complementing a value and adding one produces its additive inverse in wrapping cell arithmetic; [Chapter 17](17-lib-04-return-stack-over-subtract.md) derives that operation.
-
-**Two-pass assembly** — An initial scan counts bytes and records labels; a subsequent scan resolves references and emits bytes. [Chapter 26](26-m1-and-hex2.md).
 
 **Word** — A named Forth operation identified by a dictionary entry and executable through its execution token. [Chapter 14](14-lib-01-stacks-and-words.md).
 
@@ -517,3 +507,17 @@ Definitions are grouped by the Part that introduces each concept, then alphabeti
 **Temporary scanner bootstrap** — Heirloom lex builds an intermediate flex that then generates flex's own scanner. [Chapter 51](51-owning-the-tools.md).
 
 **Virtual address** — The address a program uses for a memory access. Page tables translate it and determine whether the access is permitted; distinct virtual addresses can reach the same physical byte. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).
+
+## Optional Appendix I: M1 and hex2
+
+**hex2** — A hexadecimal assembly format with named labels and sized absolute or relative references. [Appendix I](26-m1-and-hex2.md).
+
+**Label table** — Records of name slice and address; newest-first slice lookup, newest declaration wins. [Appendix I](26-m1-and-hex2.md).
+
+**M1** — Macro assembly text whose substitutions, numeric references and strings are expanded before label resolution. [Appendix I](26-m1-and-hex2.md).
+
+**M1 macro** — DEFINE name value: textual, non-recursive substitution before assembly. [Appendix I](26-m1-and-hex2.md).
+
+**Sigil** — The initial character of an M1 or hex2 reference token; it selects the field width and absolute or relative interpretation. [Appendix I](26-m1-and-hex2.md).
+
+**Two-pass assembly** — An initial scan counts bytes and records labels; a subsequent scan resolves references and emits bytes. [Appendix I](26-m1-and-hex2.md).

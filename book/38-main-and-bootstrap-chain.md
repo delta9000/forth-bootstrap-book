@@ -90,6 +90,13 @@ M2-Planet is a different kind of test: a real compiler, large enough to
 exercise many of the paths we have just built. We need a comparison that
 does not require predicting its entire output by hand.
 
+M1 is the textual assembly format that M2-Planet writes: it can name
+byte sequences and symbolic destinations. For this test we need only its
+role as an output file. The Forth compiler directly produces a runnable
+M2-Planet executable; running that executable on C source produces M1
+text. Optional [Appendix I](26-m1-and-hex2.md) explains the format through
+a standalone assembler; that assembler is not a step in this comparison.
+
 A star on the terminal checks the entry path. Stage-A parity asks a larger, precise question: does M2-Planet built by the Forth compiler emit byte-identical M1 output to M2-Planet built by GCC when both compile the same M2-Planet source set for amd64?
 
 The test constructs the comparison in `forth-bootstrap/tests/cc/stage-a-check.sh:41`:
@@ -104,7 +111,10 @@ The monolith builder prepares the C input and feeds it after the Forth vocabular
 The comparison spans two compilation steps. The Forth compiler and GCC first
 produce two M2-Planet executables; each executable then produces an M1
 file. Those final files are what `cmp` compares. Different machine code
-in the two executables is compatible with identical assembly output.
+in the two executables is compatible with identical assembly output. The
+script stops at that comparison: it neither assembles the M1 files nor
+performs another M2-Planet self-hosting stage
+(`forth-bootstrap/tests/cc/stage-a-check.sh:12`).
 
 A match gives evidence that the Forth-built M2-Planet behaves like the
 reference on this source set and these options. It does not establish a

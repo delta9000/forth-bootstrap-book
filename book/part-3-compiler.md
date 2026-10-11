@@ -5,11 +5,16 @@ Part 3 builds a C compiler in Forth. Its layers, `cc/020` through
 from standard input and write an executable or a relocatable object
 directly, without a C compiler on the host emitting those bytes.
 
-The assembler from Part 2 and this compiler are separate users of the
-Forth library. C compilation here emits machine bytes directly; it does
-not produce M1 for the assembler to consume. M1 reappears at the first
-major comparison because the program being compiled, M2-Planet, emits
-M1 as its own output.
+Start here after the library in Chapter 25. The loader selects compiler
+layers after `forth/010-lib.fth`
+(`forth-bootstrap/cc/compiler-layers.sh:2`); it does not load
+`forth/130-asm.fth`. The standalone assembler in optional
+[Appendix I](26-m1-and-hex2.md) is another user of the library.
+
+At the first major comparison, the program being compiled is M2-Planet,
+a C compiler that emits textual M1 assembly. Stage A compares that text
+from two builds of M2-Planet; it does not assemble it. Chapter 38 explains
+the comparison without requiring the assembler walkthrough.
 
 The Part has two halves. Chapters 27–38 build a compiler for the C subset
 that M2-Planet is written in. The first half ends with the Stage A

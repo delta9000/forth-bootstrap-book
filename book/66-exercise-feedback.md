@@ -4,7 +4,9 @@ This appendix covers the exercises in Chapters 27–56. For earlier material,
 use the worked examples in [Appendix D](58-worked-exercises.md) and the
 feedback beside the exercises in [Chapter 9](09-dictionary.md#exercises),
 [Chapter 15](15-lib-02-code-emission-and-here.md#exercise), and
-[Chapter 23](23-lib-10-immediacy-and-constants.md#exercise).
+[Chapter 23](23-lib-10-immediacy-and-constants.md#exercise). The optional
+assembler exercise has feedback beside its attempt in
+[Appendix I](26-m1-and-hex2.md#exercise).
 
 Try the chapter's exercise before opening its answer. Start with the hint;
 then compare intermediate states, not only the final number. The answers

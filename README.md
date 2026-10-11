@@ -4,10 +4,12 @@
 
 This is the literate book of
 [forth-bootstrap](https://github.com/delta9000/forth-bootstrap): a
-1,772-byte Forth, a library and assembler written in that Forth, a C
-compiler, and the tools that carry the route through GCC to Linux. The
-book connects the actual source to worked traces, runnable checkpoints,
-and exercises with feedback.
+1,772-byte Forth, its Forth library, a C compiler written in that Forth,
+and the tools that carry the route through GCC to Linux. The book
+connects the actual source to worked traces, runnable checkpoints, and
+exercises with feedback. An optional
+[Appendix I](book/26-m1-and-hex2.md) follows a separate M1 assembler and
+hex2 linker built on the same library.
 
 [Read the book](https://delta9000.github.io/forth-bootstrap-book/) ·
 [Start with your first word](book/01-reading-the-book.md) ·

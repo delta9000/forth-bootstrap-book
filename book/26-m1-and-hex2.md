@@ -1,9 +1,17 @@
-# Chapter 26 — The M1 assembler and hex2 linker
+# Appendix I — The M1 assembler and hex2 linker
+
+<a id="chapter-26--the-m1-assembler-and-hex2-linker"></a>
 
 A small M1 program can name its opcodes and jump to a label whose address
 has not been calculated. Macro substitution followed by two-pass assembly
 turns that text into executable bytes. The completed assembler runs on the
 seed and library alone and produces the program exercised at the end.
+
+This is an optional application of the Forth library after Chapter 25.
+The main route continues with [Part 3](part-3-compiler.md): its C compiler
+emits executable or object bytes directly. It does not send M1 to this
+assembler. The current loader selects files from `cc/` and never loads
+`forth/130-asm.fth` (`forth-bootstrap/cc/compiler-layers.sh:2–11`).
 
 For a first run before the longer source walkthrough, use the
 [checkpoint](#try-it) to assemble a program that prints `hi` and exits
@@ -32,9 +40,21 @@ passes to handle.
 “Self-contained” describes its dependency boundary: load `010-lib.fth`,
 then this file, then invoke `asm-main`. No compiler layer supplies a
 missing definition. The checkpoint below runs exactly that sequence.
-The header's claims of agreement with mescc-tools and an M2-Planet
-self-compile are the source's own; this chapter checks only the standalone
-result below.
+The source header below describes the assembler as sitting “below the
+cc.” That describes its intended bootstrap role, not a dependency of the
+current compiler route. The repository still exercises this standalone
+application: the quick checks call `tests/asm/hi-check.sh`
+(`forth-bootstrap/check-all.sh:64`), which checks `hi`, status 42 and
+160 bytes (`forth-bootstrap/tests/asm/hi-check.sh:49–61`).
+
+[Stage A](38-main-and-bootstrap-chain.md#try-it) compares the M1 emitted
+by two builds of M2-Planet; it explicitly does not assemble that M1
+(`forth-bootstrap/tests/cc/stage-a-check.sh:3–13`). On the current direct
+route, mescc-tools also supplies kaem's C sources, which seed-cc compiles
+as described in [Chapter 51](51-owning-the-tools.md#start-with-a-recipe-runner)
+(`forth-bootstrap/chain/plumbing-root.sh:72–75`). The header's broader
+claims of byte agreement with mescc-tools and an M2-Planet self-compile
+remain the source's own; this appendix checks the standalone result below.
 
 ## Carry one input through both passes
 
@@ -1616,8 +1636,9 @@ and occupies 160 bytes. Macro substitution supplies instruction bytes;
 jump; `%ELF_end>ELF_base` supplies header sizes. The double-quoted string
 includes a NUL after the newline, which the write length excludes.
 The ELF structure is supplied by the input, not invented by the assembler.
-This completes the library's standalone program; Chapter 27 begins the
-compiler's arena and I/O buffers.
+This completes the library's standalone assembler program. To resume the
+main route after Chapter 25, continue with [Part 3](part-3-compiler.md)
+and [Chapter 27](27-arena-and-io-buffers.md).
 
 ## Exercise
 

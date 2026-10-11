@@ -321,7 +321,12 @@ comparison succeeds without fetching either address. The checkpoint
 separates whole-range equality, a mismatch, an empty comparison, and a
 matching prefix of otherwise different names.
 
-Chapter 26 uses this vocabulary to build the M1 assembler and hex2 linker.
+The library is now complete. [Chapter 27](27-arena-and-io-buffers.md) uses
+its defining words to give the compiler buffers and records, its byte
+comparison to look up names, and its deferred words to connect layers
+whose implementations arrive later. Continue there on the main path.
+The standalone M1 assembler and hex2 linker use the same library in
+optional [Appendix I](26-m1-and-hex2.md).
 
 ## Try it
 

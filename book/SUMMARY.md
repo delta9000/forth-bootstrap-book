@@ -35,7 +35,6 @@
 - [Immediacy and constants](23-lib-10-immediacy-and-constants.md)
 - [Control-flow combinators](24-lib-11-control-flow-combinators.md)
 - [Defining words and byte equality](25-lib-12-defining-words-and-bytes-eq.md)
-- [The M1 assembler and hex2 linker](26-m1-and-hex2.md)
 
 # Part 3 — compiler
 
@@ -84,6 +83,7 @@
 - [Appendix F: the C subset](60-c-subset.md)
 - [Appendix G: compiler error codes](61-error-codes.md)
 - [Appendix H: exercise feedback](66-exercise-feedback.md)
+- [Appendix I: the M1 assembler and hex2 linker](26-m1-and-hex2.md)
 - [Glossary](62-glossary.md)
 - [Concept index and dependencies](63-concepts.md)
 - [Word index](WORD-INDEX.md)

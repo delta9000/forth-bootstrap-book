@@ -3,8 +3,8 @@
 Part 2 grows the seed's vocabulary in Forth source, one short group of
 definitions at a time, in `forth/010-lib.fth`. The seed reads the library
 as written: no assembler or compiler outside the seed runs in this Part.
-By the end, the library is large enough to carry an M1 assembler and a
-hex2 linker, which turn assembly text into a running executable.
+By the end, it supplies the memory, control flow and byte-writing words
+that the C compiler loads before its own definitions.
 
 - [Chapter 14](14-lib-01-stacks-and-words.md) introduces stack-effect
   notation and the conventions that open the library.
@@ -29,17 +29,20 @@ hex2 linker, which turn assembly text into a running executable.
   and loops inside colon definitions.
 - [Chapter 25](25-lib-12-defining-words-and-bytes-eq.md) completes the
   library with defining words, buffers and byte comparison.
-- [Chapter 26](26-m1-and-hex2.md) uses the finished library to assemble and
-  link an M1 program that prints `hi` and exits with status 42.
 
 Chapter 14 starts with seed words alone. Later checkpoints load the
-needed library prefix before the chapter's own words; Chapter 26 loads
-the complete library and assembler. Each exercises only words introduced
-so far.
+needed library prefix before the chapter's own words; Chapter 25 uses
+the completed library. Each exercises only words introduced so far.
 
 The handoff to Part 3 is the library itself. Before proceeding, be able
 to trace a definition's stack effect and distinguish a word that emits
 an instruction from the instruction that eventually runs. The
 `if,`/`then,` pair in Chapter 24 is the key example: emit a branch,
 remember its unfinished destination, and patch it when that destination
-is known. The C compiler will reuse that pattern on a larger scale.
+is known. Continue directly to [Chapter 27](27-arena-and-io-buffers.md),
+where the C compiler will reuse that pattern on a larger scale.
+
+The same library also supports a standalone M1 assembler and hex2 linker.
+[Appendix I](26-m1-and-hex2.md) follows that optional branch through a
+program that prints `hi` and exits with status 42; the compiler does not
+load or require it.
