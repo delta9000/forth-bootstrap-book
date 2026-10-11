@@ -18,13 +18,14 @@ The source labels sometimes differ from chunk names: `to_r_code` is in `to-r`, f
 
 A *cell* is an eight-byte, 64-bit value. If the logical data stack holds `a`, then `b`, then `c` with `c` on top, the live values are arranged like this; the right side sketches the return stack while a called routine is running.
 
-```text
-Data stack                         Return stack
-rdi       c  (cached top)           rsp -> current return address
-rbp ->    b                        higher addresses: older return
-rbp+8 ->  a                        addresses or explicitly saved data
-Memory grows downward on push      Hardware pushes grow downward too
-```
+<figure class="mechanism" aria-labelledby="stacks-caption">
+<div class="mechanism-title">A logical stack is split between a register and memory</div>
+<div class="diagram-routes">
+<div><span class="diagram-label">Data stack · logical order a b c</span><div class="memory-cell diagram-accent"><code>rdi</code><strong>c · cached top</strong></div><div class="memory-cell"><code>[rbp]</code><strong>b · second item</strong></div><div class="memory-cell"><code>[rbp + 8]</code><strong>a · older item</strong></div><span>Push: rbp moves to a lower address; the old rdi is stored there.</span></div>
+<div><span class="diagram-label">Return stack · separate storage</span><div class="memory-cell diagram-accent"><code>[rsp]</code><strong>Current return address</strong></div><div class="memory-cell"><span>Higher addresses</span><span>Older return addresses or explicitly saved data</span></div><span>call pushes a return address; ret consumes one.</span></div>
+</div>
+<figcaption id="stacks-caption">Each memory cell is eight bytes. Rows run toward higher memory addresses, while pushes grow toward lower addresses. The cached c is in a register, not a memory cell above b. Hardware call and ret affect the return stack, not the logical data stack.</figcaption>
+</figure>
 
 `rbp` points to the second item on the stack; it does not point to `rdi`. A data-stack push preserves the old `rdi` by moving `rbp` downward and storing there. It then installs a new top in `rdi`. Call this the **cached-top pattern**. A data-stack pop reverses that movement by loading the next value into `rdi` and moving `rbp` upward.
 

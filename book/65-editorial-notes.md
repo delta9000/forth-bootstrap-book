@@ -143,6 +143,13 @@ without JavaScript. Keep these asset names distinct from mdBook's reserved
 theme filenames, especially `book.js`, which would replace its core
 search and navigation script.
 
+Mechanism diagrams use native HTML text and the `.mechanism` styles. Keep
+each figure tied to a worked example and state what its arrows mean.
+Distinguish memory order, execution order, construction ancestry and value
+transport; these are different relationships. Reflow labels on narrow
+screens rather than shrinking them. Captions must retain the key inference
+without color, and diagrams must remain readable without JavaScript.
+
 After changes to the reading interface, inspect a long source chapter at
 desktop and phone widths, in light and dark themes. Open the in-chapter
 contents, follow a checkpoint link, try search, and check print styling.

@@ -21,6 +21,18 @@ Keep these four roles separate while reading the recipes:
 | Stage 3 | Stage 2 GCC | Compared with Stage 2 and Stage 4 |
 | Stage 4 | Stage 3 GCC | Tests whether Stage 3 reproduces its installation |
 
+<figure class="mechanism" aria-labelledby="generation-caption">
+<div class="mechanism-title">Who builds each generation?</div>
+<ol class="diagram-flow">
+<li><span class="diagram-label">Built by seed-cc / Forth</span><strong>Stage C GCC</strong><span>The first GCC executable.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Built by Stage C GCC</span><strong>Stage 2 GCC</strong><span>First GCC-built generation.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Built by Stage 2 GCC</span><strong>Stage 3 GCC</strong><span>Compare its installation with Stage 2.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Built by Stage 3 GCC</span><strong>Stage 4 GCC</strong><span>Compare its installation with Stage 3.</span></li>
+</ol>
+<div class="diagram-result"><strong>Two comparisons must pass:</strong> Stage 2 ↔ Stage 3 and Stage 3 ↔ Stage 4.</div>
+<figcaption id="generation-caption">Arrows mean “builds the next generation,” not “has identical bytes.” The comparison checks the installed files selected by Stage D; the archive qualifications below still apply. A fixed point establishes reproduction, not correctness.</figcaption>
+</figure>
+
 Stage 3 versus Stage 4 tests reproduction by GCC-built GCC. Stage 2 versus
 Stage 3 asks whether that stable result already appeared in the first
 GCC-produced generation (`forth-bootstrap/chain/gcc-direct/stage-d.sh:170`).

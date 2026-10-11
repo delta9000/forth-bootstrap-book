@@ -18,6 +18,18 @@ reconstructs its local `p` and changes that copy to `{23,32}`; its return
 uses RAX and RDX, which the caller collects into `answer`. The checkpoint
 also checks that `original` is still `{20,30}`.
 
+<figure class="mechanism" aria-labelledby="value-caption">
+<div class="mechanism-title">A value crosses the call boundary</div>
+<ol class="diagram-flow">
+<li><span class="diagram-label">Caller · capture</span><strong>original = {20, 30}</strong><span>Snapshot the object's 16 bytes into private argument storage.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Call · transport</span><strong>RDI = 20 · RSI = 30</strong><span>The separate argument 3.0 travels in XMM0.</span></li>
+<li><span class="diagram-label">Callee · reconstruct and change</span><strong>p: {20, 30} → {23, 32}</strong><span>The callee changes its own local object.</span></li>
+<li class="diagram-accent"><span class="diagram-label">Return · collect</span><strong>RAX = 23 · RDX = 32</strong><span>The caller collects these bytes into answer.</span></li>
+</ol>
+<div class="diagram-result"><strong>After the call:</strong> original = {20, 30}; answer = {23, 32}.</div>
+<figcaption id="value-caption">The checkpoint's shift(original, 3.0), in System V mode. Arrows follow object bytes across the boundary. The source address identifies the bytes to capture; it is not the parameter value sent in RDI.</figcaption>
+</figure>
+
 This manual route through the call explains the staging code that
 follows. Saving only `original`'s address would leave the bytes dependent
 on what later argument evaluation does to the source object. Passing

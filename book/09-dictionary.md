@@ -22,6 +22,18 @@ The link occupies a cell. The flags byte is at offset 8, the name-length byte at
 
 That address is the **execution token**, abbreviated **xt**. For a header at address `h` with name length `n`, its execution token is `h + 10 + n`. Here the header is at `0x4002F5`, so the four-byte name puts the code at `0x400303`. These are two addresses for the same word, with different uses: inspect the header for metadata; enter the code to run it. Confusing them would make the processor execute a link as machine code.
 
+<figure class="mechanism" aria-labelledby="header-caption">
+<div class="mechanism-title">Two addresses for one dictionary word</div>
+<div class="memory-map">
+<div><code>0x4002F5 · h</code><strong>Link · 8 bytes</strong><span>Points to older header 0x4002BE, not to this word's code.</span></div>
+<div><code>h + 8</code><strong>Flags · 1 byte</strong><span>00</span></div>
+<div><code>h + 9</code><strong>Name length · 1 byte</strong><span>04</span></div>
+<div><code>h + 10</code><strong>Name · 4 bytes</strong><span>66 69 6E 64 = “find”</span></div>
+<div class="diagram-accent"><code>0x400303 · xt</code><strong>Machine instructions begin</strong><span>h + 10 + 4: enter here to execute find.</span></div>
+</div>
+<figcaption id="header-caption">Addresses increase downward. A successful name comparison advances across the four name bytes and arrives at xt. Lookup follows the link to an older header on a mismatch; execution enters the instructions after the name. There is no code-pointer field.</figcaption>
+</figure>
+
 ## `find_code`: compare, follow, return
 
 `find` consumes `( c-addr u )`, the address and length of a name, and returns an execution token or zero. It compares lengths before touching the name bytes. `u` arrives in `rdi`, with `c-addr` underneath it.
