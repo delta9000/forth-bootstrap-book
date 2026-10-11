@@ -66,6 +66,7 @@ main pre { margin: 1.8rem 0; border: 1px solid var(--book-rule); border-radius: 
 main pre code { font-size: 1.28rem; line-height: 1.62; padding: 1.7rem 1.8rem; }
 .light pre code.hljs { background: #f1f3ed; color: #263c37; }
 .light .hljs-comment, .light .hljs-quote { color: #586858; }
+.coal main :not(pre) > code { background: #24362e; color: #c9e3d0; }
 .coal pre code.hljs { background: #142023; color: #dce4dc; }
 .coal .hljs-comment, .coal .hljs-quote { color: #a6b5a9; }
 main table { font-family: var(--book-ui); font-size: 1.4rem; line-height: 1.6; width: 100%; }
@@ -147,6 +148,7 @@ main details > :last-child { margin-bottom: 0.6rem; }
     main > h1 { font-size: 28pt; max-width: none; }
     main h2 { font-size: 18pt; }
     main h3 { font-size: 13pt; }
+    main :not(pre) > code { background: transparent !important; color: #111 !important; }
     main pre code { font-size: 8pt; white-space: pre-wrap; overflow-wrap: anywhere; }
     main pre, main table { break-inside: auto; }
     main h2, main h3, .book-listing-label { break-after: avoid; }
