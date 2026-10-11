@@ -94,8 +94,7 @@ M1 is the textual assembly format that M2-Planet writes: it can name
 byte sequences and symbolic destinations. For this test we need only its
 role as an output file. The Forth compiler directly produces a runnable
 M2-Planet executable; running that executable on C source produces M1
-text. Optional [Appendix I](26-m1-and-hex2.md) explains the format through
-a standalone assembler; that assembler is not a step in this comparison.
+text. Comparing those output bytes does not require an assembly step.
 
 A star on the terminal checks the entry path. Stage-A parity asks a larger, precise question: does M2-Planet built by the Forth compiler emit byte-identical M1 output to M2-Planet built by GCC when both compile the same M2-Planet source set for amd64?
 

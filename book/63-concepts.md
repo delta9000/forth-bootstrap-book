@@ -202,6 +202,7 @@ when returning after a break.
 - LP64 native object storage — [Chapter 39](39-lp64-storage-and-initializers.md#native-declarations-and-aligned-storage)
 - Lvalue — [Chapter 34](34-expressions-part-2.md)
 - Lvalue tracking — [Chapter 34](34-expressions-part-2.md#lvalue-tracking)
+- M1 — [Chapter 38](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof)
 - M2-Planet — [Chapter 38](38-main-and-bootstrap-chain.md)
 - Macro expansion — [Chapter 28](28-the-preprocessor.md#macro-expansion)
 - Macro table — [Chapter 28](28-the-preprocessor.md)
@@ -309,18 +310,6 @@ when returning after a break.
 - Temporary scanner bootstrap — [Chapter 51](51-owning-the-tools.md)
 - Virtual address — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 
-### Appendix I: optional assembly walkthrough
-
-These topics belong to a separate application of the Forth library. They
-are not prerequisites for the compiler or bootstrap reading routes.
-
-- hex2 — [Appendix I](26-m1-and-hex2.md)
-- Label table — [Appendix I](26-m1-and-hex2.md)
-- M1 — [Appendix I](26-m1-and-hex2.md)
-- M1 macro — [Appendix I](26-m1-and-hex2.md)
-- Sigil — [Appendix I](26-m1-and-hex2.md)
-- Two-pass assembly — [Appendix I](26-m1-and-hex2.md)
-
 ### Appendix references
 
 - Historical reproducibility and diverse double-compiling — [Appendix C](57-historical-reproducibility.md).
@@ -329,7 +318,6 @@ are not prerequisites for the compiler or bootstrap reading routes.
 - Supported C language and ABI boundaries — [Appendix F](60-c-subset.md).
 - Compiler diagnostics and exit codes — [Appendix G](61-error-codes.md).
 - Exercise hints and feedback — [Appendix H](66-exercise-feedback.md).
-- Standalone M1 assembler and hex2 linker — [Appendix I](26-m1-and-hex2.md).
 
 ## Capability checks at the transitions
 
@@ -450,8 +438,7 @@ optional consultation; a forward pointer alone does not add a dependency.
 | [58 — Appendix D: worked exercises](58-worked-exercises.md) | D.1: [24](24-lib-11-control-flow-combinators.md); D.2: [10](10-colon-compiler.md) and [12](12-repl.md); D.3: [33](33-expressions-part-1.md) for the trace, [38](38-main-and-bootstrap-chain.md) for the full compiler run | [10](10-colon-compiler.md), [12](12-repl.md), [24](24-lib-11-control-flow-combinators.md), [33](33-expressions-part-1.md) |
 | [59 — Appendix E: further reading](59-further-reading.md) | [38](38-main-and-bootstrap-chain.md) | [33](33-expressions-part-1.md) |
 | [60 — Appendix F: the C subset](60-c-subset.md) | [38](38-main-and-bootstrap-chain.md) | [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [38](38-main-and-bootstrap-chain.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [43](43-runtime-and-libc.md), [44](44-target-headers.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md), [51](51-owning-the-tools.md), [52](52-gcc-4-fixed-point.md) |
-| [61 — Appendix G: compiler error codes](61-error-codes.md) | [38](38-main-and-bootstrap-chain.md) | [9](09-dictionary.md), [Appendix I](26-m1-and-hex2.md) (assembler diagnostics only), [27](27-arena-and-io-buffers.md), [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md) |
-| [Appendix I — The M1 assembler and hex2 linker](26-m1-and-hex2.md) | [25](25-lib-12-defining-words-and-bytes-eq.md) | [12](12-repl.md), [25](25-lib-12-defining-words-and-bytes-eq.md) |
+| [61 — Appendix G: compiler error codes](61-error-codes.md) | [38](38-main-and-bootstrap-chain.md) | [9](09-dictionary.md), [27](27-arena-and-io-buffers.md), [28](28-the-preprocessor.md), [30](30-types-and-symbols.md), [32](32-codegen-part-2.md), [33](33-expressions-part-1.md), [34](34-expressions-part-2.md), [35](35-declarations-types-globals.md), [36](36-statements-if-while-for-return.md), [37](37-functions-and-scope.md), [39](39-lp64-storage-and-initializers.md), [40](40-objects-and-relocations.md), [41](41-system-v-calls.md), [42](42-linker-and-archives.md), [45](45-typed-constants.md), [46](46-varargs.md), [47](47-floats.md), [48](48-bitfields.md), [49](49-aggregate-abi.md), [50](50-seed-cc-fixed-point.md) |
 
 The prose references often reach past the immediately preceding chapter: the outlines preserve reading order, while the last column locates the particular machinery being reused. The historical appendix also points to the epilogue; a cross-reference alone does not add a prerequisite.
 
@@ -461,9 +448,9 @@ The prose references often reach past the immediately preceding chapter: the out
 
 Read [Chapters 1–3](01-reading-the-book.md) for orientation, then Chapters
 4–25 and 27–56 in sidebar order. The library leads straight to the
-compiler; the former Chapter 26 is optional [Appendix I](26-m1-and-hex2.md),
-with its existing URL preserved. Consult the appendices when a topic
-calls for them. This respects the main route's outline order. Appendix D
+compiler. Chapter numbers retain the gap at 26, whose page now holds a
+separate regression check. Consult the appendices when a topic calls for
+them. This respects the main route's outline order. Appendix D
 can be used one exercise at a time at the points shown above; it does not
 require finishing Part 3 first.
 
@@ -473,9 +460,8 @@ Begin with [Part 3](part-3-compiler.md), Chapters 27–49, if you can trace
 Forth stack effects, distinguish compilation from execution, and follow
 memory stores and emitted bytes. The transition checks above help locate
 the specific earlier explanation if one of those is rusty. Chapter 38
-introduces M1 as the output compared at Stage A; interpreting that format
-is optional depth in [Appendix I](26-m1-and-hex2.md). Use the local
-C-input bridge before type and parser records. Stop at
+introduces M1 as the output compared at Stage A. Use the local C-input
+bridge before type and parser records. Stop at
 [Chapter 38](38-main-and-bootstrap-chain.md) for the core compiler and
 Stage A, or continue through [Chapter 49](49-aggregate-abi.md) for the
 extended compiler. Keep [Appendix F](60-c-subset.md) and

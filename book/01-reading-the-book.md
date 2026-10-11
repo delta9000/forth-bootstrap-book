@@ -113,16 +113,19 @@ question. The later parts use the ability we have just tried:
 
 The library and compiler begin as Forth source loaded into the seed,
 much as the `hello` definition was. The main path goes from the completed
-library in Chapter 25 straight to the compiler in Chapter 27; the separate
-M1/hex2 assembler is an optional [Appendix I](26-m1-and-hex2.md). Later
-chapter numbers keep their existing references. For now, Chapter 2 takes
-a closer look at the small executable we have in hand.
+library in Chapter 25 straight to the compiler in Chapter 27. The former
+assembler chapter is retained as a [regression check](26-m1-and-hex2.md),
+so later chapter numbers keep their existing references. For now,
+Chapter 2 takes a closer look at the small executable we have in hand.
 
 ## Reading and trying
 
-The book keeps the complete source nearby and explains it a piece at a
-time. A listing with a source path shows the implementation; a **Try it**
-checkpoint gives shell commands and a result to compare. Source listings
+The book keeps the pinned source checkout nearby and explains its chosen
+seed, library and compiler files a piece at a time. The 34 files in
+`tools/canonical-sources.txt` form the book's source-coverage scope; the
+standalone assembler is outside it. A listing with a source path shows
+the implementation; a **Try it** checkpoint gives shell commands and a
+result to compare. Source listings
 are for reading, not shell commands to paste. Fences tagged `file=` or
 `chunk=` preserve the exact source, including its comments.
 

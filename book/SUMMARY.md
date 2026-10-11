@@ -83,7 +83,10 @@
 - [Appendix F: the C subset](60-c-subset.md)
 - [Appendix G: compiler error codes](61-error-codes.md)
 - [Appendix H: exercise feedback](66-exercise-feedback.md)
-- [Appendix I: the M1 assembler and hex2 linker](26-m1-and-hex2.md)
+
+# Checks and references
+
+- [Assembler regression check](26-m1-and-hex2.md)
 - [Glossary](62-glossary.md)
 - [Concept index and dependencies](63-concepts.md)
 - [Word index](WORD-INDEX.md)

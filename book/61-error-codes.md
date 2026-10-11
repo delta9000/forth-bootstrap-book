@@ -27,9 +27,8 @@ The core compiler groups codes by source layer; later layers reuse numbers and a
 | `cc-bf-die` | `bitfield: `, then `cc-die` | Prefix plus compiler form |
 | `cc-ag-die`, `cc-ld-die` | `aggregate-abi: ` or `long-double: `, then `cc-die` | Prefix plus compiler form |
 | `cc-f64-fail` | Literal reason, then `die` | `cc-f64-literal: REASON`; no compiler line |
-| Assembler helpers | `die` or `asm-tok-err` | Bare status, or offending token on stderr |
 
-The common reporter writes to stderr and exits with the supplied code (`forth-bootstrap/cc/020-cc-arena.fth:405`). The assembler and literal converter have separate reporting paths. Linker and archive errors share the common reporter, but its reader position is not an ELF byte offset.
+The common reporter writes to stderr and exits with the supplied code (`forth-bootstrap/cc/020-cc-arena.fth:405`). The literal converter has a separate reporting path. Linker and archive errors share the common reporter, but its reader position is not an ELF byte offset.
 
 For compiler input, the reported position is `cc-src-line` in the preprocessed text. The source reader increments it at newlines (`forth-bootstrap/cc/030-cc-io.fth:108`); preprocessing counts emitted newlines, then rewinds that reader (`forth-bootstrap/cc/040-cc-prep.fth:61,2339`). Includes change the flattened position. It need not equal a line in the original file. Logical source location tracking is separate; the implicit-function diagnostic can print that location before the flattened line (`forth-bootstrap/cc/121-cc-sysv.fth:937`).
 
@@ -388,33 +387,6 @@ The archive reader also raises metadata errors through `lnk-need` and `lnk-bad`;
 | `251` | `forth-bootstrap/cc/141-archive.fth:160,162` | `lnk-cap` | Archive byte capacity exceeded. | [Chapter 42](42-linker-and-archives.md) |
 | `249` | `forth-bootstrap/cc/131-cc-aggregate-abi.fth:408,474,535,543` | `cc-ld-die` | Invalid long-double scalar use, cast, or mapped static initializer. | [Chapter 49](49-aggregate-abi.md) |
 | `249` | `forth-bootstrap/cc/132-cc-long-double.fth:51,79,109,121,135,178,202` | `cc-ld-die` | Incompatible conversion, integer-only operator, or mapped static use. | [Chapter 49](49-aggregate-abi.md) |
-
-## The assembler's codes
-
-The following table belongs to the separate M1/hex2 program in optional [Appendix I](26-m1-and-hex2.md). Its overlapping codes do not denote System V or object-writer failures. Capacity and output-open failures exit without a compiler diagnostic. `asm-tok-err` writes the offending token to stderr; undefined references, field-fit failures and malformed hex tokens use it (`forth-bootstrap/forth/130-asm.fth:412`).
-
-### 130-asm.fth
-
-| Code | Numbered site | Containing word → raising helper | Meaning | Layer chapter |
-|---:|---|---|---|---|
-| 230 | `forth-bootstrap/forth/130-asm.fth:145` | `asm-write-output` → `die` | Output path could not be opened. | [Appendix I](26-m1-and-hex2.md) |
-| 231 | `forth-bootstrap/forth/130-asm.fth:593` | `asm-process-token` → `asm-do-ref` | Absolute `&label` undefined. | [Appendix I](26-m1-and-hex2.md) |
-| 232 | `forth-bootstrap/forth/130-asm.fth:535` | `asm-do-pct-ref` → `asm-tok-err` | Relative `%target>base` base undefined. | [Appendix I](26-m1-and-hex2.md) |
-| 233 | `forth-bootstrap/forth/130-asm.fth:529` | `asm-do-pct-ref` → `asm-tok-err` | Relative `%target>base` target undefined. | [Appendix I](26-m1-and-hex2.md) |
-| 234 | `forth-bootstrap/forth/130-asm.fth:541` | `asm-do-pct-ref` → `asm-do-ref` | Relative `%label` undefined. | [Appendix I](26-m1-and-hex2.md) |
-| 235 | `forth-bootstrap/forth/130-asm.fth:588` | `asm-process-token` → `asm-do-ref` | Relative `!label` undefined. | [Appendix I](26-m1-and-hex2.md) |
-| 236 | `forth-bootstrap/forth/130-asm.fth:589` | `asm-process-token` → `asm-do-ref` | Relative `@label` undefined. | [Appendix I](26-m1-and-hex2.md) |
-| 237 | `forth-bootstrap/forth/130-asm.fth:590` | `asm-process-token` → `asm-do-ref` | Relative `~label` undefined. | [Appendix I](26-m1-and-hex2.md) |
-| 238 | `forth-bootstrap/forth/130-asm.fth:592` | `asm-process-token` → `asm-do-ref` | Absolute `$label` undefined. | [Appendix I](26-m1-and-hex2.md) |
-| 239 | `forth-bootstrap/forth/130-asm.fth:95` | `asm-load-stdin` → `asm-check-cap` | Source buffer full. | [Appendix I](26-m1-and-hex2.md) |
-| 240 | `forth-bootstrap/forth/130-asm.fth:117` | `asm-exp-emit-byte` → `asm-check-cap` | Macro expansion buffer full. | [Appendix I](26-m1-and-hex2.md) |
-| 241 | `forth-bootstrap/forth/130-asm.fth:132` | `asm-emit-byte` → `asm-check-cap` | Output buffer full. | [Appendix I](26-m1-and-hex2.md) |
-| 242 | `forth-bootstrap/forth/130-asm.fth:181` | `asm-store-label` → `asm-check-cap` | Label table full. | [Appendix I](26-m1-and-hex2.md) |
-| 243 | `forth-bootstrap/forth/130-asm.fth:631` | `asm-def-store` → `asm-check-cap` | DEFINE table full. | [Appendix I](26-m1-and-hex2.md) |
-| 244 | `forth-bootstrap/forth/130-asm.fth:513` | `asm-do-ref` → `asm-fit` | Label value does not fit its reference field. | [Appendix I](26-m1-and-hex2.md) |
-| 245 | `forth-bootstrap/forth/130-asm.fth:504` | `asm-do-ref` → `asm-fit` | Numeric value does not fit its reference field. | [Appendix I](26-m1-and-hex2.md) |
-| 246 | `forth-bootstrap/forth/130-asm.fth:553` | `asm-check-hex` → `asm-tok-err` | Bare token contains non-hexadecimal characters. | [Appendix I](26-m1-and-hex2.md) |
-| 247 | `forth-bootstrap/forth/130-asm.fth:558` | `asm-check-hex` → `asm-tok-err` | Hexadecimal token has an odd digit count. | [Appendix I](26-m1-and-hex2.md) |
 
 ## The build controller's codes
 

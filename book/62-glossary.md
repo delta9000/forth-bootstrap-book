@@ -1,6 +1,6 @@
 # Glossary
 
-Definitions are grouped by the Part or optional appendix that introduces each concept, then alphabetically. Each entry links to its teaching page; individual seed names and Forth words belong in the [word index](WORD-INDEX.md). For C APIs, use the teaching chapter or book search; the generated index does not enumerate C functions.
+Definitions are grouped by the Part that introduces each concept, then alphabetically. Each entry links to its teaching page; individual seed names and Forth words belong in the [word index](WORD-INDEX.md). For C APIs, use the teaching chapter or book search; the generated index does not enumerate C functions.
 
 ## Part 1: Machine and seed
 
@@ -310,6 +310,8 @@ Definitions are grouped by the Part or optional appendix that introduces each co
 
 **Lvalue tracking** — Expression metadata keeps storage location, type, qualifiers and array shape. [Chapter 34](34-expressions-part-2.md).
 
+**M1** — The textual assembly format emitted by M2-Planet; Stage A compares two such output files byte for byte. [Chapter 38](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof).
+
 **M2-Planet** — The C compiler used as Stage A’s comparison target, built by both the Forth compiler and a reference compiler. [Chapter 38](38-main-and-bootstrap-chain.md).
 
 **Macro expansion** — Collect arguments, substitute, then rescan the replacement. [Chapter 28](28-the-preprocessor.md).
@@ -507,17 +509,3 @@ Definitions are grouped by the Part or optional appendix that introduces each co
 **Temporary scanner bootstrap** — Heirloom lex builds an intermediate flex that then generates flex's own scanner. [Chapter 51](51-owning-the-tools.md).
 
 **Virtual address** — The address a program uses for a memory access. Page tables translate it and determine whether the access is permitted; distinct virtual addresses can reach the same physical byte. [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte).
-
-## Optional Appendix I: M1 and hex2
-
-**hex2** — A hexadecimal assembly format with named labels and sized absolute or relative references. [Appendix I](26-m1-and-hex2.md).
-
-**Label table** — Records of name slice and address; newest-first slice lookup, newest declaration wins. [Appendix I](26-m1-and-hex2.md).
-
-**M1** — Macro assembly text whose substitutions, numeric references and strings are expanded before label resolution. [Appendix I](26-m1-and-hex2.md).
-
-**M1 macro** — DEFINE name value: textual, non-recursive substitution before assembly. [Appendix I](26-m1-and-hex2.md).
-
-**Sigil** — The initial character of an M1 or hex2 reference token; it selects the field width and absolute or relative interpretation. [Appendix I](26-m1-and-hex2.md).
-
-**Two-pass assembly** — An initial scan counts bytes and records labels; a subsequent scan resolves references and emits bytes. [Appendix I](26-m1-and-hex2.md).

@@ -42,10 +42,7 @@ There is one more guard: a macro is marked busy while its replacement is
 scanned, so it cannot keep expanding itself. Quoted strings and comments
 have their own walkers. Change the argument to `","` and collection must
 still find one argument; that comma is inside a string. These are C
-preprocessing rules. The optional M1 walkthrough in
-[Appendix I](26-m1-and-hex2.md) has a different `DEFINE` mechanism: it
-substitutes a stored body without rescanning it for further macros. No
-part of that assembler is used here.
+preprocessing rules.
 
 The implementation also supports a direct profile with different include
 and substitution rules. We will identify those branches as they appear.

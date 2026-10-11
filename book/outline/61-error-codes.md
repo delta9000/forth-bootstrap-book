@@ -8,7 +8,7 @@ Sources taught: None — this chapter organizes reading rather than teaching a s
 
 Prerequisites: [38 — Compiler entry and Stage A](38-main-and-bootstrap-chain.md)
 
-Optional consultation: [Appendix I — M1 and hex2](26-m1-and-hex2.md) for the separate assembler diagnostic table.
+Separate check: [Assembler regression check](26-m1-and-hex2.md). Its diagnostics belong to the pinned source; they are not part of the compiler error-code reference.
 
 Checkpoint: TODO — no chapter-specific checkpoint exists.
 

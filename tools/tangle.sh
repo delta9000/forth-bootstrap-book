@@ -34,7 +34,8 @@
 #                   order.  Used while the book is in progress.
 #   verify --strict Every required source in canonical-sources.txt must be
 #                   covered by published chapters and equal source byte-for-byte.
-#   status          Print coverage: tangled-lines / source-lines per file.
+#                   Audit explicit check-only exceptions without executing their tests.
+#   status          Print canonical coverage and registered check-only checkpoints.
 
 set -euo pipefail
 
@@ -46,6 +47,9 @@ BOOK_DIR="$BOOK_ROOT/book"
 REPO_ROOT="$(cd "${FORTH_BOOTSTRAP:-$BOOK_ROOT/forth-bootstrap}" && pwd)"
 TANGLE_AWK="$SCRIPT_DIR/tangle.awk"
 INVENTORY="$SCRIPT_DIR/canonical-sources.txt"
+CHECK_ONLY_INVENTORY="$SCRIPT_DIR/check-only-sources.txt"
+declare -a required_sources=() check_only_sources=()
+declare -A source_roles=() check_only_tests=()
 
 usage() {
     sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
@@ -86,6 +90,106 @@ cmd_extract() {
     awk -f "$TANGLE_AWK" -v OUTDIR="$outdir" "${files[@]}"
 }
 
+# Each numbered source has exactly one role: taught byte-for-byte, or an
+# explicit check-only exception mapped to a checkpoint in the source checkout.
+# This is a static contract audit. It never executes the registered checkpoints.
+load_source_contract() {
+    required_sources=()
+    check_only_sources=()
+    source_roles=()
+    check_only_tests=()
+    [ -s "$INVENTORY" ] || {
+        echo "tangle: missing or empty required-source inventory $INVENTORY" >&2
+        return 1
+    }
+    [ -f "$CHECK_ONLY_INVENTORY" ] || {
+        echo "tangle: missing check-only inventory $CHECK_ONLY_INVENTORY" >&2
+        return 1
+    }
+
+    local fail=0 line required checkpoint extra src
+    while IFS= read -r line || [ -n "$line" ]; do
+        case $line in ''|'#'*) continue ;; esac
+        read -r required extra <<< "$line"
+        if ! is_numbered_source "$required" || [ -n "$extra" ]; then
+            echo "FAIL  $line  (invalid canonical source entry)" >&2
+            fail=1
+            continue
+        fi
+        if [ -n "${source_roles[$required]:-}" ]; then
+            echo "FAIL  $required  (duplicate canonical source entry)" >&2
+            fail=1
+            continue
+        fi
+        source_roles[$required]=canonical
+        required_sources+=("$required")
+        if [ ! -f "$REPO_ROOT/$required" ]; then
+            echo "FAIL  $required  (required source file is missing)" >&2
+            fail=1
+        fi
+    done < "$INVENTORY"
+    if [ "${#required_sources[@]}" = 0 ]; then
+        echo "tangle: required-source inventory contains no source paths" >&2
+        fail=1
+    fi
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        case $line in ''|'#'*) continue ;; esac
+        read -r required checkpoint extra <<< "$line"
+        if ! is_numbered_source "$required" || ! is_checkpoint_path "$checkpoint" || [ -n "$extra" ]; then
+            echo "FAIL  $line  (invalid check-only entry; expected numbered-source tests/checkpoint-path)" >&2
+            fail=1
+            continue
+        fi
+        case ${source_roles[$required]:-} in
+            canonical)
+                echo "FAIL  $required  (source is both canonical and check-only)" >&2
+                fail=1
+                continue ;;
+            check-only)
+                echo "FAIL  $required  (duplicate check-only source entry)" >&2
+                fail=1
+                continue ;;
+        esac
+        source_roles[$required]=check-only
+        check_only_sources+=("$required")
+        check_only_tests[$required]=$checkpoint
+        if [ ! -f "$REPO_ROOT/$required" ]; then
+            echo "FAIL  $required  (check-only source file is missing)" >&2
+            fail=1
+        fi
+        if [ ! -f "$REPO_ROOT/$checkpoint" ]; then
+            echo "FAIL  $required  (check-only checkpoint is missing: $checkpoint)" >&2
+            fail=1
+        fi
+    done < "$CHECK_ONLY_INVENTORY"
+
+    # Unknown future numbered sources cannot silently escape the audit.
+    for src in "$REPO_ROOT"/seed/[0-9]*.hex0 "$REPO_ROOT"/forth/[0-9]*.fth "$REPO_ROOT"/cc/[0-9]*.fth; do
+        [ -f "$src" ] || continue
+        required=${src#"$REPO_ROOT"/}
+        if [ -z "${source_roles[$required]:-}" ]; then
+            echo "FAIL  $required  (numbered source absent from canonical-sources.txt and check-only-sources.txt)" >&2
+            fail=1
+        fi
+    done
+    return "$fail"
+}
+
+is_numbered_source() {
+    [[ $1 =~ ^(seed/[0-9][[:alnum:]_.-]*\.hex0|(forth|cc)/[0-9][[:alnum:]_.-]*\.fth)$ ]]
+}
+
+is_checkpoint_path() {
+    [[ $1 == tests/* && $1 =~ ^[[:alnum:]_./-]+$ ]] || return 1
+    case /$1/ in *//*|*/./*|*/../*) return 1 ;; esac
+}
+
+report_check_only() {
+    local source=$1
+    printf 'CHECK-ONLY  %s  (checkpoint %s registered; not executed)\n' "$source" "${check_only_tests[$source]}"
+}
+
 cmd_verify() {
     local strict=""
     if [ "${1:-}" = "--strict" ]; then strict=1; fi
@@ -99,35 +203,20 @@ cmd_verify() {
     local fail=0
     local any=0
     if [ -n "$strict" ]; then
-        [ -s "$INVENTORY" ] || {
-            echo "tangle: missing or empty required-source inventory $INVENTORY" >&2
-            return 1
-        }
-        local required_count=0 required src
-        while IFS= read -r required || [ -n "$required" ]; do
-            case $required in ''|'#'*) continue ;; esac
-            required_count=$((required_count + 1))
-            if [ ! -f "$REPO_ROOT/$required" ]; then
-                echo "FAIL  $required  (required source file is missing)" >&2
-                fail=1
-            fi
+        load_source_contract || return 1
+        local required
+        for required in "${required_sources[@]}"; do
             if [ ! -f "$tmpdir/$required" ]; then
                 echo "FAIL  $required  (no published file= coverage for required source)" >&2
                 fail=1
             fi
-        done < "$INVENTORY"
-        if [ "$required_count" = 0 ]; then
-            echo "tangle: required-source inventory contains no source paths" >&2
-            fail=1
-        fi
-        # New core sources must be deliberately added to the inventory and
-        # the book; neither an omitted file nor a stale manifest can pass.
-        for src in "$REPO_ROOT"/seed/[0-9]*.hex0 "$REPO_ROOT"/forth/[0-9]*.fth "$REPO_ROOT"/cc/[0-9]*.fth; do
-            [ -f "$src" ] || continue
-            required=${src#"$REPO_ROOT"/}
-            if ! grep -Fxq "$required" "$INVENTORY"; then
-                echo "FAIL  $required  (numbered source absent from canonical-sources.txt)" >&2
+        done
+        for required in "${check_only_sources[@]}"; do
+            if [ -f "$tmpdir/$required" ]; then
+                echo "FAIL  $required  (check-only source has published file= coverage; reconcile its inventory role)" >&2
                 fail=1
+            else
+                report_check_only "$required"
             fi
         done
     fi
@@ -137,6 +226,10 @@ cmd_verify() {
         t="$tmpdir/$t"
         any=1
         src="$REPO_ROOT/$base"
+        if [ -n "$strict" ] && [ "${source_roles[$base]:-}" = check-only ]; then
+            # The role conflict was already reported above; do not call it OK.
+            continue
+        fi
         if [ ! -f "$src" ]; then
             echo "FAIL  $base  (no such source file in the repository)" >&2
             fail=1
@@ -166,6 +259,10 @@ cmd_verify() {
     if [ "$any" = 0 ]; then
         echo "tangle verify: no file= blocks found in $BOOK_DIR" >&2
         return 1
+    fi
+    if [ -n "$strict" ] && [ "$fail" = 0 ]; then
+        printf 'tangle verify: %d canonical sources byte-identical; check-only registrations: %d (not executed)\n' \
+            "${#required_sources[@]}" "${#check_only_sources[@]}"
     fi
     return $fail
 }
@@ -210,6 +307,7 @@ cmd_status() {
     tmpdir="$(mktemp -d)"
     trap "rm -rf '$tmpdir'" EXIT
     cmd_extract "$tmpdir"
+    load_source_contract || return 1
 
     printf '%-28s %10s %10s %8s\n' "file" "covered" "total" "%"
     printf '%-28s %10s %10s %8s\n' "----" "-------" "-----" "-"
@@ -217,6 +315,10 @@ cmd_status() {
         [ -f "$src" ] || continue
         local base nt ns pct
         base="${src#"$REPO_ROOT"/}"
+        if [ "${source_roles[$base]:-}" = check-only ]; then
+            report_check_only "$base"
+            continue
+        fi
         ns=$(wc -l <"$src")
         if [ -f "$tmpdir/$base" ]; then
             nt=$(wc -l <"$tmpdir/$base")

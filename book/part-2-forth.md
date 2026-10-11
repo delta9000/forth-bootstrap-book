@@ -41,8 +41,3 @@ an instruction from the instruction that eventually runs. The
 remember its unfinished destination, and patch it when that destination
 is known. Continue directly to [Chapter 27](27-arena-and-io-buffers.md),
 where the C compiler will reuse that pattern on a larger scale.
-
-The same library also supports a standalone M1 assembler and hex2 linker.
-[Appendix I](26-m1-and-hex2.md) follows that optional branch through a
-program that prints `hi` and exits with status 42; the compiler does not
-load or require it.

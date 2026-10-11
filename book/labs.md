@@ -53,16 +53,11 @@ The CLI can list the other published shell blocks too. A chapter with more
 than one block may have an inspection step that depends on a previous
 step; those blocks are shown with their execution restrictions.
 
-### Optional assembler lab
+### Separate regression check
 
-[Appendix I](26-m1-and-hex2.md) builds the separate M1/hex2 assembler.
-Choose this lab if you want to trace how labels become addresses and
-relative displacements; it is not a prerequisite for the compiler labs.
-Its selector remains `26.1` for compatibility.
-
-| Lab | Build or inspect | What to explain afterward |
-|---|---|---|
-| [26.1 · Appendix I: an assembled executable](26-m1-and-hex2.md#try-it) | Assemble, execute, and measure a program | How labels become addresses and relative displacements |
+The [assembler regression check](26-m1-and-hex2.md#run-the-check) retains
+selector `26.1` for compatibility. It checks an assembled program's output,
+exit status and size; it is outside the learning milestones above.
 
 ## Make a controlled change
 
@@ -82,11 +77,9 @@ include assertions, update those comparisons when your intended change
 alters their result. Running `book-lab.py run 1.2` again runs the published
 original, not your edited copy.
 
-For the optional assembler exercise, keep message bytes, write length,
-and the predicted file size in view together. For compiler exercises,
-distinguish the generated program's status from the compiler's status.
-An unexpected result is useful evidence only when you know which process
-produced it.
+For compiler exercises, distinguish the generated program's status from
+the compiler's status. An unexpected result is useful evidence only when
+you know which process produced it.
 
 ## What the runner checks
 
@@ -113,7 +106,7 @@ run those examples concurrently.
 |---|---|
 | Missing source checkout or seed | Repeat Chapter 1's submodule and seed-build steps. The runner does not download or build prerequisites for you. |
 | Wrong directory | Invoke `tools/book-lab.py` from the book root; it selects the source checkout for the child shell. |
-| Exit 42 from the assembled program | This is Appendix I's intended result. Run its entire wrapper, which captures and checks the status. |
+| Exit 42 from the assembler regression program | This is the check's intended result. Run its entire wrapper, which captures and checks the status. |
 | A compiler diagnostic | Use [Appendix G](61-error-codes.md) to locate the reporting layer; retain the C input and the exact diagnostic. |
 | Timeout | Inspect the selected block before raising `--timeout`. A longer timeout does not make an excluded bootstrap route into a short lab. |
 | An excluded block | Follow the chapter's prerequisites and manual instructions. Stage A comparisons, full compiler builds, and QEMU routes remain separate tasks. |

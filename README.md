@@ -7,9 +7,9 @@ This is the literate book of
 1,772-byte Forth, its Forth library, a C compiler written in that Forth,
 and the tools that carry the route through GCC to Linux. The book
 connects the actual source to worked traces, runnable checkpoints, and
-exercises with feedback. An optional
-[Appendix I](book/26-m1-and-hex2.md) follows a separate M1 assembler and
-hex2 linker built on the same library.
+exercises with feedback. The separate M1/hex2 assembler remains covered
+by an [assembler regression check](book/26-m1-and-hex2.md), outside the
+book's teaching route.
 
 [Read the book](https://delta9000.github.io/forth-bootstrap-book/) ·
 [Start with your first word](book/01-reading-the-book.md) ·
@@ -54,8 +54,11 @@ to the companion when you want another milestone.
 ## Build and check the book
 
 Publication verifies that canonical source fences (`file=` and `chunk=`)
-reassemble the pinned sources byte for byte. Regression, citation, index,
-example and link checks complement that source check:
+reassemble the 34 book-taught files in `tools/canonical-sources.txt` byte
+for byte. This scope excludes `forth/130-asm.fth`, which stays in the
+pinned source checkout and is exercised by the assembler regression
+check. Regression, citation, index, example and link checks complement
+that source check:
 
 ```sh
 ./check.sh

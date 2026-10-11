@@ -1,4 +1,4 @@
-"""Keep optional appendices out of an earlier chapter's prerequisite bundle."""
+"""Keep back-matter checks out of an earlier chapter's prerequisite bundle."""
 
 import importlib.util
 from pathlib import Path
@@ -22,7 +22,7 @@ class BundleReadingOrderTests(unittest.TestCase):
             (book / "SUMMARY.md").write_text(
                 "- [Library](25-library.md)\n"
                 "- [Compiler](27-compiler.md)\n"
-                "- [Appendix I](26-assembler.md)\n"
+                "- [Assembler regression check](26-assembler.md)\n"
                 "- [Index](WORD-INDEX.md)\n")
             for name in ("25-library", "26-assembler", "27-compiler", "64-word-index", "99-unpublished"):
                 (outline / (name + ".md")).write_text("# " + name + "\n")
@@ -31,7 +31,7 @@ class BundleReadingOrderTests(unittest.TestCase):
                 self.assertEqual(BUNDLE.prior_chapters("27"), {"25"})
                 self.assertEqual(BUNDLE.prior_chapters("26"), {"25", "27"})
 
-    def test_compiler_bundle_does_not_assume_optional_assembler_reading(self):
+    def test_compiler_bundle_does_not_assume_assembler_check_reading(self):
         earlier = BUNDLE.prior_chapters("27")
         self.assertIn("25", earlier)
         self.assertNotIn("26", earlier)
