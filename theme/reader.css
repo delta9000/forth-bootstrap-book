@@ -183,20 +183,18 @@ main .diagram-flow { max-width: 48rem; margin-inline: auto; }
 .diagram-routes > div { border: 1px solid var(--book-rule); border-radius: 4px; padding: 1.3rem; }
 .diagram-routes strong, .diagram-routes span { display: block; }
 .diagram-route { margin: 1rem 0; font-size: 1.25rem; overflow-wrap: anywhere; }
-.diagram-merge { text-align: center; color: var(--links); font-size: 2.4rem; }
-.diagram-merge + .diagram-result { margin-top: 0; text-align: center; }
+/* Each alias keeps its destination inside its own route, even when stacked. */
+.diagram-aliases > div { display: flex; flex-direction: column; }
+.diagram-endpoint { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--book-rule); }
 main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top: 1px solid var(--book-rule); font-size: 1.25rem; color: var(--book-muted); }
 @media (max-width: 600px) {
     main .mechanism { padding: 1.4rem; }
     .byte-track, .diagram-routes { grid-template-columns: 1fr; }
-    .diagram-aliases > div::after { content: '↓ same physical byte'; display: block; margin-top: 1rem; color: var(--links); }
-    .diagram-merge { display: none; }
-    .diagram-merge + .diagram-result { margin-top: 1rem; }
 }
 @media print {
     main .mechanism { font-size: 9pt; background: white; color: #111; padding: 12pt; border-color: #aaa; break-inside: avoid; }
     .mechanism .diagram-accent, .mechanism .diagram-result { border-color: #777 !important; }
-    .mechanism .diagram-merge, .mechanism .diagram-flow li::after, .mechanism .diagram-aliases > div::after { color: #111; }
+    .mechanism .diagram-flow li::after { color: #111; }
     .mechanism-title { break-after: avoid; }
     .mechanism figcaption { break-before: avoid; }
     .mechanism-title { font-size: 12pt; }
@@ -204,6 +202,10 @@ main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top
     .diagram-flow li, .diagram-routes > div, .byte-track > div { break-inside: avoid; }
     .diagram-accent, .diagram-result { background: white; }
 }
+/* A cached register is deliberately outside the memory-row grid. */
+.stack-register { border: 2px solid var(--quote-border); border-radius: 6px; padding: 1rem; margin: .7rem 0 1.8rem; }
+.stack-register > code { display: block; }
+.stack-memory { border-top: 1px solid var(--book-rule); padding-top: 1rem; }
 .memory-cell { display: grid; grid-template-columns: minmax(8rem, 1fr) 2fr; gap: 1rem; border: 1px solid var(--book-rule); padding: .8rem; margin: .7rem 0; }
 .memory-map { border: 1px solid var(--book-rule); }
 .memory-map > div { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem 1.2rem; padding: 1.2rem; border-bottom: 1px solid var(--book-rule); }
@@ -213,7 +215,7 @@ main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top
     .memory-map > div { grid-template-columns: 1fr; }
     .memory-map > div > span { grid-column: 1; }
 }
-@media print { .memory-map > div, .memory-cell { break-inside: avoid; } }
+@media print { .memory-map > div, .memory-cell, .stack-register, .stack-memory { break-inside: avoid; } }
 
 /* Field positions stay aligned across argument and return registers. */
 .diagram-registers { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin: .5rem 0 1rem; }

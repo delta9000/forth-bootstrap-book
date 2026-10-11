@@ -188,11 +188,10 @@ Here is a manual translation trace through the tables this code constructs, not 
 <figure class="mechanism" aria-labelledby="alias-caption">
 <div class="mechanism-title">Two routes to the same physical byte</div>
 <div class="diagram-routes diagram-aliases">
-<div><span class="diagram-label">Low identity address</span><strong><code>0x201234</code></strong><span class="diagram-route">pml4[0] → pdpt_low[0] → pd_low[1]</span><span>2 MiB leaf: base 0x200000 + offset 0x1234</span></div>
-<div><span class="diagram-label">High direct-map address</span><strong><code>0xFFFF800000201234</code></strong><span class="diagram-route">pml4[256] → pdpt_dm[0]</span><span>1 GiB leaf: base 0 + offset 0x201234</span></div>
+<div><span class="diagram-label">Low identity address</span><strong><code>0x201234</code></strong><span class="diagram-route">pml4[0] → pdpt_low[0] → pd_low[1]</span><span>2 MiB leaf: base 0x200000 + offset 0x1234</span><div class="diagram-endpoint"><span class="diagram-label">Translates to</span><strong>Physical byte <code>0x201234</code></strong></div></div>
+<div><span class="diagram-label">High direct-map address</span><strong><code>0xFFFF800000201234</code></strong><span class="diagram-route">pml4[256] → pdpt_dm[0]</span><span>1 GiB leaf: base 0 + offset 0x201234</span><div class="diagram-endpoint"><span class="diagram-label">Translates to</span><strong>Physical byte <code>0x201234</code></strong></div></div>
 </div>
-<div class="diagram-merge" aria-hidden="true">↓ &nbsp; ↓</div>
-<div class="diagram-result diagram-accent"><strong>Physical byte 0x201234</strong><br>One location in RAM, accessible through either virtual address.</div>
+<div class="diagram-result diagram-accent"><strong>Same RAM location · supervisor-only access</strong><br>The two endpoints name one physical byte, not two copies.</div>
 <figcaption id="alias-caption">These are two distinct page-table walks. P2V and V2P only perform address arithmetic; the mappings make the aliases work. The different leaf sizes explain why the high route stops one level earlier.</figcaption>
 </figure>
 
