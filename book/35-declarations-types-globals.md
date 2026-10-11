@@ -1180,5 +1180,9 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-35-descri
 
 **Trace (easy).** Follow `struct T { struct T *next; };` through tag registration and field append. Explain why the field keeps a descriptor that becomes complete, while a pointer to an unknown tag keeps zero.
 
-**Verify (easy).** Change the checkpoint expression to `(char)321 == 321` and update its printed label. Run it and explain why testing equality exposes the cast’s effect while returning the cast value directly would not.
+**Verify (easy).** Change the checkpoint expression to `(char)321 == 321`.
+Predict its result, then update the printed label and the final
+`test "$program_status"` assertion before running it. Keep the
+compiler-status check at zero. Explain why testing equality exposes the
+cast's effect while returning the cast value directly would not.
 

@@ -206,6 +206,13 @@ after the new destination cell puts the false path at the alternative's
 first instruction. This is emit, remember, patch with an intermediate
 patch point.
 
+Correct destinations are only half the runtime contract. In `choose`,
+`0branch` consumes the flag whichever arm runs, and each arm pushes and
+emits one character. Both paths therefore reach the join with the same
+older data stack. If one arm left its character unconsumed, the code after
+`then,` would receive different stack shapes on the two paths. The patcher
+does not check this: trace each path against the enclosing word's contract.
+
 ## Backward loops: `begin,` / `while,` / `repeat,`
 
 A loop has a destination available before its body is compiled: the start
@@ -287,6 +294,13 @@ decrements. When `dup` supplies a zero flag, the exit lands on `drop`,
 which removes the remaining count. Putting the test before the body lets
 an initially zero count skip the body entirely. The position of `while,`
 determines how much work happens before each test.
+
+At the backward jump, the stack must again have the shape expected at
+`begin,`. For `down`, that is one current count above the caller's older
+values. `dup` preserves the count while the branch consumes its flag;
+the body replaces that count with the decremented one. A body that leaked
+one extra value would grow the stack on every iteration even with both
+branch destinations patched correctly.
 
 ## `until,` and `again,`: closing a known destination
 
@@ -411,7 +425,7 @@ either mark, even though the generated return leaves the loop at runtime.
 **Modify (moderate).** Change `choose` so the true arm contains another
 conditional. Draw the order of its fixups before running it, then supply
 flags that exercise every arm. Give each arm a distinct output character
-and check that every path consumes the flags it uses.
+and state one runtime stack contract that every path must satisfy.
 
 <details>
 <summary>Hint: separate emitted control flow from the current marks</summary>

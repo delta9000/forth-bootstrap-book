@@ -282,6 +282,36 @@ Disassembly of section .data:
 
 ## Exercise
 
-**Trace (easy).** Decode `48 8B 7D 00` at `forth-bootstrap/seed/000-seed.hex0:92` without looking at its assembly comment. Name the destination, effective address, and instruction length. Compare it with the store above. Why does changing the opcode reverse the direction while the ModRM byte stays the same?
+**Trace (easy).** Decode `48 8B 45 00` at
+`forth-bootstrap/seed/000-seed.hex0:102` without looking at its assembly
+comment. Name the destination, effective address, and instruction length.
+Then change only the last byte to `F8` on paper and assume `rbp=0x200`.
+Which address does the changed instruction read? Identify the fields that
+choose the operand width, destination register, and memory address.
 
 For a second trace, recover the entry jump's destination from its bytes. What error results from adding the displacement at the instruction's start instead of its end?
+
+<details>
+<summary>Hint: separate the register field from the displacement</summary>
+
+Split `45` into `mod | reg | r/m` before using the register-code table.
+Then interpret the final byte at the width selected by `mod`; do not use
+the register's width for that field.
+
+</details>
+
+<details>
+<summary>Check the changed load and the jump</summary>
+
+`48` selects a 64-bit operand, `8B` loads into the register field, and
+`45` splits as `01 | 000 | 101`: destination `rax`, base `rbp`, signed
+byte displacement. The original is the four-byte `mov rax, [rbp]`.
+With `F8`, the displacement is `248-256=-8`, so the load reads at `0x1F8`;
+it does not change `rbp`. If you chose `rdi`, recheck the `reg` field.
+If you chose `0x2F8`, recheck the displacement's signed width.
+
+The entry jump uses `0x0BA + 0x05DF = 0x699`. Starting at `0x0B5`
+instead would give `0x694`, five bytes too early. Relative control flow
+uses the next instruction; the changed load uses its base register.
+
+</details>

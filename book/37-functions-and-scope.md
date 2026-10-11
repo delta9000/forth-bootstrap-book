@@ -20,10 +20,22 @@ int main(void) { return add(4); }
 int add(int n) { return n + bias; }
 ```
 
+`int add(int n);` is a **prototype**: a declaration describing a function's
+result and parameter types, with no body to execute. The later definition
+adds that body. The name `n` is a **parameter**, the local object that
+receives a call's value; `4` in `add(4)` is the **argument** supplied by
+this caller.
+
 The prototype lets the compiler accept the call before it has seen `add`'s
 body. It cannot supply the body's address. That is the problem a fixup list
 solves; the declaration and the later definition must meet at the same
 pending references.
+
+A **translation unit** is the source given to one compilation after
+preprocessing, including any text brought in by headers. Here it contains
+all four forms above. Later separate compilation will let another unit
+supply a missing function body; this core executable path still needs all
+referenced bodies before finalization.
 
 The call parser compiles an expression; the function parser supplies its enclosing scope and frame; the top-level parser selects declarations until end of input. `cc-parse-program` places the entry stub before those bodies and resolves the remaining destinations afterward.
 

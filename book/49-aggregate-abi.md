@@ -246,6 +246,16 @@ A fixed prototype reserves only its declared argument capacity; unspecified and 
 
 A **fixed-frame snapshot** owns the bytes of a completed argument. Later argument expressions, nested calls and changes to the original object cannot change those bytes. A result object receives its own storage too.
 
+This parser evaluates and snapshots arguments in source order
+(`forth-bootstrap/cc/131-cc-aggregate-abi.fth:180–218`). That is this
+compiler's choice; C does not promise left-to-right argument evaluation
+([C11 draft, §6.5.2.2](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf)).
+The snapshot preserves a value once evaluated. It does not make a C
+program portable if that program depends on which argument runs first.
+C's separate restrictions on unsequenced reads and writes to the same
+scalar still apply (§6.5); choosing an evaluation order does not remove
+those restrictions.
+
 | Input | Result or destination |
 |---|---|
 | Slot, GP register → `cc-ag-store-gp` | Spill the incoming register. |
@@ -752,6 +762,27 @@ still carries an address like a record expression, but their operations
 differ: one admits numeric conversion, the other admits whole-object
 copying. Descriptor shape checks must decide which it is before conversion;
 the shared type code alone cannot.
+
+Follow `10.0L - 3.0L` as a manual trace. RDI initially addresses the left
+operand's object and RCX the right. `st(0)` names the x87 stack top;
+`st(1)` is the value beneath it. A load pushes a new top, and a pop exposes
+the next value. These names describe positions, unlike fixed RDI or RCX.
+
+| Emitted action | x87 values afterward, top first | Value outside x87 |
+|---|---|---|
+| Begin with evaluated operands | Empty | RDI → 10.0L; RCX → 3.0L |
+| Load the right object | 3.0L | Operand objects unchanged |
+| Load the left object | 10.0L, 3.0L | Operand objects unchanged |
+| Subtract with the reverse-and-pop form | 7.0L | Result still in x87 |
+| Store and pop into a fresh frame object | Empty | RDI → result object containing 7.0L |
+
+The reverse form computes the top value minus the one below it before
+popping (`forth-bootstrap/cc/132-cc-long-double.fth:124–138`). The save
+helper points RDI at the new object, stores the result and pops it, leaving
+no x87 result live (`forth-bootstrap/cc/132-cc-long-double.fth:12–14`). Reversing the
+loads without changing that subtraction would give −7.0L. Multiplication
+alone would hide this operand-order mistake because swapping its operands
+does not change the product.
 
 | Input | Result or destination |
 |---|---|

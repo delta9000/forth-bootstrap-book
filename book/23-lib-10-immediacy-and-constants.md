@@ -103,6 +103,9 @@ The final `,8` places it directly into the instruction's operand field.
 ### `constant` and the two modes
 
 `constant` reuses `:` (Chapter 10) for the header but supplies its own body.
+In its `( v "name" -- )` comment, `v` is a stack operand, while `"name"`
+denotes a token read from the remaining input. It is not a second stack
+cell or a request to type quotation marks around `zed`.
 The composition in `forth-bootstrap/forth/010-lib.fth:216` separates body
 emission from naming:
 

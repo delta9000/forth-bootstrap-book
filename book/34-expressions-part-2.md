@@ -2544,5 +2544,10 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-34-an-add
 
 **Trace (easy).** Follow `(*p)++` with `p` a character pointer. Identify where the pointer is loaded, where the target remains an address, and why parentheses preserve that address for the postfix handler.
 
-**Verify (easy).** Change the checkpoint’s comparison from `<` to `>`. Run it again and explain which ternary branch executes; update the printed expression to match your input.
+**Verify (easy).** Change the checkpoint’s comparison from `<` to `>`.
+Predict which ternary branch executes and the resulting program status.
+Update both the printed expression and the final `test "$program_status"`
+assertion to match that prediction, then run it. Keep the compiler-status
+check at zero: successful compilation and the generated program's answer
+are separate results.
 

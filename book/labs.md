@@ -107,7 +107,7 @@ run those examples concurrently.
 | Missing source checkout or seed | Repeat Chapter 1's submodule and seed-build steps. The runner does not download or build prerequisites for you. |
 | Wrong directory | Invoke `tools/book-lab.py` from the book root; it selects the source checkout for the child shell. |
 | Exit 42 from the assembler regression program | This is the check's intended result. Run its entire wrapper, which captures and checks the status. |
-| A compiler diagnostic | Use [Appendix G](61-error-codes.md) to locate the reporting layer; retain the C input and the exact diagnostic. |
+| A compiler diagnostic | Retain the C input and exact diagnostic, then follow [Appendix G's diagnosis walkthrough](61-error-codes.md#from-a-diagnostic-to-a-repair) to locate the failed check. |
 | Timeout | Inspect the selected block before raising `--timeout`. A longer timeout does not make an excluded bootstrap route into a short lab. |
 | An excluded block | Follow the chapter's prerequisites and manual instructions. Stage A comparisons, full compiler builds, and QEMU routes remain separate tasks. |
 

@@ -918,7 +918,32 @@ A halfway remainder increments only an odd retained quotient: round to nearest, 
 
 ## Select the destination before rounding
 
-The destination record selects fraction width, leading unit, exponent limits and sign mask before rounding; a suffixed float rounds directly to binary32 to avoid double rounding near a midpoint (`forth-bootstrap/cc/128-cc-float-literal.fth:278`):
+The first destination is the literal's own type: `f/F` selects binary32,
+while no suffix selects binary64. The type of a variable receiving the
+literal does not change that first choice
+(`forth-bootstrap/cc/125-cc-consteval.fth:67`). A later narrowing conversion
+rounds the already-decoded value; it cannot recover the original ratio.
+
+Why can two nearest-even roundings disagree with one? Use the exact
+mathematical value `x = 1 + 2^-24 + 2^-54`. The adjacent binary32 values
+are `1` and `1 + 2^-23`, with midpoint `m = 1 + 2^-24`. This is a manual
+comparison of two conversion routes:
+
+| Route | Rounding decision | Final binary32 value |
+|---|---|---|
+| Exact `x` → binary32 | `x` is just above `m`, so choose the upper neighbour | `1 + 2^-23` |
+| Exact `x` → binary64 → binary32 | First round to `m`; then the tie chooses unity's even significand | `1` |
+
+Near `m`, binary64 values are spaced `2^-52` apart. The extra `2^-54`
+is only a quarter of that spacing, so the first conversion in the second
+route loses the evidence that `x` was above the binary32 midpoint. More
+intermediate precision reduces rounding error, but does not always
+preserve which side of a later tie the exact input occupied.
+
+The destination record selects fraction width, leading unit, exponent
+limits and sign mask before rounding. A suffixed float therefore rounds
+its exact ratio directly to binary32, avoiding that extra rounding
+(`forth-bootstrap/cc/128-cc-float-literal.fth:278`):
 ```forth file=cc/128-cc-float-literal.fth
 \ A format names an encoding by its byte size: 8 selects binary64 and
 \ 4 binary32, and 16 extended precision. One exact ratio serves all three

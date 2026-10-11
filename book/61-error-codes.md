@@ -32,6 +32,43 @@ The common reporter writes to stderr and exits with the supplied code (`forth-bo
 
 For compiler input, the reported position is `cc-src-line` in the preprocessed text. The source reader increments it at newlines (`forth-bootstrap/cc/030-cc-io.fth:108`); preprocessing counts emitted newlines, then rewinds that reader (`forth-bootstrap/cc/040-cc-prep.fth:61,2339`). Includes change the flattened position. It need not equal a line in the original file. Logical source location tracking is separate; the implicit-function diagnostic can print that location before the flattened line (`forth-bootstrap/cc/121-cc-sysv.fth:937`).
 
+## From a diagnostic to a repair
+
+Consider this one-line C input under the core target used by the first
+[Chapter 38 checkpoint](38-main-and-bootstrap-chain.md#try-it):
+
+```c
+int main(void) { int total = 7; return totla; }
+```
+
+The observed compiler diagnostic is `cc: line 1: error 93`, and the
+compiler exits with status 93. Follow the failure inward:
+
+1. The `cc:` form identifies the compiler reporter. This is a compilation
+   failure, before there is a new program to execute.
+2. The row for 93 points to `cc-parse-ident` in `100-cc-expr.fth`. Its
+   failing condition is a negative symbol-lookup result, after the
+   target's unknown-name hook (`forth-bootstrap/cc/100-cc-expr.fth:886–892`).
+3. Compare the identifier being read with the declarations visible there.
+   The declaration introduced `total`; the return expression asks for
+   `totla`. The lexer accepted its spelling as an identifier, but the
+   symbol table has no declaration for that different name.
+4. Correct only the use to `return total;` and compile again. The observed
+   compiler status is now 0; the newly generated program exits with 7.
+   Those are results of two different processes.
+
+To repeat this diagnosis, substitute the input in Chapter 38's checkpoint
+and retain its setup and output-file protection. Expect the broken input
+to stop at compilation. After the repair, change the wrapper's final
+`program_status` comparison from 0 to 7 before running it. This program
+prints nothing; compare its exit-status report rather than expecting
+the original checkpoint's star.
+
+The number located the failed lookup; it did not identify a typo by
+itself. A declaration outside the current scope can produce the same
+code. Inspect the name and visible declarations before choosing a repair,
+and do not run an older output file after a failed compilation.
+
 ## Codes in detail
 
 Each row gives the numbered call sites and the containing words. Read the meaning with the selected target: a default hook can reject a form that a later loaded hook implements. Files with no numbered failure site, including the core lexer, ELF-header emitter, main entry and target predefines, have no table.

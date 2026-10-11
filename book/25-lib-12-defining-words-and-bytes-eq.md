@@ -321,10 +321,11 @@ comparison succeeds without fetching either address. The checkpoint
 separates whole-range equality, a mismatch, an empty comparison, and a
 matching prefix of otherwise different names.
 
-The library is now complete. [Chapter 27](27-arena-and-io-buffers.md) uses
+The library is now complete. Continue to the [Part 3 map](part-3-compiler.md),
+then [Chapter 27](27-arena-and-io-buffers.md), which uses
 its defining words to give the compiler buffers and records, its byte
 comparison to look up names, and its deferred words to connect layers
-whose implementations arrive later. Continue there on the main path.
+whose implementations arrive later.
 
 ## Try it
 

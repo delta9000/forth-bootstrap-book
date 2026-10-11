@@ -18,7 +18,8 @@ operation while preserving the caller's argument order.
 ## `open`: a path, flags, and mode
 
 Push `path flags mode`, in the order of the C arguments. `path` points to
-a NUL-terminated pathname; `flags` selects the operation, and `mode`
+a NUL-terminated pathname: the pathname's bytes followed by a zero byte
+that marks their end. `flags` selects the operation, and `mode`
 supplies permissions when creating a file. Even when creation is not
 requested, the caller must supply the mode slot.
 

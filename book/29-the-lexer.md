@@ -1057,6 +1057,12 @@ Observed output:
 
 Kind 6 is `tk-kw` with `kw-int` (0); kind 1 is an identifier of length 1; kind 5 is punctuation carrying its byte; kind 2 is a number with value 4. `tk-eof` (0) ends the loop.
 
+The tiny `digit.` helper displays only values from 0 through 9. For
+example, replacing the bound with `16` would print `@` for its payload:
+the helper adds 48 and emits byte 64. That would be a display limitation,
+not the lexer's numeric result. Extend the printer before using this
+driver to inspect larger values, lengths, or keyword IDs.
+
 Then run the lexer layer test selected by `forth-bootstrap/test.sh:118`, the coverage check for this layer:
 
 <!-- tryit: expect "exit status: 0" -->

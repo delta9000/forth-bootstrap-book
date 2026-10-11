@@ -935,4 +935,10 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-45-typed-
 
 **Trace (easy).** Follow `wrapped` through literal validation, common-type conversion, addition, and `cc-const-check-result`. Explain why delaying normalization until the final store would break a comparison of the sum with `2U`.
 
-**Verify (moderate).** Change `x` to select between its current initializer and an unselected division by zero. Run the checkpoint, then reverse the condition. Identify the word that suppresses arithmetic in the first run and the check that rejects the second.
+**Verify (moderate).** Give `x` the initializer
+`1 ? (sizeof(long) * 3 + (1 << 4)) : (1 / 0)`, then make a second version
+with condition `0`. Before running either, predict whether compilation
+succeeds and what a successfully compiled program returns. Run both
+versions and trace the parser state and arithmetic check responsible for
+each outcome. Account for how the parser reaches the declaration's end
+even when an arm does not supply its value.

@@ -1585,5 +1585,9 @@ archive link returned 42
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-42-archive-demand-is-time-dependent).
 
-**Trace (easy).** Reverse the caller and archive additions. Explain which name is unresolved and why a second archive occurrence would repair the link.
+**Trace (easy).** Reverse the caller and archive additions, keeping the
+entry object first. List the unresolved strong names after each addition
+and predict whether the link succeeds. Then predict what changes if the
+archive appears again after the caller. Tie each member-selection decision
+to the demand present at that visit.
 

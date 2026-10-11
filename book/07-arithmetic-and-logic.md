@@ -111,11 +111,19 @@ C3                                        ; ret
 
 ```
 
-`test rdi, rdi` sets the zero condition without changing the operand.
-`sete dil` writes a byte containing zero or one. Because that write leaves
-the rest of `rdi` untouched, `movzx rdi, dil` is necessary before
-negation: it removes the old operand's remaining bits. Finally, `neg rdi`
+The processor's **condition flags** record properties of an instruction's
+result; they are separate from a Forth flag stored on the data stack.
+`test rdi, rdi` computes an AND for those flags without changing `rdi`.
+Its zero flag, **ZF**, is 1 exactly when the tested value is zero.
+`sete dil` reads that condition and writes a byte containing zero or one.
+Because that write leaves the rest of `rdi` untouched, `movzx rdi, dil`
+is necessary before negation: it removes the old operand's remaining bits.
+Finally, `neg rdi`
 turns one into `-1` and leaves zero unchanged. The body is 15 bytes.
+
+Conditional jumps can read ZF too: `jz` and `je` jump when it is 1;
+`jnz` and `jne` jump when it is 0. Later arithmetic can change these
+processor flags, so a test and its consumer must be traced together.
 
 The REX prefix `40` on `sete dil` selects `dil` rather than `bh`
 (Chapter 4).

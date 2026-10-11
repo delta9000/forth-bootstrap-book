@@ -9,8 +9,8 @@ without adding machine code to the seed.
 
 Use `nand` (Chapter 7), with its contract in
 [Chapter 13](13-primitive-reference.md#the-table).
-Here `~`, `&`, and `|` use their C bitwise meanings. The skeleton for
-`and` is to compute NAND, then complement its result.
+Here `~` means bitwise complement, `&` bitwise AND, and `|` bitwise OR.
+The skeleton for `and` is to compute NAND, then complement its result.
 
 Call `dup nand` **self-NAND**. For a value `x`, it computes
 `~(x & x)`, which is `~x`. The library uses self-NAND to cancel the
@@ -182,9 +182,9 @@ Observed output:
 
 **Trace (easy).** Trace `or` with false beneath true, writing the
 stack after every word. Then remove `swap` on paper and trace the
-same inputs. Explain the difference using self-NAND. Why do both versions
-still return true here? Find a second input pair that distinguishes their
-final results.
+same inputs. Explain the difference using self-NAND. Do the final flags
+distinguish the two bodies for this input? Choose a second input pair
+that distinguishes them, and show both results.
 
 <details>
 <summary>Hint: keep the operands symbolic</summary>
@@ -196,7 +196,7 @@ missing? Here `~` means bitwise complement.
 </details>
 
 <details>
-<summary>Check the masking case</summary>
+<summary>Check both traces</summary>
 
 The original finishes `~(~b & ~a)`, which is OR. Without `swap`, the
 second self-NAND restores `b`, so the result is `~(a & b)`, NAND. For

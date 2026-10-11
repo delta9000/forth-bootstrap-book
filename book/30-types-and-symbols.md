@@ -9,9 +9,10 @@ packing them into compiler records.
 
 ## What a name must remember
 
-The spelling `x` tells us very little on its own. An enum constant named
-`x` can supply an integer immediately; a local variable named `x` instead
-identifies storage in a function frame. A **symbol** keeps that distinction
+The spelling `x` tells us very little on its own. The C declaration
+`enum { x = 7 };` gives `x` the integer value 7 without allocating a
+writable object for it. A local declaration `int x;` instead identifies
+storage in a function frame. A **symbol** keeps that distinction
 after the lexer has moved on to another token. Its type describes the
 value, and its kind tells the compiler how to use the stored payload.
 

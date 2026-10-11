@@ -21,10 +21,10 @@ alignment rule.
 Argument evaluation first uses temporary staging cells. The emitter then
 allocates and aligns a separate outgoing block, copies the two stack
 arguments into its first 16 bytes, and loads the six registers. Padding
-lies beyond those arguments; it cannot precede argument 6 and shift its
+lies beyond those arguments; it cannot precede the value 6 and shift its
 ABI position. At this moment `rsp mod 16 = 0`. `call` pushes eight bytes,
-so argument 6 is now at entry `rsp + 8`; pushing the old RBP and adopting
-the new frame pointer puts saved RBP at +0, return address at +8, and that
+so that seventh argument is now at entry `rsp + 8`; pushing the old RBP
+and adopting the new frame pointer puts saved RBP at +0, return address at +8, and that
 argument at +16. These offsets follow from the two pushes, not from the
 callee's local-frame size.
 
@@ -2500,4 +2500,8 @@ Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-41-stack-
 
 **Trace (easy).** Follow `f` and `g` from `cc-sysv-parse-args` through `cc-sysv-prepare-call` into `cc-sysv-store-params-default`. Draw the caller’s outgoing block and the callee’s frame, including the return address and saved `rbp`. Explain why alignment padding cannot move either argument’s expected location.
 
-**Verify (moderate).** Change the checkpoint’s call to pass `add(&base, 1, 2, 3, 4, 5, 6, 7)` as its final argument to a second call of `add`. Predict the exit status before running it, then identify which outer staged values must survive the inner call.
+**Verify (moderate).** Replace only the checkpoint call's final argument
+with another `add(&base, 1, 2, 3, 4, 5, 6, 7)` call. Predict the exit status
+and update the final `test "$result"` assertion before running it. Identify
+which outer staged values must survive the inner call and where the
+emitted code preserves them.

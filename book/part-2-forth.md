@@ -39,5 +39,6 @@ to trace a definition's stack effect and distinguish a word that emits
 an instruction from the instruction that eventually runs. The
 `if,`/`then,` pair in Chapter 24 is the key example: emit a branch,
 remember its unfinished destination, and patch it when that destination
-is known. Continue directly to [Chapter 27](27-arena-and-io-buffers.md),
-where the C compiler will reuse that pattern on a larger scale.
+is known. Continue to [Part 3](part-3-compiler.md), beginning with
+[Chapter 27](27-arena-and-io-buffers.md), where the C compiler will reuse
+that pattern on a larger scale.

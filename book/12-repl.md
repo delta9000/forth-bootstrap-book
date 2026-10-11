@@ -131,6 +131,15 @@ Restoring the prior top afterward preserves the stack across the miss.
 There is no call to the decimal parser along this route: bare `42` is a
 name to look up, just like any other token.
 
+A miss during compilation takes this same recovery path. It does not
+reset STATE, remove the unfinished header, or emit a call for the missing
+word. Later tokens can therefore finish a definition with an operation
+missing from its body. Treat a `name?` diagnostic while loading definitions
+as a failed load, even if the process eventually exits with status zero.
+Check that name's spelling and whether its definition was loaded earlier,
+then restart the seed and reload the corrected input. Recovery keeps the
+reader running; it does not roll back a partly compiled word.
+
 A found word needs a dispatch decision. The tail in
 `forth-bootstrap/seed/000-seed.hex0:677` tests the IMMEDIATE flag before
 STATE and hands ordinary words to `compile_call` in compile mode; recall
