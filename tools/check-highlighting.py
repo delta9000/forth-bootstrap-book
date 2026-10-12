@@ -3,7 +3,9 @@
 
 Executes mdBook's bundled syntax-highlighting section and our additional script
 in a minimal DOM harness. Checks byte-for-byte text preservation, repeatability,
-non-Forth isolation and source/render coverage. This is not browser/layout QA.
+non-Forth isolation and source/render coverage. Also executes the real chapter
+shortcut handler and rendered reader.js to check keyboard event routing and
+native-default preservation. This is not browser/layout or native-scrolling QA.
 """
 import argparse
 from collections import Counter
@@ -86,7 +88,8 @@ def check(render):
         stylesheet = asset(r"theme/forth-highlight-[a-f0-9]+\.css", parser.styles)
         if not [parser.scripts.index(x) for x in (hljs, core, custom, reader)] == sorted(parser.scripts.index(x) for x in (hljs, core, custom, reader)):
             raise ValueError(f"{page}: highlighting scripts are out of order")
-        for actual, original in ((custom, "forth-highlight.js"), (stylesheet, "forth-highlight.css")):
+        for actual, original in ((custom, "forth-highlight.js"), (stylesheet, "forth-highlight.css"),
+                                 (reader, "reader.js")):
             if (render / actual).read_bytes() != (ROOT / "theme" / original).read_bytes():
                 raise ValueError(f"{page}: stale syntax asset {actual}")
         highlighters.add(hljs)
@@ -100,6 +103,13 @@ def check(render):
         raise ValueError("Forth fence text/coverage differs between published source and HTML")
     if len(highlighters) != 1 or len(cores) != 1:
         raise ValueError("render mixes different versions of mdBook assets")
+    keyboard = subprocess.run([node, str(ROOT / "tools/tests/reader_keyboard_runner.js")],
+        input=json.dumps({"script": str(render / reader),
+                          "book": str(render / next(iter(cores)))}),
+        capture_output=True, text=True, check=True)
+    keyboard_result = json.loads(keyboard.stdout)
+    if not keyboard_result["actualMdBook"]:
+        raise ValueError("keyboard regression did not execute mdBook chapter navigation")
     # Include deliberate tabs/CRLF, inline Forth and injection-shaped text next
     # to the actual pages, with the bundled highlighter active first.
     probes = [
@@ -134,6 +144,8 @@ def check(render):
           f"{others} other/inline blocks unchanged; {spans} syntax spans")
     print(f"highlighting: mdBook bundled hljs {results['bundledVersion']}, "
           "local assets/load order, exact copied text and repeat highlighting PASS")
+    print(f"reader keyboard: {keyboard_result['cases']} event-routing/default-action cases "
+          "PASS against actual mdBook chapter navigation and rendered reader.js")
     print("highlighting: browser pixels, mobile layout, printed pages and screen-reader use NOT CHECKED")
 
 

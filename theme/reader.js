@@ -14,6 +14,16 @@
     const main = document.querySelector("main");
     if (!main) return;
 
+    // mdBook's document-level arrow shortcut prevents native code scrolling.
+    // Stop it on the way up, even though book.js registered its listener first.
+    // Leave the default action alone for scrolling, selection and editing;
+    // keep the arrows local even at a scroll boundary or after a resize to fit.
+    main.addEventListener("keydown", event => {
+        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        if (event.target.closest("pre > code")) event.stopPropagation();
+    });
+
     // A word-index or search link may land inside an optional implementation.
     const revealFragment = () => {
         let id;

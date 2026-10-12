@@ -13,6 +13,16 @@ NODE = shutil.which("node")
 
 @unittest.skipUnless(NODE, "Node.js is needed to execute reader.js")
 class ReaderInterfaceTests(unittest.TestCase):
+    def test_listing_arrows_keep_native_defaults_and_do_not_reach_document(self):
+        result = subprocess.run(
+            [NODE, str(ROOT / "tools/tests/reader_keyboard_runner.js")],
+            input=json.dumps({"script": str(ROOT / "theme/reader.js")}),
+            text=True, capture_output=True, check=True,
+        )
+        checked = json.loads(result.stdout)
+        self.assertGreater(checked["cases"], 100)
+        self.assertFalse(checked["actualMdBook"])
+
     def search_description(self, description, *, field=True, header=True):
         """Supply only the search DOM; the manuscript enhancement exits early."""
         fixture = {
