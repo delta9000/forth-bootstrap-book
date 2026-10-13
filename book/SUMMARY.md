@@ -1,5 +1,7 @@
 # Summary
 
+[Introduction](00-introduction.md)
+
 # Front matter
 
 - [Your first word](01-reading-the-book.md)

@@ -14,8 +14,8 @@ SPEC.loader.exec_module(LAB)
 class ReaderEntryTests(unittest.TestCase):
     def test_prologue_follows_first_word_without_a_reference_detour(self):
         published = [Path(path).name for path in LAB.TRYIT.published_files()]
-        self.assertEqual(published[:3], ["01-reading-the-book.md", "02-prologue.md",
-                                         "03-where-this-fits.md"])
+        self.assertEqual(published[:4], ["00-introduction.md", "01-reading-the-book.md",
+                                         "02-prologue.md", "03-where-this-fits.md"])
         self.assertEqual(published.count("labs.md"), 1)
         self.assertGreater(published.index("labs.md"),
                            published.index("56-gcc-15-epilogue.md"))

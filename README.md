@@ -12,6 +12,7 @@ by an [assembler regression check](book/26-m1-and-hex2.md), outside the
 book's teaching route.
 
 [Read the book](https://delta9000.github.io/forth-bootstrap-book/) ·
+[Why this book exists](book/00-introduction.md) ·
 [Start with your first word](book/01-reading-the-book.md) ·
 [Open the workshop](book/labs.md)
 
