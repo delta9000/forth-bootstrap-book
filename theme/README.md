@@ -50,11 +50,20 @@ explicit palettes; every small-text foreground exceeds WCAG's 4.5:1 contrast
 threshold against its listing background. Print uses dark text on white.
 Aligned source scrolls horizontally on narrow screens; overflowing listings
 get a keyboard tab stop that is removed when the listing fits. Print softly
-wraps long lines. None of this inserts characters into copied code.
+wraps long lines. In `reader.js`, unmodified Left/Right events from any fenced
+code listing stop before mdBook's chapter shortcut, leaving the browser's native
+scrolling, selection and editing action intact. This applies at scroll boundaries
+and after resizing to fit, so an extra arrow press cannot leave the chapter.
+Tab, modified keys, and chapter arrows outside listings keep their existing
+behavior. None of this inserts characters into copied code.
 
 Run `./check.sh`, `mdbook build`, and
 `python3 tools/check-highlighting.py --html docs`. The latter checks actual
 script order/assets, source-to-HTML Forth coverage and the bundled highlight.js
 setup, then tests DOM preservation and repeat highlighting on the rendered
-listings including the print edition. These are code/DOM and calculated-color
+listings including the print edition. It also executes the rendered mdBook
+chapter-navigation handler before the rendered reader script: the regression
+reproduces the original conflict, then checks event propagation, native-default
+preservation, scroll bounds, other languages, modifiers and outside-code arrows.
+These are code/DOM and calculated-color
 checks, not screenshots, measured layout, printed output or screen-reader tests.
