@@ -358,10 +358,16 @@ Without a long suffix, `U` chooses between `uint` and `ulong`. Without any suffi
 The unsigned divisions compare magnitudes without treating the high bit as a negative sign. A decimal value beyond signed-long range gets `ulong` as a bootstrap extension. The final `ty-make` encodes the selected base with pointer depth zero.
 
 Return to the two `4` tokens in `((4) * (4))`. Each has a small decimal
-value and no suffix, so each receives `ty-int` with pointer depth zero in
-either target model. That agreement does not make the models' object
-sizes equal: the core gives `int` eight bytes and LP64 gives it four.
-Nor has selecting those types multiplied the values. The emitter needs
+value and no suffix, so the classification helper would return `ty-int`
+with pointer depth zero in either target model. That is distinct from
+what the operand parser records: the [numeric operand path](34-expressions-part-2.md#the-top-operand-then-postfix-loop)
+calls this helper and stores its result only with LP64 selected. The core path emits
+the values while leaving `cc-last-expr-type` at the zero reset by
+`cc-mark`; zero here means untracked metadata, not a recorded `int` type.
+The conceptual C type, helper result, and active parser record answer
+different questions. The helper's agreement across models does not make
+their object sizes equal: the core gives `int` eight bytes and LP64 gives
+it four. Nor has classifying those literals multiplied the values. The emitter needs
 an operation as well as operands; that is the next part of the journey.
 
 ## Record descriptors: stable identity, movable fields

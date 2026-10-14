@@ -49,6 +49,13 @@ and substitution rules. We will identify those branches as they appear.
 The region/sink model applies to both; the legacy whitespace and argument
 policy used in this trace does not describe direct `#` and `##` handling.
 
+**First reading:** follow the region/sink contract, then
+[macro expansion](#macro-expansion), [the replacement's return](#expanding-a-replacement),
+and the [pass driver](#the-pass-driver) before running [Try it](#try-it).
+Use the macro-table and byte-walker sections to resolve the helpers on
+that route. The expandable direct-policy sections preserve the full
+implementation for a second pass.
+
 ## The contract, the sink and the scratch area
 
 The code has this shape:
@@ -590,6 +597,13 @@ variable cc-pp-pending-nl
   repeat, ;
 
 ```
+
+The active region can now be suspended and restored. On the first pass,
+continue to [macro expansion](#macro-expansion); return to these walkers
+when checking exactly which bytes delimit an argument or directive.
+
+<details>
+<summary>Scanner reference: comments, literals, token boundaries, and include regions</summary>
 
 ### Walking comments and literals
 
@@ -1286,6 +1300,8 @@ Direct files occupy the free tail of the packed pool; legacy files occupy their 
 
 </details>
 
+</details>
+
 ## Macro expansion
 
 Return to `SQUARE(ROWS)`. The sink and region helpers are in place; now the
@@ -1540,6 +1556,16 @@ lines for the directives and separator spaces around replacements. Those
 spaces separate tokens; they are not part of the string token's contents.
 The last two calls expose the order: a pasted name can expand afterward,
 but its operands do not first become `4`, so the last result is not `44`.
+
+**Pause before the direct implementation.** During the second use of
+`x` in `SQUARE(ROWS)`, can the argument temporary already be reclaimed?
+No: both substitutions still need its bytes. After the replacement has
+been rescanned into the caller's sink, restoring the saved scratch top
+is safe. If you answered “after the first substitution,” follow the
+second `x` back to its still-live argument record before continuing.
+
+<details>
+<summary>Direct substitution reference: raw arguments, stringification, pasting, and locations</summary>
 
 ### Stringification
 
@@ -1889,6 +1915,8 @@ Lookup chooses the latest record at or before the requested output line, then ad
 
 </details>
 
+</details>
+
 ### Expanding a replacement
 
 Dynamic object macros emit the current line or filename directly. An ordinary object macro is marked busy while its body is walked, so `#define SELF SELF` leaves the inner name rather than recursing forever (`forth-bootstrap/cc/040-cc-prep.fth:1344`):
@@ -1966,6 +1994,20 @@ positions in another temporary. Rescanning that temporary writes the
 tokens of `((4) * (4))` into the caller's sink. Only then can the saved
 scratch top be restored. The result survives because its bytes have been
 copied out, and the suspended source resumes after `SQUARE(ROWS)`.
+
+Read that return as a lifetime boundary. Let S be the scratch top saved
+before collecting the call; temporary names below denote buffers, not
+new source addresses or exact whitespace spellings.
+
+| Phase | Active region | Active sink | What stays live above S |
+|---|---|---|---|
+| Prescan `ROWS` | Argument slice, with the caller region saved | Argument temporary, with the caller sink saved | Argument records and expanded text |
+| Substitute both `x` markers | Caller region is restored; substitution reads the stored body directly | Replacement temporary | Records, expanded argument, growing replacement |
+| Rescan replacement | Replacement text, with the caller region saved | Caller sink | Completed replacement and earlier temporaries |
+| Resume caller | Source after the closing `)` | Caller sink, now containing copied result bytes | Nothing from this call; restore scratch top S |
+
+<details>
+<summary>Rescan reference: unavailable tokens, tail rescanning, and identifier dispatch</summary>
 
 ### Unavailable tokens across rescans
 
@@ -2073,6 +2115,8 @@ An ordinary name is copied; an eligible macro uses object or call expansion. Fil
   r> cc-pp-location-line ! ;
 
 ```
+
+</details>
 
 ## Conditional groups and the walker
 
@@ -2812,6 +2856,11 @@ The legacy parameter reader records source slices separated by commas. `cc-pp-pa
 ```
 
 ### Logical parameter names
+
+Keep the two selectors separate here: `cc-prep-direct` chooses the
+substitution policy, but the definition parser dispatches the logical
+parameter grammar through `cc-pp-location-enabled`. Setting the former
+alone is not a recipe for every location-enabled branch below.
 
 In the location-enabled parameter grammar, a continuation joins name bytes without introducing whitespace. Logical parameter names are built in a bounded temporary sink while their physical newlines become owed (`forth-bootstrap/cc/040-cc-prep.fth:2030`):
 

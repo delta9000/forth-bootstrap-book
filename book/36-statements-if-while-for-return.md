@@ -975,6 +975,10 @@ variable cc-label-direct-base
 ;
 ```
 
+The source comment calls these arrays “page-sized.” Each actually holds
+1,024 eight-byte cells: 8,192 bytes, or two 4 KiB pages. All five columns
+occupy 40,960 bytes, matching the allocation below.
+
 `cc-label-direct-workspace` maps storage only when its cached base is empty, then selects disjoint column regions and their common bound. Neither selector migrates live entries or resets `cc-label-count`; Chapter 37 resets the count for each function (`forth-bootstrap/cc/112-cc-stmt.fth:671`):
 
 ```forth file=cc/112-cc-stmt.fth

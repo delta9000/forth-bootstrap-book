@@ -53,6 +53,14 @@ that caller returns. The inline operands required by `lit`, `branch`, and
 `0branch` belong in compiled bodies, as in
 [Chapter 10](10-colon-compiler.md) and [Chapter 11](11-branches.md).
 
+**Limits to remember.** Stack words do not check depth.
+[`key`](08-seed-io.md#key-preserve-the-old-top-and-add-input) cannot
+distinguish NUL from EOF and has no separate read-error path;
+[`emit`](08-seed-io.md#emit-consume-a-character) discards the write result.
+[`execute`](09-dictionary.md#execute-enter-the-code-address) trusts its
+execution token rather than validating the address. These contracts
+matter even when a short stack-effect notation looks sufficient.
+
 ## Internal routines
 
 These source labels have no dictionary entries. Use the linked chapter to
@@ -114,3 +122,17 @@ AB
 each `dup`, `+`, and `emit`. Identify the word that consumes each decimal
 token. Check your prediction against the output, then follow a decoding
 link for any contract you had to look up.
+
+<details>
+<summary>Check the value trace</summary>
+
+Omitting the untouched older stack, `[lit] 32` gives `32`; `dup` gives
+`32 32`; `+` gives `64`. Then `[lit] 1 +` gives `65`, and `dup` gives
+`65 65`. The first `emit` prints `A` and leaves `65`. The next
+`[lit] 1 +` gives `66`, which `emit` consumes to print `B`.
+Finally `[lit] 10 emit` supplies and consumes the newline.
+
+Each `[lit]` reads the decimal token immediately after it. `+` consumes
+two stack values; it does not read the following input token as a number.
+
+</details>

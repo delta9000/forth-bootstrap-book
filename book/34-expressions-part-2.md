@@ -23,6 +23,13 @@ First we will build this record, then follow assignment through both the
 compiler and the program it emits. The remaining operand forms fit into
 that same contract.
 
+**First reading:** follow lvalue tracking and the
+[two-stack assignment trace](#a-two-stack-assignment-trace), then the
+legacy assignment body. Continue with [primary operands](#primary-expressions),
+[ternary](#ternary), and the [top-level driver](#the-top-level-driver).
+The checkpoint tests selection, not a store; use the manual pause below
+to check the destination-preservation mechanism itself.
+
 ## Lvalue tracking
 
 Primary and unary parsing supply operands to the binary cascade
@@ -399,6 +406,13 @@ native typed assignment, the snapshot must additionally retain destination
 type, descriptor, field record and qualification; its conversion and
 field-aware hooks cannot be replaced by the core width rule above.
 
+**Pause: change one value.** Keep `p=A` and memory[A]=10, but let `q=5`.
+What survives the recursive parse, and where does the final 15 go?
+The generated stack preserves A and the old 10; the compiler preserves
+K and OP. The result goes to memory[A], never to q's slot. If your trace
+stores into q, return to the snapshot row: the current-expression globals
+belong to the right side by then.
+
 ### Recognizing an assignment
 
 An assignment must remember its destination while recursively parsing its source; `cc-assign-op?` recognizes either plain assignment or a compound operator’s table entry
@@ -699,6 +713,12 @@ into a new destination. If that outer assignment is rejected, any inner
 store emitted so far is still only an instruction in an unfinished output
 buffer. It has not changed the C program's storage.
 
+The assignment invariant is now complete. On a first pass, continue to
+primary operands; open these helpers when following a field or subscript.
+
+<details>
+<summary>Operand reference: record lookup and array-index mechanics</summary>
+
 ## Struct-field lookup
 
 Assignment can now consume a destination without losing it. We can turn
@@ -884,6 +904,8 @@ Generated code saves the base, evaluates and scales the index, then forms an add
   r> cc-last-expr-type ! ;
 
 ```
+
+</details>
 
 ## Primary expressions
 
@@ -1641,6 +1663,9 @@ A recursive unary operand supports chains such as `**p`; the header describes th
 
 ```
 
+<details>
+<summary>Operand reference: sizeof, alignment, and type-shaped measurements</summary>
+
 ### Measuring an operand
 
 `sizeof` asks about the operand's storage rather than its contents. For
@@ -1860,6 +1885,8 @@ The size becomes an immediate result after the closing parenthesis; the followin
   cc-peek-mark cc-lex-reset ;
 
 ```
+
+</details>
 
 ### Prefix mutation
 
@@ -2215,6 +2242,13 @@ In ISO C a comma result is not an lvalue; treat this as a dialect quirk,
 not a feature. The core profile has no comma operator at all. See
 [Appendix F](60-c-subset.md#observed-profile-boundaries).
 
+The runtime expression route ends here. The next section runs arithmetic
+in the compiler rather than emitting it; return to it for Chapter 28
+`#if` expressions and Chapter 35 constant bounds.
+
+<details>
+<summary>Second route: compile-time expressions and the preprocessor evaluator</summary>
+
 ## Constant expressions
 
 An array bound must be known when the compiler reserves storage; a case
@@ -2500,6 +2534,8 @@ create cc-cx-save  cc-lex-state-size allot
 ' cc-parse-assign is cc-parse-assign-fwd
 ' cc-parse-unary  is cc-parse-unary-fwd
 ```
+
+</details>
 
 ## Try it
 

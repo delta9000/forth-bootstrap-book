@@ -1,10 +1,11 @@
 # Appendix H — Compiler and bootstrap exercise feedback
 
 This appendix covers the exercises in Chapters 27–56. For earlier material,
-use the worked examples in [Appendix D](58-worked-exercises.md) and the
-feedback beside the exercises in [Chapter 9](09-dictionary.md#exercises),
-[Chapter 15](15-lib-02-code-emission-and-here.md#exercise), and
-[Chapter 23](23-lib-10-immediacy-and-constants.md#exercise).
+look beside the corresponding exercise for local feedback or a self-check;
+[Appendix D](58-worked-exercises.md) supplies selected additional worked
+examples, not a complete early answer key. Some prompts still rely on
+your own trace or verification: for example, [Chapter 12](12-repl.md#exercises)
+works the reordered miss path but leaves its first dispatch trace to you.
 
 Try the chapter's exercise before opening its answer. Start with the hint;
 then compare intermediate states, not only the final number. The answers

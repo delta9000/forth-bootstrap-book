@@ -382,3 +382,23 @@ exit status 0
 - **Trace (moderate).** Locate the `HERE` cell and its initial contents.
   Which address lies in the system-variable area? Which points into
   the dictionary allocation area?
+
+<details>
+<summary>Check the loading and address traces</summary>
+
+The 64-byte ELF header plus the 56-byte program header place entry at
+file offset 120 (`0x78`); the fixed base gives `e_entry = 0x400078`.
+The jump instead adds its signed displacement to its next instruction:
+`0x4000BA + 0x5DF = 0x400699`. A relative instruction encodes a distance
+from that next address, not an offset from the image base.
+
+`FileSiz = 0x6EC` supplies 1,772 file bytes; `MemSiz = 0x1000000`
+reserves the 16 MiB segment starting at `VirtAddr = 0x400000`. The entry
+bytes set `rbp` to `0x411000`, then clear `rdi` with `xor rdi, rdi`.
+
+The `HERE` cell itself is at `0x413010`, in the system-variable area.
+Its initial contents are `0x401000`, pointing into the dictionary
+allocation area. Updating the cursor changes those contents, not the
+address of the cell that holds them.
+
+</details>

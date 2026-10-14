@@ -200,11 +200,33 @@ C3                                        ; ret
 
 ```
 
-Decode the unfamiliar load `48 8B 44 24 08` with Chapter 4's ModRM and SIB
-rules. ModRM `44` selects `rax` and a displaced address with a SIB byte;
-SIB `24` selects `rsp` as the base without an index. Displacement `08`
-skips the primitive's return address. The subtract and store spill the old
-top, `48 89 C7` installs the copy from `rax`, and `C3` returns.
+Decode the unfamiliar load `48 8B 44 24 08` by extending Chapter 4's
+ModRM rules. `48` selects a full-width operand without extending register
+codes; `8B` loads the register named by the `reg` field.
+
+- ModRM `44 = 01 | 000 | 100`: signed-byte displacement, destination
+  `rax`, and a memory `r/m` code that requests a SIB byte.
+- A SIB byte splits into two scale bits, three index bits, and three base
+  bits. Here `24 = 00 | 100 | 100`: scale 1, no index, base `rsp`.
+  Index `100` means no index here because REX.X is clear; do not apply
+  that rule unchanged to an extended-index encoding.
+- The final `08` is the signed byte displacement, so the address is
+  `rsp+8`, beyond the primitive's return address.
+
+The subtract and store spill the old top, `48 89 C7` installs the copy
+from `rax`, and `C3` returns.
+
+**Predict on paper:** changing only the final byte to `10` (hexadecimal)
+would read which slot? Keep this a paper experiment.
+
+<details>
+<summary>Check the changed displacement</summary>
+
+It would read `[rsp+16]`, one cell beyond the intended saved top. The base remains `rsp`; this changes the selected
+address, not the return-stack pointer. Do not patch and execute this
+variant without a contract for that additional slot.
+
+</details>
 
 **Peeking does not balance a transfer.** After `>r` followed by `r@`, the
 caller must recover the original saved value with `r>` before returning. This is
@@ -327,6 +349,27 @@ Chapter 22 combines these accesses into memory-update words.
 
 ## Try it
 
+These words trust their stack contracts. The seed does not detect
+underflow; only run a sequence when you can account for its inputs.
+The initialized zero is not permission to run arbitrary `drop` sequences.
+
+First use the `[lit]` and `emit` interface from Chapter 1 to make stack
+order visible. Their implementations come later; here they supply known
+inputs and show the result. Run from the `forth-bootstrap` checkout after
+building the seed as in Chapter 1. Predict the two characters before
+running; the top value is emitted first.
+
+<!-- tryit: expect "AB" -->
+```sh
+printf '%s\n' '[lit] 65 [lit] 66 swap emit emit [lit] 10 emit bye' | ./seed-forth
+```
+
+Observed output: `AB` followed by a newline. Before `swap`, the top is
+66 (`B`); afterward it is 65 (`A`). Removing only `swap` predicts `BA`.
+Unequal inputs distinguish exchanging the operands from leaving them alone.
+
+### Optional: inspect the mechanism
+
 Run these commands from the `forth-bootstrap` checkout, at `./forth-bootstrap`
 relative to the book repository. The build in `forth-bootstrap/seed/build.sh:27`
 rebuilds the complete `seed-forth` image. Disassemble its `swap` body, then run
@@ -344,7 +387,7 @@ The smoke test prints nothing; the shell reports exit status 0. The test checks
 that the balanced sequence runs. It does not inspect the resulting values or
 exercise the memory-access words. Use the disassembly to verify the
 distinct-operand trace of `swap`. End-of-input terminates the seed; Chapter 12
-explains that loop. Once literals and output have been introduced,
+explains that loop. For a longer visible probe,
 [Chapter 17's checkpoint](17-lib-04-return-stack-over-subtract.md#try-it)
 uses distinct character values to expose stack order rather than relying
 on clean exit alone.

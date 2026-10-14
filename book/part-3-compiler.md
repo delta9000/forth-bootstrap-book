@@ -52,6 +52,26 @@ more source does not by itself select a target. Each checkpoint names its
 selection and prerequisites. Consult the [C subset](60-c-subset.md) when
 changing its C input.
 
+Use [Appendix F's target map](60-c-subset.md#choose-the-compiler-target)
+as the contract card, rather than treating “native” or “direct” as one
+master switch. Keep these independent questions beside it:
+
+- **Preprocessing (Chapter 28):** which substitution/include policy is
+  active, and is source-location handling enabled?
+- **Storage (Chapter 30, extended in 39):** which object widths and type
+  metadata are retained?
+- **Calls (Chapters 37 and 41):** core six-register calls, private native
+  all-stack calls, or the explicitly selected System V boundary?
+- **Output (Chapters 38 and 40):** a complete executable or an object
+  whose external references still need linking?
+- **Workspace (Chapter 27):** which input, output and arena capacities
+  does this particular driver install? More capacity changes limits,
+  not the language or calling convention.
+
+A target selector can set several of these together. That coupling does
+not make the questions interchangeable; follow the checkpoint's setup
+when reproducing a result.
+
 Alongside those checkpoints, keep one short expression in view.
 Chapter 28 expands `SQUARE(ROWS)`, with `ROWS` defined as 4, into the
 tokens of `((4) * (4))`. Chapters 29–33 follow those characters as tokens,

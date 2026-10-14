@@ -172,14 +172,14 @@ Chapter 18 builds readable Linux syscall wrappers on this bridge. Here the disti
 
 Run the checkpoint from the `forth-bootstrap` checkout (`cd forth-bootstrap` from the book repository). `./seed/build.sh` builds the complete seed. We use its existing command reader as a tool; Chapter 9 explains token reading and Chapter 12 explains the REPL.
 
-This works because the reader stops at the space after `key`, so `key` itself reads the very next byte of input, which is the character typed straight after it. The first input stream gives `key` an `A`, emits it, then reads and emits a newline before `bye`. The second uses the character `*` as exit status `42` and `<` as syscall number `60`. Shell `printf` supplies a NUL byte for the unused arguments; `dup`, recalled from Chapter 6, copies it into the remaining slots. This supplies `( 42 0 0 0 0 0 60 )` to `syscall6`.
+This works because the reader stops at the space after `key`, so `key` itself reads the very next byte of input, which is the character typed straight after it. The first input stream gives `key` an `A`, emits it, then reads and emits a newline before `bye`. The second uses `[lit]`, the interface introduced in Chapter 1, to supply `( 42 0 0 0 0 0 60 )` explicitly: status 42, five unused zero arguments, then syscall number 60. Its implementation comes in Chapter 10. Keeping the operands visible lets us check the six-argument contract without encoding numbers as input characters.
 
 ```sh
 ./seed/build.sh
 printf 'key Aemit key \nemit bye\n' | ./seed-forth
 # prints "A"
 status=0
-printf 'key *key \000dup dup dup dup key <syscall6\n' | ./seed-forth || status=$?
+printf '%s\n' '[lit] 42 [lit] 0 [lit] 0 [lit] 0 [lit] 0 [lit] 0 [lit] 60 syscall6' | ./seed-forth || status=$?
 printf 'syscall6 exit status: %s\n' "$status"
 # prints "syscall6 exit status: 42"
 ```
@@ -195,3 +195,22 @@ syscall6 exit status: 42
 ## Exercise
 
 **Trace (easy).** Follow `syscall6` with an older value below `a`. Mark where `n` is saved, which instruction releases the argument cells, and where the older value sits when the result becomes the cached top. Then explain what would break if the first `mov rax, rdi` were moved after the load of `a`.
+
+<details>
+<summary>Check the six-argument trace</summary>
+
+Write the incoming stack as `older a b c d e f n`, top at the right,
+and name the initial `rbp` value `p`. `n` is cached in `rdi`; memory
+holds `f` at `[p]`, through `a` at `[p+40]`, then `older` at `[p+48]`.
+The first `mov rax, rdi` saves `n` before `rdi` is reused for `a`.
+On a returning syscall, `add rbp, 48` advances to the older value's
+slot. `mov rdi, rax` caches the result, leaving `older` at the new
+`[rbp]`, beneath it. No reload or extra pop is needed.
+
+Moving the first instruction after the load of `a` would instead put
+`a` in `rax`: Linux would receive the first argument as the syscall
+number. This is a paper trace, not a safe mutation to try with arbitrary
+system-call operands. The checkpoint's exit syscall never returns, so
+it does not exercise the recovery tail.
+
+</details>

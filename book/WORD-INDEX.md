@@ -18,7 +18,7 @@ entry says what kind it is and which source file holds it:
 
 A kind in parentheses other than the file is the defining word used
 (`variable`, `constant`, `create`, `defer`); plain colon definitions
-carry none.  2812 names and 97 ideas.
+carry none.  2812 names and 142 ideas.
 
 For a one-line definition of a term, see the [Glossary](62-glossary.md);
 for which chapter depends on which, the
@@ -84,6 +84,7 @@ for which chapter depends on which, the
 - `ag-target` — *compiler word (`cc/131-cc-aggregate-abi.fth`)* — [Ch 49, Give arguments explicit locations](49-aggregate-abi.md#give-arguments-explicit-locations)
 - `ag-type` — *compiler word (`cc/131-cc-aggregate-abi.fth`)* — [Ch 49, Give arguments explicit locations](49-aggregate-abi.md#give-arguments-explicit-locations)
 - `again,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, `until,` and `again,`: closing a known destination](24-lib-11-control-flow-combinators.md#until-and-again-closing-a-known-destination) · [Ch 27, Compiling literals and branches directly](27-arena-and-io-buffers.md#compiling-literals-and-branches-directly)
+- **Aggregate classification** — [Ch 49, Classify the object before moving it](49-aggregate-abi.md#classify-the-object-before-moving-it)
 - `allot` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `allot` and `skip-vm-pages`: making room](25-lib-12-defining-words-and-bytes-eq.md#allot-and-skip-vm-pages-making-room)
 - `alpha-lower?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, `alpha-lower?` and `alpha-upper?`: change the interval](19-lib-06-character-classification.md#alpha-lower-and-alpha-upper-change-the-interval)
 - `alpha-upper?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, `alpha-lower?` and `alpha-upper?`: change the interval](19-lib-06-character-classification.md#alpha-lower-and-alpha-upper-change-the-interval)
@@ -174,14 +175,18 @@ for which chapter depends on which, the
 - `arc-width` — *compiler word (variable, `cc/141-archive.fth`)* — [Ch 42, Plan a deterministic archive](42-linker-and-archives.md#plan-a-deterministic-archive)
 - `arc-write` — *compiler word (`cc/141-archive.fth`)* — [Ch 42, Emit the index and members](42-linker-and-archives.md#emit-the-index-and-members)
 - `arc-zero` — *compiler word (`cc/141-archive.fth`)* — [Ch 42, Index candidate definitions](42-linker-and-archives.md#index-candidate-definitions)
+- **Archive member comparison** — [Ch 52, Compare installations, not build debris](52-gcc-4-fixed-point.md#compare-installations-not-build-debris)
+- **Archive pin agreement** — [Ch 53, Bind the archive names to bytes](53-sealed-run.md#bind-the-archive-names-to-bytes)
 - **Arena (bump allocator)** — [Ch 27, The arena](27-arena-and-io-buffers.md#the-arena)
 - **Assignment (snapshot, recurse, store)** — [Ch 34, Assignment: snapshot, recurse, store](34-expressions-part-2.md#assignment-snapshot-recurse-store)
+- **Atomic object publication** — [Ch 40, Write, close, then rename](40-objects-and-relocations.md#write-close-then-rename)
 
 ## B
 
 - `backslash` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
 - **Backward loops** — [Ch 24, Backward loops: `begin,` / `while,` / `repeat,`](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat)
 - `begin,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, Backward loops: `begin,` / `while,` / `repeat,`](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat) · [Ch 27, Compiling literals and branches directly](27-arena-and-io-buffers.md#compiling-literals-and-branches-directly)
+- **Bitfield slice** — [Ch 48, Describe a slice of a native object](48-bitfields.md#describe-a-slice-of-a-native-object)
 - `bl` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
 - `bo-compound` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `bo-emitter` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
@@ -190,6 +195,7 @@ for which chapter depends on which, the
 - `bo-op` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `bo-size` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - **Bootstrap chain** — [Ch 38, The wider chain](38-main-and-bootstrap-chain.md#the-wider-chain) · [App. C, What forth-bootstrap checks today](57-historical-reproducibility.md#what-forth-bootstrap-checks-today)
+- **Bounded formatting count** — [Ch 43, Formatting counts the complete result](43-runtime-and-libc.md#formatting-counts-the-complete-result)
 - `bracket_lit_code` — *seed label* — [Ch 10, `bracket_lit_code`: write what `lit_code` will read](10-colon-compiler.md#bracket_lit_code-write-what-lit_code-will-read)
 - `branch` — *seed primitive* — [Ch 11, `branch_code`: replace the return address](11-branches.md#branch_code-replace-the-return-address) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `branch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 24, `branch-xt` and `0branch-xt`: a load-time snapshot](24-lib-11-control-flow-combinators.md#branch-xt-and-0branch-xt-a-load-time-snapshot)
@@ -206,8 +212,9 @@ for which chapter depends on which, the
 - `c!` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `c!`: narrow the store, preserve the cleanup](06-stack-primitives.md#c-narrow-the-store-preserve-the-cleanup) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `c,` — *Forth word (`forth/010-lib.fth`)* — [Ch 15, `c,` and the workhorse pattern](15-lib-02-code-emission-and-here.md#c-and-the-workhorse-pattern)
 - `c@` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `c@`: widen a byte into a cell](06-stack-primitives.md#c-widen-a-byte-into-a-cell) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
+- **Call transport plan** — [Ch 49, Give arguments explicit locations](49-aggregate-abi.md#give-arguments-explicit-locations)
 - `call,` — *Forth word (`forth/010-lib.fth`)* — [Ch 23, `call,`: emit a call from Forth](23-lib-10-immediacy-and-constants.md#call-emit-a-call-from-forth)
-- **Calling convention (six register arguments)** — [Ch 37, The call codegen](37-functions-and-scope.md#the-call-codegen)
+- **Calling convention (core: six register arguments)** — [Ch 37, The call codegen](37-functions-and-scope.md#the-call-codegen) · [Ch 39, Private stack calls and whole programs](39-lp64-storage-and-initializers.md#private-stack-calls-and-whole-programs) · [Ch 41, Trace the call before tracing its parser](41-system-v-calls.md#trace-the-call-before-tracing-its-parser)
 - **Canonicalisation (0= 0=)** — [Ch 20, `0<` and the `0= 0=` canonicalisation](20-lib-07-comparisons-from-division.md#0-and-the-0-0-canonicalisation)
 - **Casts** — [Ch 35, Type names and casts](35-declarations-types-globals.md#type-names-and-casts)
 - `cc-abs` — *compiler word (`cc/100-cc-expr.fth`)* — [Ch 33, Arithmetic helpers](33-expressions-part-1.md#arithmetic-helpers)
@@ -2369,12 +2376,17 @@ for which chapter depends on which, the
 - `cfetch_code` — *seed label* — [Ch 6, `c@`: widen a byte into a cell](06-stack-primitives.md#c-widen-a-byte-into-a-cell)
 - **Chained fixups (else,)** — [Ch 24, `else,`: chained fixups](24-lib-11-control-flow-combinators.md#else-chained-fixups)
 - `char` — *Forth word (`forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
+- **Checked constant arithmetic** — [Ch 45, Check arithmetic at the working width](45-typed-constants.md#check-arithmetic-at-the-working-width)
+- **Checked relocation assignment** — [Ch 42, Apply checked relocations](42-linker-and-archives.md#apply-checked-relocations)
 - `close` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
 - `code-start` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 27, Redirecting existing Forth words](27-arena-and-io-buffers.md#redirecting-existing-forth-words)
 - `code:` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Redirecting existing Forth words](27-arena-and-io-buffers.md#redirecting-existing-forth-words)
 - `colon_code` — *seed label* — [Ch 10, `colon_code`: give the body a name](10-colon-compiler.md#colon_code-give-the-body-a-name)
 - `comma_code` — *seed label* — [Ch 9, `here_code` and `comma_code`: append a cell](09-dictionary.md#here_code-and-comma_code-append-a-cell)
 - `compile_call` — *seed label* — [Ch 10, `compile_call`: append a body instruction](10-colon-compiler.md#compile_call-append-a-body-instruction)
+- **Compiler climb** — [Ch 55, Climb to the Linux compiler](55-linux-and-kexec.md#climb-to-the-linux-compiler)
+- **Compiler driver stream** — [Ch 50, Let C assemble the next Forth stream](50-seed-cc-fixed-point.md#let-c-assemble-the-next-forth-stream)
+- **Compiler fixed point** — [Ch 52, Why rebuild a working compiler?](52-gcc-4-fixed-point.md#why-rebuild-a-working-compiler)
 - `compiling?` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback)
 - `cond-done` — *compiler word (constant, `cc/040-cc-prep.fth`)* — [Ch 28, Conditional groups and the walker](28-the-preprocessor.md#conditional-groups-and-the-walker)
 - `cond-seek` — *compiler word (constant, `cc/040-cc-prep.fth`)* — [Ch 28, Conditional groups and the walker](28-the-preprocessor.md#conditional-groups-and-the-walker)
@@ -2390,6 +2402,7 @@ for which chapter depends on which, the
 
 - **Data stack** — [Ch 14, Postfix evaluation](14-lib-01-stacks-and-words.md#postfix-evaluation) · [Ch 6, The push and pop shapes](06-stack-primitives.md#the-push-and-pop-shapes)
 - **De Morgan's law** — [Ch 16, `or` in six words](16-lib-03-logic-from-nand.md#or-in-six-words)
+- **Dead constant-expression arms** — [Ch 45, Parse dead arms while suppressing their effects](45-typed-constants.md#parse-dead-arms-while-suppressing-their-effects)
 - `defer` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 - `defer-code-size` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 - **Deferred words** — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
@@ -2397,10 +2410,14 @@ for which chapter depends on which, the
 - **Dictionary header layout** — [Ch 9, The header layout](09-dictionary.md#the-header-layout)
 - `die` — *Forth word (`forth/010-lib.fth`)* — [Ch 18, `close` and `die`: one real argument](18-lib-05-syscalls.md#close-and-die-one-real-argument)
 - `digit?` — *Forth word (`forth/010-lib.fth`)* — [Ch 19, The range-check trick: `digit?`](19-lib-06-character-classification.md#the-range-check-trick-digit)
+- **Direct destination rounding** — [Ch 47, Select the destination before rounding](47-floats.md#select-the-destination-before-rounding)
+- **Direct map** — [Ch 54, Two virtual addresses, one physical byte](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
+- **Direct recipes** — [Ch 51, Give make commands it can execute directly](51-owning-the-tools.md#give-make-commands-it-can-execute-directly)
 - **Direct TinyCC bootstrap** — [App. C, Routes retained in seed-forth](57-historical-reproducibility.md#routes-retained-in-seed-forth)
 - **Diverse double-compiling** — [App. C, Diverse double-compiling](57-historical-reproducibility.md#diverse-double-compiling)
 - `divide_code` — *seed label* — [Ch 7, Unsigned division contract](07-arithmetic-and-logic.md#unsigned-division-contract)
 - **Division as a right shift** — [Ch 22, Why divide by 256?](22-lib-09-memory-and-cell-writers.md#why-divide-by-256)
+- **Driver self-rebuild** — [Ch 50, Rebuild the driver with itself](50-seed-cc-fixed-point.md#rebuild-the-driver-with-itself)
 - `drop` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `drop`: replace the old top](06-stack-primitives.md#drop-replace-the-old-top) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `drop_code` — *seed label* — [Ch 6, `drop`: replace the old top](06-stack-primitives.md#drop-replace-the-old-top)
 - `dup` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `dup`: preserve the old top](06-stack-primitives.md#dup-preserve-the-old-top) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
@@ -2411,6 +2428,7 @@ for which chapter depends on which, the
 - **Early exit (exit,)** — [Ch 24, `exit,`: early return with a clean return stack](24-lib-11-control-flow-combinators.md#exit-early-return-with-a-clean-return-stack)
 - **ELF header and program header** — [Ch 5, Identify the executable and its entry](05-elf-and-entry.md#identify-the-executable-and-its-entry) · [Ch 5, Make storage exist](05-elf-and-entry.md#make-storage-exist) · [Ch 31, `080-cc-elf.fth`: the ELF wrapper](31-elf-and-codegen-part-1.md#080-cc-elffth-the-elf-wrapper)
 - `else,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, `else,`: chained fixups](24-lib-11-control-flow-combinators.md#else-chained-fixups) · [Ch 27, Compiling literals and branches directly](27-arena-and-io-buffers.md#compiling-literals-and-branches-directly)
+- **Embedded initramfs** — [Ch 55, Build a kernel with its own init](55-linux-and-kexec.md#build-a-kernel-with-its-own-init)
 - `emit` — *seed primitive* — [Ch 8, `emit`: consume a character](08-seed-io.md#emit-consume-a-character) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - **Emit, remember, patch** — [Ch 24, Forward branches: `if,` and `then,` as a pair](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair) · [Ch 31, Branches and `rel32` placeholders](31-elf-and-codegen-part-1.md#branches-and-rel32-placeholders) · [Ch 36, The forward reference, compound blocks, and `if`](36-statements-if-while-for-return.md#the-forward-reference-compound-blocks-and-if)
 - `emit_code` — *seed label* — [Ch 8, `emit`: consume a character](08-seed-io.md#emit-consume-a-character)
@@ -2419,16 +2437,20 @@ for which chapter depends on which, the
 - **Enums and typedefs** — [Ch 37, Enums and typedefs](37-functions-and-scope.md#enums-and-typedefs)
 - **Error codes and cc-die** — [Ch 27, Failing: `cc-die`](27-arena-and-io-buffers.md#failing-cc-die) · [App. G, How the codes are organised](61-error-codes.md#how-the-codes-are-organised)
 - **Escape decoding (string literals)** — [Ch 32, String-literal bytes with C-escape decoding](32-codegen-part-2.md#string-literal-bytes-with-c-escape-decoding)
+- **Exact floating ratio** — [Ch 47, Build literal bits without floating arithmetic](47-floats.md#build-literal-bits-without-floating-arithmetic)
 - `execute` — *seed primitive* — [Ch 9, `execute`: enter the code address](09-dictionary.md#execute-enter-the-code-address) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `execute-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 - `execute_code` — *seed label* — [Ch 9, `execute`: enter the code address](09-dictionary.md#execute-enter-the-code-address)
 - **Execution token (xt)** — [Ch 9, The header layout](09-dictionary.md#the-header-layout) · [Ch 9, `tick_code`: read a name and find its xt](09-dictionary.md#tick_code-read-a-name-and-find-its-xt) · [Ch 24, `branch-xt` and `0branch-xt`: a load-time snapshot](24-lib-11-control-flow-combinators.md#branch-xt-and-0branch-xt-a-load-time-snapshot)
+- **Execve trace audit** — [Ch 53, Read successes separately from attempts](53-sealed-run.md#read-successes-separately-from-attempts)
 - `exit,` — *Forth word (`forth/010-lib.fth`)* — [Ch 24, `exit,`: early return with a clean return stack](24-lib-11-control-flow-combinators.md#exit-early-return-with-a-clean-return-stack)
 - **Expectation helpers** — [Ch 35, Expectation helpers and ignored specifiers](35-declarations-types-globals.md#expectation-helpers-and-ignored-specifiers)
+- **Extended floating value** — [Ch 49, Compute with extended values without retaining x87 state](49-aggregate-abi.md#compute-with-extended-values-without-retaining-x87-state)
 
 ## F
 
 - **Fail-closed bootstrap runtime** — [Ch 39, A finite Linux boundary](39-lp64-storage-and-initializers.md#a-finite-linux-boundary)
+- **Failure-preserving realloc** — [Ch 43, Failure preserves ownership](43-runtime-and-libc.md#failure-preserves-ownership)
 - `fatal_token` — *seed label* — [Ch 9, `report_token` and `fatal_token`: failing out loud](09-dictionary.md#report_token-and-fatal_token-failing-out-loud)
 - `fetch-xt` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
 - `fetch_code` — *seed label* — [Ch 6, `@`: replace an address with its contents](06-stack-primitives.md#-replace-an-address-with-its-contents)
@@ -2454,14 +2476,17 @@ for which chapter depends on which, the
 - `forth->` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, Comparison emitters and immediate data words](27-arena-and-io-buffers.md#comparison-emitters-and-immediate-data-words)
 - `forth->=` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, Comparison emitters and immediate data words](27-arena-and-io-buffers.md#comparison-emitters-and-immediate-data-words)
 - **Forward-call fixup list** — [Ch 32, `movabs rdi, imm64` and the forward-call fixup list](32-codegen-part-2.md#movabs-rdi-imm64-and-the-forward-call-fixup-list)
-- **Function frame (256 bytes, 32 slots)** — [Ch 37, Parameter lists and the spill](37-functions-and-scope.md#parameter-lists-and-the-spill) · [Ch 35, File header and bookkeeping](35-declarations-types-globals.md#file-header-and-bookkeeping)
+- **Function frame (core: 256 bytes, 32 slots)** — [Ch 37, Parameter lists and the spill](37-functions-and-scope.md#parameter-lists-and-the-spill) · [Ch 35, File header and bookkeeping](35-declarations-types-globals.md#file-header-and-bookkeeping) · [Ch 41, Build the body from its retained signature](41-system-v-calls.md#build-the-body-from-its-retained-signature)
 - **Function pointers** — [Ch 35, Function pointers and the declaration engine](35-declarations-types-globals.md#function-pointers-and-the-declaration-engine)
 - **Functional completeness of NAND** — [Ch 16, Why "logic from nand" matters](16-lib-03-logic-from-nand.md#why-logic-from-nand-matters)
 
 ## G
 
+- **GCC 15.2 port evidence** — [Ch 56, What would count as success](56-gcc-15-epilogue.md#what-would-count-as-success)
 - **GCC-free build** — [App. C, The GCC-free build](57-historical-reproducibility.md#the-gcc-free-build)
+- **Generated build inputs** — [Ch 51, Generate the generators' inputs](51-owning-the-tools.md#generate-the-generators-inputs)
 - **Global-address fixups** — [Ch 32, File-scope globals and deferred vaddr fixups](32-codegen-part-2.md#file-scope-globals-and-deferred-vaddr-fixups) · [Ch 37, File-scope globals](37-functions-and-scope.md#file-scope-globals)
+- **GNU archive index** — [Ch 42, Emit the index and members](42-linker-and-archives.md#emit-the-index-and-members)
 
 ## H
 
@@ -2481,6 +2506,7 @@ for which chapter depends on which, the
 - **IMMEDIATE flag** — [Ch 10, Why `;` is IMMEDIATE](10-colon-compiler.md#why--is-immediate) · [Ch 23, The IMMEDIATE flag: `immediate`](23-lib-10-immediacy-and-constants.md#the-immediate-flag-immediate)
 - `in-range,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Inlining arithmetic and predicates](27-arena-and-io-buffers.md#inlining-arithmetic-and-predicates)
 - **#include and the include pool** — [Ch 28, `#include` and its bounded file pool](28-the-preprocessor.md#include-and-its-bounded-file-pool)
+- **Independent argument cursors** — [Ch 46, Advance the appropriate cursor](46-varargs.md#advance-the-appropriate-cursor)
 - **Inline cell after a CALL** — [Ch 10, `lit_code` and the inline-cell trick](10-colon-compiler.md#lit_code-and-the-inline-cell-trick) · [Ch 11, The compiled shape](11-branches.md#the-compiled-shape)
 - **Input, source and output buffers** — [Ch 27, The input and source buffers and the reader](27-arena-and-io-buffers.md#the-input-and-source-buffers-and-the-reader) · [Ch 27, The output buffer](27-arena-and-io-buffers.md#the-output-buffer)
 - `is` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `defer` and `is`: a name now, a meaning later](25-lib-12-defining-words-and-bytes-eq.md#defer-and-is-a-name-now-a-meaning-later)
@@ -2499,9 +2525,12 @@ for which chapter depends on which, the
 
 ## K
 
+- **K0 handoff** — [Ch 54, K0 supplies just enough execution](54-k0-and-k1.md#k0-supplies-just-enough-execution)
+- **K1 operating environment** — [Ch 54, K1 provides the tools' operating environment](54-k0-and-k1.md#k1-provides-the-tools-operating-environment)
 - `kd-buf` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 27, Handing buffered input to the compiler](27-arena-and-io-buffers.md#handing-buffered-input-to-the-compiler)
 - `kd-cap` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 27, Handing buffered input to the compiler](27-arena-and-io-buffers.md#handing-buffered-input-to-the-compiler)
 - `kd-n` — *compiler word (variable, `cc/020-cc-arena.fth`)* — [Ch 27, Handing buffered input to the compiler](27-arena-and-io-buffers.md#handing-buffered-input-to-the-compiler)
+- **kexec entry state** — [Ch 55, Prepare the Linux entry state](55-linux-and-kexec.md#prepare-the-linux-entry-state)
 - `key` — *seed primitive* — [Ch 8, `key`: preserve the old top and add input](08-seed-io.md#key-preserve-the-old-top-and-add-input) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `key-buffer` — *compiler word (create, `cc/020-cc-arena.fth`)* — [Ch 27, Handing buffered input to the compiler](27-arena-and-io-buffers.md#handing-buffered-input-to-the-compiler)
 - `key-buffer-size` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, Handing buffered input to the compiler](27-arena-and-io-buffers.md#handing-buffered-input-to-the-compiler)
@@ -2553,6 +2582,7 @@ for which chapter depends on which, the
 - **Labels and goto** — [Ch 36, Labels and `goto`](36-statements-if-while-for-return.md#labels-and-goto)
 - `latest` — *seed primitive* — [Ch 9, `state` and `latest`: addresses of system variables](09-dictionary.md#state-and-latest-addresses-of-system-variables) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `latest_code` — *seed label* — [Ch 9, `state` and `latest`: addresses of system variables](09-dictionary.md#state-and-latest-addresses-of-system-variables)
+- **Lazy member selection** — [Ch 42, Turn the index into linker demand](42-linker-and-archives.md#turn-the-index-into-linker-demand)
 - **Left associativity** — [Ch 33, `cc-parse-add`: just like `mul`, looser](33-expressions-part-1.md#cc-parse-add-just-like-mul-looser) · [App. D, Where left-associativity comes from](58-worked-exercises.md#where-left-associativity-comes-from)
 - `level-add` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
 - `level-bit-and` — *compiler word (constant, `cc/100-cc-expr.fth`)* — [Ch 33, Row layout and construction](33-expressions-part-1.md#row-layout-and-construction)
@@ -2704,6 +2734,7 @@ for which chapter depends on which, the
 - `lnk-w32` — *compiler word (`cc/140-cc-link.fth`)* — [Ch 42, Validate before dereferencing](42-linker-and-archives.md#validate-before-dereferencing)
 - `lnk-write` — *compiler word (`cc/140-cc-link.fth`)* — [Ch 42, Publish only a completed link](42-linker-and-archives.md#publish-only-a-completed-link)
 - `lnk-zero?` — *compiler word (`cc/140-cc-link.fth`)* — [Ch 42, Accept the object contract](42-linker-and-archives.md#accept-the-object-contract)
+- **Local-first symbol numbering** — [Ch 40, Serialize with local symbols first](40-objects-and-relocations.md#serialize-with-local-symbols-first)
 - **Local-variable addressing (rbp - 8n)** — [Ch 31, Local-variable addressing](31-elf-and-codegen-part-1.md#local-variable-addressing)
 - **LP64 native object storage** — [Ch 39, Native declarations and aligned storage](39-lp64-storage-and-initializers.md#native-declarations-and-aligned-storage)
 - `lparen` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
@@ -2783,6 +2814,7 @@ for which chapter depends on which, the
 - `oa-record` — *compiler word (`cc/123-cc-object-program.fth`)* — [Ch 41, Represent an address without loading it](41-system-v-calls.md#represent-an-address-without-loading-it)
 - `oa-type` — *compiler word (`cc/123-cc-object-program.fth`)* — [Ch 41, Represent an address without loading it](41-system-v-calls.md#represent-an-address-without-loading-it)
 - `oa-value` — *compiler word (`cc/123-cc-object-program.fth`)* — [Ch 41, Represent an address without loading it](41-system-v-calls.md#represent-an-address-without-loading-it)
+- **Object relocations** — [Ch 40, Record unfinished addresses](40-objects-and-relocations.md#record-unfinished-addresses)
 - `om-align` — *compiler word (`cc/123-cc-object-program.fth`)* — [Ch 41, Carry code and storage into a relocatable object](41-system-v-calls.md#carry-code-and-storage-into-a-relocatable-object)
 - `om-array` — *compiler word (`cc/123-cc-object-program.fth`)* — [Ch 41, Carry code and storage into a relocatable object](41-system-v-calls.md#carry-code-and-storage-into-a-relocatable-object)
 - `om-bind` — *compiler word (`cc/123-cc-object-program.fth`)* — [Ch 41, Carry code and storage into a relocatable object](41-system-v-calls.md#carry-code-and-storage-into-a-relocatable-object)
@@ -2809,6 +2841,7 @@ for which chapter depends on which, the
 ## P
 
 - `parse_decimal_code` — *seed label* — [Ch 12, Decimal conversion: `parse_decimal_code`](12-repl.md#decimal-conversion-parse_decimal_code)
+- **Persistent call-save span** — [Ch 41, Preserve the caller's register values](41-system-v-calls.md#preserve-the-callers-register-values)
 - `plus_code` — *seed label* — [Ch 7, Addition contract](07-arithmetic-and-logic.md#addition-contract)
 - `poc-xt` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, Comparison emitters and immediate data words](27-arena-and-io-buffers.md#comparison-emitters-and-immediate-data-words)
 - `pop-rsub,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Comparison emitters and immediate data words](27-arena-and-io-buffers.md#comparison-emitters-and-immediate-data-words)
@@ -2817,6 +2850,7 @@ for which chapter depends on which, the
 - **Postfix operators** — [Ch 34, The postfix operators](34-expressions-part-2.md#the-postfix-operators)
 - **Precedence cascade** — [Ch 33, The level template: `cc-parse-mul`](33-expressions-part-1.md#the-level-template-cc-parse-mul) · [Ch 33, The cascade in motion](33-expressions-part-1.md#the-cascade-in-motion)
 - **Preprocessor** — [Ch 28, The built-in macros and the pass driver](28-the-preprocessor.md#the-built-in-macros-and-the-pass-driver)
+- **Preserving store** — [Ch 48, Replace bits without replacing neighbours](48-bitfields.md#replace-bits-without-replacing-neighbours)
 - **Primitive vs derived word (the byte trade)** — [Ch 16, What this buys](16-lib-03-logic-from-nand.md#what-this-buys) · [Ch 17, Why subtraction isn't a primitive](17-lib-04-return-stack-over-subtract.md#why-subtraction-isnt-a-primitive)
 - **Private all-stack ABI** — [Ch 39, Private stack calls and whole programs](39-lp64-storage-and-initializers.md#private-stack-calls-and-whole-programs)
 - `pt-amp-eq` — *compiler word (constant, `cc/050-cc-lex.fth`)* — [Ch 29, Token kinds and punctuation IDs](29-the-lexer.md#token-kinds-and-punctuation-ids)
@@ -2863,6 +2897,7 @@ for which chapter depends on which, the
 - `read_word` — *seed label* — [Ch 9, `read_word`, the token reader](09-dictionary.md#read_word-the-token-reader)
 - **Register convention (rdi accumulator)** — [Ch 31, `090-cc-emit.fth`: register convention](31-elf-and-codegen-part-1.md#090-cc-emitfth-register-convention)
 - `rel32!` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Compiling literals and branches directly](27-arena-and-io-buffers.md#compiling-literals-and-branches-directly)
+- **Remainder-based rounding** — [Ch 47, Normalize, then settle the rounding tie](47-floats.md#normalize-then-settle-the-rounding-tie)
 - `repeat,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, Backward loops: `begin,` / `while,` / `repeat,`](24-lib-11-control-flow-combinators.md#backward-loops-begin--while--repeat) · [Ch 27, Compiling literals and branches directly](27-arena-and-io-buffers.md#compiling-literals-and-branches-directly)
 - `repl` — *seed label* — [Ch 12, The REPL loop](12-repl.md#the-repl-loop)
 - **REPL (interpret/compile loop)** — [Ch 12, The REPL loop](12-repl.md#the-repl-loop)
@@ -2878,6 +2913,7 @@ for which chapter depends on which, the
 - `s,` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `s,`: names as data](25-lib-12-defining-words-and-bytes-eq.md#s-names-as-data)
 - `sar63,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Redirecting existing Forth words](27-arena-and-io-buffers.md#redirecting-existing-forth-words)
 - **Scope stack** — [Ch 30, Scopes are a stack of integers](30-types-and-symbols.md#scopes-are-a-stack-of-integers)
+- **Sealed execution boundary** — [Ch 53, Establish the executable boundary](53-sealed-run.md#establish-the-executable-boundary)
 - `seed-0=` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, Inlining arithmetic and predicates](27-arena-and-io-buffers.md#inlining-arithmetic-and-predicates)
 - `seed->r` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, Keeping return-stack operations frame-free](27-arena-and-io-buffers.md#keeping-return-stack-operations-frame-free)
 - `seed-cfetch` — *compiler word (constant, `cc/020-cc-arena.fth`)* — [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback)
@@ -2907,6 +2943,7 @@ for which chapter depends on which, the
 - `sk-typedef` — *compiler word (constant, `cc/070-cc-sym.fth`)* — [Ch 30, Linking live symbols by name](30-types-and-symbols.md#linking-live-symbols-by-name)
 - `skip-vm-pages` — *Forth word (`forth/010-lib.fth`)* — [Ch 25, `allot` and `skip-vm-pages`: making room](25-lib-12-defining-words-and-bytes-eq.md#allot-and-skip-vm-pages-making-room)
 - `space?` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 19, `space?`: four-way OR](19-lib-06-character-classification.md#space-four-way-or) · [Ch 27, Recompiling library clients of the new emitters](27-arena-and-io-buffers.md#recompiling-library-clients-of-the-new-emitters)
+- **Stable symbol handle** — [Ch 40, Give symbols stable handles](40-objects-and-relocations.md#give-symbols-stable-handles)
 - **Stack-effect notation** — [Ch 14, Stack-effect comments](14-lib-01-stacks-and-words.md#stack-effect-comments)
 - **Stage-A parity comparison** — [Ch 38, Stage A: the parity proof](38-main-and-bootstrap-chain.md#stage-a-the-parity-proof)
 - `star_code` — *seed label* — [Ch 7, Low-product contract](07-arithmetic-and-logic.md#low-product-contract)
@@ -2916,6 +2953,7 @@ for which chapter depends on which, the
 - `state_code` — *seed label* — [Ch 9, `state` and `latest`: addresses of system variables](09-dictionary.md#state-and-latest-addresses-of-system-variables)
 - **Static initializer lowering** — [Ch 39, Initializers reuse expression fixups](39-lp64-storage-and-initializers.md#initializers-reuse-expression-fixups)
 - `store_code` — *seed label* — [Ch 6, `!`: store, then consume the operands](06-stack-primitives.md#-store-then-consume-the-operands)
+- **Stream state** — [Ch 43, Streams own state and pending bytes](43-runtime-and-libc.md#streams-own-state-and-pending-bytes)
 - **Struct descriptor** — [Ch 30, How types and symbols connect](30-types-and-symbols.md#how-types-and-symbols-connect) · [Ch 35, Struct definitions](35-declarations-types-globals.md#struct-definitions)
 - `sub-rax-rdi,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Redirecting existing Forth words](27-arena-and-io-buffers.md#redirecting-existing-forth-words)
 - **Subroutine threading** — [Ch 10, `compile_call`: append a body instruction](10-colon-compiler.md#compile_call-append-a-body-instruction)
@@ -2923,15 +2961,18 @@ for which chapter depends on which, the
 - `swap_code` — *seed label* — [Ch 6, `swap`: preserve depth, exchange positions](06-stack-primitives.md#swap-preserve-depth-exchange-positions)
 - **switch with deferred dispatch** — [Ch 36, `switch` with deferred dispatch](36-statements-if-while-for-return.md#switch-with-deferred-dispatch)
 - **Symbol table** — [Ch 30, The symbol-table parallel arrays](30-types-and-symbols.md#the-symbol-table-parallel-arrays) · [Ch 30, Adding and finding symbols](30-types-and-symbols.md#adding-and-finding-symbols)
+- **Symbolic address operand** — [Ch 41, Represent an address without loading it](41-system-v-calls.md#represent-an-address-without-loading-it)
 - **Syscall ABI (x86-64 Linux)** — [Ch 18, A sidebar on the syscall ABI](18-lib-05-syscalls.md#a-sidebar-on-the-syscall-abi) · [Ch 8, `syscall6`: let the caller choose](08-seed-io.md#syscall6-let-the-caller-choose)
 - `syscall6` — *seed primitive* — [Ch 8, `syscall6`: let the caller choose](08-seed-io.md#syscall6-let-the-caller-choose) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `syscall6_code` — *seed label* — [Ch 8, `syscall6`: let the caller choose](08-seed-io.md#syscall6-let-the-caller-choose)
+- **System V AMD64 calling convention** — [Ch 41, Trace the call before tracing its parser](41-system-v-calls.md#trace-the-call-before-tracing-its-parser)
 - **Sysvar page (STATE, LATEST, HERE, LAST_FOUND)** — [Ch 5, Initialize the mutable system variables](05-elf-and-entry.md#initialize-the-mutable-system-variables)
 - `sysvar_init` — *seed label* — [Ch 5, Initialize the mutable system variables](05-elf-and-entry.md#initialize-the-mutable-system-variables)
 
 ## T
 
 - `tab` — *Forth word (constant, `forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
+- **Target macro contract** — [Ch 44, Names describe the selected target](44-target-headers.md#names-describe-the-selected-target)
 - `then,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, Forward branches: `if,` and `then,` as a pair](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair) · [Ch 27, Compiling literals and branches directly](27-arena-and-io-buffers.md#compiling-literals-and-branches-directly)
 - `tib` — *Forth word (`forth/010-lib.fth`)* — [Ch 23, `char` and `[char]`: read now, push later](23-lib-10-immediacy-and-constants.md#char-and-char-read-now-push-later)
 - `tick_code` — *seed label* — [Ch 9, `tick_code`: read a name and find its xt](09-dictionary.md#tick_code-read-a-name-and-find-its-xt)
@@ -2986,14 +3027,18 @@ for which chapter depends on which, the
 - `ty-ushort` — *compiler word (constant, `cc/060-cc-types.fth`)* — [Ch 30, The one-word type encoding](30-types-and-symbols.md#the-one-word-type-encoding)
 - `ty-void` — *compiler word (constant, `cc/060-cc-types.fth`)* — [Ch 30, The one-word type encoding](30-types-and-symbols.md#the-one-word-type-encoding)
 - **Type encoding (one word per type)** — [Ch 30, The one-word type encoding](30-types-and-symbols.md#the-one-word-type-encoding)
+- **Typed constant record** — [Ch 45, A value carries its type](45-typed-constants.md#a-value-carries-its-type)
 
 ## U
 
+- **Unordered comparison** — [Ch 47, Compute at the common precision](47-floats.md#compute-at-the-common-precision)
 - `until,` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 24, `until,` and `again,`: closing a known destination](24-lib-11-control-flow-combinators.md#until-and-again-closing-a-known-destination) · [Ch 27, Compiling literals and branches directly](27-arena-and-io-buffers.md#compiling-literals-and-branches-directly)
 
 ## V
 
 - `variable` — *Forth word (`forth/010-lib.fth`); compiler word (`cc/020-cc-arena.fth`)* — [Ch 25, `create`'s runtime body and `variable`'s cell](25-lib-12-defining-words-and-bytes-eq.md#creates-runtime-body-and-variables-cell) · [Ch 27, Comparison emitters and immediate data words](27-arena-and-io-buffers.md#comparison-emitters-and-immediate-data-words)
+- **Variadic arguments (System V)** — [Ch 46, Preserve arguments for later retrieval](46-varargs.md#preserve-arguments-for-later-retrieval)
+- **Variadic cursor copying** — [Ch 46, Copy a cursor without copying arguments](46-varargs.md#copy-a-cursor-without-copying-arguments)
 
 ## W
 
