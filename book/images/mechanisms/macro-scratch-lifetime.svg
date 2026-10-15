@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1130" viewBox="0 0 1200 1130" role="img" aria-labelledby="title desc">
+<title id="title">Keep scratch bytes until the replacement rescan returns</title>
+<desc id="desc">Time runs left to right through a top-level legacy SQUARE(ROWS) expansion. Argument records and an expanded argument are retained in scratch. Two arrows copy the argument 4 into a replacement ((4) * (4)). Rescanning that retained replacement emits a separate copy into cc-src-buf. Only after the scan returns does the scratch cursor reset to saved S; the output copy survives. A second memory drawing shows that temp-end only shrinks a 64 KiB reservation to the used text, without releasing that text. Separator blanks are omitted in the main token view.</desc>
+<defs>
+<marker id="ink-arrow" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#172B3A"/></marker>
+<marker id="teal-arrow" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#007F82"/></marker>
+<marker id="orange-arrow" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#D16B26"/></marker>
+<marker id="out-arrow" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#286D4B"/></marker>
+<pattern id="reuse" patternUnits="userSpaceOnUse" width="10" height="10"><rect width="10" height="10" fill="#F7F5EF"/><path d="M-2,2 L2,-2 M0,10 L10,0 M8,12 L12,8" stroke="#D2D8D7" stroke-width="1.3"/></pattern>
+</defs>
+<rect x="0" y="0" width="1200" height="1130" rx="0" fill="#F7F5EF" />
+<text x="42" y="54" font-family="DejaVu Sans, sans-serif" font-size="34" fill="#172B3A" font-weight="700" text-anchor="start" >Keep the bytes until the rescan returns</text>
+<text x="42" y="86" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#637585" font-weight="400" text-anchor="start" >Top-level call · legacy profile · token view (separator blanks omitted)</text>
+<line x1="42" y1="111" x2="1158" y2="111" stroke="#C8D1D4" stroke-width="2" />
+<text x="42" y="145" font-family="DejaVu Sans Mono, monospace" font-size="22" fill="#172B3A" font-weight="400" text-anchor="start" >#define ROWS 4</text>
+<text x="42" y="179" font-family="DejaVu Sans Mono, monospace" font-size="22" fill="#172B3A" font-weight="400" text-anchor="start" >#define SQUARE(x) ((x) * (x))</text>
+<text x="782" y="140" font-family="DejaVu Sans, sans-serif" font-size="17" fill="#637585" font-weight="700" text-anchor="start" >CALL IN cc-in-buf</text>
+<text x="782" y="178" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="700" text-anchor="start" >SQUARE(ROWS)</text>
+<path d="M245,220 H1148" fill="none" stroke="#172B3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ink-arrow)"/>
+<text x="42" y="227" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#637585" font-weight="700" text-anchor="start" >TIME →</text>
+<circle cx="270" cy="220" r="15" fill="#172B3A"/>
+<text x="270" y="226" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#FFFFFF" font-weight="700" text-anchor="middle" >1</text>
+<text x="265" y="265" font-family="DejaVu Sans, sans-serif" font-size="22" fill="#172B3A" font-weight="700" text-anchor="start" >Prescan</text>
+<circle cx="500" cy="220" r="15" fill="#172B3A"/>
+<text x="500" y="226" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#FFFFFF" font-weight="700" text-anchor="middle" >2</text>
+<text x="495" y="265" font-family="DejaVu Sans, sans-serif" font-size="22" fill="#172B3A" font-weight="700" text-anchor="start" >Substitute</text>
+<circle cx="735" cy="220" r="15" fill="#172B3A"/>
+<text x="735" y="226" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#FFFFFF" font-weight="700" text-anchor="middle" >3</text>
+<text x="730" y="265" font-family="DejaVu Sans, sans-serif" font-size="22" fill="#172B3A" font-weight="700" text-anchor="start" >Rescan</text>
+<circle cx="987" cy="220" r="15" fill="#172B3A"/>
+<text x="987" y="226" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#FFFFFF" font-weight="700" text-anchor="middle" >4</text>
+<text x="982" y="265" font-family="DejaVu Sans, sans-serif" font-size="22" fill="#172B3A" font-weight="700" text-anchor="start" >Resume</text>
+<line x1="269" y1="287" x2="953" y2="287" stroke="#637585" stroke-width="1.7" stroke-dasharray="4 5"/>
+<text x="500" y="310" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#637585" font-weight="400" text-anchor="start" >Call site waits after the closing “)”</text>
+<path d="M955,287 H1138" fill="none" stroke="#637585" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ink-arrow)"/>
+<text x="990" y="310" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#637585" font-weight="400" text-anchor="start" >read on</text>
+<text x="42" y="357" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#637585" font-weight="700" text-anchor="start" >SCRATCH</text>
+<text x="42" y="386" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#172B3A" font-weight="700" text-anchor="start" >above saved S</text>
+<text x="42" y="417" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#172B3A" font-weight="400" text-anchor="start" >Records</text>
+<text x="42" y="492" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#172B3A" font-weight="400" text-anchor="start" >Argument</text>
+<text x="42" y="628" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#172B3A" font-weight="400" text-anchor="start" >Replacement</text>
+<rect x="245" y="373" width="710" height="60" rx="5" fill="#E3E8E8" stroke="#C8D1D4" stroke-width="1.5" />
+<text x="269" y="410" font-family="DejaVu Sans, sans-serif" font-size="21" fill="#637585" font-weight="400" text-anchor="start" >argument records</text>
+<rect x="270" y="455" width="685" height="60" rx="5" fill="#D4EBE7" stroke="#007F82" stroke-width="1.5" />
+<text x="297" y="495" font-family="DejaVu Sans Mono, monospace" font-size="32" fill="#007F82" font-weight="700" text-anchor="start" >4</text>
+<text x="746" y="491" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#007F82" font-weight="400" text-anchor="start" >still allocated</text>
+<rect x="500" y="587" width="455" height="65" rx="5" fill="#F4DFCD" stroke="#D16B26" stroke-width="1.5" />
+<text x="522" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" >(</text>
+<text x="542" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" >(</text>
+<rect x="559" y="598" width="23" height="40" rx="3" fill="#FFFFFF" />
+<text x="562" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#D16B26" font-weight="700" text-anchor="start" >4</text>
+<text x="582" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" >)</text>
+<text x="602" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" > </text>
+<text x="622" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" >*</text>
+<text x="642" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" > </text>
+<text x="662" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" >(</text>
+<rect x="679" y="598" width="23" height="40" rx="3" fill="#FFFFFF" />
+<text x="682" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#D16B26" font-weight="700" text-anchor="start" >4</text>
+<text x="702" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" >)</text>
+<text x="722" y="632" font-family="DejaVu Sans Mono, monospace" font-size="28" fill="#172B3A" font-weight="400" text-anchor="start" >)</text>
+<text x="773" y="627" font-family="DejaVu Sans, sans-serif" font-size="19" fill="#D16B26" font-weight="400" text-anchor="start" >kept for scan</text>
+<path d="M309,516 V545 H570 V585" fill="none" stroke="#007F82" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#teal-arrow)"/>
+<path d="M309,545 H690 V585" fill="none" stroke="#007F82" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#teal-arrow)"/>
+<text x="349" y="537" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#007F82" font-weight="400" text-anchor="start" >copy into both x positions</text>
+<rect x="955" y="373" width="190" height="60" rx="4" fill="url(#reuse)" stroke="#C8D1D4" stroke-width="1.5" />
+<rect x="955" y="455" width="190" height="60" rx="4" fill="url(#reuse)" stroke="#C8D1D4" stroke-width="1.5" />
+<rect x="955" y="587" width="190" height="65" rx="4" fill="url(#reuse)" stroke="#C8D1D4" stroke-width="1.5" />
+<text x="1050" y="403" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#637585" font-weight="700" text-anchor="middle" >reusable</text>
+<text x="1050" y="486" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#637585" font-weight="700" text-anchor="middle" >reusable</text>
+<text x="1050" y="627" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#637585" font-weight="700" text-anchor="middle" >reusable</text>
+<line x1="955" y1="338" x2="955" y2="671" stroke="#172B3A" stroke-width="2.8" stroke-dasharray="8 6"/>
+<text x="951" y="351" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#172B3A" font-weight="700" text-anchor="end" >reset top → S</text>
+<line x1="42" y1="691" x2="1158" y2="691" stroke="#C8D1D4" stroke-width="2" />
+<text x="42" y="729" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#637585" font-weight="700" text-anchor="start" >CALLER OUTPUT</text>
+<text x="42" y="762" font-family="DejaVu Sans Mono, monospace" font-size="21" fill="#172B3A" font-weight="700" text-anchor="start" >cc-src-buf</text>
+<rect x="245" y="727" width="490" height="64" rx="5" fill="none" stroke="#C8D1D4" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="271" y="766" font-family="DejaVu Sans, sans-serif" font-size="19" fill="#637585" font-weight="400" text-anchor="start" >sink parked while temporaries are built</text>
+<rect x="735" y="727" width="410" height="64" rx="5" fill="#E1EFE4" stroke="#286D4B" stroke-width="1.5" />
+<text x="753" y="766" font-family="DejaVu Sans Mono, monospace" font-size="25" fill="#286D4B" font-weight="700" text-anchor="start" >((4) * (4))</text>
+<path d="M962,759 H1127" fill="none" stroke="#286D4B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#out-arrow)"/>
+<text x="1047" y="819" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#286D4B" font-weight="700" text-anchor="middle" >copy survives</text>
+<path d="M825,653 V725" fill="none" stroke="#D16B26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#orange-arrow)"/>
+<text x="837" y="677" font-family="DejaVu Sans, sans-serif" font-size="18" fill="#D16B26" font-weight="700" text-anchor="start" >scan → emit</text>
+<text x="245" y="819" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#172B3A" font-weight="700" text-anchor="start" >Records + texts remain allocated until the scan returns.</text>
+<line x1="42" y1="848" x2="1158" y2="848" stroke="#C8D1D4" stroke-width="2" />
+<text x="42" y="886" font-family="DejaVu Sans, sans-serif" font-size="26" fill="#172B3A" font-weight="700" text-anchor="start" >Finishing a temporary shrinks its reservation</text>
+<text x="42" y="920" font-family="DejaVu Sans Mono, monospace" font-size="20" fill="#172B3A" font-weight="400" text-anchor="start" >While building: 64 KiB reserved</text>
+<text x="650" y="920" font-family="DejaVu Sans Mono, monospace" font-size="20" fill="#172B3A" font-weight="400" text-anchor="start" >temp-end: retain u bytes</text>
+<rect x="42" y="947" width="465" height="59" rx="4" fill="url(#reuse)" stroke="#C8D1D4" stroke-width="1.5" />
+<rect x="42" y="947" width="88" height="59" rx="4" fill="#D4EBE7" stroke="#007F82" stroke-width="1.5" />
+<text x="86" y="984" font-family="DejaVu Sans Mono, monospace" font-size="29" fill="#007F82" font-weight="700" text-anchor="middle" >4</text>
+<text x="42" y="1035" font-family="DejaVu Sans Mono, monospace" font-size="20" fill="#172B3A" font-weight="400" text-anchor="start" >A</text>
+<rect x="650" y="947" width="465" height="59" rx="4" fill="url(#reuse)" stroke="#C8D1D4" stroke-width="1.5" />
+<rect x="650" y="947" width="88" height="59" rx="4" fill="#D4EBE7" stroke="#007F82" stroke-width="1.5" />
+<text x="694" y="984" font-family="DejaVu Sans Mono, monospace" font-size="29" fill="#007F82" font-weight="700" text-anchor="middle" >4</text>
+<text x="650" y="1035" font-family="DejaVu Sans Mono, monospace" font-size="20" fill="#172B3A" font-weight="400" text-anchor="start" >A</text>
+<rect x="130" y="947" width="377" height="59" rx="0" fill="#F0F1EB" stroke="#C8D1D4" stroke-width="1.5" />
+<text x="318" y="982" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#637585" font-weight="400" text-anchor="middle" >reserved room</text>
+<text x="926" y="982" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#637585" font-weight="400" text-anchor="middle" >unused room returned</text>
+<line x1="507" y1="936" x2="507" y2="1017" stroke="#172B3A" stroke-width="2.5" />
+<line x1="738" y1="936" x2="738" y2="1017" stroke="#172B3A" stroke-width="2.5" />
+<text x="507" y="1035" font-family="DejaVu Sans Mono, monospace" font-size="18" fill="#172B3A" font-weight="400" text-anchor="end" >top = A + 65,536</text>
+<text x="745" y="1035" font-family="DejaVu Sans Mono, monospace" font-size="18" fill="#172B3A" font-weight="400" text-anchor="start" >top = A + u</text>
+<path d="M543,975 H613" fill="none" stroke="#172B3A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ink-arrow)"/>
+<text x="650" y="1070" font-family="DejaVu Sans, sans-serif" font-size="20" fill="#007F82" font-weight="700" text-anchor="start" >The completed text stays at A.</text>
+<text x="42" y="1104" font-family="DejaVu Sans, sans-serif" font-size="17" fill="#637585" font-weight="400" text-anchor="start" >S = call’s saved cursor. A = temporary start. u = used bytes. Time and byte sizes are schematic.</text>
+</svg>

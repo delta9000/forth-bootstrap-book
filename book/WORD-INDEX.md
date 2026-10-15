@@ -18,7 +18,7 @@ entry says what kind it is and which source file holds it:
 
 A kind in parentheses other than the file is the defining word used
 (`variable`, `constant`, `create`, `defer`); plain colon definitions
-carry none.  2812 names and 147 ideas.
+carry none.  2812 names and 148 ideas.
 
 For a one-line definition of a term, see the [Glossary](62-glossary.md);
 for which chapter depends on which, the
@@ -2450,6 +2450,7 @@ for which chapter depends on which, the
 
 ## F
 
+- **Factoring** — [Ch 14, Turning an operation into vocabulary](14-lib-01-stacks-and-words.md#turning-an-operation-into-vocabulary)
 - **Fail-closed bootstrap runtime** — [Ch 39, A finite Linux boundary](39-lp64-storage-and-initializers.md#a-finite-linux-boundary)
 - **Failure-preserving realloc** — [Ch 43, Failure preserves ownership](43-runtime-and-libc.md#failure-preserves-ownership)
 - `fatal_token` — *seed label* — [Ch 9, `report_token` and `fatal_token`: failing out loud](09-dictionary.md#report_token-and-fatal_token-failing-out-loud)

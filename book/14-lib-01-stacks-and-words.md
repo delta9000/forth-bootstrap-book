@@ -80,6 +80,30 @@ the same word with other useful values waiting beneath its operands.
 The checkpoint gives this body the name `sum-byte` and makes its one
 visible effect easy to recognize.
 
+## Turning an operation into vocabulary
+
+Giving `+ emit` the name `sum-byte` makes that combined behavior available
+wherever an ordinary word can be used. We can supply two values and try
+it at the input loop before including it in a larger definition. Lookup finds
+its name just as it finds `+`; the caller uses its stack contract just
+as it uses a primitive's. No new rule in the input loop is needed for
+the new name.
+
+This is **factoring**: give a useful operation a name and use that name
+as a component of larger operations. The useful boundary is one you can
+describe by its purpose and inputs and outputs. `sum-byte` promises to
+consume two values and print their sum's low byte; a caller does not need
+to repeat its internal stack trace. Short definitions help us check
+those promises, while meaningful names keep the purpose of later code
+visible through its stack operations.
+
+Leo Brodie develops this design discipline in
+[*Thinking Forth*](https://thinking-forth.sourceforge.net/tf-kindle.pdf),
+Chapter 6, "Factoring." The aim is to expose useful concepts through
+names and manageable interfaces. Splitting a sequence merely to make
+each definition shorter can leave callers with more names to learn and
+no clearer account of what the program does.
+
 ## The library’s opening conventions
 
 Before any definitions, the header establishes how the library names

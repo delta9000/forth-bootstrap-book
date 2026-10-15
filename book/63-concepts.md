@@ -109,6 +109,7 @@ when returning after a break.
 - Emit versus execute — [Chapter 23](23-lib-10-immediacy-and-constants.md)
 - Emit, remember, patch — [Chapter 24](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair)
 - Emit-and-divide — [Chapter 22](22-lib-09-memory-and-cell-writers.md)
+- Factoring — [Chapter 14](14-lib-01-stacks-and-words.md#turning-an-operation-into-vocabulary)
 - Fixup on the stack — [Chapter 24](24-lib-11-control-flow-combinators.md#forward-branches-if-and-then-as-a-pair)
 - Functional completeness of NAND — [Chapter 16](16-lib-03-logic-from-nand.md#why-logic-from-nand-matters)
 - Little-endian cell writers — [Chapter 22](22-lib-09-memory-and-cell-writers.md#4-and-8-cell-sized-emission)

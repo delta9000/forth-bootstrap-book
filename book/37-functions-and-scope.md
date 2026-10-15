@@ -830,12 +830,14 @@ execution on separate timelines.
 <details>
 <summary>Feedback: reusable symbol rows, unreused core slots</summary>
 
-| After | Live rows above B | `x` lookup selects | Latest object's row / slot | Next-slot count |
-|---|---:|---|---|---:|
-| Outer `x` declaration | 1 | Outer `x` | B / 0, at RBP−8 | 1 |
-| Inner `x` declaration | 2 | Inner `x` | B+1 / 1, at RBP−16 | 2 |
-| Inner `}` | 1 | Outer `x` | Inner row removed; its slot is not reclaimed | 2 |
-| `y` declaration | 2 | Outer `x` | B+1 / 2, at RBP−24 | 3 |
+<figure class="mechanism-graphic" aria-labelledby="scope-storage-caption">
+<div class="mechanism-graphic-viewport" role="region" tabindex="0" aria-label="Scope and frame storage diagram; scroll horizontally on narrow screens">
+<a href="images/mechanisms/scope-storage.svg" class="mechanism-graphic-image-link">
+<img src="images/mechanisms/scope-storage.svg" width="1360" height="1180" alt="In a core-profile function, inner x uses symbol row B+1 and slot 1 at RBP minus 16. Closing its block removes that row and restores lookup of outer x. The next declaration y reuses row B+1 but receives slot 2 at RBP minus 24. Live local rows change 2, 1, 2 while next-slot counts change 2, 2, 3. A separate runtime timeline ends the inner object lifetime at block exit while all 256 frame bytes remain reserved until the epilogue.">
+</a>
+</div>
+<figcaption id="scope-storage-caption">The core compiler reuses a removed symbol row, but does not reclaim its frame slot. Compiler parsing and runtime execution are separate timelines; reserved bytes do not extend the inner object’s lifetime. <a class="mechanism-graphic-fullsize" href="images/mechanisms/scope-storage.svg">Open full-size figure</a></figcaption>
+</figure>
 
 `cc-scope-pop` removes the inner symbol row and unlinks it from lookup;
 `cc-sym-add` can later use that row index for `y`. Neither operation lowers
@@ -866,7 +868,7 @@ count. Each runtime call gets its own frame.
 If you gave `y` slot 1, you made symbol removal reclaim frame storage. If
 you refused to reuse row B+1, you made symbol rows live as long as frame
 slots. Re-read the two counters separately, then try the changed case
-below without looking back at this table.
+below without looking back at this figure.
 
 </details>
 

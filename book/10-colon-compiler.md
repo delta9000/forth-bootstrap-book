@@ -199,6 +199,22 @@ threading again: calling a compiled word uses the same body instruction
 as calling a primitive. The compiler needs the target address, not the
 source that produced it.
 
+This choice gives the processor the job of advancing from call to call
+and remembering return addresses. The seed's ordinary-word compiler
+only has to emit one call format, whether the target is a primitive or a
+word defined a moment earlier. It also commits the generated body to
+x86-64 instructions and this calling convention. Forth's model of
+composing words does not require that particular representation.
+
+Richard W. M. Jones's [JonesForth tutorial](https://github.com/nornagon/jonesforth/blob/master/jonesforth.S)
+offers a useful comparison. Its 32-bit x86 implementation uses
+**indirect threading**: a small interpreter follows references to words
+in a compiled body. Our seed writes native CALL instructions instead.
+Both let definitions compose words through a shared stack interface,
+but their code representations and register conventions differ.
+JonesForth's examples also accept bare numeric tokens, while this seed's
+checkpoints require `[lit]`; use each implementation's own conventions.
+
 ## `lit_code` and the inline-cell trick
 
 A call carries a destination, but `letter` also needs a value to pass to

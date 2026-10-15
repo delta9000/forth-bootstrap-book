@@ -1,12 +1,24 @@
 """Text/structure contracts for diagrams; these do not replace rendered QA."""
 
 from html.parser import HTMLParser
+import importlib.util
 from pathlib import Path
 import re
+import subprocess
+import sys
+import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 
-BOOK = Path(__file__).resolve().parents[2] / "book"
+ROOT = Path(__file__).resolve().parents[2]
+BOOK = ROOT / "book"
+SVG = "{http://www.w3.org/2000/svg}"
+GRAPHICS = {
+    "28": ("macro-scratch-lifetime", "generate_macro.py", "scratch"),
+    "37": ("scope-storage", "draw_scope_storage.py", "slot"),
+    "50": ("process-handoff", "generate_process.py", "wait"),
+}
 
 
 class Figure(HTMLParser):
@@ -19,7 +31,7 @@ class Figure(HTMLParser):
     def handle_starttag(self, tag, attrs):
         node = dict(tag=tag, attrs=dict(attrs), text="", parents=self.stack[:])
         self.nodes.append(node)
-        if tag != "br":
+        if tag not in ("br", "img", "hr", "input", "link", "meta"):
             self.stack.append(node)
 
     def handle_endtag(self, tag):
@@ -43,7 +55,7 @@ def figures(chapter="*"):
 class DiagramTests(unittest.TestCase):
     def test_all_mechanisms_have_named_text_captions(self):
         diagrams = list(figures())
-        self.assertEqual(len(diagrams), 6)
+        self.assertEqual(len(diagrams), 9)
         for diagram in diagrams:
             with self.subTest(caption=diagram.nodes[0]["attrs"].get("aria-labelledby")):
                 caption_id = diagram.nodes[0]["attrs"]["aria-labelledby"]
@@ -51,6 +63,85 @@ class DiagramTests(unittest.TestCase):
                             and n["attrs"].get("id") == caption_id]
                 self.assertEqual(len(captions), 1)
                 self.assertTrue(captions[0]["text"].strip())
+
+    def test_svg_figures_have_local_images_descriptive_alt_and_fullsize_links(self):
+        for chapter, (name, _, keyword) in GRAPHICS.items():
+            with self.subTest(chapter=chapter):
+                diagram, = figures(chapter)
+                self.assertEqual(len(diagram.by_class("mechanism-graphic")), 1)
+                viewport, = diagram.by_class("mechanism-graphic-viewport")
+                self.assertEqual(viewport["attrs"]["tabindex"], "0")
+                self.assertEqual(viewport["attrs"]["role"], "region")
+                self.assertIn("scroll", viewport["attrs"]["aria-label"])
+                image, = [n for n in diagram.nodes if n["tag"] == "img"]
+                relative = f"images/mechanisms/{name}.svg"
+                self.assertEqual(image["attrs"]["src"], relative)
+                self.assertTrue((BOOK / relative).is_file())
+                self.assertIn(keyword, image["attrs"]["alt"].lower())
+                self.assertGreater(len(image["attrs"]["alt"].split()), 25)
+                link, = diagram.by_class("mechanism-graphic-fullsize")
+                self.assertEqual(link["attrs"]["href"], relative)
+                self.assertIn("full-size", link["text"])
+                root = ET.parse(BOOK / relative).getroot()
+                dimensions = [float(v) for v in root.attrib["viewBox"].split()]
+                self.assertEqual(int(image["attrs"]["width"]), dimensions[2])
+                self.assertEqual(int(image["attrs"]["height"]), dimensions[3])
+                caption, = [n for n in diagram.nodes if n["tag"] == "figcaption"]
+                self.assertIn(keyword, caption["text"].lower())
+
+    def test_svg_assets_are_valid_self_contained_and_have_text_equivalents(self):
+        for name, _, _ in GRAPHICS.values():
+            with self.subTest(figure=name):
+                root = ET.parse(BOOK / f"images/mechanisms/{name}.svg").getroot()
+                self.assertEqual(root.tag, SVG + "svg")
+                for tag in ("title", "desc"):
+                    nodes = root.findall(SVG + tag)
+                    self.assertEqual(len(nodes), 1)
+                    self.assertTrue(nodes[0].text.strip())
+                self.assertTrue(root.findall(".//" + SVG + "text"))
+                ids = [n.attrib["id"] for n in root.iter() if "id" in n.attrib]
+                self.assertEqual(len(ids), len(set(ids)))
+                for node in root.iter():
+                    self.assertNotIn(node.tag, (SVG + "script", SVG + "foreignObject"))
+                    for attr, value in node.attrib.items():
+                        if attr.split("}")[-1] == "href":
+                            self.assertTrue(value.startswith("#"), value)
+                            self.assertIn(value[1:], ids)
+                        for reference in re.findall(r"url\(([^)]+)\)", value):
+                            self.assertTrue(reference.startswith("#"), reference)
+                            self.assertIn(reference[1:], ids)
+                for value in root.attrib.get("aria-labelledby", "").split():
+                    self.assertIn(value, ids)
+
+    def test_scope_answer_stays_inside_feedback_after_prediction(self):
+        text = (BOOK / "37-functions-and-scope.md").read_text()
+        image = text.index('src="images/mechanisms/scope-storage.svg"')
+        opening = text.rfind("<details>", 0, image)
+        self.assertGreater(opening, text.rfind("</details>", 0, image))
+        self.assertIn("Feedback: reusable symbol rows, unreused core slots",
+                      text[opening:image])
+        self.assertGreater(opening, text.index("**Trace (moderate).**"))
+        closing = text.index("</details>", image)
+        self.assertLess(closing, text.index("**Trace (moderate), changed case.**"))
+        self.assertLess(text.index("</figure>", image), closing)
+
+    def reproduce(self, name, generator):
+        with tempfile.TemporaryDirectory(prefix="book-figure-test-") as directory:
+            output = Path(directory) / "figure.svg"
+            subprocess.run([sys.executable, str(ROOT / "tools/figures" / generator),
+                            str(output)], cwd=directory, check=True, capture_output=True)
+            self.assertEqual(output.read_bytes(),
+                             (BOOK / f"images/mechanisms/{name}.svg").read_bytes())
+
+    def test_standard_library_macro_generator_is_reproducible(self):
+        self.reproduce(*GRAPHICS["28"][:2])
+
+    @unittest.skipUnless(importlib.util.find_spec("svgwrite"),
+                         "optional svgwrite drawing dependency is not installed")
+    def test_svgwrite_generators_are_reproducible(self):
+        for chapter in ("37", "50"):
+            with self.subTest(chapter=chapter):
+                self.reproduce(*GRAPHICS[chapter][:2])
 
     def test_cached_register_is_outside_data_memory_rows(self):
         diagram = next(figures("04"))
