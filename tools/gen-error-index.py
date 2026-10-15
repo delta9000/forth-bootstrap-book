@@ -53,7 +53,7 @@ def render(text):
         anchor = base if counts[base] == 1 else f'{base}-{counts[base]}'
         # Keep the numeric cell unchanged for the citation validator. Put
         # HTML inside the source cell so Markdown still renders one table.
-        source_start = line.index("|", 1) + 2
+        source_start = line.index("`", line.index("|", 1))
         lines[i] = line[:source_start] + f'<a id="{anchor}"></a>' + line[source_start:]
         route = line.split('|')[3]
         prefix = next((value for word, value in PREFIXES if word in route), None)

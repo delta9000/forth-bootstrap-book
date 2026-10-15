@@ -85,6 +85,23 @@ class ReferenceDiscoveryTests(unittest.TestCase):
                 continue
             self.assertRegex(line, r'^\|\s*`?\d+`?\s*\| <a id=')
 
+    def test_unpadded_source_cell_keeps_anchor_outside_code_span(self):
+        page = ERRORS.ANCHOR.sub('', ERRORS.PAGE.read_text(encoding='utf-8'))
+        source_row = next(line for line in page.splitlines()
+                          if re.match(r'^\|\s*`?\d+`?\s*\| `forth-bootstrap/cc/', line))
+        unpadded_row = source_row.replace('| `forth-bootstrap/cc/',
+                                          '|`forth-bootstrap/cc/', 1)
+        page = page.replace(source_row, unpadded_row, 1)
+
+        rendered = ERRORS.render(page)
+        filename = re.search(r'forth-bootstrap/cc/([^`:]+)', unpadded_row)[1]
+        code = re.match(r'^\|\s*`?(\d+)', unpadded_row)[1]
+        row = next(line for line in rendered.splitlines()
+                   if '<a id=' in line and filename in line
+                   and re.match(rf'^\|\s*`?{code}`?\s*\|', line))
+        self.assertRegex(row, r'\|<a id="diagnostic-[^"]+"></a>`forth-bootstrap/cc/')
+        self.assertEqual(ERRORS.render(rendered), rendered)
+
     def test_unknown_numeric_row_format_fails_closed(self):
         page = ERRORS.PAGE.read_text(encoding='utf-8')
         page = page.replace('## Codes in detail',
