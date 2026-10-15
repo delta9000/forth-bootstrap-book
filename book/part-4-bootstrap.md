@@ -48,3 +48,107 @@ Follow the builder as well as the product. At one handoff, seed-cc
 produces GCC; at the next, GCC becomes the builder. At another, the seed
 builds a kernel that will run the next compiler. Keeping those roles
 visible is the key to understanding how the route grows.
+
+## Choose your route through this Part
+
+- **Inspect only:** read the handoffs, then complete the
+  [evidence checkpoint below](#short-checkpoint-build-an-evidence-ledger).
+  No compiler build or QEMU installation is needed.
+- **Run short checks:** use the driver checkpoint in
+  [Chapter 50](50-seed-cc-fixed-point.md#try-it) and the pin/trace checks in
+  [Chapter 53](53-sealed-run.md#try-it). Follow each chapter's prerequisites;
+  these do not reproduce the long routes.
+- **Build the route:** follow the host prerequisites in
+  [Chapter 52](52-gcc-4-fixed-point.md#try-it), or the separate guest route in
+  [Chapters 54](54-k0-and-k1.md#try-it) and
+  [55](55-linux-and-kexec.md#try-it). The recorded Linux run used a 24 GiB
+  guest and took 98 minutes. Those are observations, not a minimum RAM
+  requirement or a promised runtime. Preserve earlier output before rerunning.
+
+Whichever route you choose, aim to identify each builder and execution
+environment, explain what each equality compares, and trace the kernel
+image through export, boot and init execution.
+
+## Short checkpoint: build an evidence ledger
+
+Return here after Chapters 52–55. You can complete this checkpoint on
+paper: it tests the claims you can justify, without a fresh bootstrap.
+For each item below, write **artifact or event; builder; execution
+environment; comparison or observation; result; evidence still missing**.
+Use “not established by this item” where necessary rather than inventing
+an attribution. Label your entries **recorded** or **synthetic**. A fresh
+reading of a report is not a fresh run of the reported build.
+
+1. **Recorded guest report.** Stage D reports `Stage 2 vs stage 3: 54
+   files, 0 differ.` Its next lines identify stage2's builder as Stage C's
+   installed GCC and stage3's builder as stage2's installed GCC
+   (`forth-bootstrap/results/k1-2026-10-08/stage-d-report.txt:4–7`).
+   State the comparison rule from
+   [Chapter 52](52-gcc-4-fixed-point.md#compare-installations-not-build-debris).
+   Would two archives that differ only in header timestamps necessarily
+   fail that rule?
+2. **Synthetic trace.** Process 101 successfully executes `/hex0-seed`;
+   process 102 begins an unfinished exec of the built bash; process 103's
+   `/usr/bin/arch` exec fails with `ENOENT`; process 102 resumes with result
+   zero. This is the sample in
+   [Chapter 53](53-sealed-run.md#read-successes-separately-from-attempts),
+   not a retained guest trace. Count completed successes, completed
+   failures and pending calls. Repeat after deleting the resumed line.
+3. **Recorded guest pins.** The serial log reports `pins: 31 as pinned,
+   0 differ, 0 path-dependent and not comparable here`
+   (`forth-bootstrap/results/k1-2026-10-08/serial.log:1202`). Contrast this
+   output comparison with an input archive's successful SHA-256 check
+   against `MANIFEST.sha256`. Which would identify bzImage?
+4. **Recorded handoff.** The same serial log reports
+   `finish: results written to hdb`, then a Linux version banner, then
+   `init: hello from a Linux kernel built from hex0 and seed-forth`
+   (`forth-bootstrap/results/k1-2026-10-08/serial.log:1209–1331`). Give each
+   observation its own ledger entry. Which entry would you add after
+   [reading the output disk on the host](55-linux-and-kexec.md#read-back-the-output-disk)?
+
+<details>
+<summary>Hint: choose the question before choosing the evidence</summary>
+
+Ask whether you are checking source identity, repeatability, an attempted
+or completed execution, preservation of bytes, or execution after a
+handoff. Those questions need different observations. Separate the guest
+building the image from the host later reading its exported copy.
+
+</details>
+
+<details>
+<summary>Check your ledger</summary>
+
+1. The recorded K1 run compares selected installed files from successive
+   GCC builders, not every build-tree byte. Ordinary files compare by
+   bytes; readable archives with simple, unique member names compare
+   ordered names and each member’s bytes, excluding archive-header metadata.
+   The name-based comparator does not establish that rule for duplicate
+   member names. Different timestamps alone need
+   not fail. This establishes the reported fixed point under that rule,
+   not correctness for all C programs or a fresh reproduction by you.
+2. The full synthetic trace has **two successes, one failure, zero
+   pending calls**. Removing the resumed line leaves **one success, one
+   failure, one pending call**. Bash's outcome becomes unknown; `arch`
+   still did not execute in that attempt. These records do not establish
+   how the executable bytes were built or audit the real route.
+3. The 31 matches concern gcc64 compiler/library outputs in the recorded
+   guest build and its declared build-root scope. An input hash instead
+   identifies source-archive bytes against an expected digest. Neither
+   identifies bzImage: it is outside gcc64's pin set. Neither proves
+   general compiler correctness. See Chapter 55's separate image digest.
+4. The export marker follows a successful tar command under K1; it does
+   not independently read the disk back. The Linux banner records
+   successor-kernel execution; init's greeting records execution of the
+   embedded program under Linux. Host readback adds independently read
+   archive members and their digests, with an explicit reference for any
+   comparison. It does not itself boot those bytes. Keep fresh readback
+   separate from the recorded boot, even if their hashes match.
+
+If you treated all four items as one “PASS”, revisit the relevant
+chapter and rewrite only that row with a narrower claim. Then try this
+change: a fresh run exports readable files but never prints a Linux
+banner. You can claim export/readback, but cannot promote it to evidence
+of Linux or init execution. Locate the handoff boundary next.
+
+</details>

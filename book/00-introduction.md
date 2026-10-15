@@ -5,9 +5,9 @@ built by an earlier one, and so on back through decades of binaries that
 nobody now has the source or the patience to reread. In 1984 Ken Thompson
 showed why this matters: a compiler can be made to insert code into the
 programs it builds, including into the next version of itself, while the
-source of every program involved stays clean. Reading the source of your
-compiler does not tell you what your compiler's executable does. Only
-the chain of executables that built it can.
+source of every program involved stays clean. Reading source alone does
+not establish what an inherited compiler executable does. This book makes one part of that trust problem inspectable:
+which executable built each later tool, starting from a very small binary.
 
 This book follows one answer to that problem from start to finish. Begin
 with a program small enough to read completely, byte by byte. Use it to
@@ -48,11 +48,13 @@ to read a name, compile a definition and run it. Every later layer is
 text that the seed reads, rather than more hand-written machine code.
 
 The route does not remove trust; it moves it somewhere you can see. You
-still rely on `hex0-seed`, on the processor, on the kernel that runs the
-early stages (the host's Linux, or QEMU in the guest run), and on the
-upstream source releases, whose archives are pinned by hash. A small seed does not make GCC's source small. What the route
-removes is the inherited compiler binary, the one link that reading source
-cannot check.
+still rely on `hex0-seed`, the processor, and the environment executing
+each stage: host Linux on the host route; K0 and K1 together with QEMU,
+its host, and any KVM acceleration on the guest route. You also rely on
+the upstream source releases, whose archives are pinned by hash. A small
+seed does not make GCC's source small. The route replaces inherited
+compiler binaries with a recorded chain of source builds; that provenance
+does not by itself establish every property of the resulting programs.
 
 ## Who this book is for
 
@@ -93,8 +95,9 @@ without running them.
 
 Each chapter explains a piece of real source, gives a **Try it**
 checkpoint with commands and the output to expect, and ends with
-exercises. [Appendix H](66-exercise-feedback.md) has feedback on the
-exercises. The [glossary](62-glossary.md), the
+exercises. Many early exercises have hints and feedback beside them;
+[Appendix H](66-exercise-feedback.md) supplies chapter-by-chapter feedback
+for Chapters 27–56. The [glossary](62-glossary.md), the
 [concept index](63-concepts.md) and the [word index](WORD-INDEX.md) help
 you find a term or a word again.
 
@@ -106,10 +109,11 @@ Forth library and the C compiler exactly: 34 files from a pinned
 checkout of [forth-bootstrap](https://github.com/delta9000/forth-bootstrap).
 Every change to the book runs `./check.sh`, which reassembles those files
 and compares them byte for byte with the source. The same check runs the
-selected seed checkpoints and compares their output, checks the byte counts,
-offsets and line counts quoted in the prose against the source, and
-confirms that every link and index entry resolves. If a listing or a
-number in the text drifts from the code, the check fails.
+selected seed checkpoints and compares recognized output expectations,
+checks supported numeric claims and source citations, and checks local
+links and the generated word index. The [check script](https://github.com/delta9000/forth-bootstrap-book/blob/main/check.sh) states
+that scope: a passing check does not validate every prose number,
+explanatory claim, or long bootstrap run.
 
 The project itself was built and checked the same way, by comparing bytes
 rather than trusting that something works. The C compiler grew one

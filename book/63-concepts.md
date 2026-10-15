@@ -130,7 +130,7 @@ when returning after a break.
 ### Part 3: Compiler
 
 - C declaration reading — [Part 3 bridge](part-3-compiler.md#reading-the-c-input)
-- ABI — See System V AMD64 calling convention. [Chapter 41](41-system-v-calls.md)
+- ABI — [Umbrella definition in the glossary](62-glossary.md#part-3-compiler); [private all-stack convention](39-lp64-storage-and-initializers.md#private-stack-calls-and-whole-programs); [System V AMD64 convention](41-system-v-calls.md#trace-the-call-before-tracing-its-parser)
 - Aggregate classification — [Chapter 49](49-aggregate-abi.md)
 - Aligned outgoing argument block — [Chapter 41](41-system-v-calls.md)
 - Allocation metadata — [Chapter 43](43-runtime-and-libc.md)
@@ -263,6 +263,7 @@ when returning after a break.
 - Typed constant record — [Chapter 45](45-typed-constants.md)
 - Typed integer emission — [Chapter 32](32-codegen-part-2.md)
 - Unavailable tokens — [Chapter 28](28-the-preprocessor.md)
+- Unordered comparison — [Chapter 47](47-floats.md#compute-at-the-common-precision); [glossary definition](62-glossary.md#part-3-compiler)
 - Variadic cursor copying — [Chapter 46](46-varargs.md)
 - Variadic register-save area — [Chapter 46](46-varargs.md)
 - Withheld identities — [Chapter 44](44-target-headers.md)

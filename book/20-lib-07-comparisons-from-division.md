@@ -135,7 +135,9 @@ Treat the last clause as the source's stated assumption about its callers.
 
 The rule is stated as a distance on purpose: `>` and `<=` subtract in the
 other order, and a distance under 2^63 keeps both `a - b` and `b - a` in
-range.
+range. The comment’s “i.e.” is slightly too strong for a single subtraction:
+`-2^63` is representable, but `+2^63` is not. The strict distance bound is
+a sufficient shared rule for both operand orders.
 
 For a failure probe, subtract `-1` from the largest positive signed cell,
 `9223372036854775807`. The mathematical result is positive, but the cell

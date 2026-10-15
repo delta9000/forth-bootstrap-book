@@ -173,6 +173,16 @@ signature into [argument staging](#keep-expression-temporaries-alive) for
 the first-pass trace. The next sections preserve additional type shapes
 and declaration rules before call emission uses the completed signature.
 
+**Pause before expanding the declaration grammar.** The retained `add`
+signature records types and order, not registers or a body address. Can
+the caller select argument locations before the definition exists? Yes:
+the target and signature determine transport; the unresolved destination
+is a separate relocation problem. Continue with
+[argument staging](#keep-expression-temporaries-alive) on the first pass.
+
+<details>
+<summary>Declaration reference: array shapes, compatibility, and external identity</summary>
+
 ## Preserve array shape in signatures
 
 Compare `long *p` with `long (*row)[3]`. Both values occupy one eight-byte
@@ -1324,6 +1334,8 @@ These symbol adapters expose the retained signature to existing expression hooks
 
 ```
 
+</details>
+
 ## Keep expression temporaries alive
 
 Arguments are evaluated before the register/stack split. Staging them keeps nested calls from destroying earlier arguments and gives the final call sequence a stable source vector.
@@ -2030,6 +2042,13 @@ The function adapter wraps ordinary lowering and measures the emitted text span,
 ' cc-sysv-object-function is cc-native-function-fwd
 ```
 
+The reference records can now carry unresolved identities into an object.
+Continue to finalization for the worked call; return here when an object
+also contains static storage or an address initializer.
+
+<details>
+<summary>Object reference: completed storage and symbolic address selections</summary>
+
 ## Complete storage declarations before export
 
 Repeated object declarations must agree on type and array shape; size updates complete tentative arrays, and parser symbols are installed with the stable record as their value (`forth-bootstrap/cc/123-cc-object-program.fth:167`):
@@ -2365,6 +2384,8 @@ Postfix selection composes those operations, and `cc-om-const-address` returns t
 ' cc-om-const-address is cc-const-address-fwd
 ' cc-om-const-string is cc-const-string-fwd
 ```
+
+</details>
 
 ## Finish the translation unit
 

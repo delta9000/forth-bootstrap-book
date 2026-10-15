@@ -263,7 +263,7 @@ The kernel source is Linux 7.2.8, unpacked after manifest verification (`forth-b
     touch "$LOG/linux.done"
 ```
 
-The resulting image and configuration live under `/build-out/linux`; the build logs remain under `/build-out/s12-logs` (`forth-bootstrap/chain/ladder/stage12.sh:12`). The script prints an image digest, but the gcc64 pin list is a different artifact set: it ends at the compiler and supporting libraries, not bzImage (`forth-bootstrap/chain/gcc64/HASHES:10`).
+The resulting image and configuration live under `/build-out/linux`; the build logs remain under `/build-out/s12-logs` (`forth-bootstrap/chain/ladder/stage12.sh:12`). The script prints the first 16 hexadecimal digits of the image SHA-256, but the gcc64 pin list is a different artifact set: it ends at the compiler and supporting libraries, not bzImage (`forth-bootstrap/chain/gcc64/HASHES:10`).
 
 ## Preserve results before handing over
 
@@ -366,6 +366,14 @@ state, and from that state to a running system.
 
 ## Try it
 
+For a no-build checkpoint, use the [Part 4 evidence ledger](part-4-bootstrap.md#short-checkpoint-build-an-evidence-ledger)
+and this chapter's **Verify** exercise. The retained
+[serial log](https://github.com/delta9000/forth-bootstrap/blob/b25487ad4d62adb950c3372de43564dfcfabdd87/results/k1-2026-10-08/serial.log),
+[Stage D report](https://github.com/delta9000/forth-bootstrap/blob/b25487ad4d62adb950c3372de43564dfcfabdd87/results/k1-2026-10-08/stage-d-report.txt),
+and [image digest](https://github.com/delta9000/forth-bootstrap/blob/b25487ad4d62adb950c3372de43564dfcfabdd87/results/k1-2026-10-08/bzImage.sha256)
+are recorded evidence from 2026-10-08, not new results produced by reading them.
+Choose the full run below only when you want to reproduce the construction.
+
 Run from the forth-bootstrap checkout root. Have the pinned archives in place using `tools/fetch-archives.py`, QEMU with KVM, and room on the host for a 24 GiB guest plus QEMU's own overhead. The recorded run took 1 h 38 min with `JOBS=2` and that guest memory; K1 has one CPU, so the build runs slower than on a many-core host (`forth-bootstrap/README.md:182`, `forth-bootstrap/README.md:239`). The wrapper defaults to that guest memory for `--direct-linux` (`forth-bootstrap/kernel/k1/run-chain.sh:28`).
 
 The 24 GiB figure is a recorded successful configuration, not a measured
@@ -428,6 +436,93 @@ compiler outputs, preserves its results, prepares the handover, and then
 gives way to Linux and init. Each later line depends on work we can locate
 in the preceding recipes. The greeting finishes the execution story;
 the saved reports let us inspect how the system that printed it was built.
+
+## Read back the output disk
+
+After QEMU has exited, inspect the completed run's `out.img` on the host.
+Do not restart the wrapper first: it recreates that file. This output is
+an **uncompressed tar archive starting at byte zero of a raw disk**, not
+a partitioned filesystem. `finish.sh` changes to `/` and writes relative
+`build-out/...` members directly to `/dev/hdb`
+(`forth-bootstrap/chain/ladder/finish.sh:6–14`). K1 exposes that device as
+byte-addressed sectors (`forth-bootstrap/kernel/k1/ata.c:113–146`), and
+QEMU backs it with `out.img` (`forth-bootstrap/kernel/k1/run-chain.sh:55–56`).
+The `K1DISK1` format described in `ata.c` belongs to the **input** disk;
+it is not the format to decode here. No mount, loop device or root
+permission is needed.
+
+Run the following with host Python 3 from the forth-bootstrap checkout.
+If you selected a different `K1_DISKS` directory for the completed run,
+change the path argument. It opens the image read-only, lists its members,
+and copies six named regular files into a newly created private directory.
+It never extracts archive paths or restores archive ownership, permissions
+or links. The original image remains unchanged; retain the printed
+readback directory with your run's records.
+
+<!-- check-tryit: requires a completed guest output disk; synthetic archive validation is separate from the long route. -->
+<!-- tryit: skip -->
+```sh
+python3 - build-out/k1-direct-linux/out.img <<'PYREAD'
+import hashlib
+from pathlib import Path
+import shutil
+import sys
+import tarfile
+import tempfile
+
+wanted = {
+    "build-out/linux/bzImage": "bzImage",
+    "build-out/linux/config": "config",
+    "build-out/linux/init": "init",
+    "build-out/linux/initramfs.list": "initramfs.list",
+    "build-out/s12-logs/linux.log": "linux.log",
+    "build-out/g64/logs/hashes.txt": "gcc64-hashes.txt",
+}
+with tarfile.open(sys.argv[1], mode="r:") as archive:
+    members = archive.getmembers()
+    for member in members:
+        print(repr(member.name), member.size, repr(member.type))
+    selected = {}
+    for name in wanted:
+        matches = [m for m in members if m.name == name]
+        if len(matches) != 1 or not matches[0].isreg():
+            raise SystemExit("Expected one regular file: " + name)
+        selected[name] = matches[0]
+    destination = Path(tempfile.mkdtemp(prefix="k1-readback-"))
+    print("Readback directory:", destination, flush=True)
+    for name, filename in wanted.items():
+        target = destination / filename
+        with archive.extractfile(selected[name]) as source, target.open("xb") as output:
+            shutil.copyfileobj(source, output)
+        digest = hashlib.sha256(target.read_bytes()).hexdigest()
+        print(digest, filename, target.stat().st_size, "bytes")
+PYREAD
+```
+
+Check the listing against the export recipe: `build-out/linux/` holds the
+image, config, init and initramfs list; `build-out/s12-logs/` holds Linux
+and support-library logs; `build-out/g64/logs/` holds compiler logs and
+`hashes.txt`. Earlier late-tools, binutils, Stage C and Stage D reports
+are conditional additions in `finish.sh`; their absence needs explanation
+for a claimed complete run. A missing required file, duplicate name,
+link in place of a regular file, or unreadable archive stops this check.
+Do not call a partial readback a successful export verification.
+
+Compare bzImage's printed byte count and the **first 16 digest digits**
+with the `stage12: linux-7.2.8:` line in the **same run's** `serial.log`
+(`forth-bootstrap/chain/ladder/stage12.sh:106`). That is a size/prefix
+comparison, not a full-digest comparison. The separately retained
+2026-10-08 `bzImage.sha256` records a full SHA-256 and 1,278,976 bytes;
+comparing your full digest with it asks whether you reproduced that
+recorded image. A mismatch is a result to investigate, not permission to
+substitute the historical digest for your measured one. Hashing the
+exported bytes alone establishes no equality until you name the reference.
+
+The readback method was checked on a synthetic tar with these member
+names and zero-filled trailing disk space. That checks the host procedure,
+not an actual K1 export, fresh Linux build or boot. On a real run, this
+adds readable exported bytes and a measured image digest to the export
+marker; the later Linux and init markers remain separate execution evidence.
 
 ## Exercise
 

@@ -107,6 +107,13 @@ create cc-main-name-bytes  s, main
 
 ```
 
+**First reading:** follow the core call, parameter spill, and function
+body through the next three sections. Then follow
+[file-scope globals](#file-scope-globals) and
+[translation-unit closure](#closing-the-translation-unit). The enum,
+typedef, and built-in registration inventories are reference expansions;
+the four-form program above does not exercise them.
+
 ## The call codegen
 
 A call must protect earlier argument values while later arguments are
@@ -789,6 +796,15 @@ With parameters registered, the parser reserves the frame and emits their spill 
   cc-scope-pop ;
 ```
 
+**Pause at the function boundary.** After `add` finishes parsing, which
+name must disappear and which must survive? Its parameter `n` leaves the
+live local scope; `add` and `bias` remain file-scope symbols. Keeping n
+would leak a local name; dropping add would lose the completed function
+identity needed by later references.
+
+<details>
+<summary>Declaration reference: enum values and typedef aliases</summary>
+
 ## Enums and typedefs
 
 File-scope parsing produces more than function bodies: some declarations only introduce names. The program layer’s header places those declarations between runtime setup and final entry patching; `cc-enum-next-val` holds the next enumerator value (`forth-bootstrap/cc/116-cc-prog.fth:1`):
@@ -1035,6 +1051,8 @@ pass and never finishes, while the balanced declaration compiles normally.
 The function-pointer parameter helper in Chapter 35 checks for EOF and
 reports a diagnostic instead. [Appendix F](60-c-subset.md#observed-profile-boundaries)
 lists this with the compiler's other known limits.
+
+</details>
 
 ## Top-level elision
 
@@ -1590,6 +1608,13 @@ The stub keeps the call displacement’s file offset in `cc-call-main-patch`, th
 
 ```
 
+For the four-form program, no library shim is referenced. Continue to
+translation-unit closure to resolve the user functions and entry; open
+this inventory when a program uses one of the built-in services.
+
+<details>
+<summary>Runtime reference: built-in names and selectively emitted shims</summary>
+
 ### Registering the built-in shims
 
 Calls to built-ins should use ordinary function lookup. The `cc-name-*` byte strings supply spellings for symbol registration; this first group names the eagerly emitted routines and the external `memset` prototype (`forth-bootstrap/cc/116-cc-prog.fth:624`):
@@ -1885,6 +1910,8 @@ create cc-name-intptr_t  s, intptr_t
   cc-name-intptr_t [lit] 8  sk-typedef [lit] 0  ty-int [lit] 0 ty-make  cc-sym-add drop ;
 
 ```
+
+</details>
 
 ### Closing the translation unit
 

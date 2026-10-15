@@ -49,6 +49,12 @@ exercise to make a prediction before changing the input.
 | [45.1 · Typed constants](45-typed-constants.md#try-it) | Compare initializer results | Why a C intermediate value must wrap before the next operation |
 | [49.1 · Calls across an ABI](49-aggregate-abi.md#try-it) | Pass and return a record value | Which copy changes and how its bytes cross the call boundary |
 
+For Part 4, complete the [short evidence-ledger checkpoint](part-4-bootstrap.md#short-checkpoint-build-an-evidence-ledger).
+It uses recorded reports and a synthetic trace without a long build.
+Explain which observations establish equality, execution, export and
+readback. This is a reading exercise, not a CLI selector: the runner
+excludes chapters 50 onward, including their short manual checks.
+
 The CLI can list the other published shell blocks too. A chapter with more
 than one block may have an inspection step that depends on a previous
 step; those blocks are shown with their execution restrictions.

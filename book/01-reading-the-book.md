@@ -120,14 +120,20 @@ Chapter 2 takes a closer look at the small executable we have in hand.
 
 ## Reading and trying
 
+A listing with a source path shows the implementation and is for reading,
+not pasting into the shell. A **Try it** checkpoint gives shell commands
+and a result to compare.
+
+<details>
+<summary>How the source listings stay tied to the implementation</summary>
+
 The book keeps the pinned source checkout nearby and explains its chosen
 seed, library and compiler files a piece at a time. The 34 files in
 `tools/canonical-sources.txt` form the book's source-coverage scope; the
-standalone assembler is outside it. A listing with a source path shows
-the implementation; a **Try it** checkpoint gives shell commands and a
-result to compare. Source listings
-are for reading, not shell commands to paste. Fences tagged `file=` or
-`chunk=` preserve the exact source, including its comments.
+standalone assembler is outside it. Fences tagged `file=` or `chunk=`
+preserve the exact source, including its comments.
+
+</details>
 
 At a checkpoint, predict the result before running it. Then try an
 exercise with a changed input. If your prediction differs from the
@@ -149,3 +155,16 @@ into the compiler and bootstrap chapters.
 book repository root and give its path from there. Then explain why a
 command containing `./seed-forth`, run from the book repository root
 instead of `forth-bootstrap`, would name the wrong file.
+
+<details>
+<summary>Check the changes and the path</summary>
+
+Changing 105 to 111 predicts `Ho` followed by a newline: `emit` receives
+111 instead of 105. A fresh process has only its starting dictionary;
+the earlier process's `hello` was never saved into the executable.
+
+From the book root, the path is `forth-bootstrap/seed-forth`.
+The `.` in `./seed-forth` means the shell's current directory, so from
+the book root it looks beside `book.toml`, not inside `forth-bootstrap`.
+
+</details>

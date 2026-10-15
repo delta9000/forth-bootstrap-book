@@ -1510,6 +1510,18 @@ variable lnk-ti
 
 Atomic publication follows the object writer (Chapter 40). This linker additionally rejects input aliases; it does not promise crash-durable storage.
 
+There is a cleanup limitation in this pinned listing. After the explicit
+`close`, `lnk-fd` still holds the descriptor number. A close error, or a
+subsequent rename error, enters `lnk-abandon-output` and attempts another
+close. Compare Chapter 40’s object writer, which invalidates its stored
+descriptor after closing it, and Chapter 43’s rule against retrying a failed
+close. A sound ownership rule is to relinquish the descriptor once and
+allow later cleanup to remove the temporary path without closing it again.
+The listing here preserves the pinned source; its success-path checkpoint
+below does not exercise those failures. No intervening open is shown in
+this path, so the repeated close alone does not demonstrate that an
+unrelated descriptor is closed.
+
 ## Try it
 
 Run from the `forth-bootstrap` checkout root with the seed already built. As in the preceding checkpoint, each C translation unit is compiled separately. A small entry object supplies `call main; mov edi,eax; mov eax,60; syscall` using the existing object writer. The linker requires an explicit entry; choosing `main` itself would leave its return without a caller.

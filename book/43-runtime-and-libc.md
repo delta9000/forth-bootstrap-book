@@ -712,6 +712,48 @@ A zero-capacity call can measure the required length without writing a terminato
 
 Chapter 46 teaches the argument cursor used by this formatter. Floating representations and extended values belong to Chapters 47 and 49; the current library also formats them, as described in `forth-bootstrap/chain/runtime/gcc-seed/PRINTF-FLOAT.md`. Those additions do not change the capacity-versus-count rule.
 
+## Check the ownership and count contracts by hand
+
+These checks assess the stream and formatter mechanisms without claiming
+that the restricted executable below can build them yet.
+
+1. A fully buffered stream has accepted five bytes; none has reached the
+   kernel. Compare return from `main` through the minimal entry with
+   return through the runtime-aware entry. Which path attempts to flush
+   those bytes? Does a successful `fwrite` count prove delivery?
+2. Format `hello` into buffers of capacities 0, 1, 4, and 6. For each,
+   predict the characters copied, whether a terminator is written, and
+   the returned count. Use the capacity-4 worked example to complete
+   capacity 1 first, then solve the other cases independently.
+
+<details>
+<summary>Check your predictions, then change the input</summary>
+
+Only the runtime-aware return reaches library `exit` and its flush hook.
+The raw exit syscall cannot deliver bytes still held only in the stream's
+user-space buffer. Acceptance is not delivery, and even an attempted
+flush can fail; a successful `fwrite` alone proves neither kernel delivery
+nor durable storage.
+
+At capacity 0, no bytes, including no terminator, are written. At capacity
+1, only the terminator is written. At capacity 4, `hel` and the terminator
+fit. At capacity 6, `hello` and the terminator fit. All four return 5.
+Returning 3 for capacity 4 confuses the copied characters with the logical
+count; writing a terminator at capacity 0 exceeds the supplied capacity.
+
+Retry with `world!` at capacities 1, 4, and 7. The counts are all 6; the
+stored strings are empty, `wor`, and `world!`. Explain why the count changes
+even where the stored prefix is no longer than in the first attempt.
+
+</details>
+
+For the executable return point, use [Chapter 50's driver-built printf
+checkpoint](50-seed-cc-fixed-point.md#try-it) after Chapters 46–49 supply
+the remaining argument and floating machinery. It builds the complete
+runtime and prints through `printf` using normal startup and termination.
+That hello program does not independently test truncation or prove the
+pending-buffer case above; retain these manual checks as separate evidence.
+
 ## Where the library is built
 
 Part 4 builds the tools that consume this runtime. The Forth bootstrap driver compiles the runtime C units, emits the runtime adapters, makes an archive, and links `seed-cc` and `seed-ar` (`forth-bootstrap/cc/driver/seed-cc-start.fth:335`). Chapter 50 follows that construction.
@@ -722,7 +764,7 @@ The C driver's runtime builder compiles the C sources and separately invokes the
 
 Run from the `forth-bootstrap` checkout root with the seed already built. This is a restricted version of the runtime unit recipe in `forth-bootstrap/cc/driver/seed-cc-boot/runtime-unit.fth:5`: it keeps the workspace setup and include path but loads only compiler layers taught so far. It builds the canonical memory, string, and allocation sources, emits the raw entry and error boundary, and links them directly with the demo.
 
-The full formatting checkpoint is deferred. The current `stdio.c` uses the argument machinery of Chapter 46 and floating types covered in Chapters 47 and 49. Even the runtime-aware entry's `startup.c` failed this restricted build with `cc: line 103: error 240`; the raw entry needs no such initializer. This checkpoint therefore verifies heap-backed string output through the raw bridge, not `printf`, buffering, or normal library exit. Chapter 50 builds the complete runtime through the driver.
+The full formatting checkpoint is deferred. The current `stdio.c` uses the argument machinery of Chapter 46 and floating types covered in Chapters 47 and 49. Even the runtime-aware entry's `startup.c` failed this restricted build with `cc: line 103: error 240`; the raw entry needs no such initializer. This checkpoint therefore verifies heap-backed string output through the raw bridge, not `printf`, buffering, or normal library exit. [Chapter 50’s Try it](50-seed-cc-fixed-point.md#try-it) builds the complete runtime through the driver and exercises `printf`.
 
 All generated files live in a `mktemp -d` directory. The demo checks initial errno and process arguments, allocates `sizeof` the string literal (33 bytes, including its terminator), copies the string, writes its measured length, and frees it. No host C compiler or linker supplies an object.
 

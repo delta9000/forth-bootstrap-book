@@ -155,7 +155,24 @@ With `mod=11`, the `r/m` field names a register instead of memory. The move at `
 
 Not every memory operand stops at ModRM. A SIB byte provides scale, index, and base fields when the addressing form requires it. The instruction at `forth-bootstrap/seed/000-seed.hex0:141`, `48 8B 44 24 08`, uses a SIB byte to address `[rsp+8]`; do not mistake `24` for another opcode. Chapter 6 decodes that return-stack access in context.
 
+**Pause and predict.** In the schematic load `48 8B 45 08`, which
+register receives a value, which address is read, and does `rbp` change?
+
+<details>
+<summary>Check the changed load</summary>
+
+ModRM `45` splits into `01 | 000 | 101`: a signed-byte displacement,
+destination `rax`, base `rbp`. The load reads `[rbp+8]` into `rax`.
+It does not change `rbp`; addressing a different slot is not moving
+the stack boundary.
+
+</details>
+
 ## REX: width and extended registers
+
+On a first pass, keep the full-width `48` prefix in mind; return to the
+extension bits below when Chapter 8 uses `r9`. The displacement rules
+in the next section are needed throughout the seed walkthrough.
 
 A REX prefix has the bit layout `0100WRXB`. `W` requests a 64-bit operand for the moves used here; `R` extends the ModRM `reg` field; `X` extends a SIB index; `B` extends the base or register field selected by the encoding. The prefix `48` is `01001000`, so only `W` is set.
 

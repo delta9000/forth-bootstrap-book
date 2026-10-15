@@ -65,7 +65,7 @@ The effect is `( a b -- a|b )`:
 | `swap` | `~b a` | expose `a` |
 | `dup` | `~b a a` | prepare self-NAND on `a` |
 | `nand` | `~b ~a` | complemented operands |
-| `nand` | `~(~b & ~a)` | `a | b` by De Morgan's law |
+| `nand` | `~(~b & ~a)` | `a \| b` by De Morgan's law |
 
 The reversed operand order does not change the intersection. The
 `swap` matters because omitting it would apply self-NAND to `~b`

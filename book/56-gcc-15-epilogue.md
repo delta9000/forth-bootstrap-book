@@ -94,7 +94,9 @@ source, a builder and a result we can inspect. Adding the next compiler
 means making one more such handoff explicit. That is the method to carry
 beyond this route.
 
-## Try it
+<a id="try-it"></a>
+
+## Historical command, not a current checkpoint
 
 Forth-bootstrap has no GCC 15.2 checkpoint. The following command is quoted from seed-forth's README, for that repository only ([`gcc64/README.md:14`](https://github.com/delta9000/seed-forth/blob/0dd2b8815caeb5b9814567036f4ce101fdebeb21/gcc64/README.md#L14)). `DIR` denotes an existing build root from its TinyCC-based route, with the preceding compiler stages and pinned archive cache ready. It rebuilds the final compiler and runs verification, writing installations and logs under that root. Allow hours for preparation and build work; the recorded host timing is not a guest estimate.
 
@@ -111,4 +113,4 @@ seed-forth environment; it is not a checkpoint for this checkout.
 
 Hints and feedback are in [Appendix H](66-exercise-feedback.md#chapter-56-plan-a-port-without-inheriting-its-measurements).
 
-**Modify (moderate).** Read seed-forth's final compiler recipe and stage verification. List the inputs an extension would inherit from forth-bootstrap's completed climb, then separate the files it would need to add from the measurements it would need to make. For each proposed success criterion, name the log or pinned artifact you would export from K1. Explain why importing seed-forth's output digests would not by itself verify the guest extension.
+**Plan (moderate).** Read seed-forth's final compiler recipe and stage verification. List the inputs an extension would inherit from forth-bootstrap's completed climb, then separate the files it would need to add from the measurements it would need to make. For each proposed success criterion, name the log or pinned artifact you would export from K1. Explain why importing seed-forth's output digests would not by itself verify the guest extension.
