@@ -385,6 +385,8 @@ stores the exported results; it does not enlarge K1's RAM filesystem
 
 The command recreates the input and output images under `build-out/k1-direct-linux` and writes `serial.log` there. Preserve earlier results before starting; the output disk is replaced (`forth-bootstrap/kernel/k1/run-chain.sh:28`, `forth-bootstrap/kernel/k1/run-chain.sh:38`).
 
+Before starting, create a run record using the [long-run evidence checklist](65-editorial-notes.md#evidence-to-preserve-for-long-runs), and keep it with the logs outside paths this launcher recreates.
+
 <!-- check-tryit: the runner only executes selected seed-forth pipe examples in a scratch tree; this guest needs pinned archives, kernel/ and vendor/, QEMU with KVM, 24 GiB guest RAM and over an hour. -->
 <!-- tryit: skip -->
 ```sh

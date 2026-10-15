@@ -18,7 +18,7 @@ entry says what kind it is and which source file holds it:
 
 A kind in parentheses other than the file is the defining word used
 (`variable`, `constant`, `create`, `defer`); plain colon definitions
-carry none.  2812 names and 142 ideas.
+carry none.  2812 names and 147 ideas.
 
 For a one-line definition of a term, see the [Glossary](62-glossary.md);
 for which chapter depends on which, the
@@ -2445,6 +2445,7 @@ for which chapter depends on which, the
 - **Execve trace audit** — [Ch 53, Read successes separately from attempts](53-sealed-run.md#read-successes-separately-from-attempts)
 - `exit,` — *Forth word (`forth/010-lib.fth`)* — [Ch 24, `exit,`: early return with a clean return stack](24-lib-11-control-flow-combinators.md#exit-early-return-with-a-clean-return-stack)
 - **Expectation helpers** — [Ch 35, Expectation helpers and ignored specifiers](35-declarations-types-globals.md#expectation-helpers-and-ignored-specifiers)
+- **Expression evaluation phase** — [Ch 34, Two expression routes, one token handoff](34-expressions-part-2.md#two-expression-routes-one-token-handoff)
 - **Extended floating value** — [Ch 49, Compute with extended values without retaining x87 state](49-aggregate-abi.md#compute-with-extended-values-without-retaining-x87-state)
 
 ## F
@@ -2748,7 +2749,9 @@ for which chapter depends on which, the
 ## M
 
 - **Macro table** — [Ch 28, The macro table](28-the-preprocessor.md#the-macro-table)
+- **Makefile dependency rule** — [Ch 51, Read a Makefile as a dependency graph](51-owning-the-tools.md#read-a-makefile-as-a-dependency-graph)
 - **Memory map** — [Ch 5, Read the seed memory map](05-elf-and-entry.md#read-the-seed-memory-map)
+- **Mixed variadic cursor plan** — [Ch 49, Trace mixed named and unnamed arguments](49-aggregate-abi.md#trace-mixed-named-and-unnamed-arguments)
 - `mov-rax-[rbp],` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Redirecting existing Forth words](27-arena-and-io-buffers.md#redirecting-existing-forth-words)
 - `mov-rdi-rax,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Redirecting existing Forth words](27-arena-and-io-buffers.md#redirecting-existing-forth-words)
 - `movabs-rdx,` — *compiler word (`cc/020-cc-arena.fth`)* — [Ch 27, Handing buffered input to the compiler](27-arena-and-io-buffers.md#handing-buffered-input-to-the-compiler)
@@ -2840,6 +2843,7 @@ for which chapter depends on which, the
 
 ## P
 
+- **Parent and child process trace** — [Ch 50, Trace the parent and child](50-seed-cc-fixed-point.md#trace-the-parent-and-child)
 - `parse_decimal_code` — *seed label* — [Ch 12, Decimal conversion: `parse_decimal_code`](12-repl.md#decimal-conversion-parse_decimal_code)
 - **Persistent call-save span** — [Ch 41, Preserve the caller's register values](41-system-v-calls.md#preserve-the-callers-register-values)
 - `plus_code` — *seed label* — [Ch 7, Addition contract](07-arithmetic-and-logic.md#addition-contract)
@@ -2960,6 +2964,7 @@ for which chapter depends on which, the
 - `swap` — *seed primitive; compiler word (`cc/020-cc-arena.fth`)* — [Ch 6, `swap`: preserve depth, exchange positions](06-stack-primitives.md#swap-preserve-depth-exchange-positions) · [Ch 27, Inline primitives with an interpretation fallback](27-arena-and-io-buffers.md#inline-primitives-with-an-interpretation-fallback) · [Ch 13, The table](13-primitive-reference.md#the-table)
 - `swap_code` — *seed label* — [Ch 6, `swap`: preserve depth, exchange positions](06-stack-primitives.md#swap-preserve-depth-exchange-positions)
 - **switch with deferred dispatch** — [Ch 36, `switch` with deferred dispatch](36-statements-if-while-for-return.md#switch-with-deferred-dispatch)
+- **Symbol rows and frame slots** — [Ch 37, Three lifetimes at a block boundary](37-functions-and-scope.md#three-lifetimes-at-a-block-boundary)
 - **Symbol table** — [Ch 30, The symbol-table parallel arrays](30-types-and-symbols.md#the-symbol-table-parallel-arrays) · [Ch 30, Adding and finding symbols](30-types-and-symbols.md#adding-and-finding-symbols)
 - **Symbolic address operand** — [Ch 41, Represent an address without loading it](41-system-v-calls.md#represent-an-address-without-loading-it)
 - **Syscall ABI (x86-64 Linux)** — [Ch 18, A sidebar on the syscall ABI](18-lib-05-syscalls.md#a-sidebar-on-the-syscall-abi) · [Ch 8, `syscall6`: let the caller choose](08-seed-io.md#syscall6-let-the-caller-choose)

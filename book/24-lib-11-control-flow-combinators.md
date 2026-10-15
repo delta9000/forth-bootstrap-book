@@ -478,3 +478,7 @@ After a definition-loading diagnostic, correct the input and restart
 from the prefix rather than continuing with the partly built word.
 
 </details>
+
+For an optional worked extension, try emitting a conditional return before
+opening [Appendix D.1](58-worked-exercises.md#d1-chapter-24--add-the-exit-combinator), which
+works through `?exit,`.

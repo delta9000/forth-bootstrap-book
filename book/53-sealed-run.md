@@ -347,6 +347,8 @@ For a full audit, reuse the completed root and traces from Chapter 52 if
 you have them. The following block starts a new run; it is not another
 prerequisite for inspecting that evidence. Fetching needs network access and the fetcher's curl, git, and xz tools (`forth-bootstrap/tools/fetch-archives.py:17`). Whole-cache hashing needs the fetched archives. The launcher additionally needs bwrap, strace, and working user namespaces (`forth-bootstrap/chain/plumbing-root.sh:6`). Its default root and trace directories are removed before preparation, so preserve any previous evidence first (`forth-bootstrap/chain/plumbing-root.sh:37`).
 
+Before starting, create a run record using the [long-run evidence checklist](65-editorial-notes.md#evidence-to-preserve-for-long-runs), and keep it with the logs outside paths this launcher recreates.
+
 <!-- check-tryit: requires network, pinned archives, bwrap/strace and user namespaces; a sustained build exceeds the runner timeout and its scratch checkout omits chain/ and tools/. -->
 <!-- tryit: skip -->
 ```sh

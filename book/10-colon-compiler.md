@@ -154,6 +154,45 @@ result's low 32 bits (`edi`) at `[rax-4]`, the displacement field just after
 the opcode. The value comes from `edi`; the destination comes from `rax`.
 Finally, it commits `rax` to HERE and consumes the target from the data stack.
 
+Turn that subtraction into bytes for `: letter [lit] 65 emit ;` in a
+fresh seed process, before any other allocation. HERE starts at
+`0x401000`; the ten fixed header bytes and six-byte name put the body
+at `B = 0x401010`. Its first call targets `lit_code` at `0x4005A0`:
+
+- The address after the five-byte call is `0x401015`.
+- The displacement is `0x4005A0 - 0x401015 = -0xA75`.
+- Add `2^32` to encode that negative value in 32 bits: `0xFFFFF58B`.
+- Write the field least-significant byte first, after the opcode:
+  `E8 8B F5 FF FF`.
+
+This reverses Chapter 4's decoding: start with the target, calculate the
+signed distance, then write its little-endian bytes.
+
+**Try the next call.** The eight-byte literal follows that first call,
+so the call to `emit_code` starts at `B+13`. Its target is `0x400254`.
+Calculate the address after this call, its displacement, and all five
+emitted bytes before opening the check.
+
+<details>
+<summary>Check the call to emit</summary>
+
+The call starts at `0x40101D` and ends at `0x401022`. Subtracting gives
+`0x400254 - 0x401022 = -0xDCE`. Adding `2^32` gives `0xFFFFF232`, so the
+bytes are `E8 32 F2 FF FF`. If your distance differs by five, check that
+you subtracted the address *after* the call, not its start. If your field
+starts with `FF FF`, reverse its byte order.
+
+Together with the literal and closing return, the body is:
+
+```text
+E8 8B F5 FF FF  41 00 00 00 00 00 00 00  E8 32 F2 FF FF  C3
+```
+
+Earlier allocations would move this body and change both call fields;
+the formula stays the same.
+
+</details>
+
 The body of `: twice letter letter ;` therefore consists of calls to
 `letter` followed by the return emitted by `;`. This is subroutine
 threading again: calling a compiled word uses the same body instruction

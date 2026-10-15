@@ -446,6 +446,8 @@ any earlier results outside those directories before starting or retrying.
 Keep the completed root and traces for Chapter 53; its audit can reuse
 this run without rebuilding GCC.
 
+Before starting, create a run record using the [long-run evidence checklist](65-editorial-notes.md#evidence-to-preserve-for-long-runs), and keep it with the logs outside paths this launcher recreates.
+
 <!-- check-tryit: the scratch checkout lacks chain/, pinned archives, and build-out/; this sustained build also requires bwrap, strace, and user namespaces. -->
 <!-- tryit: skip -->
 ```sh

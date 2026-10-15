@@ -51,6 +51,11 @@ GENERIC_HEADINGS = {"canonical source", "try it", "exercises", "takeaways",
 # The heading substring is matched against the heading's plain text.
 # ---------------------------------------------------------------------------
 CONCEPTS = [
+    ('Expression evaluation phase', [('34-', 'Two expression routes, one token handoff')]),
+    ('Symbol rows and frame slots', [('37-', 'Three lifetimes at a block boundary')]),
+    ('Mixed variadic cursor plan', [('49-', 'Trace mixed named and unnamed arguments')]),
+    ('Parent and child process trace', [('50-', 'Trace the parent and child')]),
+    ('Makefile dependency rule', [('51-', 'Read a Makefile as a dependency graph')]),
     ('Object relocations', [('40-', 'Record unfinished addresses')]),
     ('Stable symbol handle', [('40-', 'Give symbols stable handles')]),
     ('Local-first symbol numbering', [('40-', 'Serialize with local symbols first')]),
