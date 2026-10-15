@@ -5,7 +5,7 @@ import sys
 from html import escape
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / 'book/images/mechanisms/macro-scratch-lifetime.svg'
 W,H=1200,1130
-C={'paper':'#F7F5EF','ink':'#172B3A','teal':'#007F82','orange':'#D16B26','muted':'#637585','rule':'#C8D1D4','tealbg':'#D4EBE7','orangebg':'#F4DFCD','graybg':'#E3E8E8','white':'#FFFFFF','outbg':'#E1EFE4','out':'#286D4B'}
+C={'paper':'#F7F5EF','ink':'#172B3A','teal':'#006B6E','orange':'#9F4518','muted':'#40535F','rule':'#5D7074','tealbg':'#D4EBE7','orangebg':'#F4DFCD','graybg':'#E3E8E8','white':'#FFFFFF','outbg':'#E1EFE4','out':'#286D4B'}
 a=[]
 def raw(x): a.append(x)
 def rect(x,y,w,h,fill,stroke=None,r=0,sw=1.5,extra=''):

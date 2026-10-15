@@ -58,3 +58,15 @@ The figures have been technically and visually reviewed; no novice learning
 study has been performed. Structural tests in `tools/tests/test_diagrams.py`
 check local references, captions, SVG metadata, and the scope exercise's reveal
 boundary. Generator reproduction and rendered proof remain additional checks.
+
+`tools/tests/test_figure_contrast.py` checks the actual SVG paints with the
+[WCAG sRGB contrast formula](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html):
+at least 4.5:1 for every text label, without relying on the large-text exception
+when figures are scaled. It resolves the surface at each reviewed label anchor
+in paint order, includes all hatch paints beneath text, and composites opacity.
+It also conservatively checks strokes and dark graphical glyphs against every
+used light surface at 3:1. The light hatch texture is redundant with readable
+labels/history marks, so it is treated as a background, not an essential glyph.
+These source-color checks need no optional drawing dependencies and run in
+`./check.sh`. They do not establish full WCAG conformance or replace rendered
+checks for text extent, overlap, clipping, or readability at the final size.

@@ -9,7 +9,7 @@ import svgwrite
 
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / 'book/images/mechanisms/scope-storage.svg'
 W, H = 1360, 1180
-C = dict(bg='#F7F5EF', ink='#172B3A', muted='#586B79', line='#C8D1D2', teal='#00777A', teal_light='#D8EFEB', orange='#B65018', orange_light='#F8E6D6', blue='#365FA8', blue_light='#E3EAF8', pale='#ECEFEA', white='#FFFFFF')
+C = dict(bg='#F7F5EF', ink='#172B3A', muted='#40535F', line='#5D7074', teal='#006B6E', teal_light='#D8EFEB', orange='#B65018', orange_light='#F8E6D6', blue='#365FA8', blue_light='#E3EAF8', pale='#ECEFEA', white='#FFFFFF')
 D = svgwrite.Drawing(str(OUT), size=(W,H), viewBox=f'0 0 {W} {H}')
 D.set_desc(title='A symbol row can be reused; its frame slot cannot', desc='Three compiler snapshots show inner x, block exit, and a subsequent y declaration. The live row count changes from 2 to 1 to 2, but the next-slot counter changes from 2 to 2 to 3. Lookup for x returns the inner row B+1 before exit and the outer row B afterward. y reuses row B+1 but gets slot 2 at RBP minus 24. A separate runtime timeline shows the inner object lifetime ending at its block exit while the entire 256-byte frame remains reserved until the epilogue.')
 D.add(D.rect((0,0),(W,H),fill=C['bg']))
@@ -90,7 +90,7 @@ for x,s in zip(COLS,STATES):
     txt(x+237,417,'FRAME SLOT',17,C['muted'],600)
     # Persistent outer x record.
     selected=s['lookup']==0
-    rounded_rect(x+36,433,152,54,C['teal_light'],C['teal'] if selected else '#9FC9C6')
+    rounded_rect(x+36,433,152,54,C['teal_light'],C['teal'] if selected else C['line'])
     txt(x+48,468,'B',21,mono=True)
     shape('circle',x+111,460,C['teal'])
     txt(x+135,469,'x',26,weight=600,mono=True)
@@ -120,9 +120,9 @@ for x,s in zip(COLS,STATES):
         arrow(x+194,525,x+231,581,C['blue'],3)
     # Three concrete eight-byte locations, always at the same coordinates.
     for k,cy in enumerate((460,525,590)):
-        if k==0: fill=C['teal_light']; stroke='#9FC9C6'
+        if k==0: fill=C['teal_light']; stroke=C['line']
         elif k==1 and s['kind']=='inner': fill=C['orange_light']; stroke=C['orange']
-        elif k==1: fill='url(#past-claim)'; stroke='#ABB7B9'
+        elif k==1: fill='url(#past-claim)'; stroke=C['line']
         elif s['kind']=='reuse': fill=C['blue_light']; stroke=C['blue']
         else: fill=C['bg']; stroke=C['line']
         rounded_rect(x+236,cy-27,164,54,fill,stroke)
@@ -161,7 +161,7 @@ for x,s in zip(COLS,STATES):
 shape('circle',60,808,C['teal'],r=6); txt(77,814,'outer x',18)
 shape('triangle',193,808,C['orange'],r=6); txt(211,814,'inner x',18)
 shape('square',325,808,C['blue'],r=6); txt(343,814,'y',18)
-rounded_rect(396,796,29,22,'url(#past-claim)','#ABB7B9'); txt(438,814,'previously claimed; not reusable',18,C['muted'])
+rounded_rect(396,796,29,22,'url(#past-claim)',C['line']); txt(438,814,'previously claimed; not reusable',18,C['muted'])
 
 line(48,841,1312,841)
 
@@ -176,12 +176,13 @@ txt(790,923,'}',24,anchor='middle',mono=True)
 txt(1235,923,'epilogue',19,C['muted'],anchor='middle')
 # Time arrow and fixed footprint, no growth at scalar declarations.
 arrow(150,940,1250,940,C['line'],1.7)
+# Paint the guides first so they cannot cross the reserved-frame label.
+line(545,942,545,1047,C['line'],1.5,'4 5')
+line(790,942,790,1085,C['orange'],1.7,'4 5')
 rounded_rect(150,960,1085,45,C['teal_light'])
 line(150,960,150,1005,C['teal'],3)
 line(1235,960,1235,1005,C['teal'],3)
 txt(692,990,'256 bytes reserved throughout',23,C['teal'],600,'middle')
-line(545,942,545,1047,C['line'],1.5,'4 5')
-line(790,942,790,1085,C['orange'],1.7,'4 5')
 # Filled capsule has a decisive terminal cap at block exit.
 shape('triangle',353,1038,C['orange'],r=7)
 txt(373,1046,'inner x lifetime',20)

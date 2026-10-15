@@ -8,7 +8,7 @@ import svgwrite
 
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / 'book/images/mechanisms/process-handoff.svg'
 W, H = 800, 1350
-C = dict(bg='#F7F5EF', ink='#172B3A', teal='#007F82', orange='#D16B26', muted='#637585', rule='#CCD5D8', white='#FFFFFF', pale='#E7F2F0', peach='#F8EADC', red='#A64335', gray='#EEF0EF')
+C = dict(bg='#F7F5EF', ink='#172B3A', teal='#006B6E', orange='#9F4518', muted='#40535F', rule='#5D7074', white='#FFFFFF', pale='#E7F2F0', peach='#F8EADC', red='#A64335', gray='#EEF0EF')
 d = svgwrite.Drawing(str(OUT), size=(f'{W}px',f'{H}px'), viewBox=f'0 0 {W} {H}')
 d.set_desc(title='Fork, redirect, exec, and publish only after success', desc='A host Linux process trace. Fork makes two processes with separate descriptor tables. In child 202, open returns 3; dup2 makes descriptors 0 and 3 refer to the same open file description A with one offset. Closing 3 leaves 0 connected. Exec replaces the child program while its PID and descriptor 0 survive. The parent waits for exactly child 202. Only a matching returned PID and stored status zero let the controller rename unit.o to the unit object path.')
 d.add(d.rect((0,0),(W,H),fill=C['bg']))
@@ -53,8 +53,9 @@ def document(x,y,w,h,title,fill='white'):
         line(x+14,yy,x+ww,yy,'rule',3)
 
 def smallcode(x,y,w,h,label,fill='white',opacity=1):
-    rect(x,y,w,h,fill,'rule',6,opacity=opacity)
-    text(label,x+w/2,y+25,16,'ink','bold','middle',mono=True,opacity=opacity)
+    # Fade only the old program's panel fill; its name and border stay legible.
+    rect(x,y,w,h,fill,'rule',6,fill_opacity=opacity)
+    text(label,x+w/2,y+25,16,'ink','bold','middle',mono=True)
     for yy,xx in [(y+43,w-20),(y+54,w-42),(y+65,w-31)]:
         line(x+12,yy,x+xx,yy,'rule',3)
 
