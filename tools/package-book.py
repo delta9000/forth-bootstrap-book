@@ -204,6 +204,18 @@ def collect(root):
         if suffix != ".html" and suffix not in ASSET_SUFFIXES:
             raise PackageError(f"unsupported linked resource: {relative}")
         data = checked_path(build, relative).read_bytes()
+        # mdBook copies manuscript assets at the same relative paths. Compare
+        # their bytes, rather than trusting mtimes, and include them in source
+        # provenance just like chapters and custom theme assets.
+        source_asset = source / relative
+        if suffix != ".html" and (source_asset.exists() or source_asset.is_symlink()):
+            source_asset = checked_path(source, relative)
+            expected = source_asset.read_bytes()
+            if data != expected:
+                raise PackageError(f"stale rendered manuscript asset: {relative}; run mdbook build")
+            input_name = f"{source_name}/{relative}"
+            inputs[input_name] = source_asset
+            input_hashes[input_name] = sha256(expected)
         payload[relative] = data
         targets = []
         if suffix == ".html":
@@ -274,8 +286,8 @@ is a working edition, not a claim that the commit alone reproduces its text.
 The manuscript digest covers the listed paths and their contents; timestamps
 and machine-specific absolute paths are not part of that digest.
 
-Packaging checks required pages, local referenced assets, custom asset
-contents and source/output modification times. The timestamp check catches
+Packaging checks required pages, local referenced assets, manuscript and custom
+asset contents, and source/output modification times. The timestamp check catches
 ordinary stale renders; it cannot prove freshness after timestamps have
 been preserved or rewritten. Package hashes identify the HTML actually
 included. Packaging does not rerun source fidelity, link-anchor, numeric,
@@ -304,7 +316,7 @@ def package(root, output):
     manifest = {"format_version": 1, **info,
                 "manuscript_inputs_sha256": sha256(json_bytes(input_hashes)),
                 "manuscript_inputs": input_hashes,
-                "verification": {"packaging": "required pages, local assets, custom assets, mtime freshness",
+                "verification": {"packaging": "required pages, local assets, manuscript/custom asset contents, mtime freshness",
                                  "book_checks": "not run by packaging",
                                  "freshness_limit": "mtime checks cannot prove a content-to-render correspondence"},
                 "files": {name: sha256(data) for name, data in sorted(payload.items())}}

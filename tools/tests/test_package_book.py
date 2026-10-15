@@ -79,6 +79,22 @@ class PackageBookTests(unittest.TestCase):
     def build(self):
         return pkg.package(self.root, self.output)
 
+    def add_svg_figure(self, name="scope-storage"):
+        relative = f"images/mechanisms/{name}.svg"
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80">'
+               f'<title>{name}</title><text x="10" y="40">Mechanism</text></svg>\n')
+        self.write("book/" + relative, svg)
+        self.write("docs/" + relative, svg)
+        figure = (f'<figure><img src="{relative}" alt="Mechanism diagram">'
+                  '<figcaption>How the mechanism works.</figcaption></figure>')
+        chapter = self.root / "book/intro.md"
+        chapter.write_text(chapter.read_text() + "\n" + figure + "\n")
+        for name in ("intro.html", "index.html", "print.html"):
+            page = self.root / "docs" / name
+            page.write_text(page.read_text().replace("</body>", figure + "</body>"))
+        self.fresh()
+        return relative
+
     def test_archive_is_reproducible_self_identifying_and_excludes_working_files(self):
         count, manifest = self.build()
         first = self.output.read_bytes()
@@ -121,6 +137,65 @@ class PackageBookTests(unittest.TestCase):
     def test_missing_dynamic_search_index_fails(self):
         (self.root / "docs/searchindex-abc.js").unlink()
         with self.assertRaisesRegex(pkg.PackageError, "missing required file"):
+            self.build()
+
+    def test_svg_figures_are_offline_payloads_and_manuscript_inputs(self):
+        figures = [self.add_svg_figure(name) for name in
+                   ("scope-storage", "macro-scratch-lifetime", "process-handoff")]
+        self.write("docs/images/mechanisms/unpublished.svg", "not linked")
+        _, manifest = self.build()
+        first = self.output.read_bytes()
+        self.build()
+        self.assertEqual(first, self.output.read_bytes())
+        with zipfile.ZipFile(self.output) as archive:
+            for relative in figures:
+                with self.subTest(relative=relative):
+                    source = (self.root / "book" / relative).read_bytes()
+                    self.assertEqual(archive.read("forth-bootstrap-book/" + relative), source)
+                    self.assertEqual(manifest["files"][relative], pkg.sha256(source))
+                    self.assertEqual(manifest["manuscript_inputs"]["book/" + relative],
+                                     pkg.sha256(source))
+            self.assertNotIn("images/mechanisms/unpublished.svg", manifest["files"])
+
+    def test_missing_linked_svg_fails_before_replacing_existing_archive(self):
+        relative = self.add_svg_figure()
+        self.build()
+        previous = self.output.read_bytes()
+        (self.root / "docs" / relative).unlink()
+        with self.assertRaisesRegex(pkg.PackageError, "missing required file"):
+            self.build()
+        self.assertEqual(self.output.read_bytes(), previous)
+
+    def test_source_svg_change_is_detected_with_preserved_timestamps(self):
+        relative = self.add_svg_figure()
+        source = self.root / "book" / relative
+        original_time = source.stat().st_mtime_ns
+        source.write_text(source.read_text().replace("Mechanism", "Changed mechanism"))
+        os.utime(source, ns=(original_time, original_time))
+        self.fresh()
+        with self.assertRaisesRegex(pkg.PackageError, "stale rendered manuscript asset"):
+            self.build()
+
+    def test_changed_svg_updates_manuscript_digest(self):
+        relative = self.add_svg_figure()
+        _, before = self.build()
+        source = self.root / "book" / relative
+        changed = source.read_text().replace("Mechanism", "Changed mechanism")
+        self.write("book/" + relative, changed)
+        self.write("docs/" + relative, changed)
+        self.fresh()
+        _, after = self.build()
+        self.assertEqual(before["book"]["commit"], after["book"]["commit"])
+        self.assertNotEqual(before["manuscript_inputs_sha256"], after["manuscript_inputs_sha256"])
+        self.assertNotEqual(before["manuscript_inputs"]["book/" + relative],
+                            after["manuscript_inputs"]["book/" + relative])
+
+    def test_source_svg_symlinks_are_rejected(self):
+        relative = self.add_svg_figure()
+        source = self.root / "book" / relative
+        source.unlink()
+        source.symlink_to(self.root / "LICENSE")
+        with self.assertRaisesRegex(pkg.PackageError, "symlink"):
             self.build()
 
     def test_css_dependencies_and_font_notices_are_included(self):

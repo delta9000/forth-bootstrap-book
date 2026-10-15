@@ -1995,16 +1995,18 @@ tokens of `((4) * (4))` into the caller's sink. Only then can the saved
 scratch top be restored. The result survives because its bytes have been
 copied out, and the suspended source resumes after `SQUARE(ROWS)`.
 
-Read that return as a lifetime boundary. Let S be the scratch top saved
-before collecting the call; temporary names below denote buffers, not
-new source addresses or exact whitespace spellings.
+The caller’s source position waits after the invocation while temporary
+scans save and restore the active region. During substitution, the caller
+region is restored and the stored macro body is read directly.
 
-| Phase | Active region | Active sink | What stays live above S |
-|---|---|---|---|
-| Prescan `ROWS` | Argument slice, with the caller region saved | Argument temporary, with the caller sink saved | Argument records and expanded text |
-| Substitute both `x` markers | Caller region is restored; substitution reads the stored body directly | Replacement temporary | Records, expanded argument, growing replacement |
-| Rescan replacement | Replacement text, with the caller region saved | Caller sink | Completed replacement and earlier temporaries |
-| Resume caller | Source after the closing `)` | Caller sink, now containing copied result bytes | Nothing from this call; restore scratch top S |
+<figure class="mechanism-graphic" aria-labelledby="macro-scratch-lifetime-caption">
+<div class="mechanism-graphic-viewport" role="region" tabindex="0" aria-label="Macro scratch lifetime diagram; scroll horizontally on narrow screens">
+<a href="images/mechanisms/macro-scratch-lifetime.svg" class="mechanism-graphic-image-link">
+<img src="images/mechanisms/macro-scratch-lifetime.svg" width="1200" height="1130" alt="Four stages of the top-level legacy SQUARE(ROWS) call: prescan retains argument 4 in scratch; substitution copies it into both replacement positions; rescan copies ((4) * (4)) into cc-src-buf; resume resets scratch to saved S while that output survives. A separate memory bar shows temp-end returning unused capacity while retaining completed text.">
+</a>
+</div>
+<figcaption id="macro-scratch-lifetime-caption">For this top-level legacy call, the output copy survives the scratch reset. Earlier, <code>temp-end</code> returns unused capacity, not completed text. Separator blanks are omitted; time and byte sizes are schematic. <a class="mechanism-graphic-fullsize" href="images/mechanisms/macro-scratch-lifetime.svg">Open full-size figure</a></figcaption>
+</figure>
 
 <details>
 <summary>Rescan reference: unavailable tokens, tail rescanning, and identifier dispatch</summary>

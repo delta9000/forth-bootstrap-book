@@ -13,7 +13,7 @@ NODE = shutil.which("node")
 
 @unittest.skipUnless(NODE, "Node.js is needed to execute reader.js")
 class ReaderInterfaceTests(unittest.TestCase):
-    def test_listing_arrows_keep_native_defaults_and_do_not_reach_document(self):
+    def test_listing_and_figure_arrows_keep_native_defaults_and_stay_local(self):
         result = subprocess.run(
             [NODE, str(ROOT / "tools/tests/reader_keyboard_runner.js")],
             input=json.dumps({"script": str(ROOT / "theme/reader.js")}),

@@ -234,3 +234,65 @@ main .mechanism figcaption { margin-top: 1.6rem; padding-top: 1.2rem; border-top
     .diagram-comparisons > div { background: white; border-color: #777; break-inside: avoid; }
     .diagram-registers > span { border-color: #777; }
 }
+
+/* Approved SVG mechanisms keep their intentional light drawing surface in
+   every reader theme. Narrow screens pan the vector; links open it for zoom. */
+main .mechanism-graphic {
+    margin: 2.6rem 0;
+    border: 1px solid var(--book-rule);
+    border-radius: 6px;
+    overflow: hidden;
+    font-family: var(--book-ui);
+    font-size: 1.3rem;
+    line-height: 1.55;
+    background: var(--bg);
+}
+.mechanism-graphic-viewport {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    background: #f7f5ef;
+    color-scheme: light;
+}
+.mechanism-graphic-viewport:focus-visible,
+.mechanism-graphic-image-link:focus-visible {
+    outline: 2px solid #007f82;
+    outline-offset: -4px;
+}
+.mechanism-graphic-image-link { display: block; min-width: 76rem; }
+.mechanism-graphic img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: none;
+}
+main .mechanism-graphic figcaption {
+    padding: 1.2rem 1.4rem;
+    border-top: 1px solid var(--book-rule);
+    color: var(--fg);
+}
+.mechanism-graphic-fullsize { white-space: nowrap; }
+@media print {
+    main .mechanism-graphic {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin: 12pt 0;
+        border-color: #aaa;
+        background: white;
+    }
+    .mechanism-graphic-viewport { overflow: visible; }
+    .mechanism-graphic-image-link { min-width: 0; }
+    .mechanism-graphic img {
+        width: auto;
+        max-width: 100%;
+        max-height: 220mm;
+        margin-inline: auto;
+        object-fit: contain;
+    }
+    main .mechanism-graphic figcaption {
+        break-before: avoid;
+        padding: 6pt 8pt;
+        font-size: 8pt;
+        color: #111;
+    }
+    .mechanism-graphic-fullsize { display: none; }
+}

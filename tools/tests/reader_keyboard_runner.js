@@ -38,9 +38,10 @@ function fixture(withReader = true, rtl = false) {
                 capture: options === true || !!options.capture});
         }
         closest(selector) {
-            assert.equal(selector, "pre > code");
+            assert.equal(selector, "pre > code, .mechanism-graphic-viewport");
             for (let node = this; node; node = node.parentElement) {
                 if (node.nodeName === "CODE" && node.parentElement?.nodeName === "PRE") return node;
+                if (node.classList.contains("mechanism-graphic-viewport")) return node;
             }
             return null;
         }
@@ -52,6 +53,11 @@ function fixture(withReader = true, rtl = false) {
     const pre = new Element("pre", main);
     const code = new Element("code", pre, ["language-forth"]);
     const span = new Element("span", code, ["forth-builtin"]);
+    const figure = new Element("figure", main);
+    const viewport = new Element("div", figure, ["mechanism-graphic-viewport"]);
+    const figureLink = new Element("a", viewport);
+    const image = new Element("img", figureLink);
+    const fullsizeLink = new Element("a", figure);
     const inline = new Element("code", main);
     const button = new Element("button", pre, ["clip-button"]);
     const input = new Element("input", main);
@@ -95,7 +101,7 @@ function fixture(withReader = true, rtl = false) {
             href: window.location.href, focus: document.activeElement};
     }
     return {Element, document, window, main, pre, code, span, inline, button, input,
-        textarea, select, editable, body, dispatch};
+        textarea, select, editable, body, viewport, figureLink, image, fullsizeLink, dispatch};
 }
 
 let cases = 0;
@@ -116,6 +122,8 @@ if (chapterNavigation) {
         // Reproduce the real conflict before adding reader.js. preventDefault
         // alone would not fix it: mdBook does not check defaultPrevented.
         check(baseline, baseline.code, key, {}, false, true);
+        check(baseline, baseline.viewport, key, {}, false, true);
+        check(baseline, baseline.figureLink, key, {}, false, true);
         check(baseline, baseline.code, key, {defaultPrevented: true}, false, true);
     }
 }
@@ -129,8 +137,25 @@ for (const rtl of [false, true]) {
             for (const key of ["ArrowLeft", "ArrowRight"]) check(f, code, key, {}, true);
         }
     }
-    for (const target of [f.span, f.editable]) {
+    for (const target of [f.span, f.editable, f.viewport, f.figureLink, f.image]) {
         for (const key of ["ArrowLeft", "ArrowRight"]) check(f, target, key, {}, true);
+    }
+    // Figure panning remains native, even at boundaries or after resize.
+    for (const width of [760, 479]) {
+        f.viewport.scrollWidth = width;
+        for (const offset of [0, 100, width - f.viewport.clientWidth]) {
+            f.viewport.scrollLeft = offset;
+            for (const key of ["ArrowLeft", "ArrowRight"]) {
+                check(f, f.viewport, key, {}, true);
+                check(f, f.figureLink, key, {repeat: true}, true);
+                for (const modifier of ["altKey", "ctrlKey", "metaKey", "shiftKey"]) {
+                    check(f, f.viewport, key, {[modifier]: true}, false);
+                }
+            }
+        }
+    }
+    for (const key of ["Tab", "ArrowUp", "ArrowDown", "Home", "End", "Escape"]) {
+        check(f, f.viewport, key, {}, false);
     }
     // A selected listing still retains the browser's native default action.
     f.window.getSelection = () => ({isCollapsed: false, anchorNode: f.span});
@@ -148,7 +173,7 @@ for (const rtl of [false, true]) {
         check(f, f.code, key, {}, false);
     }
     check(f, f.code, "Tab", {shiftKey: true}, false);
-    for (const target of [f.body, f.main, f.pre, f.inline, f.button]) {
+    for (const target of [f.body, f.main, f.pre, f.inline, f.button, f.fullsizeLink]) {
         for (const key of ["ArrowLeft", "ArrowRight"]) {
             const result = check(f, target, key, {}, false, true);
             if (chapterNavigation) assert.equal(result.href,

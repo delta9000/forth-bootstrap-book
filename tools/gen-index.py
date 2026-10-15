@@ -107,6 +107,7 @@ CONCEPTS = [
     ("Fail-closed bootstrap runtime", [("39-lp64", "A finite Linux boundary")]),
     ("Direct TinyCC bootstrap", [("57-historical", "Routes retained in seed-forth")]),
     ("Stack-effect notation", [("14-lib-01", "Stack-effect comments")]),
+    ("Factoring", [("14-lib-01", "Turning an operation into vocabulary")]),
     ("Reverse Polish notation", [("14-lib-01", "Postfix evaluation")]),
     ("Data stack", [("14-lib-01", "Postfix evaluation"), ("06-stack", "The push and pop shapes")]),
     ("Return stack", [("04-x86", "The machine before the instructions"), ("06-stack", "bridging the two stacks"), ("17-lib-04", "`over` via the return stack")]),

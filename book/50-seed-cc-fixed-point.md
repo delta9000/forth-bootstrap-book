@@ -102,10 +102,14 @@ Here is a manual trace of the host Linux contract, not recorded output.
 Assume standard descriptors 0, 1 and 2 are open, fork creates child 202,
 and the child's `open` returns descriptor 3:
 
-| Process | Fork result | Next action |
-|---|---|---|
-| Parent controller | `202` | Save that PID; wait for child 202 |
-| Child controller | `0` | Open the prepared input stream as descriptor 3 |
+<figure class="mechanism-graphic" aria-labelledby="process-handoff-caption">
+<div class="mechanism-graphic-viewport" role="region" tabindex="0" aria-label="Process handoff diagram; scroll horizontally on narrow screens">
+<a href="images/mechanisms/process-handoff.svg" class="mechanism-graphic-image-link">
+<img src="images/mechanisms/process-handoff.svg" width="800" height="1350" alt="Fork separates parent and child 202. After dup2, child descriptors 0 and 3 share one open-file description and read offset. Closing 3 leaves 0 live. Exec replaces the program inside the same child, keeping its PID and input binding. The parent can rename unit.o only when wait returns the saved child PID and separately stores status zero.">
+</a>
+</div>
+<figcaption id="process-handoff-caption">One successful host-Linux <code>run-seed</code> call. Descriptor aliases share an open-file description; <code>exec</code> preserves the child process. Both wait checks must pass before rename. Downward order is within each lane, not a schedule between processes. <a class="mechanism-graphic-fullsize" href="images/mechanisms/process-handoff.svg">Open full-size figure</a></figcaption>
+</figure>
 
 In the child, `dup2(3, 0)` makes standard input (descriptor 0) refer to
 the opened stream. `close(3)` removes the extra descriptor; descriptor 0

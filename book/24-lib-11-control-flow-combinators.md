@@ -161,6 +161,16 @@ removes the inner fixup first. Any other immediate code between partners
 must preserve these waiting addresses. They have no separate type tag or
 protected storage.
 
+These two definitions extend what the compiler can express without
+changing its token loop. The loop looks up `if,` and `then,` like other
+names; their immediate flags make the loop execute them while compiling.
+Their bodies use ordinary stack and memory words to build the new
+control flow. This is why Forth's extensible vocabulary reaches into
+the language's construction rules: a new word can determine what gets
+compiled as well as what happens when the resulting program runs. The
+unprotected fixups are also a cost of this minimal design; the emitter
+has to obey its compile-time stack contract.
+
 ## `else,`: chained fixups
 
 An alternative arm creates another unknown destination: the end of the

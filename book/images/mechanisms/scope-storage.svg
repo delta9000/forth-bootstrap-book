@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" height="1180" version="1.1" viewBox="0 0 1360 1180" width="1360">
+  <title>A symbol row can be reused; its frame slot cannot</title>
+  <desc>Three compiler snapshots show inner x, block exit, and a subsequent y declaration. The live row count changes from 2 to 1 to 2, but the next-slot counter changes from 2 to 2 to 3. Lookup for x returns the inner row B+1 before exit and the outer row B afterward. y reuses row B+1 but gets slot 2 at RBP minus 24. A separate runtime timeline shows the inner object lifetime ending at its block exit while the entire 256-byte frame remains reserved until the epilogue.</desc>
+  <defs>
+    <pattern height="9" id="past-claim" patternUnits="userSpaceOnUse" width="9">
+      <rect fill="#EDF0ED" height="9" width="9" x="0" y="0"/>
+      <path d="M -2,2 L 2,-2 M 0,9 L 9,0 M 7,11 L 11,7" stroke="#C2CBCB" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect fill="#F7F5EF" height="1180" width="1360" x="0" y="0"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="600" text-anchor="start" x="48" y="44">CHAPTER 37  /  CORE PROFILE · NO PARAMETERS</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="37" font-weight="700" text-anchor="start" x="48" y="92">A row can be reused. Its slot cannot.</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="25" font-weight="400" text-anchor="start" x="48" y="130">Block exit changes lookup. The function’s frame stays reserved.</text>
+  <circle cx="60" cy="173" fill="#006B6E" r="8" stroke="#006B6E" stroke-width="2.4"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="80" y="181">Start with int x = 1;</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="400" text-anchor="start" x="397" y="181">row B → slot 0.  B = file-scope row count, including this function.</text>
+  <line stroke="#5D7074" stroke-width="2" x1="48" x2="1312" y1="205" y2="205"/>
+  <text fill="#006B6E" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="start" x="48" y="244">COMPILE TIME</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="start" x="245" y="244">Live symbol records → assigned frame locations</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="end" x="1312" y="244">8 bytes each · lower addresses ↓</text>
+  <line stroke="#40535F" stroke-width="2" x1="434" x2="462" y1="290" y2="290"/>
+  <polygon fill="#40535F" points="462,290 454.0,285.6 454.0,294.4"/>
+  <line stroke="#40535F" stroke-width="2" x1="866" x2="894" y1="290" y2="290"/>
+  <polygon fill="#40535F" points="894,290 886.0,285.6 886.0,294.4"/>
+  <circle cx="64" cy="287" fill="#172B3A" r="16"/>
+  <text fill="#F7F5EF" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="700" text-anchor="middle" x="64" y="294">1</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="600" text-anchor="start" x="92" y="295">Enter the inner block</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="25" font-weight="400" text-anchor="start" x="84" y="335">{ int x = 2;</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="600" text-anchor="start" x="87" y="380">lookup x</text>
+  <path d="M 74,374 L 60,374 L 60,525 L 77,525" fill="none" stroke="#172B3A" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/>
+  <line stroke="#172B3A" stroke-width="2.5" x1="75" x2="83" y1="525" y2="525"/>
+  <polygon fill="#172B3A" points="83,525 75.0,520.6 75.0,529.4"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="600" text-anchor="start" x="84" y="417">SYMBOL ROW</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="600" text-anchor="start" x="285" y="417">FRAME SLOT</text>
+  <rect fill="#D8EFEB" height="54" rx="5" stroke="#5D7074" stroke-width="1.6" width="152" x="84" y="433"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="96" y="468">B</text>
+  <circle cx="159" cy="460" fill="#006B6E" r="8" stroke="#006B6E" stroke-width="2.4"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="26" font-weight="600" text-anchor="start" x="183" y="469">x</text>
+  <line stroke="#006B6E" stroke-width="2.7" x1="242" x2="278" y1="460" y2="460"/>
+  <polygon fill="#006B6E" points="278,460 270.0,455.6 270.0,464.4"/>
+  <rect fill="#F8E6D6" height="54" rx="5" stroke="#B65018" stroke-width="1.6" width="152" x="84" y="498"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="20" font-weight="400" text-anchor="start" x="96" y="533">B+1</text>
+  <polygon fill="#B65018" points="159,515 150,533 168,533" stroke="#B65018" stroke-width="2.4"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="26" font-weight="600" text-anchor="start" x="183" y="534">x</text>
+  <line stroke="#B65018" stroke-width="2.7" x1="242" x2="278" y1="525" y2="525"/>
+  <polygon fill="#B65018" points="278,525 270.0,520.6 270.0,529.4"/>
+  <line stroke="#B65018" stroke-dasharray="4 3" stroke-width="1.4" x1="84" x2="236" y1="492" y2="492"/>
+  <rect fill="#D8EFEB" height="54" rx="5" stroke="#5D7074" stroke-width="1.6" width="164" x="284" y="433"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="295" y="455">slot 0</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="295" y="478">RBP−8</text>
+  <circle cx="428" cy="460" fill="#006B6E" r="7" stroke="#006B6E" stroke-width="2.4"/>
+  <rect fill="#F8E6D6" height="54" rx="5" stroke="#B65018" stroke-width="1.6" width="164" x="284" y="498"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="295" y="520">slot 1</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="295" y="543">RBP−16</text>
+  <polygon fill="#B65018" points="428,516 420,532 436,532" stroke="#B65018" stroke-width="2.4"/>
+  <rect fill="#F7F5EF" height="54" rx="5" stroke="#5D7074" stroke-width="1.6" width="164" x="284" y="563"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="295" y="585">slot 2</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="295" y="608">RBP−24</text>
+  <text fill="#006B6E" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="85" y="590">x is shadowed</text>
+  <text fill="#006B6E" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="85" y="616">in row B</text>
+  <path d="M 284,638 l 5,-5 l 6,10 l 6,-10 l 5,5 M 426,638 l 5,-5 l 6,10 l 6,-10 l 5,5" fill="none" stroke="#5D7074" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start" x="284" y="670">slots 3–31 omitted</text>
+  <text fill="#40535F" font-family="DejaVu Sans Mono, monospace" font-size="18" font-weight="400" text-anchor="start" x="84" y="710">push: save count B+1</text>
+  <line stroke="#5D7074" stroke-width="2" x1="84" x2="448" y1="731" y2="731"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="84" y="760">local rows</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="700" text-anchor="start" x="193" y="763">2</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="284" y="760">next slot</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="700" text-anchor="start" x="423" y="763">2</text>
+  <circle cx="496" cy="287" fill="#172B3A" r="16"/>
+  <text fill="#F7F5EF" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="700" text-anchor="middle" x="496" y="294">2</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="600" text-anchor="start" x="524" y="295">Close the inner block</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="25" font-weight="400" text-anchor="start" x="516" y="335">}</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="600" text-anchor="start" x="519" y="380">lookup x</text>
+  <path d="M 506,374 L 492,374 L 492,460 L 509,460" fill="none" stroke="#172B3A" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/>
+  <line stroke="#172B3A" stroke-width="2.5" x1="507" x2="515" y1="460" y2="460"/>
+  <polygon fill="#172B3A" points="515,460 507.0,455.6 507.0,464.4"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="600" text-anchor="start" x="516" y="417">SYMBOL ROW</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="600" text-anchor="start" x="717" y="417">FRAME SLOT</text>
+  <rect fill="#D8EFEB" height="54" rx="5" stroke="#006B6E" stroke-width="1.6" width="152" x="516" y="433"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="528" y="468">B</text>
+  <circle cx="591" cy="460" fill="#006B6E" r="8" stroke="#006B6E" stroke-width="2.4"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="26" font-weight="600" text-anchor="start" x="615" y="469">x</text>
+  <line stroke="#006B6E" stroke-width="2.7" x1="674" x2="710" y1="460" y2="460"/>
+  <polygon fill="#006B6E" points="710,460 702.0,455.6 702.0,464.4"/>
+  <rect fill="#F7F5EF" height="54" rx="5" stroke="#5D7074" stroke-dasharray="5 4" stroke-width="1.6" width="152" x="516" y="498"/>
+  <text fill="#40535F" font-family="DejaVu Sans Mono, monospace" font-size="18" font-weight="400" text-anchor="start" x="526" y="532">B+1</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="583" y="532">out</text>
+  <line stroke="#172B3A" stroke-width="3" x1="516" x2="668" y1="492" y2="492"/>
+  <rect fill="#D8EFEB" height="54" rx="5" stroke="#5D7074" stroke-width="1.6" width="164" x="716" y="433"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="727" y="455">slot 0</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="727" y="478">RBP−8</text>
+  <circle cx="860" cy="460" fill="#006B6E" r="7" stroke="#006B6E" stroke-width="2.4"/>
+  <rect fill="url(#past-claim)" height="54" rx="5" stroke="#5D7074" stroke-width="1.6" width="164" x="716" y="498"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="727" y="520">slot 1</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="727" y="543">RBP−16</text>
+  <line stroke="#40535F" stroke-width="3" x1="853" x2="867" y1="525" y2="525"/>
+  <rect fill="#F7F5EF" height="54" rx="5" stroke="#5D7074" stroke-width="1.6" width="164" x="716" y="563"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="727" y="585">slot 2</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="727" y="608">RBP−24</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="517" y="590">B+1 is outside</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="517" y="616">the live table</text>
+  <path d="M 716,638 l 5,-5 l 6,10 l 6,-10 l 5,5 M 858,638 l 5,-5 l 6,10 l 6,-10 l 5,5" fill="none" stroke="#5D7074" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start" x="716" y="670">slots 3–31 omitted</text>
+  <text fill="#40535F" font-family="DejaVu Sans Mono, monospace" font-size="18" font-weight="400" text-anchor="start" x="516" y="710">pop: restore count B+1</text>
+  <line stroke="#5D7074" stroke-width="2" x1="516" x2="880" y1="731" y2="731"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="516" y="760">local rows</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="700" text-anchor="start" x="625" y="763">1</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="716" y="760">next slot</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="700" text-anchor="start" x="855" y="763">2</text>
+  <circle cx="928" cy="287" fill="#172B3A" r="16"/>
+  <text fill="#F7F5EF" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="700" text-anchor="middle" x="928" y="294">3</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="600" text-anchor="start" x="956" y="295">Declare y afterward</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="25" font-weight="400" text-anchor="start" x="948" y="335">int y = 3;</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="600" text-anchor="start" x="951" y="380">lookup x</text>
+  <path d="M 938,374 L 924,374 L 924,460 L 941,460" fill="none" stroke="#172B3A" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/>
+  <line stroke="#172B3A" stroke-width="2.5" x1="939" x2="947" y1="460" y2="460"/>
+  <polygon fill="#172B3A" points="947,460 939.0,455.6 939.0,464.4"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="600" text-anchor="start" x="948" y="417">SYMBOL ROW</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="600" text-anchor="start" x="1149" y="417">FRAME SLOT</text>
+  <rect fill="#D8EFEB" height="54" rx="5" stroke="#006B6E" stroke-width="1.6" width="152" x="948" y="433"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="960" y="468">B</text>
+  <circle cx="1023" cy="460" fill="#006B6E" r="8" stroke="#006B6E" stroke-width="2.4"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="26" font-weight="600" text-anchor="start" x="1047" y="469">x</text>
+  <line stroke="#006B6E" stroke-width="2.7" x1="1106" x2="1142" y1="460" y2="460"/>
+  <polygon fill="#006B6E" points="1142,460 1134.0,455.6 1134.0,464.4"/>
+  <rect fill="#E3EAF8" height="54" rx="5" stroke="#365FA8" stroke-width="1.6" width="152" x="948" y="498"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="20" font-weight="400" text-anchor="start" x="960" y="533">B+1</text>
+  <rect fill="#365FA8" height="16" rx="1" stroke="#365FA8" stroke-width="2.4" width="16" x="1015" y="517"/>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="26" font-weight="600" text-anchor="start" x="1047" y="534">y</text>
+  <line stroke="#365FA8" stroke-width="3" x1="1106" x2="1143" y1="525" y2="581"/>
+  <polygon fill="#365FA8" points="1143,581 1142.2610172874142,571.8997854667871 1134.9188664655949,576.7508494026322"/>
+  <rect fill="#D8EFEB" height="54" rx="5" stroke="#5D7074" stroke-width="1.6" width="164" x="1148" y="433"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="1159" y="455">slot 0</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="1159" y="478">RBP−8</text>
+  <circle cx="1292" cy="460" fill="#006B6E" r="7" stroke="#006B6E" stroke-width="2.4"/>
+  <rect fill="url(#past-claim)" height="54" rx="5" stroke="#5D7074" stroke-width="1.6" width="164" x="1148" y="498"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="1159" y="520">slot 1</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="1159" y="543">RBP−16</text>
+  <line stroke="#40535F" stroke-width="3" x1="1285" x2="1299" y1="525" y2="525"/>
+  <rect fill="#E3EAF8" height="54" rx="5" stroke="#365FA8" stroke-width="1.6" width="164" x="1148" y="563"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="400" text-anchor="start" x="1159" y="585">slot 2</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="21" font-weight="400" text-anchor="start" x="1159" y="608">RBP−24</text>
+  <rect fill="#365FA8" height="14" rx="1" stroke="#365FA8" stroke-width="2.4" width="14" x="1285" y="583"/>
+  <text fill="#365FA8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="600" text-anchor="start" x="949" y="590">same row</text>
+  <text fill="#365FA8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="600" text-anchor="start" x="949" y="616">new slot →</text>
+  <path d="M 1148,638 l 5,-5 l 6,10 l 6,-10 l 5,5 M 1290,638 l 5,-5 l 6,10 l 6,-10 l 5,5" fill="none" stroke="#5D7074" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start" x="1148" y="670">slots 3–31 omitted</text>
+  <text fill="#40535F" font-family="DejaVu Sans Mono, monospace" font-size="18" font-weight="400" text-anchor="start" x="948" y="710">add: write row B+1 again</text>
+  <line stroke="#5D7074" stroke-width="2" x1="948" x2="1312" y1="731" y2="731"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="948" y="760">local rows</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="700" text-anchor="start" x="1057" y="763">2</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="start" x="1148" y="760">next slot</text>
+  <text fill="#365FA8" font-family="DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="700" text-anchor="start" x="1287" y="763">3</text>
+  <circle cx="60" cy="808" fill="#006B6E" r="6" stroke="#006B6E" stroke-width="2.4"/>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start" x="77" y="814">outer x</text>
+  <polygon fill="#B65018" points="193,800 186,814 200,814" stroke="#B65018" stroke-width="2.4"/>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start" x="211" y="814">inner x</text>
+  <rect fill="#365FA8" height="12" rx="1" stroke="#365FA8" stroke-width="2.4" width="12" x="319" y="802"/>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start" x="343" y="814">y</text>
+  <rect fill="url(#past-claim)" height="22" rx="5" stroke="#5D7074" stroke-width="1.6" width="29" x="396" y="796"/>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start" x="438" y="814">previously claimed; not reusable</text>
+  <line stroke="#5D7074" stroke-width="2" x1="48" x2="1312" y1="841" y2="841"/>
+  <text fill="#006B6E" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="start" x="48" y="880">RUN TIME</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="start" x="245" y="880">One invocation of the emitted function</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle" x="150" y="923">prologue</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="20" font-weight="400" text-anchor="middle" x="545" y="923">inner {</text>
+  <text fill="#172B3A" font-family="DejaVu Sans Mono, monospace" font-size="24" font-weight="400" text-anchor="middle" x="790" y="923">}</text>
+  <text fill="#40535F" font-family="DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="400" text-anchor="middle" x="1235" y="923">epilogue</text>
+  <line stroke="#5D7074" stroke-width="1.7" x1="150" x2="1250" y1="940" y2="940"/>
+  <polygon fill="#5D7074" points="1250,940 1242.0,935.6 1242.0,944.4"/>
+  <line stroke="#5D7074" stroke-dasharray="4 5" stroke-width="1.5" x1="545" x2="545" y1="942" y2="1047"/>
+  <line stroke="#B65018" stroke-dasharray="4 5" stroke-width="1.7" x1="790" x2="790" y1="942" y2="1085"/>
+  <rect fill="#D8EFEB" height="45" rx="5" stroke="none" stroke-width="1.6" width="1085" x="150" y="960"/>
+  <line stroke="#006B6E" stroke-width="3" x1="150" x2="150" y1="960" y2="1005"/>
+  <line stroke="#006B6E" stroke-width="3" x1="1235" x2="1235" y1="960" y2="1005"/>
+  <text fill="#006B6E" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="600" text-anchor="middle" x="692" y="990">256 bytes reserved throughout</text>
+  <polygon fill="#B65018" points="353,1029 345,1045 361,1045" stroke="#B65018" stroke-width="2.4"/>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="400" text-anchor="start" x="373" y="1046">inner x lifetime</text>
+  <line stroke="#B65018" stroke-width="10" x1="545" x2="790" y1="1038" y2="1038"/>
+  <line stroke="#B65018" stroke-width="3" x1="790" x2="790" y1="1026" y2="1050"/>
+  <text fill="#B65018" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="600" text-anchor="start" x="812" y="1046">ends here</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="400" text-anchor="start" x="812" y="1076">Reserved bytes do not keep it alive.</text>
+  <text fill="#172B3A" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="400" text-anchor="start" x="48" y="1131">Parsing } emits no stack adjustment. The epilogue restores RSP from RBP.</text>
+</svg>

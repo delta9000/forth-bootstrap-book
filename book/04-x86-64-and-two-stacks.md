@@ -50,7 +50,16 @@ return stack answers “where should execution resume when this call
 finishes?” Keeping those questions separate will matter whenever a word
 calls another word.
 
-A *cell* is an eight-byte, 64-bit value. If the logical data stack holds `a`, then `b`, then `c` with `c` on top, the live values are arranged like this; the separate return-stack panel shows the state while a called routine is running.
+For example, entering `emit` must save a return address while leaving the
+character ready for `emit` to consume. Separate stacks let both happen:
+the return address goes on one, and the character stays on top of the
+other. A word can therefore find its operands in the same places however
+deeply calls are nested. The seed's choice of `rsp` for returns and
+`rdi`/`rbp` for data implements that separation on x86-64; those register
+names are choices of this implementation, not part of a Forth word's
+interface.
+
+A *cell* in this seed is an eight-byte, 64-bit value. If the logical data stack holds `a`, then `b`, then `c` with `c` on top, the live values are arranged like this; the separate return-stack panel shows the state while a called routine is running.
 
 <figure class="mechanism" aria-labelledby="stacks-caption">
 <div class="mechanism-title">A logical stack is split between a register and memory</div>

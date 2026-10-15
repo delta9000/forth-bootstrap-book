@@ -60,6 +60,38 @@ place this route among the other bootstrap projects. They are useful
 background when you want to compare routes; the seed walkthrough does not
 require those project names.
 
+## Why use Forth here?
+
+Forth gives us a way to grow a language from a small working vocabulary.
+A **word** is a named operation: `emit` writes a character, while `hello`
+combines several operations into a new one. Once defined, `hello` can be
+used by name in another definition. The **dictionary** holds those names
+and their meanings, so adding a word extends the vocabulary the running
+system understands.
+
+Words pass working values through a **data stack**. When `hello` runs,
+each compiled literal supplies a character value and `emit` consumes it.
+Each word agrees on where to find its inputs and leave its results;
+composing words joins
+those agreements. Chapter 4 makes that arrangement concrete. This lets
+the seed compile an ordinary word call with very little knowledge: find
+the word's code address and write a call to it. The programmer is
+responsible for supplying the values the called word expects.
+
+The vocabulary can also include words that build other words. The seed
+already has `:` and `;`; the library adds constructors, conditionals and
+loops using its existing memory-writing operations. This ability to
+extend compilation in Forth source is especially useful here. More of the
+system can be expressed in readable definitions after the small initial
+executable is working, rather than encoded by hand before it can run.
+
+That is a trade in where the complexity lives. The library still has to
+implement the omitted operations, and the seed does little checking of
+their stack contracts. Its minimal dialect also differs from a standard
+Forth: numbers require `[lit]`, for example. The value of this choice for
+the bootstrap is the short path from a few executable operations to a
+language we can extend and use to build the next compiler.
+
 ## Try it: measure the shared starting point
 
 Recall the checkpoint working directory from Chapter 1. Run this block from

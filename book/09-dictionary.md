@@ -12,9 +12,18 @@ operations; the checkpoint will let us see why.
 
 ## The header layout
 
-A dictionary entry has this shape: **link → flags → name length → name bytes → code**. The arrows here mean consecutive fields in memory. The link itself points to an older entry; the last link is zero. `LATEST` supplies the head of this chain (Chapter 5).
+In this seed, a dictionary entry has this shape: **link → flags → name length → name bytes → code**. The arrows here mean consecutive fields in memory. The link itself points to an older entry; the last link is zero. `LATEST` supplies the head of this chain (Chapter 5).
 
 The search uses **newest-first lookup**. It starts at `LATEST`, compares a name, and follows the link on a mismatch. If names repeat, the newest matching entry wins. Chapter 10 builds new entries.
+
+This chain makes adding a word inexpensive: its header points to the
+previous newest entry, and `LATEST` changes to the new header. Older
+entries stay where they are. The cost appears during lookup, which may
+inspect every header before finding an old name or reporting a miss.
+Once Chapter 10 compiles a call, that call already identifies its target;
+running it does not repeat the name search. The dictionary supports a
+growing vocabulary without putting a search between every pair of
+operations in a compiled body.
 
 The header for `find` shows these fields before any instructions (`forth-bootstrap/seed/000-seed.hex0:320`).
 
