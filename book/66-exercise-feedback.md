@@ -3,9 +3,9 @@
 This appendix covers the exercises in Chapters 27–56. For earlier material,
 look beside the corresponding exercise for local feedback or a self-check;
 [Appendix D](58-worked-exercises.md) supplies selected additional worked
-examples, not a complete early answer key. Some prompts still rely on
-your own trace or verification: for example, [Chapter 12](12-repl.md#exercises)
-works the reordered miss path but leaves its first dispatch trace to you.
+examples, not a complete early answer key. For example,
+[Chapter 12](12-repl.md#exercises) provides local feedback for following
+a name through redefinition and for the reordered miss path.
 
 Try the chapter's exercise before opening its answer. Start with the hint;
 then compare intermediate states, not only the final number. The answers
@@ -686,6 +686,29 @@ An argument copy is not the caller's original object. For the pointer-field
 trace, draw two 16-byte records and one separate `long` object; keep the
 pointer field and the pointed-to object as different storage locations.
 
+**49.4 first hint.** Recompute consumption from four named GP arguments.
+Decide whether both Pair eightbytes fit before placing `tail`. Keep the
+named SSE consumption separate.
+
+**49.5 first hint.** Classify the return object before assigning any
+visible parameter to a register.
+
+**49.6 first hint.** Keep argument transport, arithmetic, return transport,
+and caller capture as separate steps. Does the call boundary carry an
+object address or an x87 value?
+
+<details>
+<summary>A second hint for the mixed-cursor and result traces</summary>
+
+For 49.4, an eight-byte overflow argument can leave the cursor halfway
+between two 16-byte boundaries. Align before fetching long double.
+For 49.5, a hidden destination uses one GP register even though it is
+absent from the source parameter list. For 49.6, arithmetic first saves
+and pops into a frame object; returning that long double loads it again.
+Caller capture must empty x87 before another call needs it.
+
+</details>
+
 <details>
 <summary>Check your reasoning: solutions and evaluation criteria</summary>
 
@@ -722,6 +745,81 @@ Leaving `target` unchanged would confuse copying a pointer with copying
 its pointee. Changing the original array to 30 would treat the record
 call as though an array pointer had been passed instead. Mark the byte
 range copied for the argument, then locate each assignment's destination.
+
+**49.4.** The initial cursors are GP `4 * 8 = 32`, FP
+`48 + 1 * 16 = 64`, and overflow `O = 0x9000`. No named argument uses
+the stack. Pair now fits in R8/R9, so `tail` uses the first stack slot.
+The double stays in XMM1. The following long double starts at stack
+offset 16, leaving eight padding bytes after `tail`.
+
+| Retrieval | Source address and value | GP offset after | FP offset after | Overflow pointer after |
+|---|---|---:|---:|---|
+| Start | Nothing retrieved | 32 | 64 | `0x9000` |
+| Pair | `R+32 = 0x8020`, containing `{20,30}` | 48 | 64 | `0x9000` |
+| Long | `0x9000`, containing 7 | 48 | 64 | `0x9008` |
+| Double | `R+64 = 0x8040`, low eight bytes encoding 2.0 | 48 | 80 | `0x9008` |
+| Long double | Align `0x9008` up to `0x9010`, containing 3.0L | 48 | 80 | `0x9020` |
+
+The checksum stays 62 because the values did not change; caller and
+callee must now agree on different locations. A correct checksum with an
+incorrect cursor table does not answer the transport question. The
+all-or-none allocation and retrieval decisions are paired in
+`forth-bootstrap/cc/131-cc-aggregate-abi.fth:130–150,494–525`; the scalar
+selectors are in `forth-bootstrap/cc/126-cc-varargs.fth:115–170`.
+
+- If the original trace advances GP to 56 after Pair, it allocated part
+  of a record that could not fit. Spill the whole record and leave GP at 40.
+- If the changed trace still reads Pair from overflow, it reused the old
+  plan rather than recomputing the available registers.
+- If double changes GP or overflow, it confused source order with one
+  shared cursor. It advances only FP while an XMM slot remains.
+- If long double starts at `0x9008`, it omitted alignment before retrieval.
+  Adding 16 afterward does not repair a misaligned source address.
+
+The caller promoted `2.0f` to double, so the matching request is
+`va_arg(ap, double)`. This compiler rejects `va_arg(ap, float)` with error
+247 in its requested-type check
+(`forth-bootstrap/cc/126-cc-varargs.fth:171–198`). That does not mean it
+detects every mismatch: requesting another accepted but incompatible type
+can still violate the caller/callee contract without this diagnostic.
+
+**49.5.** Triple is 24 bytes, hence MEMORY. The hidden result pointer
+uses RDI. Visible `a` through `e` use RSI, RDX, RCX, R8, and R9;
+`f = 6` uses outgoing `[rsp+0]`, which becomes incoming `[rbp+16]`
+after the return address and saved RBP have been pushed. The caller owns
+the result buffer. The callee retains its address, copies all 24 result
+bytes there, and returns that destination address in RAX. Returning only
+a callee local's address would leave the caller referring to expired
+storage. If `f` was placed in R9, the plan omitted the hidden argument.
+This combines the earlier stack-argument rule with
+`forth-bootstrap/cc/131-cc-aggregate-abi.fth:107–117,337–360,377–400`.
+
+**49.6.** Each call passes `a` in a 16-byte object at outgoing stack
+offset 0 and `b` at offset 16. These arrive at `[rbp+16]` and `[rbp+32]`
+before entry copies them into callee locals. No hidden result pointer or
+XMM argument is needed. Each call starts with no live x87 expression value:
+
+| Boundary | `difference(10.0L, 3.0L)` | `difference(4.0L, 1.0L)` |
+|---|---|---|
+| Right then left loads; top first | 10.0L, 3.0L | 4.0L, 1.0L |
+| Subtract and pop | `st(0) = 7.0L` | `st(0) = 3.0L` |
+| Arithmetic save/pop | Empty; frame object holds 7.0L | Empty; frame object holds 3.0L |
+| Return loads that object | `st(0) = 7.0L` | `st(0) = 3.0L` |
+| Caller captures and pops | Empty; caller object holds 7.0L | Empty; caller object holds 3.0L |
+
+The first captured value remains in its caller-owned object while the
+other call executes, rather than staying live on x87. For the outer
+operation, load the right object (3.0L), then the left (7.0L), making the
+top-first stack `7.0L, 3.0L`. The reverse-and-pop subtraction produces
+4.0L. Saving and popping into a fresh result object leaves x87 empty.
+Reversing only those two outer loads produces −4.0L with the unchanged
+opcode. Returning a correct number without showing the empty stack after
+each capture misses the lifetime invariant.
+
+The callee's return load and caller's capture are different actions
+(`forth-bootstrap/cc/131-cc-aggregate-abi.fth:256–259,377–388`); arithmetic
+and its save/pop are in `forth-bootstrap/cc/132-cc-long-double.fth:12–14,124–138`.
+These are manual predictions, not additional observed checkpoint results.
 
 </details>
 

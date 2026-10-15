@@ -429,6 +429,56 @@ moving a mismatch.
 
 </details>
 
+**Trace (moderate).** Value, address, or later fetch? Predict the three
+characters below before running the input in a fresh seed process after
+loading the complete library (`head -n 469 forth/010-lib.fth`), as in the
+checkpoint. What value does each constant embed, and when does each `@`
+execute?
+
+```forth
+skip-vm-pages
+variable cell
+[lit] 65 cell !
+cell @ constant frozen
+cell constant alias
+: delayed cell @ ;
+[lit] 66 cell !
+frozen emit alias @ emit delayed emit nl emit
+bye
+```
+
+<details>
+<summary>Hint: separate the cell's address from its contents</summary>
+
+Mark the fetch that runs before `constant` reads its new name. Which
+fetches remain to run after the store of 66?
+
+</details>
+
+<details>
+<summary>Check the captured values and fetch times</summary>
+
+The output is `ABB`. `cell @` fetches 65 before `constant frozen`
+constructs a body embedding that value. `alias` embeds the cell's address;
+the `@` after its call fetches 66.
+Compiling `delayed` emits calls to `cell` and `@`; executing it fetches 66.
+`BBB` moves the first fetch to call time. `AAA` treats the later fetches
+as though they had captured 65 too.
+
+</details>
+
+Now insert `[lit] 67 cell !` immediately before the output line. Predict
+again, explaining which character stays fixed and why.
+
+<details>
+<summary>Check the changed store</summary>
+
+The output becomes `ACC`: only `frozen` has captured the earlier contents.
+The unchanged address in `alias` still leads to the newly stored value,
+and `delayed` performs its fetch when called.
+
+</details>
+
 **Trace (moderate).** Predict both output lines from this scratch input.
 Then run it in a fresh seed process after this chapter's complete library
 prefix (`head -n 469 forth/010-lib.fth`), as in the checkpoint. Which two
@@ -478,5 +528,52 @@ recompiled.
 first line would change the cell without an assignment. If your trace
 executes the names after `bind-next` separately, mark the tokens its two
 readers consume; after the second assignment, the REPL resumes at `direct`.
+
+</details>
+
+**Trace (moderate).** Borrowed or copied bytes? Predict both output lines
+from this separate scratch input, then run it with the same complete
+library in a fresh seed process. Draw the bytes at each saved address
+after each `token`. Keep both definitions before the calls: each helper
+reads its second token before returning to the outer input loop.
+
+```forth
+skip-vm-pages
+: borrowed-first token drop token 2drop c@ emit ;
+: copied-first token here >r bytes, token 2drop r> c@ emit ;
+borrowed-first maple birch nl emit
+copied-first maple birch nl emit
+bye
+```
+
+<details>
+<summary>Hint: follow the destination of the copy</summary>
+
+Both `token` calls use TIB. Does saving an address preserve its bytes?
+In `copied-first`, distinguish TIB from the HERE saved before `bytes,`.
+
+</details>
+
+<details>
+<summary>Check the two lifetimes</summary>
+
+The lines are `b`, then `m`. `borrowed-first` saves TIB's address, whose
+bytes change from `maple` to `birch`. `copied-first` saves a dictionary
+address and copies `maple` there before TIB changes. Both helpers leave
+the caller's stacks balanced. `m`/`m` mistakes a saved pointer for saved
+bytes; `b`/`b` misses the copy's separate destination.
+
+</details>
+
+Replace `birch` with the shorter `ox` in both calls. Predict the characters
+and the first five TIB bytes just after the second `token`. Would retaining
+`maple`'s length as well as its address recover the earlier text?
+
+<details>
+<summary>Check the shorter-token reattempt</summary>
+
+The lines become `o`, then `m`. TIB begins with `ox` and three blanks:
+`token` blanks the buffer before reading. Keeping the old length of five
+cannot restore overwritten bytes; the dictionary copy still holds `maple`.
 
 </details>

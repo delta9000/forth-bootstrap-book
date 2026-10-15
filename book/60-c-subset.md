@@ -136,6 +136,60 @@ The compiler's demonstrated scope is the source chain it builds. Each row cites 
 | Plumbing tools | seed-cc compiles kaem and stage0 utilities, followed by make, text/file/archive tools, parser generators and bash through the plumbing recipes (`forth-bootstrap/chain/plumbing/README.md:17`; `forth-bootstrap/chain/plumbing/stage1.kaem:23`; `forth-bootstrap/chain/plumbing/chain.kaem:13`). | [Chapter 51 — Owning the tools](51-owning-the-tools.md) |
 | GCC 4.0.4 compiler proper and supporting programs | Configure selects seed-cc for target and build-time C compilation. The census requests the Makefile's cc1 objects and links cc1; Stage C then requests xgcc, cpp and collect2. Subsequent libgcc and musl builds use the resulting GCC (`forth-bootstrap/chain/gcc-direct/configure.sh:95`; `forth-bootstrap/chain/gcc-direct/census.sh:64`; `forth-bootstrap/chain/gcc-direct/stage-c.sh:178`). | [Chapter 52 — GCC 4.0.4: stages C and D](52-gcc-4-fixed-point.md) |
 
+## Choose the boundary before predicting the result
+
+After Chapters 39–49, try these changes without copying a checkpoint's
+already-selected target. For each case, name three things: the selected
+storage/call contract, the loaded feature, and the operation being asked
+of it. The tables above are a repair route if one is unfamiliar.
+
+1. Load all compiler layers but invoke the untouched default main. Does
+   a two-dimensional local array now become a System V array?
+2. Select LP64 storage and invoke `cc-native-program`. Does that make its
+   function calls compatible with an independently compiled System V object?
+3. Use Chapter 47's object layers for a no-argument function returning
+   `double`. Now add a `double` parameter and pass a value. Is result
+   transport enough to support that change?
+4. With the full System V layers, compare passing `struct Box { double x; }`
+   by value with passing a pointer to a Box. Does the same aggregate
+   classification apply to both?
+5. A binary64 literal can be decoded. Does that alone establish that both
+   the mapped executable route and object output accept it as a static
+   floating leaf?
+
+<details>
+<summary>Check the selected contract, then locate its gate</summary>
+
+1. No target-enable word ran. The default remains the core, whose second
+   array dimension is rejected; the checkpoint below checks error 159.
+   Loading a definition makes it available, not selected.
+2. The native standalone route uses LP64 storage with its private all-stack
+   calling convention. Object widths alone do not choose register assignment,
+   argument placement or the return contract.
+3. No. Chapter 47 installs scalar floating result transport, but its layer
+   set still rejects floating arguments at the scalar argument check.
+   Chapter 49 installs the shared argument plan that supplies that boundary.
+4. The by-value record has an unsupported floating leaf at this aggregate
+   boundary and is rejected. The pointer itself is INTEGER-class; that
+   classification does not recursively classify its pointee. Storing a Box
+   or taking its address is a different operation from passing its bytes.
+5. No. Literal conversion and output placement are separate capabilities.
+   Object output has the typed data-patching consumer; the mapped static
+   hook rejects binary32/binary64 floating leaves.
+
+If you answered from a keyword alone, find the row for the requested
+operation: storage, call transport, or static output. Then retry case 4
+with `struct Box { long x; }`. Its single INTEGER eightbyte is supported
+by the full aggregate path; the pointer case is still INTEGER-class for
+its own reason. A passing storage test would not establish either call
+result by itself.
+
+These are source-based predictions using the boundaries documented above,
+not five new executed compiler tests. The next checkpoint executes only
+the default-core array rejection.
+
+</details>
+
 ## Try it
 
 Run from the `forth-bootstrap` checkout root with the seed built in Part 1. The layer list keeps the executing main last (`forth-bootstrap/cc/compiler-layers.sh:6`). No target-enable word is invoked, so this probes the core array limitation. The diagnostic and status are printed; the final test checks that the rejection was the one listed here.

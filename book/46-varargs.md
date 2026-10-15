@@ -229,7 +229,7 @@ defer cc-va-layout-fwd
 
 ```
 
-With INTEGER named parameters, the GP offset is eight times the named count, capped at 48. The FP offset starts at 48. The overflow pointer starts at `rbp + 16`, plus eight bytes for each named stack argument. Chapter 49 replaces `cc-va-layout-fwd` with the shared argument plan for mixed named types.
+With INTEGER named parameters, the GP offset is eight times the named count, capped at 48. The FP offset starts at 48. The overflow pointer starts at `rbp + 16`, plus eight bytes for each named stack argument. Chapter 49 replaces `cc-va-layout-fwd` with the shared argument plan for mixed named types. Its [mixed-cursor worked trace](49-aggregate-abi.md#trace-mixed-named-and-unnamed-arguments) returns to these fields after scalar floating and record transport are available, with a changed-case prediction and feedback. Keep this chapter's executable checkpoint integer-only.
 
 For `sum`, `n` consumes the first GP register. The list starts at GP offset 8 and retrieves five unnamed values from saved registers before using the stack. A later `va_start` can reset the same list from the invocation's saved arguments.
 

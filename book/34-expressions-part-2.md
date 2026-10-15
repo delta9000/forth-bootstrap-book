@@ -2242,20 +2242,98 @@ In ISO C a comma result is not an lvalue; treat this as a dialect quirk,
 not a feature. The core profile has no comma operator at all. See
 [Appendix F](60-c-subset.md#observed-profile-boundaries).
 
-The runtime expression route ends here. The next section runs arithmetic
-in the compiler rather than emitting it; return to it for Chapter 28
-`#if` expressions and Chapter 35 constant bounds.
-
-<details>
-<summary>Second route: compile-time expressions and the preprocessor evaluator</summary>
-
-## Constant expressions
+## Two expression routes, one token handoff
 
 An array bound must be known when the compiler reserves storage; a case
 label must be known when it builds dispatch. Neither can wait for the
 generated program to run. Constant parsing reuses the operator table and
 precedence levels but computes a Forth value instead of emitting a runtime
 calculation.
+
+Trace the same source bytes, `2+3*4;`, through each entry separately in the
+**core profile**, starting with an empty output buffer. The table omits
+parser-control cells; the constant column shows only arithmetic payloads
+on the compiler's Forth data stack, with the top at the right. The runtime
+column describes instructions being written, not instructions already run.
+
+| Source step | `cc-parse-expr` writes runtime instructions | `cc-parse-const` computes now |
+|---|---|---|
+| Read `2`, then see `+` | Load 2 into RDI; save that left operand before parsing the right | Keep `2` while recursively parsing the tighter level |
+| Parse the tighter `3*4` | Load/save 3, load 4, restore 3, multiply | Combine `3 4` into 12; arithmetic payloads are now `2 12` |
+| Finish the addition | Restore 2 and add the product | Combine `2 12` into `14` |
+| Return to the caller | Output position has advanced; the generated code will leave 14 in RDI **when run** | Leave 14 on the Forth data stack; output position is still zero |
+
+Executing an emitter writes machine code; executing an evaluator performs
+the arithmetic in the compiler. Compare `bo-emitter ... execute` in
+`cc-binop-apply` with `bo-eval ... execute` in `cc-cx-binary`
+(`forth-bootstrap/cc/100-cc-expr.fth:1862–1914` and
+`forth-bootstrap/cc/100-cc-expr.fth:2554–2574`). The runtime entry does not
+return that 14 as a Forth value for a caller to use as an array bound.
+
+Both routes also return a token to their caller. Index the six source
+bytes from zero: `;` is byte 5. On return, the current token is that
+semicolon (`tk-punct`), the next-byte cursor is 6, and `cc-tok-pending` is
+true. The lexer has read the delimiter, but the expression parser has
+left it for its caller to consume. `cc-next-token-keep` replays it and
+clears pending without moving the cursor; the caller can then check that
+it is `;`. A raw `cc-next-token` instead reads beyond it to EOF and loses
+this handoff (`forth-bootstrap/cc/050-cc-lex.fth:647–666`). Chapter 36's
+expression-statement parser uses the pending-aware punctuation consumer
+(`forth-bootstrap/cc/112-cc-stmt.fth:828–833` and
+`forth-bootstrap/cc/110-cc-decl.fth:73–81`). This is the contract for these
+entries, not a claim that every helper leaves its delimiter pending.
+
+For a concrete use, the declaration parser's `int a[2+3*4];` calls
+`cc-parse-const` after reading `[`. It receives 14 immediately, consumes
+the pending `]`, and claims 14 core local slots if this is an automatic
+array with enough frame space. That count is available during compilation;
+no generated multiplication has to run to discover it. The declaration
+does not initialize the array's elements
+(`forth-bootstrap/cc/110-cc-decl.fth:468–484`).
+
+**Trace (moderate).** Before opening the feedback, change the expression
+to `2*3+4;`. For each route, predict the arithmetic result, where and when
+it exists, and whether the output position changes. Give the current
+token's kind and value, next-byte cursor, and pending flag on return, then
+after the enclosing semicolon consumer's pending-aware read. Which entry
+must a caller use for the bound in `int a[2*3+4];`, and how many core slots
+does that bound claim? A final number alone does not check the two routes.
+
+<details>
+<summary>Feedback: changed expression and delimiter ownership</summary>
+
+Both routes group `(2*3)+4`, so the arithmetic result is **10**. The
+runtime parser emits the calculation; its generated instructions produce
+10 in RDI when executed. The constant parser computes 6, then 10, and
+returns 10 on the compiler's Forth data stack without advancing the
+output position. The bound parser needs this latter entry and claims ten
+slots for the automatic array; it does not emit arithmetic to learn the
+bound or initialize its elements.
+
+For both entries, `;` is current with kind `tk-punct`, cursor 6, and
+pending true. The pending-aware read keeps that token and cursor 6 but
+clears pending; the consumer then checks the semicolon. If your prediction
+was EOF, you advanced the raw reader past the pending delimiter. If your
+cursor was 5, you confused the delimiter's byte index with the position
+of the next unread byte. Repeated putback only sets the same pending flag;
+it does not build a stack of delimiters.
+
+If you put the constant result in a future runtime register, revisit the
+two operator-table columns above. Reattempt `2+3*4;` with the feedback
+closed: require the phase, result location, output-position effect, and
+token handoff as well as 14.
+
+</details>
+
+The implementation below also supplies Chapter 28's `#if` evaluator.
+Return to its dead-arm handling when a constant conditional has an
+unselected branch; the arithmetic-and-handoff trace above is enough to
+follow the bound consumer in Chapter 35.
+
+<details>
+<summary>Second route: compile-time expressions and the preprocessor evaluator</summary>
+
+## Constant expressions
 
 `cc-cx-pp`, `cc-cx-skip`, and `cc-cx-unsigned` track preprocessing mode,
 dead arms, and signedness

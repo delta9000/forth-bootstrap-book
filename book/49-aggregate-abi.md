@@ -690,9 +690,93 @@ The scalar guards run even when expression evaluation is suppressed, so an inval
 ' cc-ag-cast-types is cc-cast-types-fwd
 
 ```
-## Retrieve the same classes through varargs
+## Trace mixed named and unnamed arguments
 
 The variadic cursor machinery (Chapter 46) receives the named arguments' actual consumption from the call transport plan. Records keep their classification in unnamed and unprototyped calls.
+
+Use this chapter's System V LP64 target, selected by
+`cc-sysv-object-enable` in the checkpoint, with the layers through `132`
+loaded. This is a **paper trace**, not an observed execution or an addition
+to Chapter 46's restricted checkpoint. It combines that chapter's three
+cursors with the argument plan now available. The signature is:
+
+```c
+struct Pair { long left; long right; };
+long inspect(long a, long b, long c, long d, long e,
+             double marker, ...);
+```
+
+In a calling function, let `pair` contain `{20,30}` and evaluate:
+
+```c
+inspect(1L, 2L, 3L, 4L, 5L, 1.0, pair, 7L, 2.0f, 3.0L);
+```
+
+The callee declares `va_list ap`, starts it with `va_start(ap, marker)`,
+and retrieves the unnamed values in their source order:
+
+```c
+struct Pair p = va_arg(ap, struct Pair);
+long tail = va_arg(ap, long);
+double fraction = va_arg(ap, double);
+long double wide = va_arg(ap, long double);
+```
+
+The scalar result needs no hidden destination pointer. The five named
+longs consume five GP registers; named `marker` consumes XMM0 in the
+independent SSE bank. The unnamed `2.0f` undergoes default promotion to
+`double`. Pair and long double keep their types
+(`forth-bootstrap/cc/131-cc-aggregate-abi.fth:180–199`;
+`forth-bootstrap/cc/121-cc-sysv.fth:850–853`).
+
+Choose byte addresses `R = 0x8000` for the register-save base and
+`O = 0x9000` for the first incoming stack-argument address. Let the
+callee's `rbp = 0x8ff0`, so `O = rbp + 16` is 16-byte aligned.
+These are diagram addresses, not fixed compiler frame offsets. Saved GP
+slots start at `R+0, R+8, …, R+40`; XMM slots start at `R+48`, with
+stride 16. A double uses the low eight bytes of its XMM save slot.
+
+| Argument | Caller placement | Why |
+|---|---|---|
+| Named `1L` through `5L` | RDI, RSI, RDX, RCX, R8 | Five INTEGER units |
+| Named `1.0` | XMM0 | Independent SSE bank |
+| Unnamed Pair `{20,30}` | Stack `O` through `O+15` | Both INTEGER eightbytes must fit; only R9 remains |
+| Unnamed `7L` | R9 | Spilling Pair left GP consumption at five |
+| Unnamed `2.0f` → double `2.0` | XMM1 | Second SSE argument |
+| Unnamed `3.0L` | Stack `O+16` through `O+31` | X87 argument needs a 16-byte-aligned stack object |
+
+The caller reports two used SSE registers in AL
+(`forth-bootstrap/cc/131-cc-aggregate-abi.fth:275–277`). But `va_start` uses the
+**named** entry plan, not the caller's total argument consumption:
+
+- `gp_offset = 5 * 8 = 40`
+- `fp_offset = 48 + 1 * 16 = 64`
+- `overflow_arg_area = rbp + 16 + named_stack_bytes = O`; no named argument spilled
+- `reg_save_area = R`
+
+These formulas are implemented by `cc-ag-va-layout` below. Each retrieval
+then changes only the cursor for the selected source:
+
+| Retrieval | Source address and value | GP offset after | FP offset after | Overflow pointer after |
+|---|---|---:|---:|---|
+| Start | Nothing retrieved | 40 | 64 | `0x9000` |
+| `va_arg(ap, struct Pair)` | `0x9000`, containing `{20,30}` | 40 | 64 | `0x9010` |
+| `va_arg(ap, long)` | `R+40 = 0x8028`, containing 7 | 48 | 64 | `0x9010` |
+| `va_arg(ap, double)` | `R+64 = 0x8040`, low eight bytes encoding 2.0 | 48 | 80 | `0x9010` |
+| `va_arg(ap, long double)` | `0x9010`, containing 3.0L | 48 | 80 | `0x9020` |
+
+There is no single next-argument address moving through all four values.
+Requested types select independent save banks or the shared overflow
+area. The record selector must make the same all-or-none choice as the
+caller. Initializing `p` then copies the selected Pair bytes into its own
+object. A checksum `p.left + p.right + tail + (long)fraction + (long)wide`
+would be 62; that value alone cannot tell us which transport paths worked.
+
+Before reading more code, try [the mixed-cursor changed case](#exercise):
+remove one named long and predict every address again. The answer is
+separated in [Appendix H](66-exercise-feedback.md#chapter-49-whole-record-decisions).
+
+## Retrieve the same classes through varargs
 
 `cc-ag-va-layout` derives GP, SSE and overflow offsets from the function plan; `cc-ag-va-last-slot` locates the last named parameter without confusing argument order with register order (`forth-bootstrap/cc/131-cc-aggregate-abi.fth:479`):
 ```forth file=cc/131-cc-aggregate-abi.fth
@@ -1255,3 +1339,41 @@ long result = revise(original);
 Predict `original.inside[0]`, `target`, `original.shared`, and `result`.
 Identify the two INTEGER eightbytes at the call boundary. Why does
 setting `p.shared` to zero not undo the earlier write to `target`?
+
+**Trace (moderate).** For a paper-only mixed-cursor prediction, start from
+the [worked `inspect` trace](#trace-mixed-named-and-unnamed-arguments) and remove
+only named parameter `e` and its argument `5L`, updating both the prototype
+and definition. Keep `marker`, all four unnamed values, and their retrieval
+types unchanged. Use the same diagram bases `R` and `O`.
+
+1. Predict the initial GP offset, FP offset, and overflow pointer.
+2. Rebuild the four-row retrieval table: source address, value, and all
+   three cursors afterward. Mark any alignment gap and explain its cause.
+3. Does the checksum 62 change? Why is that insufficient evidence for the
+   new placement?
+4. Why would `va_arg(ap, float)` be wrong for the third unnamed value?
+   Distinguish this compiler's requested-type check from detecting every
+   possible caller/callee mismatch.
+
+**Trace (moderate).** For a paper-only MEMORY-result check, reuse
+`struct Triple { long x; long y; long z; };`, but change the declaration to
+`struct Triple make(long a, long b, long c, long d, long e, long f);`.
+For `make(1L, 2L, 3L, 4L, 5L, 6L)`, locate the hidden pointer and all six
+visible arguments immediately before `call`. Where is `f` relative to the
+callee's RBP after its prologue? Who owns the result storage, what must the
+callee copy on return, and what does returned RAX mean?
+
+**Trace (moderate).** For a paper-only x87-result check, consider:
+
+```c
+long double difference(long double a, long double b) { return a - b; }
+```
+
+Trace `difference(10.0L, 3.0L) - difference(4.0L, 1.0L)` using this
+chapter's System V layers. For each call, locate the argument objects and
+describe the x87 stack after its subtraction, at return, and after the
+caller captures the result. Then trace the outer subtraction, including
+its loads and final save/pop. What changes if **only the outer operation's**
+two loads are reversed without changing its subtraction opcode? The
+existing `extended` checkpoint returns a `long`, so its integer result
+does not by itself exercise this long-double return path.

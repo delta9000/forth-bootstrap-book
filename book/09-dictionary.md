@@ -75,6 +75,11 @@ A length mismatch rules out an entry without comparing bytes. `find_code` loads 
 49 89 F1                                  ; mov r9, rsi        ; r9 = token
 ```
 
+`lea` is an exception to the bracket rule from Chapter 4: it computes the
+address expression without reading memory there. Here `lea r8, [rcx+10]`
+puts `rcx+10` itself in `r8`; `mov r8, [rcx+10]` would instead load the
+cell stored at that address.
+
 `rsi` keeps the caller's name address while `rcx` walks the dictionary. A zero `rcx` means the chain has ended. For equal lengths, `rdx` becomes the remaining count, `r8` points into the entry's name, and `r9` points into the caller's name.
 
 Equal lengths leave the bytes to check. The inner loop advances both name pointers together (`forth-bootstrap/seed/000-seed.hex0:341`).

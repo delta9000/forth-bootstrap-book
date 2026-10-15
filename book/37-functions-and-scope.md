@@ -802,6 +802,104 @@ live local scope; `add` and `bias` remain file-scope symbols. Keeping n
 would leak a local name; dropping add would lose the completed function
 identity needed by later references.
 
+### Three lifetimes at a block boundary
+
+A symbol row, a core frame slot, and a runtime frame have different
+lifetimes. Combine the symbol removal from Chapter 30, the frame mechanics
+from Chapter 31, and the array-slot direction from Chapter 35 in one
+paper trace. Use the **core profile**, a fresh function with no parameters,
+and `cc-fn-local-count = 0`. Let **B** be the number of file-scope rows
+already live, including this function's symbol; local row indices therefore
+start at B. The function scope is already open. Trace these body statements:
+
+```c
+int x = 1;
+{ int x = 2; }
+int y = 3;
+```
+
+**Trace (moderate).** After each declaration and after the inner `}`,
+record the number of live rows above B, the visible `x`, the latest
+object's symbol-row index and slot number, and the next-slot count.
+Translate each allocated slot into an RBP-relative address. Can `y` reuse
+the inner declaration's row? Its slot? Does the scope-pop operation itself
+emit a runtime stack adjustment? Finish by explaining when the enclosing
+frame is reserved and released. Keep compiler parsing and program
+execution on separate timelines.
+
+<details>
+<summary>Feedback: reusable symbol rows, unreused core slots</summary>
+
+| After | Live rows above B | `x` lookup selects | Latest object's row / slot | Next-slot count |
+|---|---:|---|---|---:|
+| Outer `x` declaration | 1 | Outer `x` | B / 0, at RBP−8 | 1 |
+| Inner `x` declaration | 2 | Inner `x` | B+1 / 1, at RBP−16 | 2 |
+| Inner `}` | 1 | Outer `x` | Inner row removed; its slot is not reclaimed | 2 |
+| `y` declaration | 2 | Outer `x` | B+1 / 2, at RBP−24 | 3 |
+
+`cc-scope-pop` removes the inner symbol row and unlinks it from lookup;
+`cc-sym-add` can later use that row index for `y`. Neither operation lowers
+`cc-fn-local-count`, so `y` receives the next unused slot, 2. Symbol rows
+are compiler records; slots describe locations in the generated program's
+frame (`forth-bootstrap/cc/070-cc-sym.fth:96–119` and
+`forth-bootstrap/cc/070-cc-sym.fth:187–204`; allocator and scalar path:
+`forth-bootstrap/cc/110-cc-decl.fth:36–46` and
+`forth-bootstrap/cc/110-cc-decl.fth:496–503`).
+
+The block's scope pop emits **no** stack adjustment. The compiler emitted
+a prologue reserving all 32 eight-byte slots before parsing the body;
+when the function runs, that prologue reserves 256 bytes once for that
+invocation. The scalar initializers store into assigned slots rather than
+extend the frame. The emitted epilogue restores RSP from RBP and returns;
+function-end symbol removal is a separate compiler-side operation
+(`forth-bootstrap/cc/112-cc-stmt.fth:19–33`,
+`forth-bootstrap/cc/114-cc-func.fth:273–310`, and
+`forth-bootstrap/cc/090-cc-emit.fth:339–359`). Temporary expression pushes
+are separate from these local-slot reservations.
+
+The inner object's C lifetime still ends at its block boundary. Bytes
+remaining in the reserved frame do not keep the object alive or make a
+pointer to it valid afterward. At the function's compiler-side scope pop,
+all these local rows disappear; the next function resets its own slot
+count. Each runtime call gets its own frame.
+
+If you gave `y` slot 1, you made symbol removal reclaim frame storage. If
+you refused to reuse row B+1, you made symbol rows live as long as frame
+slots. Re-read the two counters separately, then try the changed case
+below without looking back at this table.
+
+</details>
+
+**Trace (moderate), changed case.** Replace only the inner declaration
+with `int a[2];`, giving `int x=1; { int a[2]; } int y=3;`. Again record
+live rows, the array's occupied slots and recorded base slot, the
+next-slot count, and `y`'s row/slot/address after the block closes. Does the
+larger object change the scope-pop operation's emitted stack adjustment?
+
+<details>
+<summary>Feedback: an array changes slot usage, not symbol-row reuse</summary>
+
+Outer `x` still uses row B and slot 0. Array `a` uses one row, B+1, but
+claims slots 1 and 2. Its recorded base is the deepest slot, 2, so `a[0]`
+is at RBP−24 and `a[1]` is at RBP−16. The next-slot count becomes 3
+(`forth-bootstrap/cc/110-cc-decl.fth:457–484`; slot address rule:
+`forth-bootstrap/cc/090-cc-emit.fth:67–69`).
+
+Closing the block reduces live rows above B from two to one and removes
+`a` from lookup; `x` remains visible throughout this changed case. The
+next-slot count stays 3. Then `y` reuses row B+1 but gets slot 3 at RBP−32,
+leaving two live rows above B and next-slot count 4. No stack adjustment
+is emitted by scope pop. The frame remains the same fixed 256-byte core
+frame; the array has only changed how many of its slots are claimed.
+
+If you put `a[0]` at RBP−16, revisit the deepest-slot base: increasing
+array indices must increase addresses. If you gave `y` slot 2, count both
+array elements before applying the rule that core slots are not reused.
+These are source-level predictions, not a claim that uninitialized array
+elements have known values.
+
+</details>
+
 <details>
 <summary>Declaration reference: enum values and typedef aliases</summary>
 

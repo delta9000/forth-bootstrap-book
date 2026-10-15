@@ -91,6 +91,40 @@ cc-sysv-object-program driver-output cc-obj-write bye ;
 driver-main
 ```
 
+### Trace the parent and child
+
+A successful **fork** continues the controller in two processes: the
+parent receives the child's positive process ID (PID); the child receives
+zero. A negative result means fork failed without creating a child.
+Redirecting the child's descriptor bindings does not redirect the parent's.
+
+Here is a manual trace of the host Linux contract, not recorded output.
+Assume standard descriptors 0, 1 and 2 are open, fork creates child 202,
+and the child's `open` returns descriptor 3:
+
+| Process | Fork result | Next action |
+|---|---|---|
+| Parent controller | `202` | Save that PID; wait for child 202 |
+| Child controller | `0` | Open the prepared input stream as descriptor 3 |
+
+In the child, `dup2(3, 0)` makes standard input (descriptor 0) refer to
+the opened stream. `close(3)` removes the extra descriptor; descriptor 0
+still refers to that stream. A successful **exec** replaces the child's
+program with a fresh seed image, keeping that input binding. It does not
+return to the old controller: `die 112` can run only if exec returns with
+an error. The parent still runs the controller.
+
+The parent's **wait4** waits for the named child to terminate, returning
+its PID and writing an encoded termination status through the `status`
+address. The local wrapper supplies zero options. The controller requires
+both the expected PID and zero stored status (normal exit 0) before
+returning to `compile-unit` and its rename
+(`forth-bootstrap/cc/driver/seed-cc-start.fth:65–75`,
+`forth-bootstrap/cc/driver/seed-cc-start.fth:281–314`).
+[Chapter 54](54-k0-and-k1.md#k0-supplies-just-enough-execution) follows
+K0's narrower, serialized implementation; do not infer Linux scheduling
+or process protection there.
+
 The child reads that assembled input through standard input, so no shell or compiler executable must interpret the build recipe (`forth-bootstrap/cc/driver/seed-cc-start.fth:281`):
 ```forth
 : run-seed
@@ -111,6 +145,25 @@ The parent waits for the child and stops on a failing status. This is the
 whole execution loop behind the first driver: fork, redirect, exec the
 seed, and wait. The surrounding shell launches the controller, but the
 controller constructs both tools without executing Python or a C driver.
+
+**Predict before continuing.** Keep the successful fork and redirection
+above, but suppose exec returns an error in the child. Assume the parent's
+wait successfully collects that child. Which controller error codes are
+reached, and can `compile-unit` rename `unit.o`?
+
+<details>
+<summary>Check the failed-exec prediction</summary>
+
+The child exits through `die 112`. Wait returns its PID, but stores a
+nonzero termination status, so the parent exits through `die 114`.
+`run-seed` never returns normally to `compile-unit`; its rename cannot
+run. Code 113 would instead mean wait did not return the expected PID.
+
+This is a source-derived prediction, not an executed failure test. If you
+expected wait to return 112, separate its PID result from the stored,
+encoded termination status in the trace above.
+
+</details>
 
 ## Put startup before the archive
 

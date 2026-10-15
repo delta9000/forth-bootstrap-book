@@ -41,8 +41,10 @@ The checkpoints inspect the built seed or pipe a few words into
 `./seed-forth`. Each states the particular bytes, output, or exit behavior
 it checks.
 
-Before moving on, return to `hello` from Chapter 1: where is its name
+After Chapter 12, return to `hello` from Chapter 1: where is its name
 stored, what bytes are compiled for its body, and how does its `emit`
-reach Linux? Chapters 9, 10 and 8 supply those three links. Part 2 can
-then use a primitive's stack contract without decoding its instructions
-again.
+reach Linux? Chapters 9, 10 and 8 supply those three links. Then try
+[Chapter 12's redefinition exercise](12-repl.md#follow-a-name-through-redefinition)
+to connect lookup, compilation, and execution in a changed program.
+Part 2 can then use a primitive's stack contract without decoding its
+instructions again.

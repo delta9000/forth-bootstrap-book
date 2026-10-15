@@ -101,6 +101,10 @@ function. This is a compiler-side scope change, not an emitted stack pop
 
 ```
 
+The [integrated function trace](37-functions-and-scope.md#three-lifetimes-at-a-block-boundary)
+asks you to distinguish the reused symbol row, unreused core slots, and
+enclosing runtime frame.
+
 An `if` must skip code whose size is unknown. The rel32 placeholder (Chapter 31) stays on the data stack across the then-body parse; the source layout shows where each path will land (`forth-bootstrap/cc/112-cc-stmt.fth:35`):
 
 ```forth file=cc/112-cc-stmt.fth

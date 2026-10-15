@@ -286,13 +286,68 @@ exit status: 2
 
 ## Exercises
 
-- **Trace (easy).** Follow `: star [lit] 42 emit ; star` through the
-  dispatch paths. Which input tokens does the REPL read, and which does
-  another word consume? Identify when decimal conversion happens and
-  when output happens.
-- **Trace (moderate).** Move the stack reload in the miss path before
-  `report_token` on paper. Explain why the reordered path fails to preserve
-  the prior stack top.
+### Follow a name through redefinition
+
+Before running this program from the source checkout, predict its output.
+Call the first `letter`'s execution token `xt-old` and the second one's
+`xt-new`; you do not need their numerical addresses.
+
+<!-- tryit: expect "AB" -->
+```sh
+printf '%s\n' ': letter [lit] 65 emit ;' ': saved letter ;' \
+  ': letter [lit] 66 emit ;' 'saved letter [lit] 10 emit bye' | ./seed-forth
+```
+
+1. Which name tokens does `:` consume itself, and which decimal tokens
+   does `[lit]` consume? Which words does the REPL handle instead?
+2. Sketch the body compiled for `saved`. Does its call target `xt-old`
+   or `xt-new`? Which target does the final input token `letter` select?
+3. Does either definition of `letter` print while it is being compiled?
+   When the first output byte is produced, why are the inline literal's
+   bytes read as data rather than executed?
+
+<details>
+<summary>Hint: separate lookup from the call it produces</summary>
+
+Follow Chapter 9's newest-first lookup each time the REPL reads
+`letter`. Once Chapter 10's compiler has written a CALL, ask whether
+that instruction contains a name or a distance to a code address.
+
+</details>
+
+<details>
+<summary>Check the definitions and calls</summary>
+
+The output is `AB` followed by a newline. Each `:` consumes its following
+name (`letter`, `saved`, then `letter`); `[lit]` consumes `65`, `66`, and
+finally `10`. The REPL handles the remaining tokens, including each `:`,
+`[lit]`, and `;`. Decimal conversion happens when `[lit]` runs.
+
+When `saved` is compiled, lookup still finds the first `letter`. Its
+body is CALL `xt-old`, then RET. Defining the second `letter` adds a new
+header and body without rewriting that call. Running `saved` therefore
+prints `A`. The final input token `letter` triggers a new lookup, finds
+the newest header, and runs `xt-new`, printing `B`.
+
+Neither definition prints during compilation: `[lit]` writes a CALL to
+`lit_code` and an inline cell, while `emit` contributes a CALL. At runtime,
+`lit_code` reads the cell containing 65 and advances its own return address
+past those eight bytes. Its return reaches the call to `emit`; the older
+return into `saved` stays intact. The final `[lit] 10 emit` runs in
+interpret mode and supplies the newline.
+
+If you predicted `BB`, revisit [newest-first lookup](09-dictionary.md#the-header-layout)
+and the [call emitter](10-colon-compiler.md#compile_call-append-a-body-instruction):
+a compiled CALL does not look up the name again. If you predicted output
+while reading either definition, revisit [the two phases](10-colon-compiler.md#start-with-an-empty-body).
+
+</details>
+
+### Preserve the stack across a miss
+
+**Trace (moderate).** Move the stack reload in the miss path before
+`report_token` on paper. Explain why the reordered path fails to preserve
+the prior stack top.
 
 <details>
 <summary>Self-check: the reordered miss path</summary>

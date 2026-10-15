@@ -167,6 +167,7 @@ when returning after a break.
 - Exact floating ratio — [Chapter 47](47-floats.md)
 - Explicit relocation addend — [Chapter 40](40-objects-and-relocations.md)
 - Expression accumulator — [Chapter 31](31-elf-and-codegen-part-1.md)
+- Expression evaluation phase — [Chapter 34](34-expressions-part-2.md#two-expression-routes-one-token-handoff)
 - Extended floating value — [Chapter 49](49-aggregate-abi.md)
 - Fail-closed bootstrap runtime — [Chapter 39](39-lp64-storage-and-initializers.md#a-finite-linux-boundary)
 - Failure-preserving realloc — [Chapter 43](43-runtime-and-libc.md)
@@ -206,6 +207,7 @@ when returning after a break.
 - M2-Planet — [Chapter 38](38-main-and-bootstrap-chain.md)
 - Macro expansion — [Chapter 28](28-the-preprocessor.md#macro-expansion)
 - Macro table — [Chapter 28](28-the-preprocessor.md)
+- Mixed variadic cursor plan — [Chapter 49](49-aggregate-abi.md#trace-mixed-named-and-unnamed-arguments)
 - Name slice — [Chapter 27](27-arena-and-io-buffers.md#shared-helpers-for-c-names)
 - Newest-first slice lookup — [Chapter 27](27-arena-and-io-buffers.md#shared-helpers-for-c-names)
 - Monolith — [Chapter 38](38-main-and-bootstrap-chain.md)
@@ -298,7 +300,9 @@ when returning after a break.
 - Late tools — [Chapter 52](52-gcc-4-fixed-point.md)
 - Libgcc — [Chapter 52](52-gcc-4-fixed-point.md)
 - Linux boot parameters — [Chapter 55](55-linux-and-kexec.md)
+- Makefile dependency rule — [Chapter 51](51-owning-the-tools.md#read-a-makefile-as-a-dependency-graph)
 - Output pin scope — [Chapter 55](55-linux-and-kexec.md)
+- Parent and child process trace — [Chapter 50](50-seed-cc-fixed-point.md#trace-the-parent-and-child)
 - Physical address — [Chapter 54](54-k0-and-k1.md#two-virtual-addresses-one-physical-byte)
 - RAM-tree import — [Chapter 54](54-k0-and-k1.md)
 - Reproducible build — [Chapter 52](52-gcc-4-fixed-point.md)
@@ -363,6 +367,11 @@ part went well. Before following exact rounding, use
 [Chapter 47's floating representation bridge](47-floats.md). Before
 following K1's page tables and Linux handover, use
 [Chapter 54's address-translation bridge](54-k0-and-k1.md).
+For the build drivers, trace [Chapter 50's parent and child](50-seed-cc-fixed-point.md#trace-the-parent-and-child)
+before following process control, then use [Chapter 51's Makefile bridge](51-owning-the-tools.md#read-a-makefile-as-a-dependency-graph)
+before following the generator dependencies. After the extended compiler,
+[choose a target for a changed case](60-c-subset.md#choose-the-boundary-before-predicting-the-result)
+instead of relying on a checkpoint's preselected setup.
 
 Come back after intervening work: for example, after Chapter 36, explain
 which state belongs to the running Forth compiler and which stack changes

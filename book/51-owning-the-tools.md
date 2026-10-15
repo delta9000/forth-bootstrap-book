@@ -137,6 +137,26 @@ ${MK} -j4 -f ${P}/sed-4.0.9/Makefile
 cd ..
 ```
 
+### Read a Makefile as a dependency graph
+
+In `target: prerequisites`, the target is the product to update; its
+prerequisites must be available first. The tab-indented lines below are
+its **recipe**. For these file rules, a missing target or one older than
+a prerequisite needs rebuilding; an up-to-date target can skip its
+recipe. Rules describe dependencies, not commands to run in file order.
+
+Apply `%.o: %.c` below to `scan-tmp.o`: `%` stands for `scan-tmp`,
+so its prerequisite is `scan-tmp.c`. Make expands `$(CC)` and `$(CFLAGS)`
+before launching the recipe. `$<` means the first prerequisite,
+`scan-tmp.c`; `$@` means the target, `scan-tmp.o`. These are make variables,
+not shell positional parameters. The later flex recipe uses this pattern
+with `config.h` and `parse.h` as additional prerequisites
+(`forth-bootstrap/chain/plumbing/flex-2.5.11/Makefile:29–30`).
+
+A target can also be an executable. Naming it as a prerequisite ensures
+that it is available before a dependent recipe runs; only the recipe's
+command tells us whether it is actually executed.
+
 Make can execute a plain recipe command directly. Shell metacharacters would force it to invoke a shell that has not been built. The package Makefiles therefore use **direct recipes**: a compile, archive, link, or copy command without shell interpretation. The sed rules show that constraint in their object-to-program path (`forth-bootstrap/chain/plumbing/sed-4.0.9/Makefile:24`):
 
 ```make
@@ -247,6 +267,40 @@ scan.c: flex-tmp scan.l
 $(BIN)/flex: $(FINAL) $(LIBL)
 	$(CC) -static -o $@ $(FINAL) $(LIBL)
 ```
+
+Trace this part of the graph on a clean build, assuming the other
+prerequisites can be supplied. Each row waits for its prerequisites; the
+last column identifies the program that actually runs
+(`forth-bootstrap/chain/plumbing/flex-2.5.11/Makefile:7–30`):
+
+| Requested target | Required inputs on this path | Recipe action |
+|---|---|---|
+| `scan-tmp.o` | `scan-tmp.c`, `config.h`, `parse.h` | Run `$(CC)` to compile the temporary scanner |
+| `flex-tmp` | `$(OBJECTS)`, including `scan-tmp.o`, and `$(LIBL)` | Run `$(CC)` to link the temporary executable |
+| `scan.c` | `flex-tmp`, `scan.l` | Run `./flex-tmp scan.l`, then copy its output |
+
+This is a source-derived dependency trace, not a new build transcript.
+The `flex-tmp` rule creates the executable; the `scan.c` rule first runs
+it. Make may build independent prerequisites in another order.
+
+**Predict before continuing.** On a clean build, suppose `scan-tmp.c`
+is absent and no available rule can create it. Can make run the
+`flex-tmp` link recipe and let the C compiler supply the missing scanner?
+
+<details>
+<summary>Check the missing-prerequisite prediction</summary>
+
+No. Without `scan-tmp.c`, make cannot obtain `scan-tmp.o` and satisfy
+the object list for linking `flex-tmp`. A working C compiler does not
+generate that missing scanner source by itself. Independent work might
+continue, but this path stops before linking or executing `flex-tmp`.
+
+This is a manual prediction. If you expected make to reach the link
+command, follow prerequisite edges rather than file order. The clean-build
+condition matters: an existing generated file could conceal the missing
+step.
+
+</details>
 
 The intermediate executable has now done its job. The final link replaces
 `scan-tmp.o` with `scan.o`, so the installed flex contains the scanner
